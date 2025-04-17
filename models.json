@@ -1,0 +1,88 @@
+{
+	"voices": [
+		{
+			"public_owner_id": "1c07ef5740387faa0fd1f7e624ce51055c0b270674ab3da0f0e22c2882bce3c4",
+			"voice_id": "LRpNiUBlcqgIsKUzcrlN",
+			"date_unix": 1723750478,
+			"name": "Grandpa Georg - Funny and Gruff",
+			"accent": "standard",
+			"gender": "male",
+			"age": "old",
+			"descriptive": "raspy",
+			"use_case": "characters_animation",
+			"category": "high_quality",
+			"language": "de",
+			"locale": "de-DE",
+			"description": "Old German male voice, spoken by a grandfather over 90 years of age, quavering, crackly, and raspy. His voice can shift unexpectedly from fragile and strained to surprisingly dynamic, giving him a comical and humorous charm. In his constant, rambling self-talk, he remains gentle, full of character, and endearing. While he might occasionally snap in a gruff and frustrated tone, he quickly softens, returning to the role of the wise and kind elder despite his schoolmasterly presence of a teacher.",
+			"preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/iqZvP9uOFYfUw0BsDUQRmHyEHA02/voices/LRpNiUBlcqgIsKUzcrlN/jp12Vz815tz2p3Rbrtav.mp3",
+			"usage_character_count_1y": 893104,
+			"usage_character_count_7d": 29286,
+			"play_api_usage_character_count_1y": 0,
+			"cloned_by_count": 798,
+			"rate": 46,
+			"free_users_allowed": false,
+			"live_moderation_enabled": false,
+			"featured": false,
+			"verified_languages": [
+				{
+					"language": "de",
+					"model_id": "eleven_turbo_v2_5",
+					"accent": "standard",
+					"locale": "de-DE",
+					"preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/iqZvP9uOFYfUw0BsDUQRmHyEHA02/voices/LRpNiUBlcqgIsKUzcrlN/jp12Vz815tz2p3Rbrtav.mp3"
+				},
+				{
+					"language": "de",
+					"model_id": "eleven_multilingual_sts_v2",
+					"accent": "standard",
+					"locale": "de-DE",
+					"preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/iqZvP9uOFYfUw0BsDUQRmHyEHA02/voices/LRpNiUBlcqgIsKUzcrlN/jp12Vz815tz2p3Rbrtav.mp3"
+				},
+				{
+					"language": "de",
+					"model_id": "eleven_multilingual_v2",
+					"accent": "standard",
+					"locale": "de-DE",
+					"preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/iqZvP9uOFYfUw0BsDUQRmHyEHA02/voices/LRpNiUBlcqgIsKUzcrlN/jp12Vz815tz2p3Rbrtav.mp3"
+				},
+				{
+					"language": "de",
+					"model_id": "eleven_v2_5_flash",
+					"accent": "standard",
+					"locale": "de-DE",
+					"preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/iqZvP9uOFYfUw0BsDUQRmHyEHA02/voices/LRpNiUBlcqgIsKUzcrlN/jp12Vz815tz2p3Rbrtav.mp3"
+				},
+				{
+					"language": "de",
+					"model_id": "eleven_flash_v2_5",
+					"accent": "standard",
+					"locale": "de-DE",
+					"preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/iqZvP9uOFYfUw0BsDUQRmHyEHA02/voices/LRpNiUBlcqgIsKUzcrlN/jp12Vz815tz2p3Rbrtav.mp3"
+				},
+				{
+					"language": "en",
+					"model_id": "eleven_multilingual_v2",
+					"accent": null,
+					"locale": "en-US",
+					"preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/iqZvP9uOFYfUw0BsDUQRmHyEHA02/voices/LRpNiUBlcqgIsKUzcrlN/126807e0-5617-4a54-b09b-e005a4ba8a3f.mp3"
+				},
+				{
+					"language": "pt",
+					"model_id": "eleven_multilingual_v2",
+					"accent": "brazilian",
+					"locale": "pt-BR",
+					"preview_url": "https://storage.googleapis.com/eleven-public-prod/database/user/iqZvP9uOFYfUw0BsDUQRmHyEHA02/voices/LRpNiUBlcqgIsKUzcrlN/9357b491-3ee0-4e8e-ac01-5c81144bf543.mp3"
+				}
+			],
+			"notice_period": 730,
+			"instagram_username": null,
+			"twitter_username": null,
+			"youtube_username": null,
+			"tiktok_username": null,
+			"image_url": "",
+			"is_added_by_user": false
+		}
+	],
+	"has_more": false,
+	"last_sort_id": null
+}
