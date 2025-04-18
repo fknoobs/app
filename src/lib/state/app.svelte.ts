@@ -1,8 +1,11 @@
+import type { Voice } from 'elevenlabs/api';
 import { page } from '$app/state';
 import { ElevenLabs } from '$lib/modules/elevenlabs.svelte';
 import { TTS } from '$lib/modules/tts.svelte';
 import { Twitch } from '$lib/modules/twitch.svelte';
 import { load, type Store } from '@tauri-apps/plugin-store';
+import { TTSPersonal } from '$lib/modules/tts-personal.svelte';
+import type { Module } from '$lib/modules/module.svelte';
 
 /**
  * Defines the structure for a navigation route within the application.
@@ -27,6 +30,8 @@ export type Settings = {
 		twitchAccessToken: string | undefined;
 		provider: 'elevenlabs' | 'brian';
 		voiceName: string;
+		personalVoicesEnabled: boolean;
+		personalVoices: string[];
 	};
 };
 
@@ -36,7 +41,6 @@ export type Settings = {
 class App {
 	/**
 	 * Reactive array holding the application's navigation routes.
-	 * Uses Svelte 5 runes (`$state`) for reactivity.
 	 *
 	 * @public
 	 * @type {Route[]}
@@ -58,7 +62,6 @@ class App {
 
 	/**
 	 * Reactive derived state representing the currently active route based on the browser's URL.
-	 * Uses Svelte 5 runes (`$derived`) for reactivity.
 	 *
 	 * @public
 	 * @type {Route | undefined}
@@ -77,7 +80,6 @@ class App {
 	/**
 	 * Reactive object holding the application's settings.
 	 * Loaded from the store or initialized with defaults.
-	 * Uses Svelte 5 runes (`$state`) for reactivity.
 	 *
 	 * @public
 	 * @type {Settings}
@@ -96,7 +98,9 @@ class App {
 			elevenlabsApiKey: undefined,
 			twitchAccessToken: undefined,
 			provider: 'brian',
-			voiceName: 'Roger'
+			voiceName: 'Roger',
+			personalVoicesEnabled: false,
+			personalVoices: []
 		}
 	});
 
@@ -127,6 +131,27 @@ class App {
 	elevenlabs!: ElevenLabs;
 
 	/**
+	 * Instance of the TTSPersonal module for handling personal TTS functionality.
+	 *
+	 * @public
+	 * @type {TTSPersonal | undefined}
+	 */
+	ttsPersonal!: TTSPersonal;
+
+	/**
+	 * A record mapping module names (strings) to their corresponding class constructors.
+	 * This allows for dynamic instantiation or referencing of modules within the application.
+	 *
+	 * @public
+	 * @type {Record<string, typeof Module>}
+	 */
+	modules: Record<string, typeof Module> = {
+		tts: TTS,
+		elevenlabs: ElevenLabs,
+		twitch: Twitch
+	};
+
+	/**
 	 * Asynchronously initializes the application state.
 	 * Loads the persistent store, retrieves settings, and initializes modules (TTS, Twitch).
 	 * Sets up a listener for changes in the store to keep the `settings` state updated.
@@ -141,14 +166,13 @@ class App {
 		this.twitch = new Twitch();
 		this.tts = new TTS();
 		this.elevenlabs = new ElevenLabs();
+		this.ttsPersonal = new TTSPersonal();
 
 		this.store.onChange(async (key) => {
 			if (key === 'settings') {
 				this.settings = (await this.store.get('settings')) ?? this.settings;
 			}
 		});
-
-		console.log(this);
 	}
 }
 

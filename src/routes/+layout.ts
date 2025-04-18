@@ -15,10 +15,7 @@ export const load = async ({ fetch }) => {
 	}
 
 	await app.boot();
-
-	const command = Command.sidecar('binaries/fknoobs');
-	const output = await command.execute();
-	const response = output.stdout;
+	Command.sidecar('binaries/fknoobs').execute();
 
 	const ws = new WebSocket('ws://localhost:55123');
 

@@ -9,4 +9,10 @@ if (!targetTriple) {
 	console.error('Failed to determine platform target triple');
 }
 
-fs.renameSync(`fknoobs${ext}`, `../src-tauri/binaries/fknoobs-${targetTriple}${ext}`);
+fs.renameSync(`fknoobs.exe`, `../src-tauri/binaries/fknoobs-pc-windows-msvc.exe`);
+
+// if (ext === '.exe') {
+// 	fs.renameSync(`fknoobs.exe`, `../src-tauri/binaries/fknoobs-pc-windows-msvc.exe`);
+// } else {
+// 	fs.renameSync(`fknoobs`, `../src-tauri/binaries/fknoobs-${targetTriple}`);
+// }

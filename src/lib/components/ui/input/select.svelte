@@ -15,6 +15,8 @@
 	let { value = $bindable(), items, contentProps, placeholder, ...restProps }: Props = $props();
 
 	const selectedLabel = $derived(items.find((item) => item.value === value)?.label);
+
+	$inspect(value);
 </script>
 
 <!--

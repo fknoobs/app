@@ -4,12 +4,22 @@ import { ApiClient } from '@twurple/api';
 import { ChatClient, buildEmoteImageUrl } from '@twurple/chat';
 import { PubSubClient } from '@twurple/pubsub';
 import { EventSubWsListener } from '@twurple/eventsub-ws';
+import { Module } from './module.svelte';
 
 /**
  * Represents the Twitch integration module.
  * Handles authentication and interaction with the Twitch API.
  */
-export class Twitch {
+export class Twitch extends Module {
+	/**
+	 * Indicates whether the Twitch module is enabled.
+	 * This is derived from the application settings.
+	 *
+	 * @readonly
+	 * @type {boolean}
+	 */
+	enabled = $derived(!!app.settings.tts.twitchAccessToken);
+
 	/**
 	 * The client ID for the Twitch application.
 	 *
@@ -69,26 +79,10 @@ export class Twitch {
 	public events: EventSubWsListener | undefined = $state(undefined);
 
 	/**
-	 * Initializes the Twitch class.
-	 * Sets up an effect to initialize the Twitch client whenever the access token changes.
-	 */
-	constructor() {
-		$effect.root(() => {
-			$effect(() => {
-				if (this.accessToken) {
-					this.initializeTwitchClient();
-				} else {
-					this.disconnect();
-				}
-			});
-		});
-	}
-
-	/**
 	 * Initializes the Twurple ApiClient with the provided credentials.
 	 * Logs an error if the access token is missing.
 	 */
-	private async initializeTwitchClient() {
+	async init() {
 		if (!this.accessToken) {
 			console.error('Twitch access token is not set.');
 			return;
@@ -119,4 +113,6 @@ export class Twitch {
 			this.isConnected = false;
 		}
 	}
+
+	destroy(): void {}
 }

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { ElevenLabs } from 'elevenlabs';
 	import { Button } from '$lib/components/ui/button';
 	import { Checkbox, Input, RadioGroup } from '$lib/components/ui/input';
 	import { app } from '$lib/state/app.svelte';
@@ -13,21 +14,25 @@
 
 	let isSaving = $state(false);
 	let ttsProvider = $derived(app.settings.tts.provider);
+	let voices = $state<ElevenLabs.Voice[]>([]);
+	let isPersonalVoicesEnabled = $derived(app.settings.tts.personalVoicesEnabled ?? false);
+	let personalVoices = $state<string[]>(app.settings.tts.personalVoices ?? []);
 
 	const submit = async (e: SubmitEvent) => {
 		e.preventDefault();
 		isSaving = true;
 
 		const formData = new FormData(e.target as HTMLFormElement);
-		const { enabled, channel, elevenlabsApiKey, provider, voiceName } = Object.fromEntries(
-			formData.entries()
-		);
-
+		const { enabled, channel, elevenlabsApiKey, provider, voiceName, personalVoicesEnabled } =
+			Object.fromEntries(formData.entries());
+		console.log(personalVoices);
 		app.settings.tts.enabled = enabled === 'on';
 		app.settings.tts.channel = channel as string;
 		app.settings.tts.elevenlabsApiKey = elevenlabsApiKey as string;
 		app.settings.tts.provider = provider as 'brian' | 'elevenlabs';
 		app.settings.tts.voiceName = voiceName as string;
+		app.settings.tts.personalVoicesEnabled = personalVoicesEnabled === 'on';
+		app.settings.tts.personalVoices = personalVoices;
 
 		await app.store.set('settings', app.settings);
 
@@ -47,7 +52,10 @@
 
 		url.searchParams.set('response_type', 'token');
 		url.searchParams.set('redirect_uri', `http://localhost:${port}`);
-		url.searchParams.set('scope', 'user:read:email chat:read chat:edit channel:read:redemptions');
+		url.searchParams.set(
+			'scope',
+			'user:read:email chat:read chat:edit channel:read:redemptions channel:manage:redemptions'
+		);
 		url.searchParams.set('client_id', app.twitch.clientId);
 		url.searchParams.set('state', state);
 
@@ -79,10 +87,14 @@
 		toast.success('Successfully disconnected from Twitch');
 	};
 
-	const getVoices = () => app.elevenlabs.client?.voices.getAll();
-
 	onMount(async () => {
-		console.log(await getVoices());
+		const response = await app.elevenlabs.client?.voices.getAll();
+
+		if (!response) {
+			voices = [];
+		} else {
+			voices = response.voices;
+		}
 	});
 </script>
 
@@ -92,7 +104,7 @@
 		<Checkbox label="Enabled" name="enabled" checked={app.settings.tts.enabled} />
 	</div>
 	<div class="mb-4 flex flex-col items-start gap-2">
-		<Label>Twitch Channel {app.tts.isPlaying ? 'yes' : 'no'}</Label>
+		<Label>Twitch Channel</Label>
 		{#if app.twitch.isConnected}
 			<span class="flex items-center gap-2">
 				<Button variant="secondary" onclick={disconnect} type="button">Disconnect</Button>
@@ -104,11 +116,6 @@
 				Connect Twitch
 			</Button>
 		{/if}
-		<!-- <Input
-			placeholder="Enter your twitch channel ..."
-			name="channel"
-			value={app.settings.tts.channel}
-		/> -->
 	</div>
 	<div class="mb-4 flex flex-col gap-2">
 		<Label>TTS Provider</Label>
@@ -128,47 +135,65 @@
 				direction="horizontal"
 				bind:value={ttsProvider}
 			/>
-			<!-- <Checkbox
-				label="Brian"
-				name="provider"
-				value="brian"
-				checked={app.settings.tts.provider === 'brian'}
-                bind:group={app.settings.tts.provider}
-			/>
-			<Checkbox
-				label="Elevenlabs"
-				name="provider"
-				value="elevenlabs"
-				checked={app.settings.tts.provider === 'elevenlabs'}
-			/> -->
 		</div>
 	</div>
-	<div class={cn('mb-4 flex flex-col gap-2', ttsProvider === 'brian' && 'hidden')}>
-		<Label>Elevenlabs API key</Label>
-		<Input
-			placeholder="Enter elevenlabs API key ..."
-			name="elevenlabsApiKey"
-			value={app.settings.tts.elevenlabsApiKey}
-		/>
-	</div>
-	<div class={cn('mb-4 flex flex-col gap-2', ttsProvider === 'brian' && 'hidden')}>
-		{#await getVoices() then response}
-			{@const items = response?.voices.map((voice) => ({
-				value: voice.name!,
-				label: voice.name!,
-				disabled: false
-			}))}
-			{#if items}
-				<Label>Voice character</Label>
-				<Select
-					{items}
-					type="single"
-					placeholder="Select voice"
-					name="voiceName"
-					value={app.settings.tts.voiceName}
-				/>
+	<div class={cn(ttsProvider === 'brian' && 'hidden')}>
+		<div class={cn('mb-4 flex flex-col gap-2')}>
+			<Label>Elevenlabs API key</Label>
+			<Input
+				placeholder="Enter elevenlabs API key ..."
+				name="elevenlabsApiKey"
+				value={app.settings.tts.elevenlabsApiKey}
+			/>
+		</div>
+		<div class={cn('mb-4 flex flex-col gap-2')}>
+			{#if voices.length > 0}
+				{@const items = voices.map((voice) => ({
+					value: voice.name!,
+					label: voice.name!,
+					disabled: false
+				}))}
+				{#if items}
+					<Label>Voice character</Label>
+					<Select
+						{items}
+						type="single"
+						placeholder="Select voice"
+						name="voiceName"
+						value={app.settings.tts.voiceName}
+					/>
+				{/if}
 			{/if}
-		{/await}
+		</div>
+		<div class="mb-4 flex flex-col gap-2">
+			<Label>Enable personal voices?</Label>
+			<Checkbox
+				label="Enabled"
+				name="personalVoicesEnabled"
+				bind:checked={isPersonalVoicesEnabled}
+			/>
+		</div>
+		<div class={cn(isPersonalVoicesEnabled === false && 'hidden')}>
+			<div class="mb-4 flex flex-col gap-2">
+				{#if voices.length > 0}
+					{@const items = voices.map((voice) => ({
+						value: voice.name!,
+						label: voice.name!,
+						disabled: false
+					}))}
+					{#if items}
+						<Label>Select voices</Label>
+						<Select
+							{items}
+							type="multiple"
+							placeholder="Select voice"
+							name="personalVoices"
+							bind:value={personalVoices}
+						/>
+					{/if}
+				{/if}
+			</div>
+		</div>
 	</div>
 	<div>
 		<Button loading={isSaving}>Save</Button>

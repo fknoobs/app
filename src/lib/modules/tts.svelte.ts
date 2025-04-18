@@ -2,7 +2,9 @@ import type { ChatMessage } from '@twurple/chat';
 import type { VoiceSettings } from 'elevenlabs/api';
 import type { Listener } from '@d-fischer/typed-event-emitter';
 import { app } from '$lib/state/app.svelte';
-import { Module } from './modele.svelte';
+import { Module } from './module.svelte';
+import { translate } from 'google-translate-api-x';
+import { fetch } from '@tauri-apps/plugin-http';
 
 /**
  * Represents the Text-to-Speech (TTS) module.
@@ -97,20 +99,6 @@ export class TTS extends Module {
 		this.isInitialized = true;
 		this.startPlaybackLoop();
 
-		const allVoicesData = await app.elevenlabs.client?.voices.getAll();
-
-		if (allVoicesData?.voices.find((voice) => voice.name === 'Heidrich') === undefined) {
-			app.elevenlabs.client?.voices.addSharingVoice(
-				'1c07ef5740387faa0fd1f7e624ce51055c0b270674ab3da0f0e22c2882bce3c4',
-				'LRpNiUBlcqgIsKUzcrlN',
-				{
-					new_name: 'Heidrich'
-				}
-			);
-
-			console.log('TTS Module: added Heidrich voice');
-		}
-
 		this.chatListener = app.twitch.chatClient?.onMessage((channel, users, text, msg) =>
 			this.message(channel, users, text, msg)
 		);
@@ -137,7 +125,7 @@ export class TTS extends Module {
 		}
 
 		if (app.settings.tts.provider === 'elevenlabs') {
-			await this.elevenlabs(message);
+			await this.elevenlabs(message, user);
 		}
 
 		if (app.settings.tts.provider === 'brian') {
@@ -151,7 +139,7 @@ export class TTS extends Module {
 	 * @param message
 	 * @private
 	 */
-	private async elevenlabs(message: string) {
+	private async elevenlabs(message: string, user: string) {
 		if (!app.elevenlabs.client) {
 			console.error('#33100: ElevenLabs client is not initialized.');
 			return;
@@ -163,9 +151,16 @@ export class TTS extends Module {
 			style: 1
 		};
 
+		const voice = app.ttsPersonal.activeVoices[user] || app.settings.tts.voiceName;
+
+		if (voice === 'Adolf') {
+			const response = await translate(message, { to: 'de', requestFunction: fetch });
+			message = response.text;
+		}
+
 		try {
 			const audioStream = (await app.elevenlabs.client.generate({
-				voice: app.settings.tts.voiceName,
+				voice,
 				text: message,
 				model_id: 'eleven_multilingual_v2',
 				enable_logging: false,

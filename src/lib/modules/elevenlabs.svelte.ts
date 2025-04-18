@@ -1,6 +1,7 @@
 import { app } from '$lib/state/app.svelte';
 import { ElevenLabsClient } from 'elevenlabs';
-import { Module } from './modele.svelte';
+import { Module } from './module.svelte';
+import { init } from '$lib/elevenlabs';
 
 export class ElevenLabs extends Module {
 	/**
@@ -38,6 +39,7 @@ export class ElevenLabs extends Module {
 		}
 
 		this.client = new ElevenLabsClient({ apiKey: this.apiKey });
+		init();
 	}
 
 	destroy() {}
