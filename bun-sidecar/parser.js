@@ -1,20 +1,32 @@
 import fs from 'fs';
 const logger = console; // Using console for logging as in the original JS
 
-// Placeholder for Settings and UCS classes/functionality if needed later
+// Placeholder for Settings class/functionality if needed later
 // import { Settings } from './classes/oppbot_settings.js'; // Assuming path
-// import { UCS } from './classes/oppbot_ucs.js'; // Assuming path
+import { UCS } from './ucs'; // Import the new UCS class
 
 class ReplayParser {
 	constructor(filePath = null, settings = null) {
 		// this.settings = settings || new Settings(); // Uncomment if Settings class is available
-		this.settings = settings || {}; // Using placeholder
+		this.settings = settings || {}; // Using placeholder object for settings
+
+		// *** ADD A DEFAULT UCS PATH TO SETTINGS IF NEEDED ***
+		// Example: Ensure a default path exists if not provided externally
+		if (!this.settings.data) this.settings.data = {};
+		if (!this.settings.data.cohUCSPath) {
+			// Set a sensible default or expect it to be passed in
+			// this.settings.data.cohUCSPath = '/path/to/your/RelicCoH.English.ucs';
+			logger.warn(
+				"Settings object provided to ReplayParser does not contain 'cohUCSPath'. UCS resolution might fail."
+			);
+		}
+		// *****************************************************
 
 		this.filePath = filePath;
 
 		this.fileVersion = null;
 		this.chunkyVersion = null;
-		this.randomStart = null;
+		this.randomStart = false; // Initialize explicitly to false
 		this.highResources = null;
 		this.VPCount = null;
 		this.matchType = null;
@@ -24,10 +36,10 @@ class ReplayParser {
 		this.replayName = null;
 		this.gameVersion = null;
 		this.modName = null;
-		this.mapName = null;
-		this.mapNameFull = null; // Needs UCS resolution
-		this.mapDescription = null;
-		this.mapDescriptionFull = null; // Needs UCS resolution
+		this.mapName = null; // This holds the UCS string like "$12345"
+		this.mapNameFull = null; // This will hold the resolved string
+		this.mapDescription = null; // This holds the UCS string
+		this.mapDescriptionFull = null; // This will hold the resolved string
 		this.mapFileName = null;
 		this.mapWidth = null;
 		this.mapHeight = null;
@@ -39,6 +51,9 @@ class ReplayParser {
 
 		this.data = null; // Will hold the Buffer
 		this.dataIndex = 0;
+
+		// Instantiate UCS helper here, passing the settings
+		this.ucsResolver = new UCS({ settings: this.settings });
 
 		if (filePath) {
 			this.load(filePath);
@@ -383,26 +398,40 @@ class ReplayParser {
 
 		// Now parse the main FOLD chunks
 		this.parseChunk(0); // Parse first main FOLD (usually FOLDPOST)
-		if (!this.success) return false;
+		if (!this.success) return false; // Stop if first parse fails
 		this.parseChunk(0); // Parse second main FOLD (usually FOLD____)
-		if (!this.success) return false;
+		// Allow continuing even if second parse fails, to attempt UCS resolution
 
-		// this.resolve_mapNameFull_And_mapDescription_From_UCS(); // Needs UCS class
+		// Resolve UCS strings after parsing main chunks
+		this.resolve_mapNameFull_And_mapDescription_From_UCS();
 
-		return this.success;
+		return this.success; // Return the final success state
 	}
 
-	// Placeholder for UCS resolution if implemented later
-	// resolve_mapNameFull_And_mapDescription_From_UCS() {
-	//     try {
-	//         const ucs = new UCS({ settings: this.settings }); // Assuming UCS constructor
-	//         this.mapNameFull = ucs.compare_UCS(this.mapName);
-	//         this.mapDescriptionFull = ucs.compare_UCS(this.mapDescription);
-	//     } catch (err) {
-	//         logger.error("Failed to resolve UCS strings: " + err.message);
-	//         // Decide if this should set this.success = false
-	//     }
-	// }
+	// Resolve UCS strings using the UCS class instance
+	resolve_mapNameFull_And_mapDescription_From_UCS() {
+		try {
+			// Use the ucsResolver instance created in the constructor
+			this.mapNameFull = this.ucsResolver.compare_UCS(this.mapName);
+			this.mapDescriptionFull = this.ucsResolver.compare_UCS(this.mapDescription);
+			// If compare_UCS returns the original string on failure/not found,
+			// mapNameFull will be the same as mapName (e.g., "$12345")
+			// You might want to check this:
+			if (this.mapNameFull === this.mapName) {
+				logger.warn(`Could not resolve map name UCS string: ${this.mapName}`);
+			}
+			if (this.mapDescriptionFull === this.mapDescription) {
+				logger.warn(`Could not resolve map description UCS string: ${this.mapDescription}`);
+			}
+		} catch (err) {
+			logger.error('Failed to resolve UCS strings: ' + err.message);
+			// Decide if this should set this.success = false
+			// this.success = false;
+			// Set to null or keep original UCS string if resolution fails
+			this.mapNameFull = this.mapNameFull || this.mapName;
+			this.mapDescriptionFull = this.mapDescriptionFull || this.mapDescription;
+		}
+	}
 
 	/**
 	 * Recursively parses data chunks.
@@ -410,37 +439,31 @@ class ReplayParser {
 	 */
 	parseChunk(level) {
 		if (!this.success) {
-			// logger.log(`${'  '.repeat(level)}Skipping chunk parse due to previous error.`); // Optional: uncomment for more verbose skipping info
 			return;
 		}
 
-		const chunkStartOffset = this.dataIndex; // Remember where this chunk definition starts
-		// logger.log(`${'  '.repeat(level)}Attempting to read chunk header at offset ${chunkStartOffset}`); // Debug log
-
-		const chunkTypeBytes = this.readBytes(8); // Read type as bytes first for logging
+		const chunkStartOffset = this.dataIndex;
+		const chunkTypeBytes = this.readBytes(8);
 		if (!this.success || chunkTypeBytes === undefined) {
 			logger.error(`${'  '.repeat(level)}Failed to read chunk type at offset ${chunkStartOffset}`);
-			this.success = false; // Ensure failure is marked
+			this.success = false;
 			return;
 		}
-		const chunkType = chunkTypeBytes.toString('ascii'); // Convert to string
-
+		const chunkType = chunkTypeBytes.toString('ascii');
 		const chunkVersion = this.readUnsignedLong4Bytes();
 		if (!this.success || chunkVersion === undefined) {
 			logger.error(
 				`${'  '.repeat(level)}Failed to read chunk version for type ${chunkType} at offset ${this.dataIndex - 4}`
 			);
-			return; // Success already set to false by read function
+			return;
 		}
-
-		const chunkLength = this.readUnsignedLong4Bytes(); // This is the length of the DATA *within* the chunk
+		const chunkLength = this.readUnsignedLong4Bytes();
 		if (!this.success || chunkLength === undefined) {
 			logger.error(
 				`${'  '.repeat(level)}Failed to read chunk data length for type ${chunkType} v${chunkVersion} at offset ${this.dataIndex - 4}`
 			);
 			return;
 		}
-
 		const chunkNameLength = this.readUnsignedLong4Bytes();
 		if (!this.success || chunkNameLength === undefined) {
 			logger.error(
@@ -448,15 +471,13 @@ class ReplayParser {
 			);
 			return;
 		}
-
-		this.seek(8, 1); // Skip 8 unknown/padding bytes
+		this.seek(8, 1);
 		if (!this.success) {
 			logger.error(
 				`${'  '.repeat(level)}Failed to seek past padding for type ${chunkType} v${chunkVersion} at offset ${this.dataIndex - 8}`
 			);
 			return;
 		}
-
 		let chunkName = null;
 		if (chunkNameLength > 0) {
 			chunkName = this.readASCIIString(chunkNameLength);
@@ -464,15 +485,13 @@ class ReplayParser {
 				logger.error(
 					`${'  '.repeat(level)}Failed to read chunk name (${chunkNameLength} bytes) for type ${chunkType} v${chunkVersion}`
 				);
-				return; // Stop processing this chunk if name read fails
+				return;
 			}
 		}
-
-		const chunkHeaderSize = 28 + chunkNameLength; // 8(type)+4(ver)+4(len)+4(nameLen)+8(pad)+nameLen
+		const chunkHeaderSize = 28 + chunkNameLength;
 		const chunkDataStart = chunkStartOffset + chunkHeaderSize;
-		const expectedEndOfChunk = chunkDataStart + chunkLength; // End of data = start of data + data length
+		const expectedEndOfChunk = chunkDataStart + chunkLength;
 
-		// More detailed log entry
 		logger.log(
 			`${'  '.repeat(level)}Parsing Chunk: Type=${chunkType}, Version=${chunkVersion}, DataLength=${chunkLength}, NameLength=${chunkNameLength}, Name=${chunkName || 'N/A'}, HeaderStart=${chunkStartOffset}, DataStart=${chunkDataStart}, ExpectedEnd=${expectedEndOfChunk}, CurrentIndex=${this.dataIndex}`
 		);
@@ -483,7 +502,6 @@ class ReplayParser {
 		}
 
 		try {
-			// Recurse into FOLD chunks
 			if (chunkType.startsWith('FOLD')) {
 				logger.log(
 					`${'  '.repeat(level)}Entering FOLD chunk. Current index: ${this.dataIndex}, Expected end: ${expectedEndOfChunk}`
@@ -491,33 +509,27 @@ class ReplayParser {
 				while (this.dataIndex < expectedEndOfChunk && this.success) {
 					const currentPosBeforeSubChunk = this.dataIndex;
 					this.parseChunk(level + 1);
-					// Check if parseChunk failed and didn't advance index, prevent infinite loop
 					if (!this.success || this.dataIndex === currentPosBeforeSubChunk) {
 						logger.error(
 							`${'  '.repeat(level)}Sub-chunk parsing failed or did not advance index. Breaking FOLD loop. Index: ${this.dataIndex}`
 						);
 						if (this.success && this.dataIndex === currentPosBeforeSubChunk) {
-							// If success is true but index didn't change, it means an empty or unhandled chunk was parsed.
-							// Avoid infinite loop by forcing failure or seeking past manually. Let's mark failure.
 							this.success = false;
 						}
 						break;
 					}
 				}
-				// Check if recursion finished correctly or stopped early
 				if (this.dataIndex !== expectedEndOfChunk && this.success) {
 					logger.warn(
 						`${'  '.repeat(level)}FOLD chunk ${chunkType} parsing finished at ${this.dataIndex}, but expected end was ${expectedEndOfChunk}. Seeking to expected end.`
 					);
-					this.seek(expectedEndOfChunk, 0); // Force seek
+					this.seek(expectedEndOfChunk, 0);
 				} else if (!this.success) {
 					logger.error(
 						`${'  '.repeat(level)}FOLD chunk ${chunkType} parsing failed. Index: ${this.dataIndex}, Expected end: ${expectedEndOfChunk}`
 					);
-					// Attempt to seek to end anyway to potentially recover for sibling chunks
 					if (this.data && expectedEndOfChunk <= this.data.length) {
 						this.seek(expectedEndOfChunk, 0);
-						// Keep success as false to indicate overall failure, but allow parsing siblings
 						logger.warn(
 							`${'  '.repeat(level)}Attempted recovery seek to ${expectedEndOfChunk} after FOLD error.`
 						);
@@ -527,9 +539,7 @@ class ReplayParser {
 						`${'  '.repeat(level)}Successfully parsed FOLD chunk ${chunkType}. Index reached expected end: ${this.dataIndex}`
 					);
 				}
-			}
-			// Parse specific DATA chunks based on type and version
-			else if (chunkType === 'DATASDSC' && chunkVersion === 2004) {
+			} else if (chunkType === 'DATASDSC' && chunkVersion === 2004) {
 				logger.log(
 					`${'  '.repeat(level)}Parsing DATASDSC v${chunkVersion} - Start Index: ${this.dataIndex}`
 				);
@@ -598,19 +608,18 @@ class ReplayParser {
 				logger.log(
 					`${'  '.repeat(level)}Parsing DATABASE v${chunkVersion} - Start Index: ${this.dataIndex}`
 				);
-				// ... (reads before game version indicator) ...
 				this.seek(16, 1);
 				logger.log(`${'  '.repeat(level)}  After seek 16: ${this.dataIndex}`);
 				const randomStartVal = this.readUnsignedLong4Bytes();
 				logger.log(`${'  '.repeat(level)}  After randomStartVal: ${this.dataIndex}`);
 				if (this.success) this.randomStart = randomStartVal !== undefined && randomStartVal !== 0;
 				this.readUnsignedLong4Bytes();
-				logger.log(`${'  '.repeat(level)}  After COLS: ${this.dataIndex}`); // COLS
+				logger.log(`${'  '.repeat(level)}  After COLS: ${this.dataIndex}`);
 				const highResVal = this.readUnsignedLong4Bytes();
 				logger.log(`${'  '.repeat(level)}  After highResVal: ${this.dataIndex}`);
 				if (this.success) this.highResources = highResVal === 1;
 				this.readUnsignedLong4Bytes();
-				logger.log(`${'  '.repeat(level)}  After TSSR: ${this.dataIndex}`); // TSSR
+				logger.log(`${'  '.repeat(level)}  After TSSR: ${this.dataIndex}`);
 				const vpVal = this.readUnsignedLong4Bytes();
 				logger.log(`${'  '.repeat(level)}  After vpVal: ${this.dataIndex}`);
 				if (this.success && vpVal !== undefined) {
@@ -623,44 +632,69 @@ class ReplayParser {
 				this.seek(8, 1);
 				logger.log(`${'  '.repeat(level)}  After seek 8: ${this.dataIndex}`);
 
-				const gameVersionIndicator = this.readUnsignedLong4Bytes();
+				const vpGameIndicator = this.readUnsignedLong4Bytes();
+				if (this.success) this.VPGame = vpGameIndicator === 0x603872a3;
 				logger.log(
-					`${'  '.repeat(level)}  After gameVersionIndicator (${gameVersionIndicator}): ${this.dataIndex}`
-				); // Index is now positioned AFTER the indicator
+					`${'  '.repeat(level)}  After vpGameIndicator (${vpGameIndicator}): ${this.dataIndex}`
+				);
 
-				if (this.success && gameVersionIndicator === 2) {
+				this.seek(23, 1);
+				logger.log(`${'  '.repeat(level)}  After seek 23: ${this.dataIndex}`);
+
+				const gameMinorVersion = this.readLengthASCIIString();
+				logger.log(
+					`${'  '.repeat(level)}  After gameMinorVersion (${gameMinorVersion?.length}): ${this.dataIndex}`
+				);
+
+				this.seek(4, 1);
+				logger.log(`${'  '.repeat(level)}  After seek 4: ${this.dataIndex}`);
+
+				const gameMajorVersion = this.readLengthASCIIString();
+				logger.log(
+					`${'  '.repeat(level)}  After gameMajorVersion (${gameMajorVersion?.length}): ${this.dataIndex}`
+				);
+
+				this.seek(8, 1);
+				logger.log(`${'  '.repeat(level)}  After seek 8: ${this.dataIndex}`);
+
+				const matchNameIndicator = this.readUnsignedLong4Bytes();
+				logger.log(
+					`${'  '.repeat(level)}  After matchNameIndicator (${matchNameIndicator}): ${this.dataIndex}`
+				);
+
+				if (this.success && matchNameIndicator === 2) {
 					this.readLengthASCIIString();
-					logger.log(`${'  '.repeat(level)}  After gameversion string 1: ${this.dataIndex}`); // gameversion string 1 (ignore)
+					logger.log(
+						`${'  '.repeat(level)}  After gameversion string 1 (ignored): ${this.dataIndex}`
+					);
 					this.gameVersion = this.readLengthASCIIString();
-					logger.log(`${'  '.repeat(level)}  After gameVersion string 2: ${this.dataIndex}`); // gameversion string 2 (capture)
+					logger.log(
+						`${'  '.repeat(level)}  After gameVersion string 2 (captured): ${this.dataIndex}`
+					);
 				}
 
-				// --- Problem Area ---
-				// The index should now be correctly positioned *after* gameVersionIndicator
+				const unknownStringBeforeMatchType = this.readLengthASCIIString();
 				logger.log(
-					`${'  '.repeat(level)}  Attempting to read unknown string before matchType at index: ${this.dataIndex}`
-				);
-				this.readLengthASCIIString(); // Unknown string before matchType? (ignore based on python)
-				logger.log(
-					`${'  '.repeat(level)}  After unknown string read (Success: ${this.success}): ${this.dataIndex}`
+					`${'  '.repeat(level)}  After unknown string before matchType (${unknownStringBeforeMatchType?.length}): ${this.dataIndex}`
 				);
 
 				if (this.success) {
-					// Only attempt matchType if previous read succeeded
 					logger.log(
 						`${'  '.repeat(level)}  Attempting to read matchType at index: ${this.dataIndex}`
 					);
-					this.matchType = this.readLengthASCIIString(); // This should now read the correct data
+					this.matchType = this.readLengthASCIIString();
 					logger.log(
 						`${'  '.repeat(level)}  After matchType read (Success: ${this.success}): ${this.dataIndex}`
 					);
 
-					// Handle specific Korean automatch string case from Python
 					if (
-						this.success && // Check success before accessing matchType
+						this.success &&
 						this.matchType &&
 						this.matchType.includes('\uc0de\u0bad\u0101\u4204\u4cc5\u0103\u1000')
 					) {
+						logger.log(
+							`${'  '.repeat(level)}  Detected Korean automatch string, setting matchType to 'automatch'.`
+						);
 						this.matchType = 'automatch';
 					}
 				}
@@ -670,14 +704,13 @@ class ReplayParser {
 			} else if (chunkType === 'DATAINFO' && chunkVersion === 6) {
 				logger.log(`${'  '.repeat(level)}>>> Found DATAINFO v${chunkVersion} <<<`);
 				const userName = this.readLengthString();
-				this.readUnsignedLong4Bytes(); // unknown
-				this.readUnsignedLong4Bytes(); // unknown
+				this.readUnsignedLong4Bytes();
+				this.readUnsignedLong4Bytes();
 				const faction = this.readLengthASCIIString();
-				this.readUnsignedLong4Bytes(); // unknown
-				this.readUnsignedLong4Bytes(); // unknown
+				this.readUnsignedLong4Bytes();
+				this.readUnsignedLong4Bytes();
 
 				if (this.success) {
-					// Only add if reading was successful
 					logger.log(`${'  '.repeat(level)}  Adding Player: Name=${userName}, Faction=${faction}`);
 					this.playerList.push({ name: userName, faction: faction });
 				} else {
@@ -685,13 +718,11 @@ class ReplayParser {
 				}
 				logger.log(`${'  '.repeat(level)}Finished parsing DATAINFO. Success: ${this.success}`);
 			} else {
-				// Log unhandled DATA chunks
 				logger.log(
 					`${'  '.repeat(level)}Skipping unhandled chunk: Type=${chunkType}, Version=${chunkVersion}, Name=${chunkName || 'N/A'}`
 				);
 			}
 
-			// Ensure we are at the end of the chunk data, even if we didn't parse it or skipped it
 			if (this.success && this.dataIndex !== expectedEndOfChunk) {
 				logger.warn(
 					`${'  '.repeat(level)}Data index ${this.dataIndex} does not match expected end ${expectedEndOfChunk} for chunk ${chunkType} v${chunkVersion}. Seeking to expected end.`
@@ -701,24 +732,19 @@ class ReplayParser {
 				logger.error(
 					`${'  '.repeat(level)}Parsing failed within or before chunk ${chunkType} v${chunkVersion}. Index: ${this.dataIndex}, Expected End: ${expectedEndOfChunk}`
 				);
-				// Attempt to recover by seeking to the expected end of the chunk
 				if (this.data && expectedEndOfChunk <= this.data.length) {
 					this.seek(expectedEndOfChunk, 0);
-					// Keep success as false
 					logger.warn(
 						`${'  '.repeat(level)}Attempted recovery seek to ${expectedEndOfChunk} after error in ${chunkType}.`
 					);
 				}
-			} else {
-				// logger.log(`${'  '.repeat(level)}Successfully parsed/skipped chunk ${chunkType}. Index reached expected end: ${this.dataIndex}`); // Optional: uncomment for verbose success
 			}
 		} catch (err) {
 			logger.error(
 				`${'  '.repeat(level)}Critical error during parsing chunk ${chunkType} (v${chunkVersion}, name: ${chunkName || 'N/A'}) at offset ${chunkStartOffset}: ${err.message}`
 			);
-			logger.error(err.stack); // Log stack trace for critical errors
+			logger.error(err.stack);
 			this.success = false;
-			// Attempt to recover by seeking to the expected end of the chunk
 			if (this.data && expectedEndOfChunk <= this.data.length) {
 				this.seek(expectedEndOfChunk, 0);
 				logger.warn(
@@ -737,85 +763,70 @@ class ReplayParser {
 		if (!timeString) return null;
 
 		try {
-			// NEW: DD/MM/YYYY HH:MM (common non-US format)
 			const reEuroSlash = /(\d{2})\/(\d{2})\/(\d{4})\s(\d{2}):(\d{2})/;
 			let match = timeString.match(reEuroSlash);
 			if (match) {
-				// logger.info("Euro Slash Date String:", match.slice(1));
 				return new Date(
-					parseInt(match[3], 10), // year
-					parseInt(match[2], 10) - 1, // month (0-indexed)
-					parseInt(match[1], 10), // day
-					parseInt(match[4], 10), // hour
-					parseInt(match[5], 10) // minute
+					parseInt(match[3], 10),
+					parseInt(match[2], 10) - 1,
+					parseInt(match[1], 10),
+					parseInt(match[4], 10),
+					parseInt(match[5], 10)
 				);
 			}
 
-			// 24hr: DD.MM.YYYY HH.mm (Note: JS Date month is 0-indexed)
 			const reEuro = /(\d{2})\.(\d{2})\.(\d{4})\s(\d{2})\.(\d{2})/;
 			match = timeString.match(reEuro);
 			if (match) {
-				// logger.info("Euro Date String:", match.slice(1));
 				return new Date(
-					parseInt(match[3], 10), // year
-					parseInt(match[2], 10) - 1, // month (0-indexed)
-					parseInt(match[1], 10), // day
-					parseInt(match[4], 10), // hour
-					parseInt(match[5], 10) // minute
+					parseInt(match[3], 10),
+					parseInt(match[2], 10) - 1,
+					parseInt(match[1], 10),
+					parseInt(match[4], 10),
+					parseInt(match[5], 10)
 				);
 			}
 
-			// 12hr: MM/DD/YYYY hh:mm XM *numbers are not 0-padded (using . as separator based on python)
-			// Regex adjusted for flexibility (1-2 digits, any non-digit separator)
 			const reUS = /(\d{1,2})[^\d](\d{1,2})[^\d](\d{4})\s(\d{1,2})\.(\d{2}).*?([APap])M/;
 			match = timeString.match(reUS);
 			if (match) {
-				// logger.info("US Date String:", match.slice(1));
 				let hour = parseInt(match[4], 10);
 				const meridiem = match[6].toLowerCase();
 				if (meridiem === 'p' && hour !== 12) {
-					// Add 12 for PM hours, except 12 PM
 					hour += 12;
 				} else if (meridiem === 'a' && hour === 12) {
-					// Handle 12 AM (midnight)
 					hour = 0;
 				}
 				return new Date(
-					parseInt(match[3], 10), // year
-					parseInt(match[1], 10) - 1, // month (0-indexed)
-					parseInt(match[2], 10), // day
+					parseInt(match[3], 10),
+					parseInt(match[1], 10) - 1,
+					parseInt(match[2], 10),
 					hour,
-					parseInt(match[5], 10) // minute
+					parseInt(match[5], 10)
 				);
 			}
 
-			// YYYY/MM/DD HH:MM (with Korean AM/PM)
-			// Regex adjusted: (\d{4}).(\d{2}).(\d{2})\s([^\u0000-\u007F]+)\s(\d{1,2}).(\d{2})
-			// The middle part [^\u0000-\u007F]+ matches non-ASCII, assuming Korean AM/PM symbols
 			const reAsian = /(\d{4})\D(\d{2})\D(\d{2})\s([^\u0000-\u007F]+)\s(\d{1,2})\D(\d{2})/;
 			match = timeString.match(reAsian);
 			if (match) {
-				// logger.info("Asian Date String:", match.slice(1));
 				let hour = parseInt(match[5], 10);
-				const meridiem = match[4]; // e.g., "오후"
-				// Check if it's the Korean PM indicator
+				const meridiem = match[4];
 				if (meridiem === '오후' && hour !== 12) {
 					hour += 12;
 				} else if (meridiem === '오전' && hour === 12) {
-					// Handle Korean 12 AM
 					hour = 0;
 				}
 				return new Date(
-					parseInt(match[1], 10), // year
-					parseInt(match[2], 10) - 1, // month (0-indexed)
-					parseInt(match[3], 10), // day
+					parseInt(match[1], 10),
+					parseInt(match[2], 10) - 1,
+					parseInt(match[3], 10),
 					hour,
-					parseInt(match[6], 10) // minute
+					parseInt(match[6], 10)
 				);
 			}
 
 			logger.warn(`Could not parse date string format: "${timeString}"`);
-			return null; // Format not recognized
+			return null;
 		} catch (err) {
 			logger.error(`Error decoding date string "${timeString}": ${err.message}`);
 			return null;
@@ -844,9 +855,9 @@ class ReplayParser {
 		output += `Game Version: ${this.gameVersion}\n`;
 		output += `Mod Name: ${this.modName}\n`;
 		output += `Map Name UCS: ${this.mapName}\n`;
-		output += `Map Name Full: ${this.mapNameFull || 'N/A (Requires UCS)'}\n`;
+		output += `Map Name Full: ${this.mapNameFull || 'N/A (Resolution failed or pending)'}\n`;
 		output += `Map Description UCS: ${this.mapDescription}\n`;
-		output += `Map Description Full: ${this.mapDescriptionFull || 'N/A (Requires UCS)'}\n`;
+		output += `Map Description Full: ${this.mapDescriptionFull || 'N/A (Resolution failed or pending)'}\n`;
 		output += `Map File Name: ${this.mapFileName}\n`;
 		output += `Map Width: ${this.mapWidth}\n`;
 		output += `Map Height: ${this.mapHeight}\n`;
@@ -856,11 +867,46 @@ class ReplayParser {
 		});
 		return output;
 	}
+
+	toJSON() {
+		return {
+			success: this.success,
+			filePath: this.filePath,
+			fileVersion: this.fileVersion,
+			chunkyVersion: this.chunkyVersion,
+			randomStart: this.randomStart,
+			highResources: this.highResources,
+			VPCount: this.VPCount,
+			VPGameMode: this.VPGame,
+			matchType: this.matchType,
+			localDateString: this.localDateString,
+			localDate: this.localDate ? this.localDate.toISOString() : null,
+			unknownDateField: this.unknownDate,
+			replayName: this.replayName,
+			gameVersion: this.gameVersion,
+			modName: this.modName,
+			mapNameUCS: this.mapName,
+			mapNameFull: this.mapNameFull || null,
+			mapDescriptionUCS: this.mapDescription,
+			mapDescriptionFull: this.mapDescriptionFull || null,
+			mapFileName: this.mapFileName,
+			mapWidth: this.mapWidth,
+			mapHeight: this.mapHeight,
+			playerList: this.playerList
+		};
+	}
 }
 
 // Example Usage:
 const replayFilePath =
-	'/home/codeit/fknoobscoh/node-test/8p_montargis region.2022-11-02.23-41-21.rec'; // Make sure this path is correct
-const parser = new ReplayParser(replayFilePath);
+	'/home/codeit/fknoobscoh/node-test/6p_red_ball_express.2022-08-16.22-03-51.rec';
 
-console.log(parser);
+const settings = {
+	data: {
+		cohUCSPath: '/home/codeit/fknoobscoh/node-test/RelicCOH.English.ucs'
+	}
+};
+
+const parser = new ReplayParser(replayFilePath, settings);
+
+console.log(parser.toJSON());

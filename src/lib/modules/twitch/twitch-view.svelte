@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ElevenLabs } from 'elevenlabs';
+	import type { Twitch } from '$lib/modules/twitch/twitch.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Checkbox, Input, RadioGroup } from '$lib/components/ui/input';
 	import { app } from '$lib/state/app.svelte';
@@ -10,37 +10,8 @@
 	import TwitchIcon from 'phosphor-svelte/lib/TwitchLogo';
 	import { cn } from '$lib/utils';
 	import Select from '$lib/components/ui/input/select.svelte';
-	import { onMount } from 'svelte';
 
-	let isSaving = $state(false);
-	let ttsProvider = $derived(app.settings.tts.provider);
-	let voices = $state<ElevenLabs.Voice[]>([]);
-	let isPersonalVoicesEnabled = $derived(app.settings.tts.personalVoicesEnabled ?? false);
-	let personalVoices = $state<string[]>(app.settings.tts.personalVoices ?? []);
-
-	const submit = async (e: SubmitEvent) => {
-		e.preventDefault();
-		isSaving = true;
-
-		const formData = new FormData(e.target as HTMLFormElement);
-		const { enabled, channel, elevenlabsApiKey, provider, voiceName, personalVoicesEnabled } =
-			Object.fromEntries(formData.entries());
-		console.log(personalVoices);
-		app.settings.tts.enabled = enabled === 'on';
-		app.settings.tts.channel = channel as string;
-		app.settings.tts.elevenlabsApiKey = elevenlabsApiKey as string;
-		app.settings.tts.provider = provider as 'brian' | 'elevenlabs';
-		app.settings.tts.voiceName = voiceName as string;
-		app.settings.tts.personalVoicesEnabled = personalVoicesEnabled === 'on';
-		app.settings.tts.personalVoices = personalVoices;
-
-		await app.store.set('settings', app.settings);
-
-		setTimeout(() => {
-			toast.success('settings saved');
-			isSaving = false;
-		}, 250);
-	};
+	const module = $derived(app.activeModules.get('twitch') as Twitch);
 
 	const startOAuthFlow = async () => {
 		cancel(8001);
@@ -56,7 +27,7 @@
 			'scope',
 			'user:read:email chat:read chat:edit channel:read:redemptions channel:manage:redemptions'
 		);
-		url.searchParams.set('client_id', app.twitch.clientId);
+		url.searchParams.set('client_id', module.clientId);
 		url.searchParams.set('state', state);
 
 		openUrl(url.toString());
@@ -74,7 +45,7 @@
 			}
 
 			toast.success('Successfully connected to Twitch');
-			app.settings.tts.twitchAccessToken = access_token as string;
+			module.settings.accessToken = access_token as string;
 			app.store.set('settings', app.settings);
 
 			cancel(port);
@@ -82,36 +53,38 @@
 	};
 
 	const disconnect = () => {
-		app.settings.tts.twitchAccessToken = undefined;
+		module.settings.accessToken = undefined;
 		app.store.set('settings', app.settings);
 		toast.success('Successfully disconnected from Twitch');
 	};
-
-	onMount(async () => {
-		const response = await app.elevenlabs.client?.voices.getAll();
-
-		if (!response) {
-			voices = [];
-		} else {
-			voices = response.voices;
-		}
-	});
 </script>
 
-<form class="max-w-lg" onsubmit={submit}>
+<form class="max-w-lg">
 	<div class="mb-4 flex flex-col gap-2">
 		<Label>TTS everything</Label>
-		<Checkbox label="Enabled" name="enabled" checked={app.settings.tts.enabled} />
+		<Checkbox label="Enabled" name="enabled" bind:checked={module.settings.enabled} />
 	</div>
 	<div class="mb-4 flex flex-col items-start gap-2">
 		<Label>Twitch Channel</Label>
-		{#if app.twitch.isConnected}
+		{#if module.isConnected}
 			<span class="flex items-center gap-2">
-				<Button variant="secondary" onclick={disconnect} type="button">Disconnect</Button>
-				<span>-> {app.twitch.user?.userName}</span>
+				<Button
+					variant="secondary"
+					onclick={disconnect}
+					type="button"
+					class="bg-[#6441a5] shadow-none"
+				>
+					Disconnect
+				</Button>
+				<span>-> {module.user?.userName}</span>
 			</span>
 		{:else}
-			<Button variant="secondary" type="button" onclick={startOAuthFlow}>
+			<Button
+				variant="secondary"
+				type="button"
+				onclick={startOAuthFlow}
+				class="bg-[#6441a5] shadow-none"
+			>
 				<TwitchIcon size="22" weight="bold" />
 				Connect Twitch
 			</Button>
@@ -133,69 +106,64 @@
 					}
 				]}
 				direction="horizontal"
-				bind:value={ttsProvider}
+				bind:value={module.settings.provider}
 			/>
 		</div>
 	</div>
-	<div class={cn(ttsProvider === 'brian' && 'hidden')}>
+	<div class={cn(module.settings.provider === 'brian' && 'hidden')}>
 		<div class={cn('mb-4 flex flex-col gap-2')}>
 			<Label>Elevenlabs API key</Label>
 			<Input
 				placeholder="Enter elevenlabs API key ..."
 				name="elevenlabsApiKey"
-				value={app.settings.tts.elevenlabsApiKey}
+				type="text"
+				bind:value={module.settings.elevenlabsApiKey}
 			/>
 		</div>
 		<div class={cn('mb-4 flex flex-col gap-2')}>
-			{#if voices.length > 0}
-				{@const items = voices.map((voice) => ({
+			<!-- {#if module.elevenlabs!.voices.length > 0}
+				{@const items = module.elevenlabs!.voices.map((voice) => ({
+					value: voice.name!,
+					label: voice.name!,
+					disabled: false
+				}))} -->
+			<Label>Voice character</Label>
+			<Select
+				items={module.elevenlabs!.voices.map((voice) => ({
 					value: voice.name!,
 					label: voice.name!,
 					disabled: false
 				}))}
-				{#if items}
-					<Label>Voice character</Label>
-					<Select
-						{items}
-						type="single"
-						placeholder="Select voice"
-						name="voiceName"
-						value={app.settings.tts.voiceName}
-					/>
-				{/if}
-			{/if}
+				type="single"
+				placeholder="Select voice"
+				name="voiceName"
+				bind:value={module.settings.voiceName}
+			/>
+			<!-- {/if} -->
 		</div>
 		<div class="mb-4 flex flex-col gap-2">
 			<Label>Enable personal voices?</Label>
 			<Checkbox
 				label="Enabled"
 				name="personalVoicesEnabled"
-				bind:checked={isPersonalVoicesEnabled}
+				bind:checked={module.settings.personalVoicesEnabled}
 			/>
 		</div>
-		<div class={cn(isPersonalVoicesEnabled === false && 'hidden')}>
+		<div class={cn(module.settings.personalVoicesEnabled === false && 'hidden')}>
 			<div class="mb-4 flex flex-col gap-2">
-				{#if voices.length > 0}
-					{@const items = voices.map((voice) => ({
+				<Label>Select voices</Label>
+				<Select
+					items={module.elevenlabs!.voices.map((voice) => ({
 						value: voice.name!,
 						label: voice.name!,
 						disabled: false
 					}))}
-					{#if items}
-						<Label>Select voices</Label>
-						<Select
-							{items}
-							type="multiple"
-							placeholder="Select voice"
-							name="personalVoices"
-							bind:value={personalVoices}
-						/>
-					{/if}
-				{/if}
+					type="multiple"
+					placeholder="Select voice"
+					name="personalVoices"
+					bind:value={module.settings.personalVoices}
+				/>
 			</div>
 		</div>
-	</div>
-	<div>
-		<Button loading={isSaving}>Save</Button>
 	</div>
 </form>

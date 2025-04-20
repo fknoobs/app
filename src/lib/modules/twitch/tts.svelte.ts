@@ -2,23 +2,29 @@ import type { ChatMessage } from '@twurple/chat';
 import type { VoiceSettings } from 'elevenlabs/api';
 import type { Listener } from '@d-fischer/typed-event-emitter';
 import { app } from '$lib/state/app.svelte';
-import { Module } from './module.svelte';
+import { Module } from '../module.svelte';
 import { translate } from 'google-translate-api-x';
 import { fetch } from '@tauri-apps/plugin-http';
+import type { Twitch } from './twitch.svelte';
+import { TTSPersonal } from './tts-personal.svelte';
+import { watch } from 'runed';
 
 /**
  * Represents the Text-to-Speech (TTS) module.
  * Handles TTS initialization and potentially interaction with TTS services.
  */
-export class TTS extends Module {
+export class TTS {
 	/**
-	 * Indicates whether TTS is enabled.
-	 * Derived from application settings.
+	 * Indicates whether the TTS module is enabled.
 	 *
 	 * @readonly
 	 * @type {boolean}
 	 */
-	enabled = $derived(app.settings.tts.enabled && !!app.twitch.chatClient);
+	enabled = $derived(
+		app.settings.twitch?.enabled &&
+			!!app.settings.twitch?.provider &&
+			!!app.settings.twitch.voiceName
+	);
 
 	/**
 	 * The Twitch channel to connect to for TTS messages.
@@ -27,16 +33,7 @@ export class TTS extends Module {
 	 * @readonly
 	 * @type {string}
 	 */
-	channel = $derived(app.settings.tts.channel);
-
-	/**
-	 * The API key for ElevenLabs TTS service.
-	 * Derived from application settings.
-	 *
-	 * @readonly
-	 * @type {string | undefined}
-	 */
-	elevenlabsApiKey = $derived(app.settings.tts.elevenlabsApiKey);
+	channel = $derived(app.settings.twitch?.channel);
 
 	/**
 	 * The ElevenLabs API client instance.
@@ -70,6 +67,7 @@ export class TTS extends Module {
 	 * Stores the interval ID for the play loop.
 	 *
 	 * @private
+	 * @type {number | undefined}
 	 */
 	private playIntervalId: number | undefined;
 
@@ -79,27 +77,54 @@ export class TTS extends Module {
 	 * This is used to handle incoming chat messages for TTS processing.
 	 *
 	 * @private
+	 * @type {Listener | undefined}
 	 */
 	private chatListener: Listener | undefined;
 
 	/**
-	 * Initializes the TTS functionality based on current settings.
-	 * This could involve setting up the TTS engine, loading voices, etc.
+	 * Twitch module instance.
+	 * This is used to interact with Twitch services.
 	 *
-	 * @private
+	 * @readonly
+	 * @type {Twitch}
 	 */
-	async init() {
-		if (this.isInitialized) {
-			console.log('TTS module already initialized, skipping.');
+	readonly twitch = $derived(app.activeModules.get('twitch') as Twitch);
+
+	/**
+	 * Personal TTS module instance.
+	 * This is used to handle personal TTS functionality.
+	 *
+	 * @readonly
+	 * @type {TTSPersonal}
+	 */
+	readonly personal?: TTSPersonal;
+
+	constructor() {
+		$effect.root(() => {
+			watch(
+				() => this.enabled,
+				() => {
+					if (this.enabled) {
+						this.init();
+					} else {
+						this.destroy();
+					}
+				}
+			);
+		});
+
+		app.on('boot', () => this.init());
+	}
+
+	init() {
+		if (!this.enabled || !this.twitch) {
 			return;
 		}
 
-		console.log('TTS module initialized');
-
-		this.isInitialized = true;
+		//this.personal = new TTSPersonal();
 		this.startPlaybackLoop();
 
-		this.chatListener = app.twitch.chatClient?.onMessage((channel, users, text, msg) =>
+		this.chatListener = this.twitch.chatClient?.onMessage((channel, users, text, msg) =>
 			this.message(channel, users, text, msg)
 		);
 	}
@@ -124,11 +149,11 @@ export class TTS extends Module {
 			return;
 		}
 
-		if (app.settings.tts.provider === 'elevenlabs') {
+		if (this.twitch.settings.provider === 'elevenlabs') {
 			await this.elevenlabs(message, user);
 		}
 
-		if (app.settings.tts.provider === 'brian') {
+		if (this.twitch.settings.provider === 'brian') {
 			await this.brian(message);
 		}
 	}
@@ -140,18 +165,13 @@ export class TTS extends Module {
 	 * @private
 	 */
 	private async elevenlabs(message: string, user: string) {
-		if (!app.elevenlabs.client) {
-			console.error('#33100: ElevenLabs client is not initialized.');
-			return;
-		}
-
 		let voice_settings: VoiceSettings = {
 			stability: 0.3,
 			similarity_boost: 0.8,
 			style: 1
 		};
 
-		const voice = app.ttsPersonal.activeVoices[user] || app.settings.tts.voiceName;
+		const voice = this.personal?.activeVoices[user] || this.twitch.settings.voiceName;
 
 		if (voice === 'Adolf') {
 			const response = await translate(message, { to: 'de', requestFunction: fetch });
@@ -159,7 +179,7 @@ export class TTS extends Module {
 		}
 
 		try {
-			const audioStream = (await app.elevenlabs.client.generate({
+			const audioStream = (await this.twitch.elevenlabs?.client?.generate({
 				voice,
 				text: message,
 				model_id: 'eleven_multilingual_v2',
@@ -188,8 +208,8 @@ export class TTS extends Module {
 					 * We dont wanna keep the history items around, so we delete it right after playback.
 					 */
 					try {
-						app.elevenlabs.client.history.getAll().then(({ history }) => {
-							app.elevenlabs.client?.history.delete(history[0].history_item_id);
+						this.twitch.elevenlabs?.client?.history.getAll().then(({ history }) => {
+							this.twitch.elevenlabs?.client?.history.delete(history[0].history_item_id);
 						});
 					} catch (_) {}
 
@@ -328,6 +348,5 @@ export class TTS extends Module {
 
 		this.queue = [];
 		this.isPlaying = false;
-		this.isInitialized = false;
 	}
 }

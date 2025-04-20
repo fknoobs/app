@@ -77,6 +77,9 @@ importers:
       elevenlabs:
         specifier: ^1.56.1
         version: 1.56.1
+      emittery:
+        specifier: ^1.1.0
+        version: 1.1.0
       google-translate-api-x:
         specifier: ^10.7.2
         version: 10.7.2
@@ -86,6 +89,9 @@ importers:
       phosphor-svelte:
         specifier: ^3.0.1
         version: 3.0.1(svelte@5.26.3)(vite@6.2.6(@types/node@22.14.1)(jiti@2.4.2)(lightningcss@1.29.2))
+      runed:
+        specifier: ^0.25.0
+        version: 0.25.0(svelte@5.26.3)
       svelte-sonner:
         specifier: ^0.3.28
         version: 0.3.28(svelte@5.26.3)
@@ -983,6 +989,10 @@ packages:
   elevenlabs@1.56.1:
     resolution: {integrity: sha512-q08c2DFjqhPDUpSyECfuWEtZhXGLerbYdNF04YnHdJDucaMfi84/TqyVO/d2ltppRLFE+1GCsJ32vLG/8EB17g==}
 
+  emittery@1.1.0:
+    resolution: {integrity: sha512-rsX7ktqARv/6UQDgMaLfIqUWAEzzbCQiVh7V9rhDXp6c37yoJcks12NVD+XPkgl4AEavmNhVfrhGoqYwIsMYYA==}
+    engines: {node: '>=14.16'}
+
   enhanced-resolve@5.18.1:
     resolution: {integrity: sha512-ZSW3ma5GkcQBIpwZTSRAI8N71Uuwgs93IezB7mf7R60tC8ZbJideoDNKjHn2O9KIlx6rkGTTEk1xUCK2E1Y2Yg==}
     engines: {node: '>=10.13.0'}
@@ -1551,6 +1561,11 @@ packages:
 
   runed@0.23.4:
     resolution: {integrity: sha512-9q8oUiBYeXIDLWNK5DfCWlkL0EW3oGbk845VdKlPeia28l751VpfesaB/+7pI6rnbx1I6rqoZ2fZxptOJLxILA==}
+    peerDependencies:
+      svelte: ^5.7.0
+
+  runed@0.25.0:
+    resolution: {integrity: sha512-7+ma4AG9FT2sWQEA0Egf6mb7PBT2vHyuHail1ie8ropfSjvZGtEAx8YTmUjv/APCsdRRxEVvArNjALk9zFSOrg==}
     peerDependencies:
       svelte: ^5.7.0
 
@@ -2720,6 +2735,8 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
+  emittery@1.1.0: {}
+
   enhanced-resolve@5.18.1:
     dependencies:
       graceful-fs: 4.2.11
@@ -3327,6 +3344,11 @@ snapshots:
       fsevents: 2.3.3
 
   runed@0.23.4(svelte@5.26.3):
+    dependencies:
+      esm-env: 1.2.2
+      svelte: 5.26.3
+
+  runed@0.25.0(svelte@5.26.3):
     dependencies:
       esm-env: 1.2.2
       svelte: 5.26.3

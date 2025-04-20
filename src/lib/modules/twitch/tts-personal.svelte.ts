@@ -1,18 +1,10 @@
 import { app } from '$lib/state/app.svelte';
 import type { HelixCustomReward } from '@twurple/api';
 import type { EventSubSubscription } from '@twurple/eventsub';
-import { Module } from './module.svelte';
+import { Module } from '../module.svelte';
+import type { Twitch } from './twitch.svelte';
 
-export class TTSPersonal extends Module {
-	/**
-	 * Indicates whether TTS Personal is enabled.
-	 * Can only be used if ElevenLabs and Twitch are enabled.
-	 *
-	 * @readonly
-	 * @type {boolean}
-	 */
-	enabled = $derived(app.elevenlabs.enabled && app.twitch.enabled);
-
+export class TTSPersonal {
 	voices = $derived(app.settings.tts.personalVoices);
 
 	rewards: HelixCustomReward[] = $state([]);
@@ -21,13 +13,19 @@ export class TTSPersonal extends Module {
 
 	activeVoices: Record<string, string> = $state({});
 
+	twitch: Twitch;
+
+	constructor() {
+		this.twitch = app.getModule('twitch');
+	}
+
 	async init() {
-		if (!app.twitch.user?.userId) {
+		if (!this.twitch.user?.userId) {
 			return;
 		}
 
-		this.rewards = await app.twitch.client!.channelPoints.getCustomRewards(
-			app.twitch.user.userId,
+		this.rewards = await this.twitch.client!.channelPoints.getCustomRewards(
+			this.twitch.user.userId,
 			true
 		);
 
@@ -55,14 +53,14 @@ export class TTSPersonal extends Module {
 		 * This is to ensure that we don't have duplicates
 		 */
 		for (const reward of existingRewards) {
-			await app.twitch.client!.channelPoints.deleteCustomReward(
-				app.twitch.user!.userId!,
+			await this.twitch.client!.channelPoints.deleteCustomReward(
+				this.twitch.user!.userId!,
 				reward.id
 			);
 		}
 
 		for (const voice of this.voices) {
-			app.twitch.client!.channelPoints.createCustomReward(app.twitch.user!.userId!, {
+			this.twitch.client!.channelPoints.createCustomReward(this.twitch.user!.userId!, {
 				title: `[PERSONALITY] ${voice}`,
 				cost: 50000,
 				backgroundColor: '#c10000',
@@ -73,8 +71,8 @@ export class TTSPersonal extends Module {
 	}
 
 	listenForRewardRedemption() {
-		this.eventSubscription = app.twitch.events?.onChannelRedemptionAdd(
-			app.twitch.user!.userId!,
+		this.eventSubscription = this.twitch.eventSub?.onChannelRedemptionAdd(
+			this.twitch.user!.userId!,
 			async (reward) => {
 				if (reward.rewardTitle.startsWith('[PERSONALITY]')) {
 					const voice = reward.rewardTitle.replace('[PERSONALITY] ', '');

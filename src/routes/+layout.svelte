@@ -12,21 +12,26 @@
 	import '../app.css';
 
 	let { children } = $props();
+	let Component = $derived(app.currentRoute?.component);
 </script>
 
 <div class="flex h-screen overflow-hidden">
 	<aside class="bg-secondary-800 w-74 px-4 py-6">
 		<Nav.Root>
-			{#each app.routes as { href, title }}
-				<Nav.Link {href}>{title}</Nav.Link>
+			{#each app.routes as { href, title, component }}
+				<Nav.Link {href} {component}>{title}</Nav.Link>
 			{/each}
 		</Nav.Root>
 	</aside>
-	<main class="flex-1 overflow-auto bg-white p-8">
+	<main class="bg-secondary-950 flex-1 overflow-auto p-8">
 		<div class="border-secondary-700 mb-6 border-b-2">
 			<H level="1">{app.currentRoute?.title}</H>
 		</div>
-		{@render children()}
+		{#if app.currentRoute?.component}
+			<Component />
+		{:else}
+			{@render children()}
+		{/if}
 	</main>
 </div>
 

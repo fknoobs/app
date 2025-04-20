@@ -1,44 +1,40 @@
-import type { Voice } from 'elevenlabs/api';
+import type { Modules } from '@fknoobs/app';
+import type { Component } from 'svelte';
 import { page } from '$app/state';
-import { ElevenLabs } from '$lib/modules/elevenlabs.svelte';
-import { TTS } from '$lib/modules/tts.svelte';
-import { Twitch } from '$lib/modules/twitch.svelte';
+import { Twitch } from '$lib/modules/twitch/twitch.svelte';
+import { Replays } from '$lib/modules/replay-manager/replays.svelte';
 import { load, type Store } from '@tauri-apps/plugin-store';
-import { TTSPersonal } from '$lib/modules/tts-personal.svelte';
-import type { Module } from '$lib/modules/module.svelte';
+import Emittery from 'emittery';
 
 /**
  * Defines the structure for a navigation route within the application.
  */
 export type Route = {
-	href: string;
 	title: string;
+	href: string;
 	page?: {
 		title: string;
 		description: string;
 	};
+	component?: Component;
 };
 
 /**
  * Defines the structure for application settings.
  */
 export type Settings = {
-	tts: {
-		enabled: boolean;
-		elevenlabsApiKey: string | undefined;
-		channel: string | undefined;
-		twitchAccessToken: string | undefined;
-		provider: 'elevenlabs' | 'brian';
-		voiceName: string;
-		personalVoicesEnabled: boolean;
-		personalVoices: string[];
-	};
+	isStreamer: boolean;
+	//[key: string]: any;
+} & Partial<{ [K in keyof Modules]: InstanceType<Modules[K]>['settings'] }>;
+
+export type AppEvents = {
+	boot: App;
 };
 
 /**
  * Manages the global state and core functionalities of the application.
  */
-class App {
+class App extends Emittery<AppEvents> {
 	/**
 	 * Reactive array holding the application's navigation routes.
 	 *
@@ -49,14 +45,6 @@ class App {
 		{
 			href: '/',
 			title: 'Dashboard'
-		},
-		{
-			href: '/tts-settings',
-			title: 'TTS Settings'
-		},
-		{
-			href: '/replaymanager-settings',
-			title: 'Replay Manager'
 		}
 	]);
 
@@ -66,7 +54,15 @@ class App {
 	 * @public
 	 * @type {Route | undefined}
 	 */
-	currentRoute = $derived(this.routes.find((route) => route.href === page.url.pathname));
+	currentRoute = $derived.by(() => {
+		return this.routes.find((route) => {
+			if (page.url.hash !== '') {
+				return page.url.hash !== '' && page.url.hash === route.href;
+			}
+
+			return route.href === page.url.pathname;
+		});
+	});
 
 	/**
 	 * Instance of the Tauri store plugin for persistent data storage.
@@ -86,70 +82,38 @@ class App {
 	 */
 	settings: Settings = $state({
 		/**
-		 * Text-to-Speech (TTS) configuration.
-		 *
-		 * Determines if TTS is active (`enabled`) for messages in the specified `channel`.
-		 * Uses the ElevenLabs API if `elevenlabsApikey` is provided, otherwise falls back
-		 * to a default TTS engine (Brian TTS).
+		 * Indicates if the user is a streamer.
+		 * When enabled some more advanced features are available.
 		 */
-		tts: {
-			enabled: false,
-			channel: undefined,
-			elevenlabsApiKey: undefined,
-			twitchAccessToken: undefined,
-			provider: 'brian',
-			voiceName: 'Roger',
-			personalVoicesEnabled: false,
-			personalVoices: []
-		}
+		isStreamer: false
+		/**
+		 * Twitch module settings.
+		 * This includes the Twitch API client ID and other related settings.
+		 *
+		 * The default settings are defined in the Twitch module.
+		 */
+		//twitch: defaultTwitchSettings
 	});
-
-	/**
-	 * Instance of the Twitch module for interacting with Twitch services.
-	 * Initialized in the `load` method. Undefined until initialization.
-	 *
-	 * @public
-	 * @type {Twitch | undefined}
-	 */
-	twitch!: Twitch;
-
-	/**
-	 * Instance of the TTS module for handling text-to-speech functionality.
-	 * Initialized in the `load` method. Undefined until initialization.
-	 *
-	 * @public
-	 * @type {TTS | undefined}
-	 */
-	tts!: TTS;
-
-	/**
-	 * Instance of the ElevenLabs module for handling ElevenLabs TTS functionality.
-	 *
-	 * @public
-	 * @type {ElevenLabs}
-	 */
-	elevenlabs!: ElevenLabs;
-
-	/**
-	 * Instance of the TTSPersonal module for handling personal TTS functionality.
-	 *
-	 * @public
-	 * @type {TTSPersonal | undefined}
-	 */
-	ttsPersonal!: TTSPersonal;
 
 	/**
 	 * A record mapping module names (strings) to their corresponding class constructors.
 	 * This allows for dynamic instantiation or referencing of modules within the application.
 	 *
 	 * @public
-	 * @type {Record<string, typeof Module>}
+	 * @type {Record<string, new () => Module>}
 	 */
-	modules: Record<string, typeof Module> = {
-		tts: TTS,
-		elevenlabs: ElevenLabs,
-		twitch: Twitch
+	modules: Modules = {
+		twitch: Twitch,
+		replays: Replays
 	};
+
+	/**
+	 * Reactive array holding instances of the active modules.
+	 *
+	 * @public
+	 * @type {Map<string, InstanceType<Modules[keyof Modules]>>} // Store module instances keyed by name
+	 */
+	activeModules = $state(new Map<keyof Modules, InstanceType<Modules[keyof Modules]>>());
 
 	/**
 	 * Asynchronously initializes the application state.
@@ -163,16 +127,30 @@ class App {
 	async boot() {
 		this.store = await load('app.json');
 		this.settings = (await this.store.get('settings')) ?? this.settings;
-		this.twitch = new Twitch();
-		this.tts = new TTS();
-		this.elevenlabs = new ElevenLabs();
-		this.ttsPersonal = new TTSPersonal();
 
-		this.store.onChange(async (key) => {
-			if (key === 'settings') {
-				this.settings = (await this.store.get('settings')) ?? this.settings;
-			}
-		});
+		for await (const moduleConstructor of Object.values(this.modules)) {
+			const mod = new moduleConstructor() as InstanceType<Modules[keyof Modules]>;
+			await mod.register();
+
+			this.activeModules.set(mod.name as keyof Modules, mod);
+			this.routes.push({
+				component: mod.component,
+				title: mod.menuItemName,
+				href: `#${mod.name}`
+			});
+		}
+
+		await this.emit('boot', this);
+	}
+
+	getModule<K extends keyof Modules>(name: K): InstanceType<Modules[K]> {
+		const module = this.activeModules.get(name);
+
+		if (!module) {
+			throw new Error(`Module ${name} not found`);
+		}
+
+		return module as InstanceType<Modules[K]>;
 	}
 }
 

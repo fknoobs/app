@@ -1,3 +1,5 @@
+import './parser.js';
+
 Bun.serve({
 	port: 55123,
 	fetch(req, server) {
