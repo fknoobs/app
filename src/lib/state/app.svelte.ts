@@ -5,6 +5,7 @@ import { Twitch } from '$lib/modules/twitch/twitch.svelte';
 import { Replays } from '$lib/modules/replay-manager/replays.svelte';
 import { load, type Store } from '@tauri-apps/plugin-store';
 import Emittery from 'emittery';
+import { Game } from './coh.svelte';
 
 /**
  * Defines the structure for a navigation route within the application.
@@ -24,6 +25,7 @@ export type Route = {
  */
 export type Settings = {
 	isStreamer: boolean;
+	pathToWarnings: string;
 	//[key: string]: any;
 } & Partial<{ [K in keyof Modules]: InstanceType<Modules[K]>['settings'] }>;
 
@@ -85,7 +87,11 @@ class App extends Emittery<AppEvents> {
 		 * Indicates if the user is a streamer.
 		 * When enabled some more advanced features are available.
 		 */
-		isStreamer: false
+		isStreamer: false,
+		/**
+		 * Path to the Company of Heroes warnings log file.
+		 */
+		pathToWarnings: '/home/codeit/fknoobscoh/bun-sidecar/warnings.log'
 		/**
 		 * Twitch module settings.
 		 * This includes the Twitch API client ID and other related settings.
@@ -114,6 +120,16 @@ class App extends Emittery<AppEvents> {
 	 * @type {Map<string, InstanceType<Modules[keyof Modules]>>} // Store module instances keyed by name
 	 */
 	activeModules = $state(new Map<keyof Modules, InstanceType<Modules[keyof Modules]>>());
+
+	/**
+	 * Reactive object representing the current game state.
+	 * This includes information about the game session, such as whether it's launched,
+	 * the player's Steam ID, and the current lobby state.
+	 *
+	 * @public
+	 * @type {Game}
+	 */
+	game: Game = $state(new Game());
 
 	/**
 	 * Asynchronously initializes the application state.

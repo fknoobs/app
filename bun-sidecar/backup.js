@@ -610,7 +610,8 @@ class ReplayParser {
 
 export { ReplayParser };
 
-const testReplayPath = '/home/codeit/fknoobscoh/node-test/1v1_gg_win_how.rec'; // Replace with a valid path
+const testReplayPath =
+	'/home/codeit/fknoobscoh/node-test/6p_red_ball_express.2022-08-16.22-03-51.rec'; // Replace with a valid path
 if (fs.existsSync(testReplayPath)) {
 	console.log(`Parsing replay: ${testReplayPath}`);
 	const parser = new ReplayParser(testReplayPath);
