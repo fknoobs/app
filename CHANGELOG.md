@@ -1,3 +1,11 @@
+### v0.52.8
+
+- fix; matches played today only showed matches that were created by logged in user, making some matches not showing up in the widget
+- fix; some replays causing out of bounds error
+- feat; add live lobby details page, to view more details about a live lobby
+- fix; some minor issues we observed throughout the app
+- fix; live lobbies only created for lobby owner, causing oppbot overlay to not work for the other players in the lobby
+
 ### v0.52.7
 
 - fix; missing import causing app to not load properly on fresh installs
