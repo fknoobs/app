@@ -26,6 +26,7 @@ const config = {
 				'/players/[id]',
 				'/replays/[replayId]',
 				'/history/[id]',
+				'/live/[id]',
 				'/leaderboards/profile/[profileId]'
 			]
 		}

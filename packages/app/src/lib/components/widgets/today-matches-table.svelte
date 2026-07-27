@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { MatchExpanded } from '$core/app/database/matches';
 	import * as Match from '$lib/components/match';
+	import { goto } from '$app/navigation';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { cn } from '$lib/utils';
 	import { interactive } from '$lib/components/ui/variants';
@@ -18,6 +19,12 @@
 
 	function toggleExpanded(id: string) {
 		expandedId = expandedId === id ? null : id;
+	}
+
+	function openDetails(event: MouseEvent, href: string) {
+		event.preventDefault();
+		event.stopPropagation();
+		void goto(href);
 	}
 </script>
 
@@ -127,7 +134,7 @@
 							<a
 								href="/history/{match.id}"
 								class={cn(interactive, 'text-primary text-sm whitespace-nowrap hover:underline')}
-								onclick={(event) => event.stopPropagation()}
+								onclick={(event) => openDetails(event, `/history/${match.id}`)}
 							>
 								View details
 							</a>

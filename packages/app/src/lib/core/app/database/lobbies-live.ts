@@ -21,8 +21,9 @@ export type LiveLobby = Expand<
 > & { players: LobbyPlayer[] };
 
 /**
- * Live lobby repository: upserts the user's currently running match so the
- * community/overlays can show "now playing".
+ * Live lobby repository: upserts each user's currently running match so the
+ * community/overlays can show "now playing". One row per authenticated user;
+ * multiple users may share the same sessionId while in the same lobby.
  */
 export class LobbiesLive {
 	async getList(page = 1, perPage = 20): Promise<ListResult<LiveLobby>> {
@@ -49,16 +50,27 @@ export class LobbiesLive {
 
 	async subscribe(
 		callback: (event: RecordSubscription<LiveLobby>) => void
+	): Promise<UnsubscribeFunc>;
+	async subscribe(
+		id: string,
+		callback: (event: RecordSubscription<LiveLobby>) => void
+	): Promise<UnsubscribeFunc>;
+	async subscribe(
+		idOrCallback: string | ((event: RecordSubscription<LiveLobby>) => void),
+		maybeCallback?: (event: RecordSubscription<LiveLobby>) => void
 	): Promise<UnsubscribeFunc> {
+		const topic = typeof idOrCallback === 'string' ? idOrCallback : '*';
+		const callback = typeof idOrCallback === 'string' ? maybeCallback! : idOrCallback;
+
 		return pocketbase.collection('lobbies_live').subscribe<LiveLobby>(
-			'*',
+			topic,
 			(event) => {
 				callback({
 					...event,
 					record: exp(event.record) as unknown as LiveLobby
 				});
 			},
-			{ fetch }
+			{ fetch, expand: 'user' }
 		);
 	}
 

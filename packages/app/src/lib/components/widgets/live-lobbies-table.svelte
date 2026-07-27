@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { LiveLobby } from '$core/app/database/lobbies-live';
+	import { goto } from '$app/navigation';
 	import MapImage from '$lib/components/ui/map-image.svelte';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { cn, getFactionFlagFromRace, normalizeMapName } from '$lib/utils';
@@ -26,16 +27,23 @@
 	function toggleExpanded(id: string) {
 		expandedId = expandedId === id ? null : id;
 	}
+
+	function openDetails(event: MouseEvent, href: string) {
+		event.preventDefault();
+		event.stopPropagation();
+		void goto(href);
+	}
 </script>
 
 <table class="w-full table-fixed">
 	<colgroup>
 		<col class="w-2/24" />
-		<col class="w-5/24" />
-		<col class="w-3/24" />
-		<col class="w-3/24" />
-		<col class="w-3/24" />
 		<col class="w-4/24" />
+		<col class="w-3/24" />
+		<col class="w-3/24" />
+		<col class="w-3/24" />
+		<col class="w-3/24" />
+		<col class="w-2/24" />
 		<col class="w-3/24" />
 		<col class="w-1/24" />
 	</colgroup>
@@ -49,13 +57,14 @@
 			<th class="px-4 py-3 font-semibold">Host</th>
 			<th class="px-4 py-3 font-semibold">Updated</th>
 			<th class="px-4 py-3"></th>
+			<th class="px-4 py-3"></th>
 		</tr>
 	</thead>
 	<tbody>
 		{#if loading}
 			{#each Array(3) as _, index (index)}
 				<tr class="border-secondary-800 h-11 border-b">
-					{#each Array(8) as _, cellIndex (cellIndex)}
+					{#each Array(9) as _, cellIndex (cellIndex)}
 						<td class="px-4">
 							<Skeleton class="h-4 w-full" />
 						</td>
@@ -114,12 +123,21 @@
 						{dayjs(lobby.updatedAt).fromNow()}
 					</td>
 					<td class="px-4">
+						<a
+							href="/live/{lobby.id}"
+							class={cn(interactive, 'text-primary text-sm whitespace-nowrap hover:underline')}
+							onclick={(event) => openDetails(event, `/live/${lobby.id}`)}
+						>
+							View details
+						</a>
+					</td>
+					<td class="px-4">
 						<CaretDown class={cn('size-4 transition-transform', expanded && 'rotate-180')} />
 					</td>
 				</tr>
 				{#if expanded}
 					<tr>
-						<td colspan="8" class="p-0">
+						<td colspan="9" class="p-0">
 							<LiveLobbyPlayers {lobby} />
 						</td>
 					</tr>

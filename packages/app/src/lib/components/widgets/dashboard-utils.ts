@@ -94,3 +94,8 @@ export function countTodayRecord(matches: MatchExpanded[], profileId?: number) {
 
 	return { wins, losses, pending, total: matches.length };
 }
+
+/** Matches where the given Relic profile participated (not merely created/saved). */
+export function todayPlayedMatchesFilter(profileId: number): string {
+	return `createdAt > @todayStart && playerProfileIdsCsv ~ ",${profileId},"`;
+}

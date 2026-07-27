@@ -12,18 +12,20 @@
 	import { upperCase } from 'lodash-es';
 	import CaretDown from 'phosphor-svelte/lib/CaretDown';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { countTodayRecord } from './dashboard-utils';
+	import { countTodayRecord, todayPlayedMatchesFilter } from './dashboard-utils';
 
 	let activeTab = $state('stats');
 	let panelExpanded = $state(false);
 
 	const todayMatches = resource(
-		() => app.features.auth.userId,
-		() =>
-			app.database.matches.getList({
-				filter: `createdAt > @todayStart && user = "${app.features.auth.userId}"`,
+		() => app.game.profile?.relic.profile_id,
+		(profileId) => {
+			if (!profileId) return Promise.resolve([]);
+			return app.database.matches.getList({
+				filter: todayPlayedMatchesFilter(profileId),
 				sort: '-createdAt'
-			})
+			});
+		}
 	);
 
 	const replays = resource(

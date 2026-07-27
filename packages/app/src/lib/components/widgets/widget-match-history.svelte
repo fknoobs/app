@@ -4,51 +4,61 @@
 	import { fetch } from '$core/http/fetch';
 	import { app } from '$core/app/context';
 	import { exp } from '$core/pocketbase';
-	import { resource } from 'runed';
-	import { onDestroy, onMount } from 'svelte';
+	import { resource, watch } from 'runed';
+	import { onDestroy } from 'svelte';
 	import { H } from '../ui/h';
 	import { Button } from '../ui/button';
 	import { cn } from '$lib/utils';
 	import TodayMatchesTable from './today-matches-table.svelte';
+	import { todayPlayedMatchesFilter } from './dashboard-utils';
 
 	let unsubscribe = $state<UnsubscribeFunc>();
 	let matches = resource(
-		() => null,
-		() =>
-			app.database.matches.getList({
-				filter: `createdAt > @todayStart && user = "${app.features.auth.userId}"`,
+		() => app.game.profile?.relic.profile_id,
+		(profileId) => {
+			if (!profileId) return Promise.resolve([]);
+			return app.database.matches.getList({
+				filter: todayPlayedMatchesFilter(profileId),
 				sort: '-createdAt'
-			})
+			});
+		}
 	);
 
 	const matchCount = $derived(matches.current?.length ?? 0);
 
-	onMount(async () => {
-		unsubscribe = await app.pocketbase.collection('matches').subscribe<LobbyMatch>(
-			'*',
-			(e) => {
-				if (e.action === 'create') {
-					const current = matches.current || [];
-					if (!current.find((m) => m.id === e.record.id)) {
-						matches.mutate([...current, exp(e.record) as MatchExpanded]);
+	watch(
+		() => app.game.profile?.relic.profile_id,
+		async (profileId) => {
+			await unsubscribe?.();
+			unsubscribe = undefined;
+			if (!profileId) return;
+
+			unsubscribe = await app.pocketbase.collection('lobbies').subscribe<LobbyMatch>(
+				'*',
+				(e) => {
+					if (e.action === 'create') {
+						const current = matches.current || [];
+						if (!current.find((m) => m.id === e.record.id)) {
+							matches.mutate([...current, exp(e.record) as MatchExpanded]);
+						}
+					} else if (e.action === 'update') {
+						matches.mutate(
+							(matches.current || []).map((match) =>
+								match.id === e.record.id ? (exp(e.record) as MatchExpanded) : match
+							)
+						);
+					} else if (e.action === 'delete') {
+						matches.mutate((matches.current || []).filter((match) => match.id !== e.record.id));
 					}
-				} else if (e.action === 'update') {
-					matches.mutate(
-						(matches.current || []).map((match) =>
-							match.id === e.record.id ? (exp(e.record) as MatchExpanded) : match
-						)
-					);
-				} else if (e.action === 'delete') {
-					matches.mutate((matches.current || []).filter((match) => match.id !== e.record.id));
+				},
+				{
+					filter: todayPlayedMatchesFilter(profileId),
+					sort: '-createdAt',
+					fetch
 				}
-			},
-			{
-				filter: `createdAt > @todayStart && user = "${app.features.auth.userId}"`,
-				sort: '-createdAt',
-				fetch
-			}
-		);
-	});
+			);
+		}
+	);
 
 	onDestroy(() => {
 		unsubscribe?.();

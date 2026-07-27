@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
 	import { H } from '$lib/components/ui/h';
 	import { cn } from '$lib/utils';
 	import LiveLobbiesTable from './live-lobbies-table.svelte';
@@ -7,12 +6,11 @@
 
 	const feed = new LiveLobbiesFeed();
 
-	onMount(() => {
+	$effect(() => {
 		void feed.start();
-	});
-
-	onDestroy(() => {
-		void feed.stop();
+		return () => {
+			void feed.stop();
+		};
 	});
 </script>
 
