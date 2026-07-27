@@ -1,6 +1,7 @@
 ### v0.52.7
 
 - fix; missing import causing app to not load properly on fresh installs
+- fix; window lagging while dragging on certain windows versions
 
 ### v0.52.6
 
