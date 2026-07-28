@@ -18,11 +18,15 @@
 	let panelExpanded = $state(false);
 
 	const todayMatches = resource(
-		() => app.game.profile?.relic.profile_id,
-		(profileId) => {
-			if (!profileId) return Promise.resolve([]);
+		() =>
+			[
+				app.game.profile?.relic.profile_id ?? null,
+				app.features.auth.userId ?? null
+			] as const,
+		([profileId, userId]) => {
+			if (!profileId && !userId) return Promise.resolve([]);
 			return app.database.matches.getList({
-				filter: todayPlayedMatchesFilter(profileId),
+				filter: todayPlayedMatchesFilter(profileId, userId),
 				sort: '-createdAt'
 			});
 		}

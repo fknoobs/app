@@ -22,7 +22,9 @@ function summarizeLobbyPlayers(players) {
 	const ids = [];
 
 	for (const player of players) {
-		const profileId = player?.profile?.profile_id;
+		const fromProfile = player?.profile?.profile_id;
+		const fromPlayerId = player?.playerId != null && player.playerId > 0 ? player.playerId : null;
+		const profileId = fromProfile != null ? fromProfile : fromPlayerId;
 		if (profileId == null) {
 			continue;
 		}

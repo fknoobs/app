@@ -95,7 +95,19 @@ export function countTodayRecord(matches: MatchExpanded[], profileId?: number) {
 	return { wins, losses, pending, total: matches.length };
 }
 
-/** Matches where the given Relic profile participated (not merely created/saved). */
-export function todayPlayedMatchesFilter(profileId: number): string {
-	return `createdAt > @todayStart && playerProfileIdsCsv ~ ",${profileId},"`;
+/** Matches played today: participation (CSV / players JSON), or matches the user saved. */
+export function todayPlayedMatchesFilter(
+	profileId?: number | null,
+	userId?: string | null
+): string {
+	const who: string[] = [];
+	if (profileId) {
+		who.push(`playerProfileIdsCsv ~ ",${profileId},"`);
+		// Fallback when CSV was never backfilled but players JSON still has profiles.
+		who.push(`players ~ '"profile_id":${profileId},'`);
+	}
+	if (userId) who.push(`user = "${userId}"`);
+	if (who.length === 0) return 'id=""';
+	const clause = who.length === 1 ? who[0]! : `(${who.join(' || ')})`;
+	return `createdAt > @todayStart && ${clause}`;
 }

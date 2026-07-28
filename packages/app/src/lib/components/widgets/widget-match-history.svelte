@@ -14,11 +14,15 @@
 
 	let unsubscribe = $state<UnsubscribeFunc>();
 	let matches = resource(
-		() => app.game.profile?.relic.profile_id,
-		(profileId) => {
-			if (!profileId) return Promise.resolve([]);
+		() =>
+			[
+				app.game.profile?.relic.profile_id ?? null,
+				app.features.auth.userId ?? null
+			] as const,
+		([profileId, userId]) => {
+			if (!profileId && !userId) return Promise.resolve([]);
 			return app.database.matches.getList({
-				filter: todayPlayedMatchesFilter(profileId),
+				filter: todayPlayedMatchesFilter(profileId, userId),
 				sort: '-createdAt'
 			});
 		}
@@ -27,11 +31,15 @@
 	const matchCount = $derived(matches.current?.length ?? 0);
 
 	watch(
-		() => app.game.profile?.relic.profile_id,
-		async (profileId) => {
+		() =>
+			[
+				app.game.profile?.relic.profile_id ?? null,
+				app.features.auth.userId ?? null
+			] as const,
+		async ([profileId, userId]) => {
 			await unsubscribe?.();
 			unsubscribe = undefined;
-			if (!profileId) return;
+			if (!profileId && !userId) return;
 
 			unsubscribe = await app.pocketbase.collection('lobbies').subscribe<LobbyMatch>(
 				'*',
@@ -52,7 +60,7 @@
 					}
 				},
 				{
-					filter: todayPlayedMatchesFilter(profileId),
+					filter: todayPlayedMatchesFilter(profileId, userId),
 					sort: '-createdAt',
 					fetch
 				}
