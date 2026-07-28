@@ -1,3 +1,7 @@
+### v0.52.9
+
+- fix; previous version broke the 'matches played today' widget
+
 ### v0.52.8
 
 - fix; matches played today only showed matches that were created by logged in user, making some matches not showing up in the widget

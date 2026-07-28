@@ -1,5 +1,9 @@
 # @company-of-heroes/pocketbase
 
+## 0.2.5
+
+- fix; previous version broke the 'matches played today' widget
+
 ## 0.2.4
 
 - fix worker
