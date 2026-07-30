@@ -33,11 +33,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # When changesets exist on main, this opens/updates a "Version Packages" PR
+      # changesets/action only checks whether `.changeset` contains any files. A
+      # changeset that our version script cannot act on would make it version
+      # nothing, force-push an unchanged branch and then fail on "No commits
+      # between master and changeset-release/master".
+      - name: Check for versionable changesets
+        id: check
+        run: echo "has-changesets=$(node scripts/version.mjs --check)" >> "$GITHUB_OUTPUT"
+
+      # When changesets exist on master, this opens/updates a "Version Packages" PR
       # that runs `pnpm version-packages` (bumps package.json, tauri.conf.json and
       # Cargo.toml, prepends CHANGELOG.md and removes the consumed changesets).
       # Merging that PR is what actually releases the new version.
       - name: Create Version Packages PR
+        if: steps.check.outputs.has-changesets == 'true'
         uses: changesets/action@v1
         with:
           version: pnpm version-packages
