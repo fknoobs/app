@@ -20,6 +20,27 @@ export type LiveLobby = Expand<
 	>
 > & { players: LobbyPlayer[] };
 
+/** Drop orphaned rows when the game exits without a DESTROYED log (Alt+F4 / Exit to Windows).
+ * Keep in sync with packages/pocketbase/pb_hooks/lib/lobbies-live.js */
+export const LOBBIES_LIVE_STALE_MS = 30 * 60 * 1000;
+/** How often an active match refreshes updatedAt so long games aren't pruned. */
+export const LOBBIES_LIVE_HEARTBEAT_MS = 2 * 60 * 1000;
+
+/** PocketBase filter: only rows touched within the stale window. */
+export function lobbiesLiveFreshFilter(now = Date.now()): string {
+	const since = new Date(now - LOBBIES_LIVE_STALE_MS).toISOString().replace('T', ' ');
+	return `updatedAt > "${since}"`;
+}
+
+export function isLiveLobbyFresh(
+	lobby: Pick<LiveLobby, 'updatedAt'> | { updatedAt?: string },
+	now = Date.now()
+): boolean {
+	if (!lobby.updatedAt) return false;
+	const updatedAt = new Date(lobby.updatedAt).getTime();
+	return Number.isFinite(updatedAt) && updatedAt > now - LOBBIES_LIVE_STALE_MS;
+}
+
 /**
  * Live lobby repository: upserts each user's currently running match so the
  * community/overlays can show "now playing". One row per authenticated user;
@@ -28,6 +49,7 @@ export type LiveLobby = Expand<
 export class LobbiesLive {
 	async getList(page = 1, perPage = 20): Promise<ListResult<LiveLobby>> {
 		const response = await pocketbase.collection('lobbies_live').getList(page, perPage, {
+			filter: lobbiesLiveFreshFilter(),
 			sort: '-updatedAt',
 			expand: 'user',
 			fetch

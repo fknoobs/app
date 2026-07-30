@@ -32,9 +32,12 @@ export type AggregationPlayer = { profile_id: number; alias: string };
 export type HistoryListQuery = {
 	scope: 'user' | 'community';
 	userId?: string;
+	/** Relic profile id — used as race-filter subject when steamIds are missing. */
+	profileId?: number;
 	ranked?: boolean;
 	playerIds?: string[];
 	maps?: string[];
+	races?: string[];
 };
 
 const DEFAULT_EXPAND = 'user';
@@ -91,7 +94,15 @@ export class Matches {
 	async getHistoryList(
 		page = 1,
 		perPage = 50,
-		{ scope, userId, ranked = false, playerIds = [], maps = [] }: HistoryListQuery,
+		{
+			scope,
+			userId,
+			profileId,
+			ranked = false,
+			playerIds = [],
+			maps = [],
+			races = []
+		}: HistoryListQuery,
 		options?: { signal?: AbortSignal }
 	): Promise<ListResult<MatchExpanded>> {
 		const query: Record<string, string> = {
@@ -105,12 +116,20 @@ export class Matches {
 			query.userId = userId;
 		}
 
+		if (scope === 'user' && profileId != null && profileId > 0) {
+			query.profileId = String(profileId);
+		}
+
 		if (playerIds.length > 0) {
 			query.playerIds = playerIds.join(',');
 		}
 
 		if (maps.length > 0) {
 			query.maps = maps.join(',');
+		}
+
+		if (races.length > 0) {
+			query.races = races.join(',');
 		}
 
 		const response = await pocketbase.send<ListResult<MatchExpanded>>('/api/match-history', {

@@ -53,6 +53,7 @@ export abstract class Overlay {
 		const installed = await exists(this.path, { baseDir: this.baseDir });
 		if (!installed) {
 			await this.install();
+			await this.writeVersionFile();
 			await this.saveDefaultSrcHash();
 			return;
 		}
@@ -69,9 +70,20 @@ export abstract class Overlay {
 		await this.syncBundledDistIfNeeded();
 	}
 
+	async writeVersionFile() {
+		if (!this.version) return;
+
+		await writeTextFile(
+			`${this.path}/overlay-version.json`,
+			JSON.stringify({ version: this.version }, null, 2),
+			{ baseDir: this.baseDir }
+		);
+	}
+
 	async reinstallFromBundle() {
 		await remove(this.path, { baseDir: this.baseDir, recursive: true });
 		await this.install();
+		await this.writeVersionFile();
 		await this.saveDefaultSrcHash();
 		await this.clearPublishState();
 	}
@@ -103,6 +115,7 @@ export abstract class Overlay {
 		const installed = await exists(this.path, { baseDir: this.baseDir });
 		if (!installed) {
 			await this.install();
+			await this.writeVersionFile();
 			await this.saveDefaultSrcHash();
 			return { didBackup: false, backupPath: null as string | null };
 		}

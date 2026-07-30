@@ -255,6 +255,163 @@ function countFilteredMatches(hasPlayerFilter, numericPlayerIds, whereClause, bi
 	return Number(countRow.total) || 0;
 }
 
+/**
+ * Builds an EXISTS clause matching selected races via lobbyPlayers.race or
+ * result.players.race_id. Mutates bindings.
+ *
+ * When steamIds/profileIds are provided, only those subjects count.
+ * When allowAnyPlayer is true and no subjects are given, any participant
+ * with the selected race(s) matches (community "faction only" filter).
+ * Returns null when the filter should not apply.
+ */
+function buildRaceFilterClause(
+	races,
+	{ steamIds = [], profileIds = [] } = {},
+	bindings,
+	{ allowAnyPlayer = false } = {}
+) {
+	if (!races || races.length === 0) {
+		return null;
+	}
+
+	const hasIdentity =
+		(steamIds && steamIds.length > 0) || (profileIds && profileIds.length > 0);
+
+	if (!hasIdentity && !allowAnyPlayer) {
+		return null;
+	}
+
+	const racePlaceholders = [];
+
+	for (let i = 0; i < races.length; i++) {
+		const key = `race${i}`;
+		bindings[key] = races[i];
+		racePlaceholders.push(`{:${key}}`);
+	}
+
+	const raceIn = racePlaceholders.join(', ');
+	const lobbyPlayersJson = `CASE
+          WHEN l.lobbyPlayers IS NOT NULL AND l.lobbyPlayers != '[]' THEN l.lobbyPlayers
+          ELSE '[]'
+        END`;
+	const resultPlayersJson = `CASE
+          WHEN l.result IS NOT NULL AND l.result != ''
+               AND json_valid(l.result)
+               AND json_type(json_extract(l.result, '$.players')) = 'array'
+          THEN json_extract(l.result, '$.players')
+          ELSE '[]'
+        END`;
+
+	if (!hasIdentity) {
+		return `(
+    EXISTS (
+      SELECT 1 FROM json_each(${lobbyPlayersJson}) AS p
+      WHERE CAST(json_extract(p.value, '$.race') AS INTEGER) IN (${raceIn})
+    )
+    OR EXISTS (
+      SELECT 1 FROM json_each(${resultPlayersJson}) AS rp
+      WHERE CAST(json_extract(rp.value, '$.race_id') AS INTEGER) IN (${raceIn})
+    )
+  )`;
+	}
+
+	const lobbyIdentity = [];
+	const resultIdentity = [];
+
+	for (let i = 0; i < steamIds.length; i++) {
+		const steamKey = `raceSteam${i}`;
+		const nameKey = `raceSteamName${i}`;
+		bindings[steamKey] = steamIds[i];
+		bindings[nameKey] = `/steam/${steamIds[i]}`;
+		lobbyIdentity.push(`json_extract(p.value, '$.steamId') = {:${steamKey}}`);
+		resultIdentity.push(`json_extract(rp.value, '$.steamId') = {:${steamKey}}`);
+		resultIdentity.push(`json_extract(rp.value, '$.name') = {:${nameKey}}`);
+	}
+
+	for (let i = 0; i < profileIds.length; i++) {
+		const key = `racePid${i}`;
+		bindings[key] = profileIds[i];
+		lobbyIdentity.push(
+			`(CAST(json_extract(p.value, '$.profile_id') AS INTEGER) = {:${key}} OR CAST(json_extract(p.value, '$.profile.profile_id') AS INTEGER) = {:${key}})`
+		);
+		resultIdentity.push(
+			`CAST(json_extract(rp.value, '$.profile_id') AS INTEGER) = {:${key}}`
+		);
+	}
+
+	const lobbyIdentityClause = `(${lobbyIdentity.join(' OR ')})`;
+	const resultIdentityClause = `(${resultIdentity.join(' OR ')})`;
+
+	return `(
+    EXISTS (
+      SELECT 1 FROM json_each(${lobbyPlayersJson}) AS p
+      WHERE ${lobbyIdentityClause}
+        AND CAST(json_extract(p.value, '$.race') AS INTEGER) IN (${raceIn})
+    )
+    OR EXISTS (
+      SELECT 1 FROM json_each(${resultPlayersJson}) AS rp
+      WHERE ${resultIdentityClause}
+        AND CAST(json_extract(rp.value, '$.race_id') AS INTEGER) IN (${raceIn})
+    )
+  )`;
+}
+
+function loadUserSteamIds(userId) {
+	if (!userId) {
+		return [];
+	}
+
+	try {
+		const row = new DynamicModel({ steamIds: '' });
+		$app
+			.db()
+			.newQuery('SELECT CAST(steamIds AS TEXT) AS steamIds FROM users WHERE id = {:id}')
+			.bind({ id: userId })
+			.one(row);
+
+		let raw = row.steamIds;
+		if (raw == null || raw === '' || raw === '[]' || raw === 'null') {
+			return [];
+		}
+
+		// goja/DynamicModel may expose TEXT JSON as a byte/char-code array
+		if (typeof raw !== 'string') {
+			if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === 'number') {
+				let text = '';
+				for (let i = 0; i < raw.length; i++) {
+					text += String.fromCharCode(raw[i]);
+				}
+				raw = text;
+			} else {
+				try {
+					raw = JSON.stringify(raw);
+					// If this was already a real string array, stringify gives '["123",...]'.
+					// If it was objects, also fine. If byte array somehow got here as something else, bail below.
+				} catch {
+					return [];
+				}
+			}
+		}
+
+		let parsed;
+		try {
+			parsed = JSON.parse(raw);
+		} catch {
+			return [];
+		}
+
+		// JSON.stringify on a real JS string array then JSON.parse works.
+		// JSON.stringify on byte array gives '[91,34,...]' — reject those.
+		if (!Array.isArray(parsed)) {
+			return [];
+		}
+
+		return parsed.map(String).filter((id) => /^\d{10,}$/.test(id));
+	} catch {
+		return [];
+	}
+}
+
 module.exports = {
 	parseLobbyPlayersField,
 	parseResultField,
@@ -264,5 +421,7 @@ module.exports = {
 	summarizePlayersFromResult,
 	loadPlayersByLobbyIds,
 	resolvePlayersForRow,
-	countFilteredMatches
+	countFilteredMatches,
+	buildRaceFilterClause,
+	loadUserSteamIds
 };

@@ -25,8 +25,16 @@
 		rowWrapper,
 		cells = {},
 		headers = {},
-		tableLayout = 'fixed'
+		tableLayout = 'fixed',
+		density = 'default',
+		striped = true
 	}: Props = $props();
+
+	const isCompact = $derived(density === 'compact');
+	const cellPad = $derived(isCompact ? 'px-3 py-1.5' : 'px-4');
+	const headerPad = $derived(isCompact ? 'px-3 py-2' : 'px-4 py-3');
+	const rowHeight = $derived(isCompact ? 'h-9' : 'h-11');
+	const stripeClass = $derived(striped ? 'odd:bg-secondary-600/5' : undefined);
 
 	function getCellSnippet(column: ColumnDef<T>): Snippet<[{ row: T }]> | undefined {
 		return column.cell ?? cells[column.id];
@@ -69,7 +77,7 @@
 	{#each columns as column (column.id)}
 		{@const cellSnippet = getCellSnippet(column)}
 		{@const cellHref = column.href?.(row)}
-		<td class={cn('px-4', column.cellClass?.(row))}>
+		<td class={cn(cellPad, column.cellClass?.(row))}>
 			{#if cellSnippet}
 				{#if cellHref}
 					<a href={cellHref} class={cn('hover:text-primary flex min-w-0 items-center gap-4 transition-colors', column.class)}>
@@ -94,9 +102,9 @@
 {/snippet}
 
 {#snippet skeletonRow()}
-	<tr class={cn('h-11 odd:bg-secondary-600/5', bodyRowClass)}>
+	<tr class={cn(rowHeight, stripeClass, bodyRowClass)}>
 		{#each columns as column (column.id)}
-			<td class={cn('px-4', column.hideSkeleton && 'p-0')}>
+			<td class={cn(cellPad, column.hideSkeleton && 'p-0')}>
 				{#if column.hideSkeleton}
 					<!-- spacer -->
 				{:else}
@@ -111,7 +119,8 @@
 	{@const href = rowHref?.(row)}
 	<tr
 		class={cn(
-			'h-11 odd:bg-secondary-600/5',
+			rowHeight,
+			stripeClass,
 			bodyRowClass,
 			href && 'hover:text-primary cursor-pointer transition-colors',
 			rowClass?.(row)
@@ -134,10 +143,16 @@
 		</colgroup>
 		{#if showHeader}
 			<thead class={headerClass}>
-				<tr class={cn('bg-secondary-950/90 text-secondary-300 text-left font-semibold', headerRowClass)}>
+				<tr
+					class={cn(
+						'bg-secondary-950/90 text-secondary-300 text-left font-semibold',
+						isCompact && 'text-xs tracking-wide uppercase',
+						headerRowClass
+					)}
+				>
 					{#each columns as column (column.id)}
 						{@const header = getHeaderSnippet(column)}
-						<th class={cn('px-4 py-3', column.headerCellClass)} onclick={column.onSort}>
+						<th class={cn(headerPad, column.headerCellClass)} onclick={column.onSort}>
 							<div class={cn('min-w-0', column.headerClass, column.sortable && 'cursor-pointer select-none')}>
 								{#if typeof header === 'string'}
 									{header}
@@ -157,7 +172,7 @@
 				{/each}
 			{:else if data.length === 0}
 				<tr>
-					<td colspan={columns.length} class="text-secondary-400 px-4 py-3 text-sm">
+					<td colspan={columns.length} class={cn('text-secondary-400 text-sm', cellPad, isCompact ? '' : 'py-3')}>
 						{empty}
 					</td>
 				</tr>

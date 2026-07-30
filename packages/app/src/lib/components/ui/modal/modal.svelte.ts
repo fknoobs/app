@@ -96,7 +96,6 @@ class Modal extends Emittery<ModalEvents> {
 
 	open() {
 		this._open = true;
-		this.emit('open');
 	}
 
 	close() {
@@ -107,8 +106,6 @@ class Modal extends Emittery<ModalEvents> {
 		this._props = undefined;
 		this._hideCloseButton = false;
 		this._contentProps = undefined;
-
-		this.emit('close');
 	}
 
 	constructor() {

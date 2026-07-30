@@ -1,4 +1,4 @@
-import type { LiveLobby } from '$core/app/database/lobbies-live';
+import { isLiveLobbyFresh, type LiveLobby } from '$core/app/database/lobbies-live';
 import type { UnsubscribeFunc } from 'pocketbase';
 import { app } from '$core/app/context';
 import { orderBy, uniqBy } from 'lodash-es';
@@ -75,8 +75,10 @@ export class LiveLobbiesFeed {
 
 				try {
 					const lobby = event.record;
-					if (lobby?.id && lobby.sessionId) {
+					if (lobby?.id && lobby.sessionId && isLiveLobbyFresh(lobby)) {
 						this.#upsert(lobby);
+					} else if (lobby?.id) {
+						this.items = this.items.filter((entry) => entry.id !== lobby.id);
 					} else {
 						await this.#loadItems();
 					}
@@ -109,7 +111,7 @@ export class LiveLobbiesFeed {
 
 	async #loadItems(): Promise<void> {
 		const result = await app.database.lobbiesLive.getList(1, 48);
-		this.items = uniqBy(result.items, 'sessionId');
+		this.items = uniqBy(result.items.filter(isLiveLobbyFresh), 'sessionId');
 	}
 
 	#upsert(lobby: LiveLobby) {

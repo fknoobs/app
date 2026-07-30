@@ -10,21 +10,23 @@
 	import { Button } from '../ui/button';
 	import { cn } from '$lib/utils';
 	import TodayMatchesTable from './today-matches-table.svelte';
-	import { todayPlayedMatchesFilter } from './dashboard-utils';
+	import { isMatchFromLocalToday, todayPlayedMatchesFilter } from './dashboard-utils';
 
 	let unsubscribe = $state<UnsubscribeFunc>();
+	let subscribeGeneration = 0;
 	let matches = resource(
 		() =>
 			[
 				app.game.profile?.relic.profile_id ?? null,
 				app.features.auth.userId ?? null
 			] as const,
-		([profileId, userId]) => {
-			if (!profileId && !userId) return Promise.resolve([]);
-			return app.database.matches.getList({
+		async ([profileId, userId]) => {
+			if (!profileId && !userId) return [];
+			const items = await app.database.matches.getList({
 				filter: todayPlayedMatchesFilter(profileId, userId),
 				sort: '-createdAt'
 			});
+			return items.filter(isMatchFromLocalToday);
 		}
 	);
 
@@ -36,39 +38,50 @@
 				app.game.profile?.relic.profile_id ?? null,
 				app.features.auth.userId ?? null
 			] as const,
-		async ([profileId, userId]) => {
-			await unsubscribe?.();
-			unsubscribe = undefined;
-			if (!profileId && !userId) return;
+		([profileId, userId]) => {
+			const generation = ++subscribeGeneration;
+			void (async () => {
+				await unsubscribe?.();
+				if (generation !== subscribeGeneration) return;
+				unsubscribe = undefined;
+				if (!profileId && !userId) return;
 
-			unsubscribe = await app.pocketbase.collection('lobbies').subscribe<LobbyMatch>(
-				'*',
-				(e) => {
-					if (e.action === 'create') {
-						const current = matches.current || [];
-						if (!current.find((m) => m.id === e.record.id)) {
-							matches.mutate([...current, exp(e.record) as MatchExpanded]);
+				const next = await app.pocketbase.collection('lobbies').subscribe<LobbyMatch>(
+					'*',
+					(e) => {
+						if (e.action === 'create') {
+							const current = matches.current || [];
+							if (!current.find((m) => m.id === e.record.id)) {
+								matches.mutate([...current, exp(e.record) as MatchExpanded]);
+							}
+						} else if (e.action === 'update') {
+							matches.mutate(
+								(matches.current || []).map((match) =>
+									match.id === e.record.id ? (exp(e.record) as MatchExpanded) : match
+								)
+							);
+						} else if (e.action === 'delete') {
+							matches.mutate((matches.current || []).filter((match) => match.id !== e.record.id));
 						}
-					} else if (e.action === 'update') {
-						matches.mutate(
-							(matches.current || []).map((match) =>
-								match.id === e.record.id ? (exp(e.record) as MatchExpanded) : match
-							)
-						);
-					} else if (e.action === 'delete') {
-						matches.mutate((matches.current || []).filter((match) => match.id !== e.record.id));
+					},
+					{
+						filter: todayPlayedMatchesFilter(profileId, userId),
+						sort: '-createdAt',
+						fetch
 					}
-				},
-				{
-					filter: todayPlayedMatchesFilter(profileId, userId),
-					sort: '-createdAt',
-					fetch
+				);
+
+				if (generation !== subscribeGeneration) {
+					await next();
+					return;
 				}
-			);
+				unsubscribe = next;
+			})();
 		}
 	);
 
 	onDestroy(() => {
+		subscribeGeneration += 1;
 		unsubscribe?.();
 	});
 </script>

@@ -88,6 +88,10 @@ export class SteamAPIError extends Error {
 export class SteamAPI {
 	private readonly baseUrl = 'https://api.steampowered.com';
 	private cache = new Map<string, { data: any; timestamp: number }>();
+	/** Per-steamId profile cache so batch fetches warm individual lookups. */
+	private profileCache = new Map<string, { data: SteamPlayerSummary | null; timestamp: number }>();
+	/** In-flight single-profile requests — dedupes concurrent Avatar mounts. */
+	private profileInflight = new Map<string, Promise<SteamPlayerSummary | null>>();
 	private readonly cacheDuration = 5 * 60 * 1000; // 5 minutes
 
 	private get apiKey(): string {
@@ -114,6 +118,27 @@ export class SteamAPI {
 
 	private setCache(key: string, data: any): void {
 		this.cache.set(key, { data, timestamp: Date.now() });
+	}
+
+	private getCachedProfile(steamId: string): SteamPlayerSummary | null | undefined {
+		const cached = this.profileCache.get(steamId);
+		if (!cached) return undefined;
+		if (Date.now() - cached.timestamp >= this.cacheDuration) {
+			this.profileCache.delete(steamId);
+			return undefined;
+		}
+		return cached.data;
+	}
+
+	private setCachedProfile(steamId: string, data: SteamPlayerSummary | null): void {
+		this.profileCache.set(steamId, { data, timestamp: Date.now() });
+	}
+
+	private rememberProfiles(profiles: SteamPlayerSummary[], requestedIds: string[]): void {
+		const byId = new Map(profiles.map((profile) => [profile.steamid, profile]));
+		for (const steamId of requestedIds) {
+			this.setCachedProfile(steamId, byId.get(steamId) ?? null);
+		}
 	}
 
 	/**
@@ -174,16 +199,28 @@ export class SteamAPI {
 	 * @returns Steam player summary or null if not found
 	 */
 	async getUserProfile(steamId: string): Promise<SteamPlayerSummary | null> {
-		try {
-			const data = await this.request<{
-				response: { players: SteamPlayerSummary[] };
-			}>('/ISteamUser/GetPlayerSummaries/v2/', { steamids: steamId });
-
-			return data.response?.players?.[0] ?? null;
-		} catch (error) {
-			console.error(`Failed to get user profile for ${steamId}:`, error);
-			throw error;
+		const cached = this.getCachedProfile(steamId);
+		if (cached !== undefined) {
+			return cached;
 		}
+
+		const inflight = this.profileInflight.get(steamId);
+		if (inflight) {
+			return inflight;
+		}
+
+		const promise = this.getUserProfiles([steamId])
+			.then((profiles) => profiles[0] ?? null)
+			.catch((error) => {
+				console.error(`Failed to get user profile for ${steamId}:`, error);
+				throw error;
+			})
+			.finally(() => {
+				this.profileInflight.delete(steamId);
+			});
+
+		this.profileInflight.set(steamId, promise);
+		return promise;
 	}
 
 	/**
@@ -198,14 +235,37 @@ export class SteamAPI {
 			throw new SteamAPIError('Cannot request more than 100 profiles at once');
 		}
 
+		const uniqueIds = [...new Set(steamIds.filter(Boolean))];
+		const resultById = new Map<string, SteamPlayerSummary>();
+		const missing: string[] = [];
+
+		for (const steamId of uniqueIds) {
+			const cached = this.getCachedProfile(steamId);
+			if (cached !== undefined) {
+				if (cached) resultById.set(steamId, cached);
+				continue;
+			}
+			missing.push(steamId);
+		}
+
+		if (missing.length === 0) {
+			return uniqueIds.map((id) => resultById.get(id)).filter(Boolean) as SteamPlayerSummary[];
+		}
+
 		try {
 			const data = await this.request<{
 				response: { players: SteamPlayerSummary[] };
 			}>('/ISteamUser/GetPlayerSummaries/v2/', {
-				steamids: steamIds.join(',')
+				steamids: missing.join(',')
 			});
 
-			return data.response?.players ?? [];
+			const profiles = data.response?.players ?? [];
+			this.rememberProfiles(profiles, missing);
+			for (const profile of profiles) {
+				resultById.set(profile.steamid, profile);
+			}
+
+			return uniqueIds.map((id) => resultById.get(id)).filter(Boolean) as SteamPlayerSummary[];
 		} catch (error) {
 			console.error('Failed to get user profiles:', error);
 			throw error;
@@ -367,6 +427,8 @@ export class SteamAPI {
 	 */
 	clearCache(): void {
 		this.cache.clear();
+		this.profileCache.clear();
+		this.profileInflight.clear();
 	}
 
 	/**

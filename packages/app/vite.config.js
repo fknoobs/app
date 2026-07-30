@@ -7,8 +7,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const host = process.env.TAURI_DEV_HOST;
+const PRODUCTION_PB_URL = 'https://api.coh1stats.com';
 
 // Custom plugin to handle ?base64 imports
 function base64Plugin() {
@@ -32,43 +31,53 @@ function base64Plugin() {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig({
-	define: {
-		'process.env': process.env,
-		global: 'globalThis'
-	},
-	assetsInclude: ['*.md'],
-	resolve: {
-		alias: {
-			'@tauri-apps/plugin-http-original': path.resolve(
-				__dirname,
-				'node_modules/@tauri-apps/plugin-http/dist-js/index.js'
-			)
-		}
-	},
-	plugins: [base64Plugin(), sveltekit(), tailwindcss(), base64()],
-	// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-	//
-	// 1. prevent vite from obscuring rust errors
-	clearScreen: false,
-	// 2. tauri expects a fixed port, fail if that port is not available
-	server: {
-		fs: {
-			allow: ['..']
-		},
-		port: 1420,
-		strictPort: true,
-		host: host || false,
-		hmr: host
-			? {
-					protocol: 'ws',
-					host,
-					port: 1421
-				}
-			: undefined,
-		watch: {
-			// 3. tell vite to ignore watching `src-tauri`
-			ignored: ['**/src-tauri/**']
-		}
+export default defineConfig(({ mode }) => {
+	// Production builds must never ship with a localhost PocketBase URL,
+	// even if packages/app/.env (or the shell) still points at local PB.
+	if (mode === 'production') {
+		process.env.PUBLIC_PB_URL = PRODUCTION_PB_URL;
 	}
+
+	const host = process.env.TAURI_DEV_HOST;
+
+	return {
+		define: {
+			'process.env': process.env,
+			global: 'globalThis'
+		},
+		assetsInclude: ['*.md'],
+		resolve: {
+			alias: {
+				'@tauri-apps/plugin-http-original': path.resolve(
+					__dirname,
+					'node_modules/@tauri-apps/plugin-http/dist-js/index.js'
+				)
+			}
+		},
+		plugins: [base64Plugin(), sveltekit(), tailwindcss(), base64()],
+		// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
+		//
+		// 1. prevent vite from obscuring rust errors
+		clearScreen: false,
+		// 2. tauri expects a fixed port, fail if that port is not available
+		server: {
+			fs: {
+				allow: ['..']
+			},
+			port: 1420,
+			strictPort: true,
+			host: host || false,
+			hmr: host
+				? {
+						protocol: 'ws',
+						host,
+						port: 1421
+					}
+				: undefined,
+			watch: {
+				// 3. tell vite to ignore watching `src-tauri`
+				ignored: ['**/src-tauri/**']
+			}
+		}
+	};
 });

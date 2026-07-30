@@ -1,19 +1,30 @@
 <script lang="ts">
 	import { usePlayer } from './context';
-	import CaretUp from 'phosphor-svelte/lib/CaretUp';
-	import CaretDown from 'phosphor-svelte/lib/CaretDown';
+	import CaretUp from 'phosphor-svelte/lib/CaretUpIcon';
+	import CaretDown from 'phosphor-svelte/lib/CaretDownIcon';
+	import MinusIcon from 'phosphor-svelte/lib/MinusIcon';
 
 	const { playerResult } = $derived(usePlayer());
+	const change = $derived.by(() => {
+		if (!playerResult) return undefined;
+		const next = playerResult.newrating;
+		const prev = playerResult.oldrating;
+		if (!Number.isFinite(next) || !Number.isFinite(prev)) return undefined;
+		return next - prev;
+	});
 </script>
 
-{#if playerResult}
-	<span class="flex items-center gap-2">
-		{#if playerResult.newrating < playerResult.oldrating}
-			<CaretDown class="inline-block text-red-400" weight="duotone" />
-			<span class="text-red-100">{playerResult.oldrating - playerResult.newrating}</span>
+{#if change !== undefined}
+	<span class="flex items-center justify-center gap-1 text-sm tabular-nums">
+		{#if change < 0}
+			<CaretDown class="text-destructive size-4" weight="duotone" />
+			<span class="text-red-200">{Math.abs(change)}</span>
+		{:else if change > 0}
+			<CaretUp class="text-success size-4" weight="duotone" />
+			<span class="text-green-200">{change}</span>
 		{:else}
-			<CaretUp class="inline-block text-green-400" weight="duotone" />
-			<span class="text-green-100">{playerResult.newrating - playerResult.oldrating}</span>
+			<MinusIcon class="text-secondary-500 size-4" />
+			<span class="text-secondary-500">0</span>
 		{/if}
 	</span>
 {/if}

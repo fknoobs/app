@@ -19,6 +19,8 @@ export type ColumnDef<T> = {
 	hideSkeleton?: boolean;
 };
 
+export type DataTableDensity = 'default' | 'compact';
+
 export type DataTableProps<T> = {
 	data: T[];
 	columns: ColumnDef<T>[];
@@ -38,4 +40,6 @@ export type DataTableProps<T> = {
 	cells?: Partial<Record<string, Snippet<[{ row: T }]>>>;
 	headers?: Partial<Record<string, Snippet>>;
 	tableLayout?: 'fixed' | 'auto';
+	density?: DataTableDensity;
+	striped?: boolean;
 };

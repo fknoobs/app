@@ -4,8 +4,9 @@
 	import { cn } from '$lib/utils';
 	import { tooltip } from '$lib/attachments';
 	import { app } from '$core/app/context';
-	import CaretUp from 'phosphor-svelte/lib/CaretUp';
-	import CaretDown from 'phosphor-svelte/lib/CaretDown';
+	import CaretUp from 'phosphor-svelte/lib/CaretUpIcon';
+	import CaretDown from 'phosphor-svelte/lib/CaretDownIcon';
+	import MinusIcon from 'phosphor-svelte/lib/MinusIcon';
 
 	type Props = HTMLAttributes<HTMLSpanElement>;
 
@@ -21,6 +22,14 @@
 
 		return players.find((p) => steamIds.includes(p.steamId)) ?? null;
 	});
+
+	const change = $derived.by(() => {
+		if (!player) return undefined;
+		if (!Number.isFinite(player.newrating) || !Number.isFinite(player.oldrating)) {
+			return undefined;
+		}
+		return player.newrating - player.oldrating;
+	});
 </script>
 
 <span
@@ -28,13 +37,16 @@
 	class={cn('inline-flex items-center gap-2', restProps.class)}
 	{@attach tooltip('Rating Change (elo)')}
 >
-	{#if player}
-		{#if player.newrating < player.oldrating}
+	{#if change !== undefined}
+		{#if change < 0}
 			<CaretDown class="inline-block text-red-400" weight="duotone" />
-			<span class="text-red-200">{player.oldrating - player.newrating}</span>
+			<span class="text-red-200">{Math.abs(change)}</span>
+		{:else if change > 0}
+			<CaretUp class="text-success inline-block" weight="duotone" />
+			<span class="text-green-300">{change}</span>
 		{:else}
-			<CaretUp class="inline-block text-green-400" weight="duotone" />
-			<span class="text-green-100">{player.newrating - player.oldrating}</span>
+			<MinusIcon class="text-secondary-500 inline-block" />
+			<span class="text-secondary-500">0</span>
 		{/if}
 	{/if}
 </span>

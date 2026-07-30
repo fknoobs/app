@@ -11,7 +11,9 @@ routerAdd('GET', '/api/match-history', (e) => {
 		loadPlayersByLobbyIds,
 		resolvePlayersForRow,
 		parseResultField,
-		countFilteredMatches
+		countFilteredMatches,
+		buildRaceFilterClause,
+		loadUserSteamIds
 	} = require(`${__hooks}/lib/match-history.js`);
 
 	const query = e.request.url.query();
@@ -35,6 +37,13 @@ routerAdd('GET', '/api/match-history', (e) => {
 		.split(',')
 		.map((value) => value.trim())
 		.filter(Boolean);
+
+	const races = (query.get('races') || '')
+		.split(',')
+		.map((value) => value.trim())
+		.filter(Boolean)
+		.map((value) => Number(value))
+		.filter((value) => !Number.isNaN(value) && value >= 0 && value <= 3);
 
 	const bindings = {};
 	const lobbyFilters = ["l.needsResult = 0", "l.title != 'Skirmish'"];
@@ -67,6 +76,7 @@ routerAdd('GET', '/api/match-history', (e) => {
 	}
 
 	const numericPlayerIds = [];
+	const numericPlayerIdValues = [];
 
 	for (let i = 0; i < playerIds.length; i++) {
 		const profileId = Number(playerIds[i]);
@@ -78,10 +88,31 @@ routerAdd('GET', '/api/match-history', (e) => {
 		const key = `pid${i}`;
 		bindings[key] = profileId;
 		numericPlayerIds.push(`{:${key}}`);
+		numericPlayerIdValues.push(profileId);
+	}
+
+	const subjectProfileId = Number(query.get('profileId') || '');
+	const userProfileIds =
+		Number.isFinite(subjectProfileId) && subjectProfileId > 0 ? [subjectProfileId] : [];
+
+	const raceSubjects =
+		scope === 'user'
+			? { steamIds: loadUserSteamIds(userId), profileIds: userProfileIds }
+			: { steamIds: [], profileIds: numericPlayerIdValues };
+
+	// Community without a player filter: match any participant with the race.
+	// User without steam/profile ids: soft-fail (ignore race filter) instead of empty list.
+	const raceClause = buildRaceFilterClause(races, raceSubjects, bindings, {
+		allowAnyPlayer: scope === 'community'
+	});
+
+	if (raceClause) {
+		lobbyFilters.push(raceClause);
 	}
 
 	const hasPlayerFilter = numericPlayerIds.length > 0;
-	const hasExtraFilters = hasPlayerFilter || maps.length > 0 || ranked;
+	const hasRaceFilter = !!raceClause;
+	const hasExtraFilters = hasPlayerFilter || maps.length > 0 || ranked || hasRaceFilter;
 	const offset = (page - 1) * perPage;
 
 	bindings.limit = perPage;

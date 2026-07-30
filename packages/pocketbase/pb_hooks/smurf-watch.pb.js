@@ -3,13 +3,6 @@
 'use strict';
 
 $app.onServe().bindFunc((e) => {
-	const { debugLog } = require(`${__hooks}/lib/debug-log.js`);
-	const serveStart = Date.now();
-
-	// #region agent log
-	debugLog('smurf-watch.pb.js:onServe', 'serve start', { serveStart }, 'B');
-	// #endregion
-
 	e.next();
 
 	cronAdd('smurf_watch_backfill', '*/5 * * * *', () => {
@@ -23,15 +16,6 @@ $app.onServe().bindFunc((e) => {
 			`[smurf_watch] backfill batch processed=${result.processed} enqueued=${result.enqueued} complete=${result.complete}`
 		);
 	});
-
-	// #region agent log
-	debugLog(
-		'smurf-watch.pb.js:onServe',
-		'cron registered (backfill deferred)',
-		{ durationMs: Date.now() - serveStart },
-		'B'
-	);
-	// #endregion
 });
 
 routerAdd('POST', '/api/smurf-watch/backfill/run', (e) => {

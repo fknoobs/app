@@ -21,13 +21,6 @@ onRecordAfterUpdateSuccess((e) => {
 }, 'lobbies');
 
 $app.onServe().bindFunc((e) => {
-	const { debugLog } = require(`${__hooks}/lib/debug-log.js`);
-	const serveStart = Date.now();
-
-	// #region agent log
-	debugLog('lobby-players.pb.js:onServe', 'serve start', { serveStart }, 'B');
-	// #endregion
-
 	e.next();
 
 	cronAdd('lobby_players_backfill', '*/5 * * * *', () => {
@@ -41,15 +34,6 @@ $app.onServe().bindFunc((e) => {
 			`[lobby_players] backfill batch processed=${result.processed} updated=${result.updated} indexed=${result.indexed} complete=${result.complete}`
 		);
 	});
-
-	// #region agent log
-	debugLog(
-		'lobby-players.pb.js:onServe',
-		'cron registered (backfill deferred)',
-		{ durationMs: Date.now() - serveStart },
-		'B'
-	);
-	// #endregion
 });
 
 routerAdd('POST', '/api/lobby-players/backfill/run', (e) => {

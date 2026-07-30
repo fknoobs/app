@@ -3,24 +3,21 @@
 'use strict';
 
 routerAdd('GET', '/api/match-filters/{scope}', (e) => {
+	const {
+		parseJsonArray,
+		playersNeedRebuild,
+		buildUserMatchFilters,
+		saveUserMatchFiltersSnapshot
+	} = require(`${__hooks}/lib/match-filters.js`);
+
 	const scope = e.request.pathValue('scope');
 	const userId = e.request.url.query().get('userId');
 
 	try {
 		if (scope === 'community') {
 			const snapshot = $app.findRecordById('match_filter_snapshots', 'community');
-			const mapsRaw = snapshot.get('maps');
-			const playersRaw = snapshot.get('players');
-			let maps = Array.isArray(mapsRaw) ? mapsRaw : [];
-			let players = Array.isArray(playersRaw) ? playersRaw : [];
-
-			if (typeof mapsRaw === 'string' && mapsRaw.length > 0) {
-				maps = JSON.parse(mapsRaw);
-			}
-
-			if (typeof playersRaw === 'string' && playersRaw.length > 0) {
-				players = JSON.parse(playersRaw);
-			}
+			const maps = parseJsonArray(snapshot.get('maps'));
+			const players = parseJsonArray(snapshot.get('players'));
 
 			return e.json(200, { maps, players });
 		}
@@ -34,87 +31,18 @@ routerAdd('GET', '/api/match-filters/{scope}', (e) => {
 
 			try {
 				const snapshot = $app.findRecordById('match_filter_snapshots', snapshotId);
-				const mapsRaw = snapshot.get('maps');
-				const playersRaw = snapshot.get('players');
-				let maps = Array.isArray(mapsRaw) ? mapsRaw : [];
-				let players = Array.isArray(playersRaw) ? playersRaw : [];
+				const maps = parseJsonArray(snapshot.get('maps'));
+				const players = parseJsonArray(snapshot.get('players'));
 
-				if (typeof mapsRaw === 'string' && mapsRaw.length > 0) {
-					maps = JSON.parse(mapsRaw);
+				if (!playersNeedRebuild(players)) {
+					return e.json(200, { maps, players });
 				}
-
-				if (typeof playersRaw === 'string' && playersRaw.length > 0) {
-					players = JSON.parse(playersRaw);
-				}
-
-				return e.json(200, { maps, players });
 			} catch {
 				// Build and cache the first user snapshot below.
 			}
 
-			const bindings = { userId };
-			const where = "needsResult = 0 AND title != 'Skirmish' AND user = {:userId}";
-
-			const mapRows = arrayOf(new DynamicModel({ value: '' }));
-			$app
-				.db()
-				.newQuery(
-					`SELECT DISTINCT map AS value
-           FROM lobbies
-           WHERE ${where}
-             AND map IS NOT NULL
-           ORDER BY value`
-				)
-				.bind(bindings)
-				.all(mapRows);
-
-			const playerRows = arrayOf(new DynamicModel({ profile_id: 0, alias: '' }));
-			$app
-				.db()
-				.newQuery(
-					`SELECT
-             i.profile_id AS profile_id,
-             MAX(COALESCE(json_extract(p.value, '$.alias'), '')) AS alias
-           FROM lobby_player_index i
-           INNER JOIN lobbies l ON l.id = i.lobby
-           LEFT JOIN json_each(
-             CASE
-               WHEN l.lobbyPlayers IS NOT NULL AND l.lobbyPlayers != '[]' THEN l.lobbyPlayers
-               ELSE '[]'
-             END
-           ) AS p ON json_extract(p.value, '$.profile_id') = i.profile_id
-           WHERE ${where.replace(/\bneedsResult\b/g, 'l.needsResult').replace(/\btitle\b/g, 'l.title').replace(/\buser\b/g, 'l.user')}
-           GROUP BY i.profile_id
-           ORDER BY alias, i.profile_id`
-				)
-				.bind(bindings)
-				.all(playerRows);
-
-			const maps = mapRows.map((row) => row.value);
-			const players = playerRows.map((row) => ({
-				profile_id: Number(row.profile_id),
-				alias: row.alias
-			}));
-
-			try {
-				const collection = $app.findCollectionByNameOrId('match_filter_snapshots');
-				let snapshot;
-
-				try {
-					snapshot = $app.findRecordById('match_filter_snapshots', snapshotId);
-					snapshot.set('maps', maps);
-					snapshot.set('players', players);
-				} catch {
-					snapshot = new Record(collection);
-					snapshot.set('id', snapshotId);
-					snapshot.set('maps', maps);
-					snapshot.set('players', players);
-				}
-
-				$app.save(snapshot);
-			} catch {
-				// Snapshot write failed; still return computed filters.
-			}
+			const { maps, players } = buildUserMatchFilters(userId);
+			saveUserMatchFiltersSnapshot(snapshotId, maps, players);
 
 			return e.json(200, { maps, players });
 		}

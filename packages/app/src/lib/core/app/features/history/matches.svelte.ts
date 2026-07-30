@@ -15,6 +15,7 @@ const FILTER_DEBOUNCE_MS = 200;
 export type MatchesFilterState = {
 	playerIds?: string[];
 	maps?: string[];
+	races?: string[];
 	ranked?: boolean;
 };
 
@@ -40,6 +41,7 @@ export class Matches {
 		this.filters = {
 			playerIds: undefined,
 			maps: undefined,
+			races: undefined,
 			ranked: false
 		};
 		this.#debouncedFilters.setImmediately($state.snapshot(this.filters));
@@ -54,6 +56,7 @@ export class Matches {
 	public filters = $state<MatchesFilterState>({
 		playerIds: undefined,
 		maps: undefined,
+		races: undefined,
 		ranked: false
 	});
 
@@ -103,17 +106,30 @@ export class Matches {
 	});
 
 	public players = $derived.by(() => {
-		return uniqBy(
-			map(this.displayedAggregation?.players || [], (p) => {
+		const options = (this.displayedAggregation?.players || [])
+			.map((player) => {
+				const nested =
+					typeof player === 'object' &&
+					player !== null &&
+					'profile' in player &&
+					player.profile &&
+					typeof player.profile === 'object'
+						? (player.profile as { alias?: string; profile_id?: number })
+						: null;
+				const flat = player as AggregationPlayer;
+				const profileId = nested?.profile_id ?? flat.profile_id;
+				if (profileId == null) {
+					return null;
+				}
+				const alias = (nested?.alias ?? flat.alias ?? '').trim();
 				return {
-					// @ts-expect-error This is for backward compatibility until all types are fixed
-					label: 'profile' in p ? p.profile!.alias! : p.alias,
-					// @ts-expect-error This is for backward compatibility until all types are fixed
-					value: 'profile' in p ? p.profile!.profile_id!.toString() : p.profile_id?.toString()
+					label: alias || String(profileId),
+					value: String(profileId)
 				};
-			}),
-			'value'
-		);
+			})
+			.filter((option): option is { label: string; value: string } => option != null);
+
+		return uniqBy(options, 'value');
 	});
 
 	public maps = $derived.by(() => {
@@ -124,14 +140,17 @@ export class Matches {
 	});
 
 	public query = $derived.by(() => {
-		const { playerIds, maps, ranked } = this.#debouncedFilters.current;
+		const { playerIds, maps, races, ranked } = this.#debouncedFilters.current;
 
 		return {
 			scope: this.scope,
 			userId: this.scope === 'user' ? app.features.auth.userId : undefined,
+			profileId:
+				this.scope === 'user' ? (app.game.profile?.relic.profile_id ?? undefined) : undefined,
 			ranked: ranked ?? false,
 			playerIds: playerIds ?? [],
-			maps: maps ?? []
+			maps: maps ?? [],
+			races: races ?? []
 		};
 	});
 
@@ -147,7 +166,7 @@ export class Matches {
 		this.aggregation = resource(
 			() => this.scope,
 			() => {
-				return useQuery('matches-aggregation-' + this.scope, {
+				return useQuery('matches-aggregation-v2-' + this.scope, {
 					queryFn: () => this.getAggregation(),
 					ttl: 300
 				});
@@ -204,7 +223,10 @@ export class Matches {
 
 	getMatches(signal?: AbortSignal) {
 		const hasFilters =
-			this.query.playerIds.length > 0 || this.query.maps.length > 0 || this.query.ranked;
+			this.query.playerIds.length > 0 ||
+			this.query.maps.length > 0 ||
+			this.query.races.length > 0 ||
+			this.query.ranked;
 		const cacheKey = `matches-${md5(JSON.stringify({ ...this.query, page: this.page }))}`;
 
 		return useQuery(cacheKey, {

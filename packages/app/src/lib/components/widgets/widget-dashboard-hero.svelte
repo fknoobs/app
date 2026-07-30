@@ -12,7 +12,7 @@
 	import { upperCase } from 'lodash-es';
 	import CaretDown from 'phosphor-svelte/lib/CaretDown';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { countTodayRecord, todayPlayedMatchesFilter } from './dashboard-utils';
+	import { countTodayRecord, isMatchFromLocalToday, todayPlayedMatchesFilter } from './dashboard-utils';
 
 	let activeTab = $state('stats');
 	let panelExpanded = $state(false);
@@ -23,12 +23,13 @@
 				app.game.profile?.relic.profile_id ?? null,
 				app.features.auth.userId ?? null
 			] as const,
-		([profileId, userId]) => {
-			if (!profileId && !userId) return Promise.resolve([]);
-			return app.database.matches.getList({
+		async ([profileId, userId]) => {
+			if (!profileId && !userId) return [];
+			const items = await app.database.matches.getList({
 				filter: todayPlayedMatchesFilter(profileId, userId),
 				sort: '-createdAt'
 			});
+			return items.filter(isMatchFromLocalToday);
 		}
 	);
 

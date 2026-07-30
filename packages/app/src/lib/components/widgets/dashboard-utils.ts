@@ -4,6 +4,7 @@ import type { MatchExpanded } from '$core/app/database/matches';
 import type { TransformedMatch } from '@fknoobs/app';
 import { Lobby, MATCH_TYPES, type Match, type MatchTypeId } from '$core/game/lobby';
 import { Race } from '$lib/utils/game';
+import dayjs from '$lib/dayjs';
 
 export function formatMapDisplayName(map?: string): string {
 	if (!map) return 'Unknown Map';
@@ -95,19 +96,44 @@ export function countTodayRecord(matches: MatchExpanded[], profileId?: number) {
 	return { wins, losses, pending, total: matches.length };
 }
 
-/** Matches played today: participation (CSV / players JSON), or matches the user saved. */
+/** True when the Relic profile is one of the match participants. */
+export function matchIncludesPlayer(match: MatchExpanded, profileId: number): boolean {
+	if ((match.players ?? []).some((player) => getPlayerProfileId(player) === profileId)) {
+		return true;
+	}
+
+	const result = match.result as TransformedMatch | null | undefined;
+	return !!result?.players?.some((player) => player.profile_id === profileId);
+}
+
+/**
+ * Matches played today for this account/profile.
+ * - `user`: matches you saved (same source as History → My matches)
+ * - CSV / lobbyPlayers: matches a teammate saved where you still participated
+ * Never search raw `players` JSON — it embeds opponents' matchHistory and false-positives.
+ *
+ * Server window starts at local midnight (PB autodate needs `YYYY-MM-DD HH:mm:ss.SSSZ`).
+ * Callers should still client-filter with {@link isMatchFromLocalToday} so timezone
+ * edges never drop games.
+ */
 export function todayPlayedMatchesFilter(
 	profileId?: number | null,
 	userId?: string | null
 ): string {
 	const who: string[] = [];
+	if (userId) who.push(`user = "${userId}"`);
 	if (profileId) {
 		who.push(`playerProfileIdsCsv ~ ",${profileId},"`);
-		// Fallback when CSV was never backfilled but players JSON still has profiles.
-		who.push(`players ~ '"profile_id":${profileId},'`);
+		who.push(`lobbyPlayers ~ '"profile_id":${profileId},'`);
 	}
-	if (userId) who.push(`user = "${userId}"`);
 	if (who.length === 0) return 'id=""';
 	const clause = who.length === 1 ? who[0]! : `(${who.join(' || ')})`;
-	return `createdAt > @todayStart && ${clause}`;
+	// PocketBase autodate filters use a space, not ISO `T` (see lobbiesLiveFreshFilter).
+	const todayStart = dayjs().startOf('day').toISOString().replace('T', ' ');
+	return `createdAt >= "${todayStart}" && ${clause}`;
+}
+
+/** Local-calendar "today" check for match timestamps. */
+export function isMatchFromLocalToday(match: Pick<MatchExpanded, 'createdAt'>): boolean {
+	return dayjs(match.createdAt).isSame(dayjs(), 'day');
 }

@@ -9,8 +9,16 @@
 	import { Pagination } from '$lib/components/ui/pagination';
 	import { app } from '$core/app/context';
 	import type { MatchExpanded } from '$core/app/database/matches';
+	import { Race } from '$lib/utils/game';
 
 	const matches = $derived(app.features.history?.matches);
+
+	const factionOptions = [
+		{ label: 'USA', value: String(Race.US) },
+		{ label: 'Wehrmacht', value: String(Race.Wehrmacht) },
+		{ label: 'Commonwealth', value: String(Race.Commonwealth) },
+		{ label: 'Panzer Elite', value: String(Race.PanzerElite) }
+	];
 
 	const columns: ColumnDef<MatchExpanded>[] = [
 		{
@@ -86,6 +94,15 @@
 						placeholder="Select maps"
 						bind:value={matches.filters.maps}
 						options={matches.maps}
+						multiple
+					/>
+				</Form.Group>
+				<Form.Group class="w-fit">
+					<Form.Label>Faction</Form.Label>
+					<Selection
+						placeholder="Select factions"
+						bind:value={matches.filters.races}
+						options={factionOptions}
 						multiple
 					/>
 				</Form.Group>

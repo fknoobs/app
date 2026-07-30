@@ -1,0 +1,48 @@
+---
+description: Prefer existing $lib/components over custom HTML markup
+globs: packages/app/src/**/*.{svelte,svelte.ts}
+alwaysApply: true
+---
+
+# Reuse Existing Components
+
+Before writing any UI markup, search `$lib/components` for an existing component. Do **not** invent custom HTML when a shared primitive or domain component already covers the need.
+
+## Checklist (before new markup)
+
+1. Check **`packages/app/src/lib/components/ui/`** — Button, Box, Input, Dialog, Modal, Tabs, Table, Badge, Alert, Skeleton, List, Form, Avatar, Profile, Popover, Dropdown, …
+2. Check domain folders — `match/`, `player/`, `lobby/`, `replay/`, `match-history/`, `widgets/`, …
+3. Prefer extending via props / snippets over copying markup
+4. Only write raw HTML when no existing component fits — and keep it minimal
+
+## Prefer
+
+```svelte
+<!-- ✅ existing components -->
+<script lang="ts">
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Box } from '$lib/components/ui/box';
+</script>
+
+<Box>
+	<Badge>Live</Badge>
+	<Button variant="primary">Join</Button>
+</Box>
+```
+
+## Avoid
+
+```svelte
+<!-- ❌ hand-rolled equivalents -->
+<div class="rounded border bg-card p-4">
+	<span class="rounded-full bg-green-500 px-2 text-xs">Live</span>
+	<button class="bg-primary px-3 py-2" onclick={...}>Join</button>
+</div>
+```
+
+## Do not
+
+- Recreate Button / Input / Dialog / Table / Badge styling with raw `<button>`, `<input>`, `<div>` + Tailwind
+- Duplicate domain UI (player row, match card, lobby controls) that already lives under `$lib/components`
+- Skip the search because “a quick custom div is faster”

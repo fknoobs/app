@@ -1,25 +1,9 @@
-/// <reference path="../pb_data/types.d.ts" />'
+/// <reference path="../pb_data/types.d.ts" />
 
 'use strict';
 onBootstrap((e) => {
-	const { debugLog } = require(`${__hooks}/lib/debug-log.js`);
-	const bootstrapStart = Date.now();
-
-	// #region agent log
-	debugLog('main.pb.js:onBootstrap', 'bootstrap start', { bootstrapStart }, 'C');
-	// #endregion
-
 	e.next();
 	require(`${__hooks}/handler.js`).default();
-
-	// #region agent log
-	debugLog(
-		'main.pb.js:onBootstrap',
-		'schema generation done',
-		{ durationMs: Date.now() - bootstrapStart },
-		'C'
-	);
-	// #endregion
 });
 onCollectionCreateRequest((e) => {
 	e.next();

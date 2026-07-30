@@ -26,6 +26,7 @@ import { game } from '$core/game/process.svelte';
 import { GameLogService } from '$core/game/log/index.svelte';
 import { Lobby, type Match } from '$core/game/lobby';
 import { database } from '$core/app/database';
+import { LOBBIES_LIVE_HEARTBEAT_MS } from '$core/app/database/lobbies-live';
 import { SocketManager, SocketState } from '$core/app/socket.svelte';
 import { notifications as notificationsService } from '$core/notifications/notifications.svelte';
 import { LOBBY_4V4, RANKED_2V2 } from '$lib/dev';
@@ -118,6 +119,11 @@ export class AppContext extends Emittery<AppEvents> {
 
 	#wired = false;
 	#logStopTimer: ReturnType<typeof setTimeout> | null = null;
+	#liveLobbyHeartbeat: ReturnType<typeof setInterval> | null = null;
+	/** Bumps on clear/start so in-flight upserts don't resurrect a deleted row. */
+	#liveLobbyGeneration = 0;
+	/** True once the game process has been seen running this session. */
+	#hadGameRunning = false;
 
 	constructor() {
 		super();
@@ -187,6 +193,7 @@ export class AppContext extends Emittery<AppEvents> {
 					}
 
 					if (isRunning && path) {
+						this.#hadGameRunning = true;
 						this.isReady = false;
 						this.gameLog.start(path);
 						return;
@@ -195,16 +202,27 @@ export class AppContext extends Emittery<AppEvents> {
 					if (!path) {
 						this.gameLog.stop();
 						this.isReady = false;
+						if (this.#hadGameRunning) {
+							this.#clearLiveLobbyOnGameExit();
+						}
+						return;
+					}
+
+					// Initial boot: game isn't running — don't hit PB to clear nothing.
+					if (!this.#hadGameRunning) {
+						this.isReady = false;
 						return;
 					}
 
 					// Process exit can flicker briefly; pause immediately and only
-					// reset after the game stays closed.
+					// reset after the game stays closed. Also clear lobbies_live —
+					// Alt+F4 / Exit to Windows often skips APP -- Game Stop.
 					this.isReady = false;
 					this.gameLog.pause();
 					this.#logStopTimer = setTimeout(() => {
 						this.gameLog.stop();
 						this.#logStopTimer = null;
+						this.#clearLiveLobbyOnGameExit();
 					}, 2500);
 				}
 			);
@@ -325,7 +343,7 @@ export class AppContext extends Emittery<AppEvents> {
 
 		this.gameLog.stop();
 		this.isReady = false;
-		this.lobby = null;
+		this.#clearLiveLobbyOnGameExit();
 
 		if (dev) {
 			return;
@@ -365,15 +383,18 @@ export class AppContext extends Emittery<AppEvents> {
 			return;
 		}
 
+		// Invalidate in-flight upserts from a previous lobby without deleting the new row.
+		this.#liveLobbyGeneration += 1;
+		this.#stopLiveLobbyHeartbeat();
+
 		this.lobby = lobby.toJSON();
 		console.log('lobby started', lobby.toJSON());
 
 		this.emit('lobby.started', lobby.toJSON());
 		this.socket.publish('game.lobby.started', lobby.toJSON());
 
-		this.database.lobbiesLive
-			.setLobby(lobby.toJSON())
-			.catch((error) => console.warn('[APP]: lobbies_live upsert failed:', error));
+		this.#upsertLiveLobby(lobby.toJSON());
+		this.#startLiveLobbyHeartbeat();
 	}
 
 	#onLobbyResult(playerId: number, result: 'PS_WON' | 'PS_KILLED') {
@@ -403,11 +424,56 @@ export class AppContext extends Emittery<AppEvents> {
 		this.emit('lobby.destroyed', { match, replay });
 		this.socket.publish('game.lobby.destroyed', match);
 
+		this.#clearLiveLobbyOnGameExit();
+	}
+
+	/** Heartbeat keeps updatedAt fresh so long matches aren't pruned as stale. */
+	#startLiveLobbyHeartbeat() {
+		this.#stopLiveLobbyHeartbeat();
+		const generation = this.#liveLobbyGeneration;
+
+		this.#liveLobbyHeartbeat = setInterval(() => {
+			if (!this.lobby || generation !== this.#liveLobbyGeneration) {
+				this.#stopLiveLobbyHeartbeat();
+				return;
+			}
+
+			this.#upsertLiveLobby(this.lobby);
+		}, LOBBIES_LIVE_HEARTBEAT_MS);
+	}
+
+	#stopLiveLobbyHeartbeat() {
+		if (this.#liveLobbyHeartbeat) {
+			clearInterval(this.#liveLobbyHeartbeat);
+			this.#liveLobbyHeartbeat = null;
+		}
+	}
+
+	/**
+	 * Upserts lobbies_live and deletes again if a clear started while the
+	 * request was in flight (avoids resurrecting a stale row).
+	 */
+	#upsertLiveLobby(match: Match) {
+		const generation = this.#liveLobbyGeneration;
+		this.database.lobbiesLive
+			.setLobby(match)
+			.then(() => {
+				// Cleared while in flight — delete the resurrected row.
+				if (generation !== this.#liveLobbyGeneration && !this.lobby) {
+					return this.database.lobbiesLive.removeLobby();
+				}
+			})
+			.catch((error) => console.warn('[APP]: lobbies_live upsert failed:', error));
+	}
+
+	/** Clears local lobby state and deletes the user's lobbies_live row. */
+	#clearLiveLobbyOnGameExit() {
+		this.#liveLobbyGeneration += 1;
+		this.#stopLiveLobbyHeartbeat();
+		this.lobby = null;
 		this.database.lobbiesLive
 			.removeLobby()
-			.catch((error) => console.warn('[APP]: lobbies_live delete failed:', error));
-
-		this.lobby = null;
+			.catch((error) => console.warn('[APP]: lobbies_live cleanup on game exit failed:', error));
 	}
 
 	/**

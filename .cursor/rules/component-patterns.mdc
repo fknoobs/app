@@ -58,4 +58,3 @@ export const useMatch = () => context.get()();
 ```
 
 Place new files in the folder that matches scope: generic → `ui/`, feature-specific → the feature folder (e.g. `match/`).
-docker run cloudflare/cloudflared:latest tunnel --no-autoupdate run --token eyJhIjoiMDBmNjExZTExNGUyZWQ4OGYyYWFhOTc3NDJhM2ZkY2UiLCJ0IjoiNjk0YTY0ZTEtMzBhZi00NzBhLWFjZGItMGRmYjZjZTM2ZTU2IiwicyI6Ik56SXhaV0k1WVRJdE1tWTRaUzAwT0RBNExXSmhOalV0T1dNeVlXRmxZVGRsWWpBNSJ9

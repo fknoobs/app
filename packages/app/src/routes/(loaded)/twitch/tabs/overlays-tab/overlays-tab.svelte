@@ -4,7 +4,6 @@
 	import FolderOpenIcon from 'phosphor-svelte/lib/FolderOpenIcon';
 	import CloudArrowUpIcon from 'phosphor-svelte/lib/CloudArrowUpIcon';
 	import { openPath } from '@tauri-apps/plugin-opener';
-	import { confirm } from '@tauri-apps/plugin-dialog';
 	import { twitchOverlays } from '$features/twitch-overlays';
 	import { cn } from '$lib/utils';
 	import { watch } from 'runed';
@@ -16,12 +15,10 @@
 	const overlay = twitchOverlays.overlays[0];
 	let copied = $state(false);
 	let publishing = $state(false);
-	let overwriting = $state(false);
 	let hasUnpublishedChanges = $state(false);
 	let checkingChanges = $state(false);
 	let hasDistBuild = $state(false);
 	let distStale = $state(false);
-	let pendingUpdate = $state(false);
 
 	const overlayUrl = $derived(
 		app.features.auth.user?.id ? overlay.getHostedUrl(app.features.auth.user.id) : ''
@@ -41,24 +38,21 @@
 			hasUnpublishedChanges = false;
 			hasDistBuild = false;
 			distStale = false;
-			pendingUpdate = false;
 			return;
 		}
 
 		checkingChanges = true;
 		try {
-			[hasUnpublishedChanges, hasDistBuild, distStale, pendingUpdate] = await Promise.all([
+			[hasUnpublishedChanges, hasDistBuild, distStale] = await Promise.all([
 				overlay.hasUnpublishedChanges(),
 				overlay.hasDistBuild(),
-				overlay.isDistStale(),
-				overlay.hasPendingUpdate()
+				overlay.isDistStale()
 			]);
 		} catch (error) {
 			console.warn('[OVERLAYS-TAB]: failed to check overlay changes:', error);
 			hasUnpublishedChanges = false;
 			hasDistBuild = false;
 			distStale = false;
-			pendingUpdate = false;
 		} finally {
 			checkingChanges = false;
 		}
@@ -71,7 +65,6 @@
 				hasUnpublishedChanges = false;
 				hasDistBuild = false;
 				distStale = false;
-				pendingUpdate = false;
 				return;
 			}
 
@@ -123,31 +116,6 @@
 			app.toast.error(message);
 		} finally {
 			publishing = false;
-		}
-	}
-
-	async function overwriteWithLatest() {
-		if (!pendingUpdate || overwriting) return;
-
-		const ok = await confirm(
-			'Overwrite your local overlay with the latest version?\n\n' +
-				'Your current overlay will be backed up first.',
-			{ okLabel: 'Overwrite', cancelLabel: 'Cancel', kind: 'warning' }
-		);
-		if (!ok) return;
-
-		overwriting = true;
-		try {
-			await overlay.overwriteWithLatest({ backup: true });
-			app.toast.success('Overlay updated. Your previous version was backed up.');
-			await refreshChangeState();
-		} catch (error) {
-			console.error('Failed to overwrite overlay:', error);
-			const message =
-				error instanceof Error ? error.message : 'Failed to overwrite overlay. Check the logs.';
-			app.toast.error(message);
-		} finally {
-			overwriting = false;
 		}
 	}
 </script>
@@ -232,21 +200,5 @@
 		<p class="text-warning">
 			Source files are newer than dist/. Run npm run build before publishing.
 		</p>
-	{/if}
-	{#if pendingUpdate}
-		<p class="text-warning">
-			A new overlay version is available in the app, but your customized source was kept. Merge
-			updates manually from a fresh install if needed.
-		</p>
-		<div>
-			<Button
-				type="button"
-				variant="secondary"
-				onclick={overwriteWithLatest}
-				disabled={overwriting}
-			>
-				{overwriting ? 'Overwriting…' : 'Overwrite with latest (backup current)'}
-			</Button>
-		</div>
 	{/if}
 </div>

@@ -1,17 +1,17 @@
 <script lang="ts">
-	import type { MatchHistoryPlayer, TransformedMatch } from '@fknoobs/app';
+	import type { LobbyPlayer, MatchHistoryPlayer, TransformedMatch } from '@fknoobs/app';
+	import type { Snippet } from 'svelte';
 	import dayjs from '$lib/dayjs';
-	import { formatStreak, statLosses, statStreakClass, statWins, surfacePanel, interactive } from '$lib/components/ui/variants';
-	import { cn, getFactionFlagFromRace, isSteamId, normalizeMapName } from '$lib/utils';
-	import { steam, type SteamPlayerSummary } from '$core/steam';
-	import { resource } from 'runed';
+	import { surfacePanel } from '$lib/components/ui/variants';
+	import { cn, isSteamId, normalizeMapName } from '$lib/utils';
+	import * as Player from '$lib/components/player';
+	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import MapImage from '$lib/components/ui/map-image.svelte';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { orderBy, sortBy, upperCase } from 'lodash-es';
+	import { orderBy, sortBy } from 'lodash-es';
 	import ClockIcon from 'phosphor-svelte/lib/Clock';
-	import CaretDown from 'phosphor-svelte/lib/CaretDown';
-	import CaretUp from 'phosphor-svelte/lib/CaretUp';
 	import { page } from '$app/state';
+	import { steam } from '$core/steam';
+	import { watch } from 'runed';
 
 	type Props = {
 		matches: TransformedMatch[];
@@ -21,34 +21,81 @@
 
 	const orderedMatches = $derived(orderBy(matches, ['completiontime'], ['desc']));
 
-	const steamProfiles = resource(
-		() =>
-			orderedMatches
-				.flatMap((match) => match.players.map((player) => player.steamId))
-				.join(','),
-		async () => {
-			const steamIds = [
-				...new Set(
-					orderedMatches.flatMap((match) =>
-						match.players.map((player) => player.steamId).filter(Boolean)
-					)
-				)
-			];
+	const steamIds = $derived([
+		...new Set(
+			orderedMatches.flatMap((match) =>
+				match.players.map((player) => player.steamId).filter(Boolean)
+			)
+		)
+	]);
 
-			if (steamIds.length === 0) return {} as Record<string, SteamPlayerSummary>;
-
-			const profiles = await steam.getUserProfiles(steamIds.slice(0, 100));
-			return Object.fromEntries(profiles.map((profile) => [profile.steamid, profile]));
-		},
-		{ initialValue: {} as Record<string, SteamPlayerSummary> }
+	// Prefetch avatars in one request so Player.Avatar hits the warm cache.
+	watch(
+		() => steamIds,
+		(ids) => {
+			if (ids.length === 0) return;
+			void steam.getUserProfiles(ids.slice(0, 100)).catch((error) => {
+				console.warn('[MATCH-HISTORY]: steam profile prefetch failed:', error);
+			});
+		}
 	);
 
-	const playerGrid =
-		'grid grid-cols-[2.5rem_3.5rem_4rem_minmax(0,1fr)_3.5rem_3.5rem_3.5rem] items-center gap-3';
+	const columns: ColumnDef<MatchHistoryPlayer>[] = [
+		{
+			id: 'change',
+			header: 'Change',
+			width: 'w-3/24',
+			headerClass: 'text-center',
+			class: 'flex w-full justify-center'
+		},
+		{
+			id: 'team',
+			header: 'Team',
+			width: 'w-2/24',
+			headerClass: 'text-center',
+			class: 'flex w-full justify-center'
+		},
+		{
+			id: 'elo',
+			header: 'ELO',
+			width: 'w-2/24',
+			headerClass: 'text-center',
+			class: 'flex w-full justify-center'
+		},
+		{
+			id: 'player',
+			header: 'Player',
+			width: 'w-9/24',
+			class: 'flex min-w-0 items-center gap-2'
+		},
+		{
+			id: 'wins',
+			header: 'Wins',
+			width: 'w-2/24',
+			headerClass: 'text-center',
+			class: 'flex w-full justify-center'
+		},
+		{
+			id: 'losses',
+			header: 'Losses',
+			width: 'w-3/24',
+			headerClass: 'text-center',
+			class: 'flex w-full justify-center'
+		},
+		{
+			id: 'streak',
+			header: 'Streak',
+			width: 'w-3/24',
+			headerClass: 'text-center',
+			class: 'flex w-full justify-center'
+		}
+	];
 
 	function matchDuration(match: TransformedMatch): string {
-		const seconds = dayjs.unix(match.completiontime).diff(dayjs.unix(match.startgametime), 'seconds');
-		return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+		const seconds = dayjs
+			.unix(match.completiontime)
+			.diff(dayjs.unix(match.startgametime), 'seconds');
+		return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 	}
 
 	function isCurrentProfile(player: MatchHistoryPlayer): boolean {
@@ -58,22 +105,78 @@
 		return player.profile_id === parseInt(id, 10);
 	}
 
-	function getSteamAvatar(steamId: string): string | undefined {
-		return steamProfiles.current[steamId]?.avatarfull;
+	function toLobbyPlayer(player: MatchHistoryPlayer, index: number): LobbyPlayer {
+		return {
+			index,
+			playerId: player.profile_id,
+			type: 0,
+			team: player.teamid,
+			race: player.race_id,
+			steamId: player.steamId,
+			profile: {
+				alias: player.alias,
+				profile_id: player.profile_id,
+				name: player.name,
+				personal_statgroup_id: player.personal_statgroup_id,
+				xp: player.xp,
+				level: player.level,
+				leaderboardregion_id: player.leaderboardregion_id,
+				country: player.country
+			}
+		};
 	}
 
-	function ratingChange(player: MatchHistoryPlayer): number {
-		return player.newrating - player.oldrating;
+	function getPlayerRowClass(player: MatchHistoryPlayer) {
+		return cn(
+			'border-secondary-800 not-last:border-b',
+			player.outcome === 1 ? 'bg-success/5' : 'bg-destructive/5',
+			isCurrentProfile(player) && 'bg-primary/5'
+		);
 	}
 </script>
+
+{#snippet cell_team({ row }: { row: MatchHistoryPlayer })}
+	<Player.Faction
+		class="h-auto! w-6! shrink-0 rounded-none! object-contain! ring-1! ring-black/40"
+	/>
+{/snippet}
+{#snippet cell_elo({ row }: { row: MatchHistoryPlayer })}
+	<Player.Rating class="text-center font-medium tabular-nums" />
+{/snippet}
+{#snippet cell_change({ row }: { row: MatchHistoryPlayer })}
+	<Player.RatingChange />
+{/snippet}
+{#snippet cell_player({ row }: { row: MatchHistoryPlayer })}
+	{@const isMe = isCurrentProfile(row)}
+	<span class="border-secondary-800 size-8 shrink-0 overflow-hidden rounded-lg border">
+		<Player.Avatar />
+	</span>
+	<Player.Country class="shrink-0" />
+	<Player.Alias class={cn('min-w-0 flex-1 truncate', isMe && 'text-primary font-semibold')} />
+{/snippet}
+{#snippet cell_wins({ row }: { row: MatchHistoryPlayer })}
+	<Player.Wins class="text-center font-medium tabular-nums" />
+{/snippet}
+{#snippet cell_losses({ row }: { row: MatchHistoryPlayer })}
+	<Player.Losses class="text-center font-medium tabular-nums" />
+{/snippet}
+{#snippet cell_streak({ row }: { row: MatchHistoryPlayer })}
+	<Player.Streak class="text-center font-medium tabular-nums" />
+{/snippet}
+{#snippet playerRowWrapper({ row, children }: { row: MatchHistoryPlayer; children: Snippet })}
+	<Player.Root player={toLobbyPlayer(row, 0)} playerResult={row} race={row.race_id}>
+		{@render children()}
+	</Player.Root>
+{/snippet}
 
 {#if orderedMatches.length === 0}
 	<p class="text-secondary-400 text-sm">No recent matches found.</p>
 {:else}
-	<div class="grid gap-4">
+	<div class="grid gap-3">
 		{#each orderedMatches as match (match.id)}
+			{@const players = sortBy(match.players, ['teamid'])}
 			<article class={cn(surfacePanel, 'overflow-clip')}>
-				<div class="border-secondary-800 flex items-center gap-4 border-b px-4 py-3">
+				<div class="border-secondary-800 flex items-center gap-4 border-b px-4 py-2">
 					<MapImage small map={match.mapname} alt={normalizeMapName(match.mapname)} />
 					<div class="min-w-0 grow">
 						<h3 class="font-heading truncate text-lg font-bold">
@@ -88,83 +191,25 @@
 						{matchDuration(match)}
 					</span>
 				</div>
-				<div
-					class={cn(
-						playerGrid,
-						'bg-secondary-950/90 text-secondary-300 border-secondary-800 border-b px-4 py-2 text-xs font-semibold tracking-wide uppercase'
-					)}
-				>
-					<span class="text-center">Team</span>
-					<span class="text-center">ELO</span>
-					<span class="text-center">Change</span>
-					<span>Player</span>
-					<span class="text-center">Wins</span>
-					<span class="text-center">Losses</span>
-					<span class="text-center">Streak</span>
-				</div>
-				{#each sortBy(match.players, ['teamid']) as player (player.profile_id)}
-					{@const change = ratingChange(player)}
-					{@const currentProfile = isCurrentProfile(player)}
-					<div
-						class={cn(
-							playerGrid,
-							'border-secondary-800 border-b px-4 py-3 last:border-b-0',
-							player.outcome === 1 ? 'bg-success/5' : 'bg-destructive/5',
-							currentProfile && 'bg-primary/5'
-						)}
-					>
-						{#await getFactionFlagFromRace(player.race_id) then flagImg}
-							<img
-								src={flagImg}
-								alt=""
-								class="mx-auto w-6 ring-1 ring-black/40"
-							/>
-						{/await}
-						<span class="text-center font-medium tabular-nums">{player.newrating}</span>
-						<span class="flex items-center justify-center gap-1 text-sm tabular-nums">
-							{#if change < 0}
-								<CaretDown class="text-destructive size-4" weight="duotone" />
-								<span class="text-destructive/90">{Math.abs(change)}</span>
-							{:else if change > 0}
-								<CaretUp class="text-success size-4" weight="duotone" />
-								<span class="text-success">{change}</span>
-							{:else}
-								<span class="text-secondary-500">—</span>
-							{/if}
-						</span>
-						<a
-							href="/players/{player.profile_id}"
-							class={cn(
-								interactive,
-								'flex min-w-0 items-center gap-3 transition-colors hover:text-primary',
-								currentProfile && 'text-primary font-semibold'
-							)}
-						>
-							{#if steamProfiles.loading}
-								<Skeleton class="size-9 shrink-0 rounded-lg" />
-							{:else if getSteamAvatar(player.steamId)}
-								<img
-									src={getSteamAvatar(player.steamId)}
-									alt={player.alias}
-									class="size-9 shrink-0 rounded-lg border border-secondary-800 object-cover"
-								/>
-							{/if}
-							{#if player.country}
-								<img
-									class="size-4 shrink-0"
-									src="https://flagsapi.com/{upperCase(player.country)}/shiny/64.png"
-									alt={player.country}
-								/>
-							{/if}
-							<span class="truncate">{player.alias}</span>
-						</a>
-						<span class={cn('text-center font-medium', statWins)}>{player.wins}</span>
-						<span class={cn('text-center font-medium', statLosses)}>{player.losses}</span>
-						<span class={cn('text-center font-medium', statStreakClass(player.streak))}>
-							{formatStreak(player.streak)}
-						</span>
-					</div>
-				{/each}
+				<DataTable
+					data={players}
+					{columns}
+					rowKey={(player) => player.profile_id}
+					rowClass={getPlayerRowClass}
+					rowWrapper={playerRowWrapper}
+					density="compact"
+					striped={false}
+					class="rounded-none border-0"
+					cells={{
+						change: cell_change,
+						team: cell_team,
+						elo: cell_elo,
+						player: cell_player,
+						wins: cell_wins,
+						losses: cell_losses,
+						streak: cell_streak
+					}}
+				/>
 			</article>
 		{/each}
 	</div>
