@@ -1,3 +1,10 @@
+### v0.52.10
+
+- feat; add faction filter to filter by faction in match history
+- fix; some live lobby matches were stale
+- fix; matched played today showed incorrect results
+- improvement; swap ELO and Ranking in oppbot overlay
+
 ### v0.52.9
 
 - fix; previous version broke the 'matches played today' widget
