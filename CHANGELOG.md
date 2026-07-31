@@ -1,3 +1,8 @@
+### v0.52.11
+
+- feat; add 'oppbot has a new version' modal. For devs or players that changed the oppbot code, just bump the version to a high number so that the dialog will not appear anymore
+- fix; oppbot overlay had visual bugs in certain conditions
+
 ### v0.52.10
 
 - feat; add faction filter to filter by faction in match history
