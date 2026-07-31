@@ -19,8 +19,6 @@ ZIP_PATH = (
 	/ 'oppbot'
 	/ 'oppbot.zip'
 )
-OVERLAY_VERSION = '7'
-
 ROOT_FILES = (
 	'index.html',
 	'package.json',
@@ -34,12 +32,17 @@ INCLUDE_DIRS = ('src', 'public', 'dist')
 EXCLUDE_DIR_NAMES = {'node_modules', 'scripts', '.git', '__pycache__'}
 
 
-def write_overlay_version() -> None:
+def read_overlay_version() -> str:
 	version_path = PACKAGE_ROOT / 'overlay-version.json'
-	version_path.write_text(
-		json.dumps({'version': OVERLAY_VERSION}, indent=2),
-		encoding='utf-8',
-	)
+	if not version_path.is_file():
+		print(f'Missing overlay version file: {version_path}', file=sys.stderr)
+		sys.exit(1)
+	data = json.loads(version_path.read_text(encoding='utf-8'))
+	version = str(data.get('version') or '').strip()
+	if not version:
+		print(f'Invalid overlay version in {version_path}', file=sys.stderr)
+		sys.exit(1)
+	return version
 
 
 def user_package_json() -> str:
@@ -76,7 +79,7 @@ def main() -> None:
 		print(f'Dist directory not found: {DIST_DIR}', file=sys.stderr)
 		sys.exit(1)
 
-	write_overlay_version()
+	version = read_overlay_version()
 	ZIP_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 	with zipfile.ZipFile(ZIP_PATH, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -94,7 +97,7 @@ def main() -> None:
 				add_tree(zf, dir_path, dirname)
 
 	size_kb = ZIP_PATH.stat().st_size / 1024
-	print(f'Created {ZIP_PATH} ({size_kb:.1f} KB)')
+	print(f'Created {ZIP_PATH} ({size_kb:.1f} KB, version {version})')
 
 
 if __name__ == '__main__':
