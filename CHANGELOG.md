@@ -1,3 +1,7 @@
+### v0.52.12
+
+- feat; extend player card
+
 ### v0.52.11
 
 - feat; add 'oppbot has a new version' modal. For devs or players that changed the oppbot code, just bump the version to a high number so that the dialog will not appear anymore
