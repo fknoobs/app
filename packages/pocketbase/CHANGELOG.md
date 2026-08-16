@@ -1,5 +1,9 @@
 # @company-of-heroes/pocketbase
 
+## 0.2.8
+
+- feat; extend player card
+
 ## 0.2.7
 
 - feat; add 'oppbot has a new version' modal. For devs or players that changed the oppbot code, just bump the version to a high number so that the dialog will not appear anymore
