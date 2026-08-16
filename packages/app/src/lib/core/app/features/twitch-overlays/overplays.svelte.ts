@@ -65,6 +65,18 @@ export class TwitchOverlays extends Feature {
 		});
 	}
 
+	async #publishUpdatedOverlay(overlay: Overlay) {
+		if (!pocketbase.authStore.isValid) return false;
+
+		try {
+			await overlay.publish({ silent: true });
+			return true;
+		} catch (error) {
+			console.warn('[TWITCH-OVERLAYS]: auto-publish failed:', error);
+			return false;
+		}
+	}
+
 	async #promptPendingUpdates(overlays: Overlay[]) {
 		if (this.#promptInFlight) return;
 
@@ -83,7 +95,15 @@ export class TwitchOverlays extends Feature {
 
 				try {
 					await overlay.overwriteWithLatest({ backup: true });
-					app.toast.success('Overlay updated. Your previous version was backed up.');
+					const published = await this.#publishUpdatedOverlay(overlay);
+					app.toast.success(
+						published
+							? 'Overlay updated and published. Your previous version was backed up.'
+							: 'Overlay updated. Your previous version was backed up.'
+					);
+					if (!published && pocketbase.authStore.isValid) {
+						app.toast.error('Could not publish the updated overlay to the server.');
+					}
 				} catch (error) {
 					console.error('[TWITCH-OVERLAYS]: overwrite failed:', error);
 					const message =
@@ -104,8 +124,11 @@ export class TwitchOverlays extends Feature {
 				() => [this.overlays, pocketbase.authStore.isValid] as const,
 				([overlays, isAuthenticated]) => {
 					void (async () => {
+						const reinstalled: Overlay[] = [];
 						for (const overlay of overlays) {
-							await overlay.register();
+							if (await overlay.register()) {
+								reinstalled.push(overlay);
+							}
 						}
 
 						await this.#promptPendingUpdates(overlays);
@@ -116,6 +139,10 @@ export class TwitchOverlays extends Feature {
 
 						this.#ensurePublishedInFlight = true;
 						try {
+							for (const overlay of reinstalled) {
+								await this.#publishUpdatedOverlay(overlay);
+							}
+
 							for (const overlay of overlays) {
 								await overlay.ensurePublished();
 							}

@@ -21,7 +21,7 @@
 	});
 </script>
 
-<section class="mx-auto max-w-5xl px-6 py-16">
+<section class="mx-auto max-w-6xl px-6 py-16">
 	<div class="mx-auto mb-10 max-w-2xl text-center">
 		<p class="text-primary mb-3 text-sm font-semibold tracking-wide uppercase">Share your stats</p>
 		<h1 class="text-3xl text-white sm:text-4xl">Generate your player card</h1>
@@ -46,7 +46,7 @@
 			{playerCardState.error}
 		</div>
 	{:else if playerCardState.data}
-		<div class="mt-10 flex flex-col items-center gap-6">
+		<div class="mt-10 flex w-full flex-col items-center gap-6">
 			<ShareablePlayerCard bind:ref={cardElement} data={playerCardState.data} />
 			<CardActions cardElement={cardElement} data={playerCardState.data} />
 		</div>

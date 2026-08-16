@@ -4,6 +4,7 @@ export type PlayerCardStat = {
 	leaderboardId: number;
 	modeLabel: string;
 	factionLabel: string;
+	ranked: boolean;
 	ranklevel: number;
 	rank: number;
 	wins: number;

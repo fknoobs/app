@@ -5,12 +5,12 @@ const RELIC_API_BASE = 'https://coh1-lobby.reliclink.com';
 const STEAM_ID_REGEX = /^7656119\d{10}$/;
 const RANKED_LEADERBOARD_MIN = 4;
 const RANKED_LEADERBOARD_MAX = 19;
-const MAX_CARD_STATS = 4;
 
 const ALLOWED_ORIGINS = [
 	'https://coh1stats.com',
 	'https://www.coh1stats.com',
-	'http://localhost:5174'
+	'http://localhost:5174',
+	'http://127.0.0.1:5174'
 ];
 
 const LEADERBOARD_MODE_LABELS = {
@@ -29,7 +29,21 @@ const LEADERBOARD_MODE_LABELS = {
 	16: '4v4',
 	17: '4v4',
 	18: '4v4',
-	19: '4v4'
+	19: '4v4',
+	0: 'Basic Match',
+	1: 'Basic Match',
+	2: 'Basic Match',
+	3: 'Basic Match',
+	42: 'Skirmish',
+	43: 'Skirmish',
+	44: 'Skirmish',
+	45: 'Skirmish',
+	46: 'Operation Assault',
+	47: 'Operation Assault',
+	50: 'Operation Panzerkrieg',
+	51: 'Operation Panzerkrieg',
+	54: 'Operation Stonewall',
+	55: 'Operation Stonewall'
 };
 
 const LEADERBOARD_FACTION_LABELS = {
@@ -37,18 +51,32 @@ const LEADERBOARD_FACTION_LABELS = {
 	8: 'US',
 	12: 'US',
 	16: 'US',
+	0: 'US',
+	42: 'US',
+	46: 'US',
+	50: 'US',
+	54: 'US',
 	5: 'Wehrmacht',
 	9: 'Wehrmacht',
 	13: 'Wehrmacht',
 	17: 'Wehrmacht',
+	1: 'Wehrmacht',
+	43: 'Wehrmacht',
+	47: 'Wehrmacht',
+	51: 'Wehrmacht',
+	55: 'Wehrmacht',
 	6: 'Brits',
 	10: 'Brits',
 	14: 'Brits',
 	18: 'Brits',
+	2: 'Brits',
+	44: 'Brits',
 	7: 'Panzer Elite',
 	11: 'Panzer Elite',
 	15: 'Panzer Elite',
-	19: 'Panzer Elite'
+	19: 'Panzer Elite',
+	3: 'Panzer Elite',
+	45: 'Panzer Elite'
 };
 
 function isRankedLeaderboard(leaderboardId) {
@@ -190,7 +218,7 @@ function fetchRelicProfileBySteamId(steamId) {
 }
 
 function fetchSteamProfile(steamId) {
-	const apiKey = $os.getenv('STEAM_API_KEY');
+	const apiKey = $os.getenv('STEAM_API_KEY') || $os.getenv('PUBLIC_STEAM_API_KEY');
 	if (!apiKey) {
 		logError('STEAM_API_KEY is not configured', { steamId });
 		throw new Error('STEAM_API_KEY is not configured');
@@ -220,10 +248,11 @@ function selectCardStats(stats) {
 		return (b.ranklevel ?? 0) - (a.ranklevel ?? 0);
 	});
 
-	return sorted.slice(0, MAX_CARD_STATS).map((stat) => ({
+	return sorted.map((stat) => ({
 		leaderboardId: stat.leaderboard_id,
 		modeLabel: LEADERBOARD_MODE_LABELS[stat.leaderboard_id] || 'Unknown',
 		factionLabel: LEADERBOARD_FACTION_LABELS[stat.leaderboard_id] || 'Unknown',
+		ranked: isRankedLeaderboard(stat.leaderboard_id),
 		ranklevel: stat.ranklevel ?? 0,
 		rank: stat.rank ?? 0,
 		wins: stat.wins ?? 0,

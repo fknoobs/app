@@ -49,25 +49,26 @@ export abstract class Overlay {
 	#bundledDistHash: string | null = null;
 	#bundledZipFingerprint: string | null = null;
 
-	async register() {
+	/** Returns true when the local overlay was replaced from the bundled zip. */
+	async register(): Promise<boolean> {
 		const installed = await exists(this.path, { baseDir: this.baseDir });
 		if (!installed) {
 			await this.install();
 			await this.writeVersionFile();
 			await this.saveDefaultSrcHash();
-			return;
+			return false;
 		}
 
 		if (this.version && (await this.isOutdated())) {
 			if (await this.hasCustomizedSource()) {
-				return;
+				return false;
 			}
 
 			await this.reinstallFromBundle();
-			return;
+			return true;
 		}
 
-		await this.syncBundledDistIfNeeded();
+		return this.syncBundledDistIfNeeded();
 	}
 
 	async writeVersionFile() {
@@ -278,16 +279,17 @@ export abstract class Overlay {
 		return Uint8Array.from(bytes);
 	}
 
-	async syncBundledDistIfNeeded() {
+	async syncBundledDistIfNeeded(): Promise<boolean> {
 		const bundledDistHash = await this.getBundledDistHash();
-		if (!bundledDistHash) return;
+		if (!bundledDistHash) return false;
 
 		const localDistHash = await this.getLocalContentHash();
-		if (localDistHash === bundledDistHash) return;
+		if (localDistHash === bundledDistHash) return false;
 
-		if (await this.hasCustomizedSource()) return;
+		if (await this.hasCustomizedSource()) return false;
 
 		await this.reinstallFromBundle();
+		return true;
 	}
 
 	async getLocalContentHash(): Promise<string> {
