@@ -1,5 +1,9 @@
 # @company-of-heroes/oppbot-overlay
 
+## 3.2.1
+
+- feat; update overlay to reflect ELO changes
+
 ## 3.2.0
 
 - feat; extend player card
