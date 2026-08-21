@@ -1,13 +1,3 @@
-### v0.52.13
-
-- feat; color ELO ratings by skill tier in stats and oppbot overlay
-- enhance; treat 2400+ ELO as legendary
-- feat; highlight smurf accounts next to player names
-
-### v0.52.12
-
-- feat; extend player card
-
 ### v0.52.11
 
 - feat; add 'oppbot has a new version' modal. For devs or players that changed the oppbot code, just bump the version to a high number so that the dialog will not appear anymore
