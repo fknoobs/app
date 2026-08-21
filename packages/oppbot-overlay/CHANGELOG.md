@@ -1,5 +1,11 @@
 # @company-of-heroes/oppbot-overlay
 
+## 3.2.0
+
+- feat; extend player card
+- enhance; treat 2400+ ELO as legendary
+- feat; color ELO ratings by skill tier in stats and oppbot overlay
+
 ## 3.1.1
 
 - feat; color ELO ratings by skill tier in stats and oppbot overlay
