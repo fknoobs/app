@@ -4,8 +4,10 @@
 	import { Leaderboard } from '$lib/components/leaderboard';
 	import { cn } from '$lib/utils';
 	import { interactive } from '$lib/components/ui/variants';
-	import CaretDown from 'phosphor-svelte/lib/CaretDown';
+	import CaretDown from 'phosphor-svelte/lib/CaretDownIcon';
 	import { upperCase } from 'lodash-es';
+	import { getPlayerRating } from '$core/pocketbase/player-ratings';
+	import { resource } from 'runed';
 
 	type Props = {
 		player: Profile;
@@ -15,6 +17,10 @@
 	let statsExpanded = $state(false);
 
 	const statsCount = $derived(player.relic.leaderboardStats?.length ?? 0);
+	const storedRating = resource(
+		() => (statsExpanded ? player.steam.steamid : null),
+		(steamId) => (steamId ? getPlayerRating(steamId) : null)
+	);
 </script>
 
 <div
@@ -68,7 +74,11 @@
 		</button>
 		{#if statsExpanded}
 			<div class="border-secondary-800 border-t">
-				<Leaderboard stats={player.relic.leaderboardStats!} class="rounded-none border-0" />
+				<Leaderboard
+					stats={player.relic.leaderboardStats!}
+					elo={storedRating.current?.elo ?? {}}
+					class="rounded-none border-0"
+				/>
 			</div>
 		{/if}
 	{:else}

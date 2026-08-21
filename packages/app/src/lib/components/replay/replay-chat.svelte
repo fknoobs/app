@@ -8,8 +8,8 @@
 	import { app } from '$core/app/context';
 	import { Button } from '$lib/components/ui/button';
 	import { controlBase, controlDisabled } from '$lib/components/ui/variants';
-	import ArrowBendDownLeft from 'phosphor-svelte/lib/ArrowBendDownLeft';
-	import ArrowBendUpRight from 'phosphor-svelte/lib/ArrowBendUpRight';
+	import ArrowBendDownLeft from 'phosphor-svelte/lib/ArrowBendDownLeftIcon';
+	import ArrowBendUpRight from 'phosphor-svelte/lib/ArrowBendUpRightIcon';
 
 	type Props = {} & HTMLAttributes<HTMLDivElement>;
 

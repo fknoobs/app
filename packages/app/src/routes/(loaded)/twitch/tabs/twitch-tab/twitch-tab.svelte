@@ -6,12 +6,12 @@
 	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { app } from '$core/app/context';
 	import { Avatar } from 'bits-ui';
-	import TwitchIcon from 'phosphor-svelte/lib/TwitchLogo';
-	import ArrowSquareOut from 'phosphor-svelte/lib/ArrowSquareOut';
-	import SignOut from 'phosphor-svelte/lib/SignOut';
-	import EnvelopeSimple from 'phosphor-svelte/lib/EnvelopeSimple';
-	import CalendarBlank from 'phosphor-svelte/lib/CalendarBlank';
-	import Clock from 'phosphor-svelte/lib/Clock';
+	import TwitchIcon from 'phosphor-svelte/lib/TwitchLogoIcon';
+	import ArrowSquareOut from 'phosphor-svelte/lib/ArrowSquareOutIcon';
+	import SignOut from 'phosphor-svelte/lib/SignOutIcon';
+	import EnvelopeSimple from 'phosphor-svelte/lib/EnvelopeSimpleIcon';
+	import CalendarBlank from 'phosphor-svelte/lib/CalendarBlankIcon';
+	import Clock from 'phosphor-svelte/lib/ClockIcon';
 	import { Checkbox } from '$lib/components/ui/input';
 	import { twitch } from '$features/twitch';
 	import dayjs from '$lib/dayjs';

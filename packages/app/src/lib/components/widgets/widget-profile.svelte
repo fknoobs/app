@@ -7,6 +7,7 @@
 	import { Leaderboard } from '../leaderboard';
 	import { MatchHistory } from '../match-history';
 	import { relic } from '$lib/relic';
+	import { getPlayerRating } from '$core/pocketbase/player-ratings';
 
 	let isLoadingRecentGames = $state(false);
 	let isLoadingStats = $state(false);
@@ -39,12 +40,18 @@
 					class="justify-center"
 					onclick={async () => {
 						isLoadingStats = true;
+						const profile = app.game.profile!;
+						const [stats, rating] = await Promise.all([
+							relic.getLeaderboardStatsForProfile(profile.relic.profile_id),
+							getPlayerRating(profile.steam.steamid)
+						]);
 						app.modal.create({
 							title: 'Profile Stats',
 							component: Leaderboard,
 							size: 'full',
 							props: {
-								stats: await relic.getLeaderboardStatsForProfile(app.game.profile!.relic.profile_id)
+								stats,
+								elo: rating?.elo ?? {}
 							}
 						});
 						app.modal.open();

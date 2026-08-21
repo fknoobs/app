@@ -1,0 +1,66 @@
+---
+description: Add a changeset after every feature, bugfix, or enhancement
+alwaysApply: true
+---
+
+# Changesets
+
+After every **feature**, **bugfix**, or **enhancement**, add a changeset before considering the work done. `pnpm version-packages` later consumes these files to bump versions and prepend entries to `CHANGELOG.md` (app) and each package changelog. Do **not** hand-edit `CHANGELOG.md` or run `pnpm version-packages` as part of feature work.
+
+## When
+
+- Required: user-facing feat / fix / enhance / improvement / security
+- Skip: formatting-only, Cursor rules, comments, tests with no product change
+
+## How
+
+Write a new `.changeset/<adjective>-<noun>.md` (do not run interactive `pnpm changeset`). List every affected `packages/*` name and the semver bump.
+
+| Bump | Use for |
+|------|---------|
+| `patch` | bugfixes, small enhancements |
+| `minor` | new features |
+| `major` | breaking changes |
+
+```markdown
+---
+'@company-of-heroes/app': patch
+---
+
+feat; highlight smurf accounts next to player names
+```
+
+Multiple packages:
+
+```markdown
+---
+'@company-of-heroes/app': minor
+'@company-of-heroes/pocketbase': patch
+---
+
+feat; add player ELO ratings from match results
+```
+
+## Summary style
+
+One line per change, lowercase after the prefix, matching existing changelog voice:
+
+- `feat; …` — new capability
+- `fix; …` — bugfix
+- `enhance;` / `improvement; …` — improvement to existing behavior
+- `security; …` — security fix
+
+```markdown
+# ❌ BAD — missing changeset, or vague / changelog hand-edit
+Updated some player UI
+(also editing CHANGELOG.md directly)
+
+# ✅ GOOD
+feat; highlight smurf accounts next to player names
+```
+
+## Do not
+
+- Finish a feature/fix without a changeset
+- Edit `CHANGELOG.md` or `packages/*/CHANGELOG.md` by hand (duplicates on version)
+- Bump versions in `package.json` / `tauri.conf.json` / `Cargo.toml` yourself

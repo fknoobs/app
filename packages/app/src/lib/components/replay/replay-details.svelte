@@ -8,8 +8,8 @@
 	import { H } from '../ui/h';
 	import { Badge } from '../ui/badge';
 	import dayjs from '$lib/dayjs';
-	import X from 'phosphor-svelte/lib/XSquare';
-	import Ranking from 'phosphor-svelte/lib/Ranking';
+	import X from 'phosphor-svelte/lib/XSquareIcon';
+	import Ranking from 'phosphor-svelte/lib/RankingIcon';
 
 	type Props = {} & HTMLAttributes<HTMLDivElement>;
 

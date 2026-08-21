@@ -94,4 +94,5 @@ export interface CombatRecord {
 	winRate: number | null;
 	streak: number;
 	elo: string;
+	eloValue: number | null;
 }

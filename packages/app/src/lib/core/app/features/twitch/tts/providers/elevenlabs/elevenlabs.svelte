@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { ElevenlabsProvider } from './elevenlabs.svelte.js';
 	import * as Form from '$lib/components/ui/form';
-	import FadersHorizontal from 'phosphor-svelte/lib/FadersHorizontal';
-	import Trash from 'phosphor-svelte/lib/Trash';
+	import FadersHorizontal from 'phosphor-svelte/lib/FadersHorizontalIcon';
+	import Trash from 'phosphor-svelte/lib/TrashIcon';
 	import { app } from '$core/app/context/index.js';
 	import { Button } from '$lib/components/ui/button';
 	import { H } from '$lib/components/ui/h';

@@ -6,9 +6,9 @@
 	import { settings } from '$core/config/settings.svelte';
 	import { H } from '$lib/components/ui/h';
 	import dayjs from '$lib/dayjs';
-	import ImportIcon from 'phosphor-svelte/lib/DownloadSimple';
-	import ExportIcon from 'phosphor-svelte/lib/Export';
-	import ArchiveIcon from 'phosphor-svelte/lib/Archive';
+	import ImportIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
+	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
+	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
 
 	let backupDir = $state('');
 	let lastBackupAt = $state<Date | null>(settings.backup.lastBackupAt);

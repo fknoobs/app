@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { app } from '$core/app/context';
-	import Spinner from 'phosphor-svelte/lib/Spinner';
+	import Spinner from 'phosphor-svelte/lib/SpinnerIcon';
 </script>
 
 <div

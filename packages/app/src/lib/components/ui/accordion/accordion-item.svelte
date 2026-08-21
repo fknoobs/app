@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { Accordion } from 'bits-ui';
-	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 
 	type Props = Accordion.ItemProps & {
 		header: Snippet;

@@ -9,6 +9,8 @@ import { exists, readFile } from '@tauri-apps/plugin-fs';
 import { parseReplay } from '@fknoobs/replay-parser';
 import { download } from '@tauri-apps/plugin-upload';
 import { Matches } from './matches.svelte';
+import { extractPlayerRatingSnapshotsFromLobby, type PlayerEloMap } from '$lib/utils/player-elo';
+import { ingestPlayerRatings } from '$core/pocketbase/player-ratings';
 
 const POLL_INITIAL_MS = 10_000;
 const POLL_MAX_MS = 60_000;
@@ -61,6 +63,9 @@ export class History extends Feature {
 			app.on('lobby.destroyed', ({ match, replay }) => {
 				void this.saveLobbyResult(match, replay?.file ?? null);
 			}),
+			app.on('lobby.started', (match) => {
+				void this.#harvestPlayerRatings(match);
+			}),
 			app.on('game.login', () => {
 				// Catch up on pending results as soon as we know the player.
 				this.#schedulePoll(0);
@@ -78,6 +83,47 @@ export class History extends Feature {
 		}
 
 		this.#unsubscribers = [];
+	}
+
+	async #harvestPlayerRatings(match: Match): Promise<void> {
+		if (!app.isReady || !account.userId) {
+			return;
+		}
+
+		const snapshots = extractPlayerRatingSnapshotsFromLobby(match.players);
+		if (snapshots.length === 0) {
+			return;
+		}
+
+		try {
+			const records = await ingestPlayerRatings(snapshots);
+			if (records.length === 0) {
+				return;
+			}
+
+			const bySteamId = new Map(records.map((record) => [record.steamId, record.elo]));
+			this.#attachStoredElo(match, bySteamId);
+
+			if (app.lobby && app.lobby.sessionId === match.sessionId) {
+				this.#attachStoredElo(app.lobby, bySteamId);
+				app.lobby = { ...app.lobby, players: [...app.lobby.players] };
+			}
+		} catch (error) {
+			console.warn('[HISTORY]: player ratings harvest failed:', error);
+		}
+	}
+
+	#attachStoredElo(match: Match, bySteamId: Map<string, PlayerEloMap>): void {
+		for (const player of match.players) {
+			if (!player.steamId) {
+				continue;
+			}
+
+			const storedElo = bySteamId.get(player.steamId);
+			if (storedElo) {
+				player.storedElo = storedElo;
+			}
+		}
 	}
 
 	/** Persists a finished lobby as a match (with replay when available). */

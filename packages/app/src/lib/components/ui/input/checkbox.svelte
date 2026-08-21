@@ -2,8 +2,8 @@
 	import { cn } from '$lib/utils';
 	import { Checkbox, useId, type WithoutChildrenOrChild } from 'bits-ui';
 	import { Label } from '../label';
-	import CheckIcon from 'phosphor-svelte/lib/Check';
-	import MinusIcon from 'phosphor-svelte/lib/Minus';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import MinusIcon from 'phosphor-svelte/lib/MinusIcon';
 
 	let {
 		id = useId(),

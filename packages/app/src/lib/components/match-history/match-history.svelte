@@ -8,7 +8,7 @@
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import MapImage from '$lib/components/ui/map-image.svelte';
 	import { orderBy, sortBy } from 'lodash-es';
-	import ClockIcon from 'phosphor-svelte/lib/Clock';
+	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
 	import { page } from '$app/state';
 	import { steam } from '$core/steam';
 	import { watch } from 'runed';

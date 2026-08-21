@@ -17,9 +17,9 @@
 		type PathValidation
 	} from '$core/config/paths';
 	import Logo from '$lib/files/logo-transparent-bg.png?url';
-	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
-	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
-	import ArchiveIcon from 'phosphor-svelte/lib/Archive';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircleIcon';
+	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
 	import dayjs from '$lib/dayjs';
 
 	let logValidation = $state<PathValidation>({ valid: false });

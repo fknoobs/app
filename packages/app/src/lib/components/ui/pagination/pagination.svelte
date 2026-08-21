@@ -2,8 +2,8 @@
 	import { cn } from '$lib/utils';
 	import { Pagination, type PaginationRootProps } from 'bits-ui';
 	import { watch } from 'runed';
-	import CaretLeft from 'phosphor-svelte/lib/CaretLeft';
-	import CaretRight from 'phosphor-svelte/lib/CaretRight';
+	import CaretLeft from 'phosphor-svelte/lib/CaretLeftIcon';
+	import CaretRight from 'phosphor-svelte/lib/CaretRightIcon';
 	import { controlBase, interactive } from '../variants';
 
 	let {

@@ -3,8 +3,8 @@
 	import { useMatch } from '.';
 	import { cn } from '$lib/utils';
 	import { tooltip } from '$lib/attachments';
-	import HourGlass from 'phosphor-svelte/lib/Hourglass';
-	import Checks from 'phosphor-svelte/lib/Checks';
+	import HourGlass from 'phosphor-svelte/lib/HourglassIcon';
+	import Checks from 'phosphor-svelte/lib/ChecksIcon';
 
 	type Props = HTMLAttributes<HTMLSpanElement>;
 

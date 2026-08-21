@@ -7,7 +7,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { interactive, formatStreak, statLosses, statStreakClass, statWins } from '$lib/components/ui/variants';
 	import { getSteamIdFromProfile } from './leaderboard-utils';
-	import Crown from 'phosphor-svelte/lib/Crown';
+	import Crown from 'phosphor-svelte/lib/CrownIcon';
 
 	type Props = {
 		stats: LeaderboardStatWithProfile[];

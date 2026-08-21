@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { InputProps } from '.';
-	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircle';
-	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
+	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircleIcon';
 	import { Button } from '../button';
 	import { open, type DialogFilter } from '@tauri-apps/plugin-dialog';
 	import { watch } from 'runed';

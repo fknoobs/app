@@ -4,9 +4,9 @@
 	import { cn, getFactionFlagFromRace } from '$lib/utils';
 	import { getString } from '$lib/utils/game';
 	import { tooltip } from '$lib/attachments';
-	import SortAscending from 'phosphor-svelte/lib/ArrowDown';
-	import SortDescending from 'phosphor-svelte/lib/ArrowUp';
-	import Sortable from 'phosphor-svelte/lib/ArrowsDownUp';
+	import SortAscending from 'phosphor-svelte/lib/ArrowDownIcon';
+	import SortDescending from 'phosphor-svelte/lib/ArrowUpIcon';
+	import Sortable from 'phosphor-svelte/lib/ArrowsDownUpIcon';
 	import dayjs from '$lib/dayjs';
 	import type { ReplaysExpanded } from '$core/app/database/replays';
 	import type { ReplayList } from './replay-list.svelte';

@@ -54,7 +54,13 @@
 				<Player.Faction class={factionClass} />
 			</div>
 			{#if !isCpu}
-				<dl class="grid min-w-0 flex-1 grid-cols-5 px-1 py-3 text-center text-sm">
+				<dl class="grid min-w-0 flex-1 grid-cols-6 px-1 py-3 text-center text-sm">
+					<div class="px-2">
+						<dt class="text-secondary-500 text-xs font-medium uppercase">ELO</dt>
+						<dd class="mt-1 font-medium tabular-nums">
+							<Player.Rating {matchType} />
+						</dd>
+					</div>
 					<div class="px-2">
 						<dt class="text-secondary-500 text-xs font-medium uppercase">Level</dt>
 						<dd class="mt-1 flex items-center justify-center gap-2 font-medium tabular-nums">

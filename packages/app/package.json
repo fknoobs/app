@@ -1,6 +1,6 @@
 {
 	"name": "@company-of-heroes/app",
-	"version": "0.52.12",
+	"version": "0.52.13",
 	"private": true,
 	"type": "module",
 	"scripts": {

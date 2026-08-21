@@ -6,6 +6,9 @@ const config = {
 	preprocess: vitePreprocess(),
 	kit: {
 		adapter: adapter(),
+		prerender: {
+			entries: ['/']
+		},
 		alias: {
 			'@assets': '../shared-assets'
 		}

@@ -3,8 +3,8 @@
 	import Button from './Button.svelte';
 	import { latestDownload } from '$lib/download.svelte';
 	import { DISCORD_URL } from '$lib/urls';
-	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimple';
-	import DiscordLogoIcon from 'phosphor-svelte/lib/DiscordLogo';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
+	import DiscordLogoIcon from 'phosphor-svelte/lib/DiscordLogoIcon';
 </script>
 
 <section class="relative overflow-hidden">

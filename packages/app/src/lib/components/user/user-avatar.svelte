@@ -5,7 +5,7 @@
 	import { getFileUrl } from '$core/pocketbase';
 	import { createAvatar } from '@dicebear/core';
 	import { adventurerNeutral } from '@dicebear/collection';
-	import UserIcon from 'phosphor-svelte/lib/User';
+	import UserIcon from 'phosphor-svelte/lib/UserIcon';
 	import { goto } from '$app/navigation';
 
 	let user = useUser();

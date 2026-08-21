@@ -2,7 +2,7 @@
 	import type { HTMLButtonAttributes } from 'svelte/elements';
 	import { goto } from '$app/navigation';
 	import { cn } from '$lib/utils';
-	import ArrowLeft from 'phosphor-svelte/lib/ArrowLeft';
+	import ArrowLeft from 'phosphor-svelte/lib/ArrowLeftIcon';
 
 	type Props = {
 		href?: string;

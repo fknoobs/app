@@ -18,6 +18,7 @@ export const Collections = {
 	LobbyAggregationCommunity: "lobby_aggregation_community",
 	NotificationReads: "notification_reads",
 	Notifications: "notifications",
+	PlayerRatings: "player_ratings",
 	ReplayAggregation: "replay_aggregation",
 	Replays: "replays",
 	SmurfWatch: "smurf_watch",
@@ -251,6 +252,16 @@ export type UserOverlaysRecord = {
 	version?: string
 }
 
+export type PlayerRatingsRecord<Telo = unknown> = {
+	alias: string
+	created: IsoAutoDateString
+	elo?: null | Telo
+	id: string
+	profileId: number
+	steamId: string
+	updated: IsoAutoDateString
+}
+
 export type SmurfWatchRecord = {
 	check_interval_sec?: number
 	created: IsoAutoDateString
@@ -281,6 +292,7 @@ export type LobbyAggregationResponse<TUSER = unknown, Tmaps = unknown, Tplayers 
 export type LobbyAggregationCommunityResponse<Tmaps = unknown, Tplayers = unknown, Tusers = unknown, Texpand = unknown> = Required<LobbyAggregationCommunityRecord<Tmaps, Tplayers, Tusers>> & BaseSystemFields<Texpand>
 export type NotificationReadsResponse<Texpand = unknown> = Required<NotificationReadsRecord> & BaseSystemFields<Texpand>
 export type NotificationsResponse<Texpand = unknown> = Required<NotificationsRecord> & BaseSystemFields<Texpand>
+export type PlayerRatingsResponse<Telo = unknown, Texpand = unknown> = Required<PlayerRatingsRecord<Telo>> & BaseSystemFields<Texpand>
 export type ReplayAggregationResponse<Tmaps = unknown, Tplayers = unknown, Tuser = unknown, Texpand = unknown> = Required<ReplayAggregationRecord<Tmaps, Tplayers, Tuser>> & BaseSystemFields<Texpand>
 export type ReplaysResponse<Tmessages = unknown, Tplayers = unknown, Texpand = unknown> = Required<ReplaysRecord<Tmessages, Tplayers>> & BaseSystemFields<Texpand>
 export type SmurfWatchResponse<Texpand = unknown> = Required<SmurfWatchRecord> & BaseSystemFields<Texpand>
@@ -302,6 +314,7 @@ export type CollectionRecords = {
 	lobby_aggregation_community: LobbyAggregationCommunityRecord
 	notification_reads: NotificationReadsRecord
 	notifications: NotificationsRecord
+	player_ratings: PlayerRatingsRecord
 	replay_aggregation: ReplayAggregationRecord
 	replays: ReplaysRecord
 	smurf_watch: SmurfWatchRecord
@@ -322,6 +335,7 @@ export type CollectionResponses = {
 	lobby_aggregation_community: LobbyAggregationCommunityResponse
 	notification_reads: NotificationReadsResponse
 	notifications: NotificationsResponse
+	player_ratings: PlayerRatingsResponse
 	replay_aggregation: ReplayAggregationResponse
 	replays: ReplaysResponse
 	smurf_watch: SmurfWatchResponse

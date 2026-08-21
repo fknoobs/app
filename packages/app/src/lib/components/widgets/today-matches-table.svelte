@@ -5,7 +5,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { cn } from '$lib/utils';
 	import { interactive } from '$lib/components/ui/variants';
-	import CaretDown from 'phosphor-svelte/lib/CaretDown';
+	import CaretDown from 'phosphor-svelte/lib/CaretDownIcon';
 	import MatchLobbyPlayers from './match-lobby-players.svelte';
 	import { getMatchModeLabel } from './dashboard-utils';
 

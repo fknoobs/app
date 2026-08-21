@@ -5,6 +5,7 @@
 		formatRanking,
 		formatStreak,
 		getCombatRecord,
+		getEloColor,
 		getFlagImage,
 		getRaceImage,
 		getRankImage
@@ -24,6 +25,7 @@
 	const country = $derived(player.profile?.country);
 	const rec = $derived(getCombatRecord(matchType, player));
 	const streak = $derived(formatStreak(rec.streak));
+	const eloColor = $derived(getEloColor(rec.eloValue));
 </script>
 
 <article class="unit side-{teamIndex}" class:unit--self={isMe}>
@@ -53,7 +55,11 @@
 			<span class="unit__name" title={alias}>{alias}</span>
 			<span class="unit__scores">
 				<span class="unit__ranking">{formatRanking(player.ranking)}</span>
-				<span class="unit__elo" class:unit__elo--na={rec.elo === 'NA'}>
+				<span
+					class="unit__elo"
+					class:unit__elo--na={rec.elo === 'NA'}
+					style:color={eloColor}
+				>
 					{rec.elo === 'NA' ? 'NA' : `${rec.elo} ELO`}
 				</span>
 			</span>

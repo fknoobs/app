@@ -103,6 +103,14 @@ declare module '@fknoobs/app' {
 		rankTotal: number;
 	} & PersonalStat;
 
+	type PlayerEloSlot = {
+		rating: number;
+		matchId: number;
+		at: number;
+	};
+
+	type PlayerEloMap = Record<string, Record<string, PlayerEloSlot>>;
+
 	type LobbyPlayer = {
 		index: number;
 		playerId: number;
@@ -114,6 +122,7 @@ declare module '@fknoobs/app' {
 		steamId?: string;
 		profile?: RelicProfile; // Computers dont have profiles
 		matchHistory?: TransformedMatch[];
+		storedElo?: PlayerEloMap;
 	};
 
 	interface MatchHistoryPlayer {

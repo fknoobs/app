@@ -3,7 +3,7 @@
 	import { dialog } from './dialog.svelte';
 	import { cn } from '$lib/utils';
 	import { overlayBackdrop, surfaceModal } from '../variants';
-	import CloseIcon from 'phosphor-svelte/lib/X';
+	import CloseIcon from 'phosphor-svelte/lib/XIcon';
 	import {
 		isSelectionPickerTarget,
 		selectionPicker

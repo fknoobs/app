@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
-	import Trash from 'phosphor-svelte/lib/Trash';
+	import Trash from 'phosphor-svelte/lib/TrashIcon';
 	import { open } from '@tauri-apps/plugin-dialog';
 	import { readFile } from '@tauri-apps/plugin-fs';
 	import { Input } from '$lib/components/ui/input';

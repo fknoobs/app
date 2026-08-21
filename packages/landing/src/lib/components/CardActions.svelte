@@ -3,9 +3,9 @@
 	import { cn, interactive } from '$lib/cn';
 	import { inlineImagesForExport } from '$lib/inline-images';
 	import { SITE_URL } from '$lib/urls';
-	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimple';
-	import LinkIcon from 'phosphor-svelte/lib/Link';
-	import ShareNetworkIcon from 'phosphor-svelte/lib/ShareNetwork';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
+	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
+	import ShareNetworkIcon from 'phosphor-svelte/lib/ShareNetworkIcon';
 
 	type Props = {
 		cardElement: HTMLElement | null;

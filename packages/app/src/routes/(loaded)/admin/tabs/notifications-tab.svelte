@@ -11,7 +11,7 @@
 	import type { NotificationRecord } from '$core/app/database/notifications';
 	import type { UsersResponse } from '$core/pocketbase/types';
 	import dayjs from '$lib/dayjs';
-	import XIcon from 'phosphor-svelte/lib/X';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 
 	const sentColumns: ColumnDef<NotificationRecord>[] = [
 		{ id: 'title', header: 'Titel', width: 'w-5/24', accessor: (notification) => notification.title, class: 'truncate font-medium' },

@@ -13,6 +13,8 @@
 	import { MatchHistory } from '$lib/components/match-history';
 	import SmurfAlert from '$lib/components/player/smurf-alert.svelte';
 	import { loadSmurfAlert } from '$lib/player/smurf';
+	import { getPlayerRating } from '$core/pocketbase/player-ratings';
+	import { eloMapForSteamId, mergeEloMaps } from '$lib/utils/player-elo';
 	import type { Snapshot } from '@sveltejs/kit';
 
 	let currentTab = $state('stats');
@@ -29,10 +31,11 @@
 			}
 
 			const steamId = relicProfile.name.replace('/steam/', '');
-			const [steamProfile, gamePlayTime, matchHistory] = await Promise.all([
+			const [steamProfile, gamePlayTime, matchHistory, playerRating] = await Promise.all([
 				steam.getUserProfile(steamId),
 				steam.getRecentlyPlayedGameByAppId(steamId, 228200),
-				relic.getRecentMatchHistoryForProfile(relicProfile.profile_id)
+				relic.getRecentMatchHistoryForProfile(relicProfile.profile_id),
+				getPlayerRating(steamId)
 			]);
 
 			if (!steamProfile) {
@@ -46,10 +49,25 @@
 				steam: steamProfile,
 				game: gamePlayTime,
 				matchHistory,
-				smurf
+				smurf,
+				playerRating
 			};
 		}
 	);
+
+	const playerElo = $derived.by(() => {
+		const current = profile.current;
+		if (!current) return {};
+
+		return mergeEloMaps(
+			current.playerRating?.elo,
+			eloMapForSteamId(
+				current.matchHistory,
+				current.steam.steamid,
+				current.relic.profile_id
+			)
+		);
+	});
 
 	export const snapshot: Snapshot<string> = {
 		capture: () => currentTab,
@@ -90,8 +108,10 @@
 					)}
 				/>
 				<div class="py-4">
-					<H level="1">{profile.current.relic.alias}</H>
-					<SmurfAlert smurf={profile.current.smurf} />
+					<div class="mb-6 flex flex-wrap items-center gap-x-8 gap-y-1">
+						<H level="1" class="mb-0">{profile.current.relic.alias}</H>
+						<SmurfAlert smurf={profile.current.smurf} />
+					</div>
 					<div class="flex flex-col gap-0.5">
 						{#if profile.current.steam.timecreated}
 							<span class="text-secondary-300 grid grid-cols-[150px_auto]">
@@ -134,7 +154,7 @@
 					<Tabs.Trigger value="match-history">Match history</Tabs.Trigger>
 				</Tabs.List>
 				<Tabs.Content value="stats">
-					<Leaderboard stats={profile.current.relic.leaderboardStats!} />
+					<Leaderboard stats={profile.current.relic.leaderboardStats!} elo={playerElo} />
 				</Tabs.Content>
 				<Tabs.Content value="match-history">
 					<MatchHistory matches={profile.current.matchHistory} />

@@ -17,10 +17,10 @@
 	import { sortBy } from 'lodash-es';
 	import { bounceInOut } from 'svelte/easing';
 	import dayjs from '$lib/dayjs';
-	import HourGlass from 'phosphor-svelte/lib/Hourglass';
-	import Checks from 'phosphor-svelte/lib/Checks';
-	import Download from 'phosphor-svelte/lib/Download';
-	import Check from 'phosphor-svelte/lib/Check';
+	import HourGlass from 'phosphor-svelte/lib/HourglassIcon';
+	import Checks from 'phosphor-svelte/lib/ChecksIcon';
+	import Download from 'phosphor-svelte/lib/DownloadIcon';
+	import Check from 'phosphor-svelte/lib/CheckIcon';
 
 	const match = resource(
 		() => page.params.id,

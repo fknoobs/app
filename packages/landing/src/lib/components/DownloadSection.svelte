@@ -1,8 +1,8 @@
 <script lang="ts">
 	import Button from './Button.svelte';
 	import { latestDownload } from '$lib/download.svelte';
-	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimple';
-	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircle';
+	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
+	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircleIcon';
 </script>
 
 <section id="download" class="border-secondary-800/80 border-t">

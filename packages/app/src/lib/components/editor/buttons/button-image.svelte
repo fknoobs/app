@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Button from './button.svelte';
-	import ImageIcon from 'phosphor-svelte/lib/Image';
+	import ImageIcon from 'phosphor-svelte/lib/ImageIcon';
 	import { app } from '$core/app/context';
 	import { open } from '@tauri-apps/plugin-dialog';
 	import { readFile } from '@tauri-apps/plugin-fs';

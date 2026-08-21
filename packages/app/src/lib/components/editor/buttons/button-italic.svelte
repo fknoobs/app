@@ -1,7 +1,7 @@
 <script>
 	import { useEditor } from '../context.svelte';
 	import Button from './button.svelte';
-	import TextItalic from 'phosphor-svelte/lib/TextItalic';
+	import TextItalic from 'phosphor-svelte/lib/TextItalicIcon';
 
 	const editor = useEditor();
 </script>

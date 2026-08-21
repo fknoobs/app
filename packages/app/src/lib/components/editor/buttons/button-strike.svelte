@@ -1,7 +1,7 @@
 <script>
 	import { useEditor } from '../context.svelte';
 	import Button from './button.svelte';
-	import TextStrikethrough from 'phosphor-svelte/lib/TextStrikethrough';
+	import TextStrikethrough from 'phosphor-svelte/lib/TextStrikethroughIcon';
 
 	const editor = useEditor();
 </script>

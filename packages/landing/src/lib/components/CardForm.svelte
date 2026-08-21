@@ -9,7 +9,7 @@
 
 	let { initialSteamId = '' }: Props = $props();
 
-	let steamId = $state('');
+	let steamId = $state(initialSteamId);
 	let validationError = $state<string | null>(null);
 
 	$effect(() => {

@@ -1,7 +1,7 @@
 <script>
 	import { useEditor } from '../context.svelte';
 	import Button from './button.svelte';
-	import TextBold from 'phosphor-svelte/lib/TextB';
+	import TextBold from 'phosphor-svelte/lib/TextBIcon';
 
 	const editor = useEditor();
 </script>

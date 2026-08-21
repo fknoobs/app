@@ -3,6 +3,8 @@
 	import { usePlayer } from '.';
 	import { cn } from '$lib/utils';
 	import { getPlayerEloFromMatchHistory } from '$lib/utils/game';
+	import { getStoredEloRating } from '$lib/utils/player-elo';
+	import { getEloColor } from '$lib/components/leaderboard/leaderboard-utils';
 
 	type Props = HTMLAttributes<HTMLSpanElement> & {
 		matchType?: number;
@@ -15,10 +17,22 @@
 			return playerResult.newrating;
 		}
 		if (matchType === undefined) return undefined;
-		return getPlayerEloFromMatchHistory(matchType, player) ?? undefined;
+		return (
+			getPlayerEloFromMatchHistory(matchType, player) ??
+			getStoredEloRating(player.storedElo, matchType, player.race) ??
+			undefined
+		);
 	});
 </script>
 
-<span {...restProps} class={cn('text-center tabular-nums', restProps.class)}>
+<span
+	{...restProps}
+	class={cn(
+		'text-center tabular-nums',
+		restProps.class,
+		rating == null && 'text-secondary-500 text-xs font-normal'
+	)}
+	style:color={rating != null ? getEloColor(rating) : undefined}
+>
 	{rating ?? 'N/A'}
 </span>

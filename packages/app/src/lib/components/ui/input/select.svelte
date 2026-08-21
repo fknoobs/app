@@ -2,9 +2,9 @@
 	import { Select, type WithoutChildren } from 'bits-ui';
 	import { cn } from '$lib/utils';
 	import { controlBase, surfacePanel, menuItem } from '../variants';
-	import CaretDownIcon from 'phosphor-svelte/lib/CaretDown';
-	import CaretUpIcon from 'phosphor-svelte/lib/CaretUp';
-	import CheckIcon from 'phosphor-svelte/lib/Check';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
+	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import { isArray } from 'lodash-es';
 
 	type Props = WithoutChildren<Select.RootProps> & {

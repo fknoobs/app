@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { SmurfAlertState } from '$lib/player/smurf';
-	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRight';
-	import LinkSimpleIcon from 'phosphor-svelte/lib/LinkSimple';
+	import { interactive } from '$lib/components/ui/variants';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
+	import BinocularsIcon from 'phosphor-svelte/lib/BinocularsIcon';
 
 	type Props = {
 		smurf: SmurfAlertState;
@@ -29,20 +30,14 @@
 </script>
 
 {#if smurf.status === 'shared' && lenderHref}
-	<div
-		class="border-warning/20 bg-warning/5 text-secondary-400 mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md border px-3 py-2 text-sm"
-	>
-		<LinkSimpleIcon class="text-warning/70 shrink-0" size={14} weight="bold" />
-		<span>Shared account</span>
-		<span class="text-secondary-600">·</span>
-		<a
-			href={lenderHref}
-			class="text-secondary-200 hover:text-primary inline-flex items-center gap-1.5 transition-colors"
-		>
+	<div class="text-destructive inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
+		<BinocularsIcon class="shrink-0" size={16} weight="bold" />
+		<span>Smurf account</span>
+		<a href={lenderHref} class={[interactive, 'inline-flex items-center gap-1.5 hover:underline']}>
 			{#if lenderAvatar}
 				<img src={lenderAvatar} alt="" class="size-5 rounded-sm object-cover" />
 			{/if}
-			<span class="font-medium">{lenderLabel}</span>
+			<span>{lenderLabel}</span>
 			<ArrowRightIcon size={12} weight="bold" />
 		</a>
 	</div>

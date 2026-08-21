@@ -10,9 +10,11 @@
 	import { interactive, statLosses, statWins } from '$lib/components/ui/variants';
 	import { resource } from 'runed';
 	import { upperCase } from 'lodash-es';
-	import CaretDown from 'phosphor-svelte/lib/CaretDown';
+	import CaretDown from 'phosphor-svelte/lib/CaretDownIcon';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { countTodayRecord, isMatchFromLocalToday, todayPlayedMatchesFilter } from './dashboard-utils';
+	import { getPlayerRating } from '$core/pocketbase/player-ratings';
+	import { eloMapForSteamId, mergeEloMaps } from '$lib/utils/player-elo';
 
 	let activeTab = $state('stats');
 	let panelExpanded = $state(false);
@@ -49,6 +51,18 @@
 
 	const todayRecord = $derived(
 		countTodayRecord(todayMatches.current ?? [], app.game.profile?.relic.profile_id)
+	);
+
+	const steamId = $derived(app.game.profile?.steam.steamid);
+	const storedRating = resource(
+		() => steamId,
+		(id) => (id ? getPlayerRating(id) : null)
+	);
+	const playerElo = $derived(
+		mergeEloMaps(
+			storedRating.current?.elo,
+			steamId ? eloMapForSteamId(recentMatches.current, steamId) : undefined
+		)
 	);
 
 	function openTab(tab: string) {
@@ -155,6 +169,7 @@
 						{#if activeTab === 'stats'}
 							<Leaderboard
 								stats={profile.relic.leaderboardStats ?? []}
+								elo={playerElo}
 								class="rounded-none border-0"
 							/>
 						{:else if recentMatches.loading}

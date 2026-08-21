@@ -4,7 +4,7 @@
 	import { overlayBackdrop, surfaceModal } from '../variants';
 	import { modal } from './modal.svelte.js';
 	import { H } from '../h';
-	import CloseIcon from 'phosphor-svelte/lib/X';
+	import CloseIcon from 'phosphor-svelte/lib/XIcon';
 </script>
 
 <Dialog.Root bind:open={modal.isOpen}>

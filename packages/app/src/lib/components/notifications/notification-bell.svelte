@@ -2,7 +2,7 @@
 	import { cn } from '$lib/utils';
 	import { Popover } from '$lib/components/ui/popover';
 	import { Button } from '$lib/components/ui/button';
-	import BellIcon from 'phosphor-svelte/lib/Bell';
+	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 	import dayjs from '$lib/dayjs';
 	import { app } from '$core/app/context';
 	import type { NotificationItem } from '$core/notifications/notifications.svelte';

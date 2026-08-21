@@ -8,17 +8,20 @@
 		getRaceFromLeaderboardId,
 		isRanked
 	} from '$lib/utils/game';
+	import { getStoredEloForLeaderboard, type PlayerEloMap } from '$lib/utils/player-elo';
 	import LeaderboardStatPill from './leaderboard-stat-pill.svelte';
+	import { getEloColor } from './leaderboard-utils';
 	import { orderBy, sortBy } from 'lodash-es';
 
 	type Props = {
 		stats: LeaderboardStat[];
+		elo?: PlayerEloMap;
 		loading?: boolean;
 		empty?: string;
 		class?: string;
 	};
 
-	let { stats, loading = false, empty = 'No stats found.', class: className }: Props = $props();
+	let { stats, elo, loading = false, empty = 'No stats found.', class: className }: Props = $props();
 
 	const sortedStats = $derived(
 		sortBy(orderBy(stats, 'ranklevel', 'desc'), (stat) => (isRanked(stat.leaderboard_id) ? 0 : 1))
@@ -30,6 +33,13 @@
 	const statCell = 'flex w-full justify-center';
 
 	const columns: ColumnDef<LeaderboardStat>[] = [
+		{
+			id: 'elo',
+			header: 'ELO',
+			width: 'w-[4.5rem]',
+			headerClass: leftHeader,
+			class: `${leftCell} tabular-nums`
+		},
 		{
 			id: 'level',
 			header: 'Level',
@@ -112,6 +122,14 @@
 		</span>
 	</span>
 {/snippet}
+{#snippet cell_elo({ row }: { row: LeaderboardStat })}
+	{@const value = getStoredEloForLeaderboard(elo, row.leaderboard_id)}
+	{#if value == null}
+		<span class="text-secondary-500 text-xs">N/A</span>
+	{:else}
+		<span class="font-medium tabular-nums" style:color={getEloColor(value)}>{value}</span>
+	{/if}
+{/snippet}
 {#snippet cell_wins({ row }: { row: LeaderboardStat })}
 	<LeaderboardStatPill type="wins" wins={row.wins} losses={row.losses} streak={row.streak} />
 {/snippet}
@@ -135,6 +153,7 @@
 			level: cell_level,
 			mode: cell_mode,
 			position: cell_position,
+			elo: cell_elo,
 			wins: cell_wins,
 			losses: cell_losses,
 			streak: cell_streak

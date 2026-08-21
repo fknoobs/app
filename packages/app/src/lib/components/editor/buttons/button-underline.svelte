@@ -1,7 +1,7 @@
 <script>
 	import { useEditor } from '../context.svelte';
 	import Button from './button.svelte';
-	import TextUnderline from 'phosphor-svelte/lib/TextUnderline';
+	import TextUnderline from 'phosphor-svelte/lib/TextUnderlineIcon';
 
 	const editor = useEditor();
 </script>

@@ -1,14 +1,14 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
 	import Sortable from 'sortablejs';
-	import PlusIcon from 'phosphor-svelte/lib/Plus';
-	import TrashIcon from 'phosphor-svelte/lib/Trash';
-	import RecordIcon from 'phosphor-svelte/lib/Record';
-	import StopIcon from 'phosphor-svelte/lib/Stop';
-	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRight';
-	import HandleIcon from 'phosphor-svelte/lib/DotsSixVertical';
-	import ExportIcon from 'phosphor-svelte/lib/Export';
-	import ImportIcon from 'phosphor-svelte/lib/DownloadSimple';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import RecordIcon from 'phosphor-svelte/lib/RecordIcon';
+	import StopIcon from 'phosphor-svelte/lib/StopIcon';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
+	import HandleIcon from 'phosphor-svelte/lib/DotsSixVerticalIcon';
+	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
+	import ImportIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
 	import { H } from '$lib/components/ui/h';
 	import { onDestroy } from 'svelte';
 	import { ToggleGroup } from '$lib/components/ui/toggle-group';

@@ -10,7 +10,7 @@
 	import { leaderboards } from '$lib/utils/game';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { isEmpty } from 'lodash-es';
-	import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass';
+	import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 
 	let leaderboardId = $state(leaderboards[0].value);
 	let leaderboardFactionId = $state(leaderboards[0].leaderboardFationIds[0].value);

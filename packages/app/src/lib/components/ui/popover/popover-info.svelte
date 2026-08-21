@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
 	import { Popover as PopoverPrimitive, type WithoutChildren } from 'bits-ui';
-	import QuestionMark from 'phosphor-svelte/lib/QuestionMark';
+	import QuestionMark from 'phosphor-svelte/lib/QuestionMarkIcon';
 	import type { Snippet } from 'svelte';
 	import Popover from './popover.svelte';
 

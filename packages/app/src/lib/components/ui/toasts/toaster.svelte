@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { Toaster as SonnerToaster } from 'svelte-sonner';
 	import { toastVariant } from '../variants';
-	import SuccesIcon from 'phosphor-svelte/lib/Check';
-	import ErrorIcon from 'phosphor-svelte/lib/ExclamationMark';
-	import InfoIcon from 'phosphor-svelte/lib/QuestionMark';
+	import SuccesIcon from 'phosphor-svelte/lib/CheckIcon';
+	import ErrorIcon from 'phosphor-svelte/lib/ExclamationMarkIcon';
+	import InfoIcon from 'phosphor-svelte/lib/QuestionMarkIcon';
 </script>
 
 <SonnerToaster

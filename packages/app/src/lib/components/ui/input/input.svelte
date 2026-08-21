@@ -15,10 +15,10 @@
 		stepperButton
 	} from '../variants';
 	import { Button } from '../button';
-	import EyeIcon from 'phosphor-svelte/lib/Eye';
-	import EyeSlashIcon from 'phosphor-svelte/lib/EyeSlash';
-	import PlusIcon from 'phosphor-svelte/lib/Plus';
-	import MinusIcon from 'phosphor-svelte/lib/Minus';
+	import EyeIcon from 'phosphor-svelte/lib/EyeIcon';
+	import EyeSlashIcon from 'phosphor-svelte/lib/EyeSlashIcon';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
+	import MinusIcon from 'phosphor-svelte/lib/MinusIcon';
 
 	let {
 		value = $bindable(),

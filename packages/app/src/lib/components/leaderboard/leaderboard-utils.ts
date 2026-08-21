@@ -69,6 +69,40 @@ export function getStreakColor(streak: number): string {
 	return interpolateRatioColor(streakToProgress(streak));
 }
 
+function eloToProgress(elo: number): number {
+	if (elo <= 1000) return 0;
+	if (elo >= 2400) return 1;
+	if (elo <= 1400) return ((elo - 1000) / 400) * (1 / 3);
+	if (elo <= 1800) return 1 / 3 + ((elo - 1400) / 400) * (1 / 3);
+	return 2 / 3 + ((elo - 1800) / 600) * (1 / 3);
+}
+
+function interpolateEloColor(t: number): string {
+	const stops = [
+		{ t: 0, l: 0.5, c: 0.2, h: 25 },
+		{ t: 1 / 3, l: 0.8, c: 0.14, h: 112 },
+		{ t: 2 / 3, l: 0.72, c: 0.21, h: 145 },
+		{ t: 1, l: 0.84, c: 0.18, h: 85 }
+	] as const;
+
+	for (let i = 0; i < stops.length - 1; i++) {
+		const from = stops[i];
+		const to = stops[i + 1];
+		if (t <= to.t) {
+			const local = (t - from.t) / (to.t - from.t);
+			return `oklch(${lerp(from.l, to.l, local)} ${lerp(from.c, to.c, local)} ${lerp(from.h, to.h, local)})`;
+		}
+	}
+
+	const last = stops[stops.length - 1];
+	return `oklch(${last.l} ${last.c} ${last.h})`;
+}
+
+export function getEloColor(elo: number | null | undefined): string {
+	if (typeof elo !== 'number' || elo < 1) return 'var(--color-secondary-400)';
+	return interpolateEloColor(eloToProgress(elo));
+}
+
 export function formatRatio(wins: number, losses: number): string {
 	if (losses > 0) return (wins / losses).toFixed(2);
 	if (wins > 0) return '∞';

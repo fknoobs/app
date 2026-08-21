@@ -5,9 +5,9 @@
 	import { Button } from '../button';
 	import { cn } from '$lib/utils';
 	import { interactive, overlayBackdrop, surfaceModal, controlBase, menuItem } from '../variants';
-	import X from 'phosphor-svelte/lib/X';
+	import X from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
-	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimple';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import { selectionPicker } from './selection-picker';
 
 	const PAGE_SIZE = 50;

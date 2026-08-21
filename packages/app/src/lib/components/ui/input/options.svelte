@@ -1,7 +1,7 @@
 <script lang="ts">
-	import TrahsIcon from 'phosphor-svelte/lib/Trash';
-	import EditIcon from 'phosphor-svelte/lib/PencilSimple';
-	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRight';
+	import TrahsIcon from 'phosphor-svelte/lib/TrashIcon';
+	import EditIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
+	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import { dialog } from '$lib/components/ui/dialog';
 	import { Label } from '../label';
 	import Input from './input.svelte';

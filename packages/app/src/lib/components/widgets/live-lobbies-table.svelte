@@ -7,7 +7,7 @@
 	import { interactive } from '$lib/components/ui/variants';
 	import { tooltip } from '$lib/attachments';
 	import dayjs from '$lib/dayjs';
-	import CaretDown from 'phosphor-svelte/lib/CaretDown';
+	import CaretDown from 'phosphor-svelte/lib/CaretDownIcon';
 	import LiveLobbyPlayers from './live-lobby-players.svelte';
 	import {
 		getAlliesPlayers,

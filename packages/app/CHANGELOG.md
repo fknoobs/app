@@ -1,5 +1,11 @@
 # @company-of-heroes/app
 
+## 0.52.13
+
+- feat; color ELO ratings by skill tier in stats and oppbot overlay
+- enhance; treat 2400+ ELO as legendary
+- feat; highlight smurf accounts next to player names
+
 ## 0.52.12
 
 - feat; extend player card

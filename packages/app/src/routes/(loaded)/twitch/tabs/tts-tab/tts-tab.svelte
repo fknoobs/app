@@ -1,8 +1,8 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
 	import { Button } from '$lib/components/ui/button';
-	import Trash from 'phosphor-svelte/lib/Trash';
-	import UserSoundIcon from 'phosphor-svelte/lib/UserSound';
+	import Trash from 'phosphor-svelte/lib/TrashIcon';
+	import UserSoundIcon from 'phosphor-svelte/lib/UserSoundIcon';
 	import { Checkbox, Input, RadioGroup, Selection } from '$lib/components/ui/input';
 	import { tts } from '$features/twitch';
 </script>

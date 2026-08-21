@@ -3,7 +3,7 @@
 	import { useMatch } from '.';
 	import { cn } from '$lib/utils';
 	import { tooltip } from '$lib/attachments';
-	import Ranking from 'phosphor-svelte/lib/Ranking';
+	import Ranking from 'phosphor-svelte/lib/RankingIcon';
 
 	type Props = HTMLAttributes<HTMLSpanElement>;
 
