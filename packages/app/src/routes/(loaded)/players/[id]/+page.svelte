@@ -13,8 +13,13 @@
 	import { MatchHistory } from '$lib/components/match-history';
 	import SmurfAlert from '$lib/components/player/smurf-alert.svelte';
 	import { loadSmurfAlert } from '$lib/player/smurf';
-	import { getPlayerRating } from '$core/pocketbase/player-ratings';
-	import { eloMapForSteamId, mergeEloMaps } from '$lib/utils/player-elo';
+	import { account } from '$core/account';
+	import { getPlayerRating, ingestPlayerRatings } from '$core/pocketbase/player-ratings';
+	import {
+		eloMapForSteamId,
+		extractPlayerRatingSnapshots,
+		mergeEloMaps
+	} from '$lib/utils/player-elo';
 	import type { Snapshot } from '@sveltejs/kit';
 
 	let currentTab = $state('stats');
@@ -44,6 +49,10 @@
 
 			const smurf = await loadSmurfAlert(steamId, relicProfile.profile_id);
 
+			if (account.userId) {
+				void ingestPlayerRatings(extractPlayerRatingSnapshots(matchHistory));
+			}
+
 			return {
 				relic: relicProfile,
 				steam: steamProfile,
@@ -61,11 +70,7 @@
 
 		return mergeEloMaps(
 			current.playerRating?.elo,
-			eloMapForSteamId(
-				current.matchHistory,
-				current.steam.steamid,
-				current.relic.profile_id
-			)
+			eloMapForSteamId(current.matchHistory, current.steam.steamid, current.relic.profile_id)
 		);
 	});
 

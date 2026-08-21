@@ -195,7 +195,7 @@
 				<Player.RatingChange />
 			{/snippet}
 			{#snippet cell_elo({ row }: { row: MatchPlayer })}
-				{getPlayerResult(row)?.newrating || 'N/A'}
+				<Player.Rating class="font-medium tabular-nums" />
 			{/snippet}
 			{#snippet cell_rank({ row }: { row: MatchPlayer })}
 				<Player.Rank />

@@ -2,16 +2,19 @@
 	import type { LobbyPlayer, MatchHistoryPlayer, TransformedMatch } from '@fknoobs/app';
 	import type { Snippet } from 'svelte';
 	import dayjs from '$lib/dayjs';
-	import { surfacePanel } from '$lib/components/ui/variants';
+	import { interactive, surfacePanel } from '$lib/components/ui/variants';
 	import { cn, isSteamId, normalizeMapName } from '$lib/utils';
 	import * as Player from '$lib/components/player';
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import MapImage from '$lib/components/ui/map-image.svelte';
 	import { orderBy, sortBy } from 'lodash-es';
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
+	import Checks from 'phosphor-svelte/lib/ChecksIcon';
 	import { page } from '$app/state';
 	import { steam } from '$core/steam';
-	import { watch } from 'runed';
+	import { app } from '$core/app/context';
+	import { tooltip } from '$lib/attachments';
+	import { resource, watch } from 'runed';
 
 	type Props = {
 		matches: TransformedMatch[];
@@ -20,6 +23,17 @@
 	let { matches }: Props = $props();
 
 	const orderedMatches = $derived(orderBy(matches, ['completiontime'], ['desc']));
+	const sessionIdsKey = $derived(orderedMatches.map((match) => match.id).join(','));
+	const savedBySession = resource(
+		() => sessionIdsKey,
+		(key) => {
+			if (!key) return Promise.resolve(new Map<number, string>());
+			return app.database.matches.getIdsBySessionIds(key.split(',').map(Number)).catch((error) => {
+				console.warn('[MATCH-HISTORY]: saved match lookup failed:', error);
+				return new Map<number, string>();
+			});
+		}
+	);
 
 	const steamIds = $derived([
 		...new Set(
@@ -175,6 +189,7 @@
 	<div class="grid gap-3">
 		{#each orderedMatches as match (match.id)}
 			{@const players = sortBy(match.players, ['teamid'])}
+			{@const savedId = savedBySession.current?.get(match.id)}
 			<article class={cn(surfacePanel, 'overflow-clip')}>
 				<div class="border-secondary-800 flex items-center gap-4 border-b px-4 py-2">
 					<MapImage small map={match.mapname} alt={normalizeMapName(match.mapname)} />
@@ -184,12 +199,27 @@
 						</h3>
 						<p class="text-secondary-400 text-sm">
 							{dayjs.unix(match.startgametime).format('MMM D, YYYY · HH:mm')}
+							<span class="text-secondary-500 text-xs tabular-nums"> · {match.id}</span>
 						</p>
 					</div>
-					<span class="text-secondary-300 flex shrink-0 items-center gap-2 text-sm font-medium">
-						<ClockIcon class="size-4" />
-						{matchDuration(match)}
-					</span>
+					<div class="flex shrink-0 items-center gap-4">
+						{#if savedId}
+							<a
+								href="/history/{savedId}"
+								class={cn(
+									interactive,
+									'text-primary inline-flex items-center gap-1.5 text-sm whitespace-nowrap hover:underline'
+								)}
+							>
+								<Checks class="size-4 text-green-400" {@attach tooltip('Result saved')} />
+								View details
+							</a>
+						{/if}
+						<span class="text-secondary-300 flex items-center gap-2 text-sm font-medium">
+							<ClockIcon class="size-4" />
+							{matchDuration(match)}
+						</span>
+					</div>
 				</div>
 				<DataTable
 					data={players}

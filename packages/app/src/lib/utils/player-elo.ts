@@ -82,10 +82,7 @@ export function getStoredEloForLeaderboard(
 	return getStoredEloRating(elo, matchType, getRaceFromLeaderboardId(leaderboardId));
 }
 
-function steamIdFromPlayer(player: {
-	steamId?: string;
-	name?: string;
-}): string | null {
+function steamIdFromPlayer(player: { steamId?: string; name?: string }): string | null {
 	if (isValidSteamId(player.steamId)) {
 		return player.steamId;
 	}
@@ -201,24 +198,16 @@ export function extractPlayerRatingSnapshotsFromLobby(
 		return [];
 	}
 
-	const snapshots: PlayerRatingSnapshot[] = [];
-
+	const matches: TransformedMatch[] = [];
 	for (const player of players) {
-		if (player.playerId === -1 || !isValidSteamId(player.steamId)) {
+		if (player.playerId === -1 || !player.matchHistory?.length) {
 			continue;
 		}
 
-		const extracted = extractPlayerRatingSnapshots(player.matchHistory);
-		const own =
-			extracted.find((snapshot) => snapshot.steamId === player.steamId) ??
-			extracted.find((snapshot) => snapshot.profileId === player.playerId);
-
-		if (own) {
-			snapshots.push(own);
-		}
+		matches.push(...player.matchHistory);
 	}
 
-	return snapshots;
+	return extractPlayerRatingSnapshots(matches);
 }
 
 export function eloMapFromRecord(elo: unknown): PlayerEloMap {

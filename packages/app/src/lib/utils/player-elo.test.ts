@@ -11,7 +11,9 @@ import {
 } from './player-elo';
 import type { LobbyPlayer, TransformedMatch } from '@fknoobs/app';
 
-function match(partial: Partial<TransformedMatch> & { players: TransformedMatch['players'] }): TransformedMatch {
+function match(
+	partial: Partial<TransformedMatch> & { players: TransformedMatch['players'] }
+): TransformedMatch {
 	return {
 		id: 100,
 		creator_profile_id: 1,
@@ -100,7 +102,7 @@ describe('player-elo', () => {
 		]);
 	});
 
-	it('extracts only the lobby player from attached match history', () => {
+	it('extracts every player from attached match histories', () => {
 		const lobbyPlayer = {
 			index: 0,
 			playerId: 1,
@@ -125,15 +127,19 @@ describe('player-elo', () => {
 		} as LobbyPlayer;
 
 		const snapshots = extractPlayerRatingSnapshotsFromLobby([lobbyPlayer]);
-		expect(snapshots).toHaveLength(1);
-		expect(snapshots[0].steamId).toBe('76561198000000001');
-		expect(snapshots[0].slots[0].raceId).toBe(0);
+		expect(snapshots.map((snapshot) => snapshot.steamId).sort()).toEqual([
+			'76561198000000001',
+			'76561198000000002'
+		]);
+		expect(
+			snapshots.find((snapshot) => snapshot.steamId === '76561198000000002')?.slots[0].raceId
+		).toBe(1);
 	});
 
 	it('reads stored ratings from the nested elo map', () => {
-		expect(
-			getStoredEloRating({ '1': { '1': { rating: 1580, matchId: 9, at: 1 } } }, 1, 1)
-		).toBe(1580);
+		expect(getStoredEloRating({ '1': { '1': { rating: 1580, matchId: 9, at: 1 } } }, 1, 1)).toBe(
+			1580
+		);
 		expect(getStoredEloRating({ '1': { '1': { rating: 1580, matchId: 9, at: 1 } } }, 14, 1)).toBe(
 			null
 		);

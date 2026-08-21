@@ -146,7 +146,12 @@
 		{#if matches.scope === 'user'}
 			<Match.Rating />
 		{/if}
-		<Match.Date class="text-secondary-400 ms-auto text-sm" />
+		<span class="ms-auto flex items-baseline gap-2">
+			<Match.Date class="text-secondary-400 text-sm" />
+			{#if row.sessionId}
+				<span class="text-secondary-500 text-xs tabular-nums">{row.sessionId}</span>
+			{/if}
+		</span>
 	{/snippet}
 	{#snippet matchRowWrapper({
 		row,

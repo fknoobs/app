@@ -42,6 +42,27 @@ export type HistoryListQuery = {
 
 const DEFAULT_EXPAND = 'user';
 
+function isPreferredLobby(
+	candidate: Pick<LobbiesRecord, 'needsResult' | 'hasReplay'>,
+	current: Pick<LobbiesRecord, 'needsResult' | 'hasReplay'>
+): boolean {
+	const candidateDone = !candidate.needsResult;
+	const currentDone = !current.needsResult;
+	if (candidateDone !== currentDone) {
+		return candidateDone;
+	}
+
+	const candidateReplay = !!candidate.hasReplay;
+	const currentReplay = !!current.hasReplay;
+	if (candidateReplay !== currentReplay) {
+		return candidateReplay;
+	}
+
+	return false;
+}
+
+type LobbySessionRef = Pick<LobbiesRecord, 'id' | 'sessionId' | 'needsResult' | 'hasReplay'>;
+
 /**
  * Match (lobby) repository.
  */
@@ -184,6 +205,41 @@ export class Matches {
 		});
 
 		return records.items.length > 0 ? (exp(records.items[0]) as MatchExpanded) : null;
+	}
+
+	/**
+	 * Maps Relic/session ids to PocketBase lobby ids.
+	 * Prefers a completed result, then a replay, then the newest record.
+	 */
+	async getIdsBySessionIds(sessionIds: number[]): Promise<Map<number, string>> {
+		const unique = [...new Set(sessionIds.filter((id) => Number.isInteger(id) && id > 0))];
+		if (unique.length === 0) {
+			return new Map();
+		}
+
+		const records = await pocketbase
+			.collection('lobbies')
+			.getList<LobbySessionRef>(1, Math.min(500, Math.max(unique.length * 5, unique.length)), {
+				filter: unique.map((id) => `sessionId=${id}`).join(' || '),
+				fields: 'id,sessionId,needsResult,hasReplay',
+				sort: '-createdAt',
+				fetch
+			});
+
+		const bySession = new Map<number, LobbySessionRef>();
+		for (const record of records.items) {
+			const sessionId = Number(record.sessionId);
+			if (!Number.isFinite(sessionId) || sessionId <= 0) {
+				continue;
+			}
+
+			const current = bySession.get(sessionId);
+			if (!current || isPreferredLobby(record, current)) {
+				bySession.set(sessionId, record);
+			}
+		}
+
+		return new Map([...bySession].map(([sessionId, record]) => [sessionId, record.id]));
 	}
 
 	/** Creates a match owned by the authenticated user. */

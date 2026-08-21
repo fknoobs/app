@@ -51,7 +51,9 @@ export async function getPlayerRating(steamId: string): Promise<PlayerRatingReco
 	}
 }
 
-export async function getPlayerRatings(steamIds: string[]): Promise<Map<string, PlayerRatingRecord>> {
+export async function getPlayerRatings(
+	steamIds: string[]
+): Promise<Map<string, PlayerRatingRecord>> {
 	const uniqueIds = [...new Set(steamIds.filter(isValidSteamId))];
 	const results = new Map<string, PlayerRatingRecord>();
 
@@ -77,6 +79,8 @@ export async function getPlayerRatings(steamIds: string[]): Promise<Map<string, 
 	return results;
 }
 
+export const INGEST_BATCH_SIZE = 64;
+
 export async function ingestPlayerRatings(
 	players: PlayerRatingSnapshot[]
 ): Promise<PlayerRatingRecord[]> {
@@ -84,19 +88,28 @@ export async function ingestPlayerRatings(
 		return [];
 	}
 
-	try {
-		const payload = await pocketbase.send<{ players?: PlayerRatingRecord[] }>(
-			'/api/player-ratings/ingest',
-			{
-				method: 'POST',
-				body: { players },
-				fetch
-			}
-		);
+	const records: PlayerRatingRecord[] = [];
 
-		return Array.isArray(payload.players) ? payload.players.map(toRecord) : [];
-	} catch (error) {
-		console.warn('[player_ratings] ingest failed', error);
-		return [];
+	for (let i = 0; i < players.length; i += INGEST_BATCH_SIZE) {
+		const batch = players.slice(i, i + INGEST_BATCH_SIZE);
+
+		try {
+			const payload = await pocketbase.send<{ players?: PlayerRatingRecord[] }>(
+				'/api/player-ratings/ingest',
+				{
+					method: 'POST',
+					body: { players: batch },
+					fetch
+				}
+			);
+
+			if (Array.isArray(payload.players)) {
+				records.push(...payload.players.map(toRecord));
+			}
+		} catch (error) {
+			console.warn('[player_ratings] ingest failed', error);
+		}
 	}
+
+	return records;
 }
