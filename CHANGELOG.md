@@ -1,3 +1,7 @@
+### v0.53.2
+
+- feat; update overlay to reflect ELO changes
+
 ### v0.53.1
 
 - fix; apply ELO rating colors on match history detail page

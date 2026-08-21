@@ -1,5 +1,9 @@
 # @company-of-heroes/pocketbase
 
+## 0.2.10
+
+- feat; update overlay to reflect ELO changes
+
 ## 0.2.9
 
 - feat; link player match history to saved matches with view details
