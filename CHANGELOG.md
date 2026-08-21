@@ -1,3 +1,10 @@
+### v0.53.1
+
+- fix; apply ELO rating colors on match history detail page
+- enhance; store ELO for match-history opponents from Relic history
+- feat; link player match history to saved matches with view details
+- enhance; show session id next to the date on match history
+
 ### v0.53.0
 
 - feat; extend player card
