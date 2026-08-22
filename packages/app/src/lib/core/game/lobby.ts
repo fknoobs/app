@@ -24,6 +24,18 @@ export const MATCH_TYPES = {
 
 export type MatchTypeId = keyof typeof MATCH_TYPES;
 
+/** Stable per-match id for deduping lobby.joined / lobby.started publishes. */
+export function lobbyPublishKey(lobby: {
+	sessionId?: number | null;
+	startedAt?: string | null;
+}): string | null {
+	if (lobby.sessionId == null && !lobby.startedAt) {
+		return null;
+	}
+
+	return `${lobby.sessionId ?? ''}:${lobby.startedAt ?? ''}`;
+}
+
 export type Match = {
 	sessionId: number;
 	startedAt: string;

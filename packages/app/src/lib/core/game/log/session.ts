@@ -107,10 +107,33 @@ export class LogSession extends Emittery<SessionEvents> {
 		startedAt,
 		isRanked
 	}: TriggerEvents['LOG:LOBBY:POPULATING']): Promise<void> {
-		this.lobby = new Lobby(startedAt.trim(), isRanked === 'AutoMatchForm');
+		const time = startedAt.trim();
+
+		if (this.#isSameLobby(time)) {
+			return;
+		}
+
+		this.lobby = new Lobby(time, isRanked === 'AutoMatchForm');
 		this.lobby.localSteamId = this.localSteamId;
+		this.lobby.sessionId = this.sessionId;
 
 		await this.emitSerial('lobby.joined', this.lobby);
+	}
+
+	#isSameLobby(startedAt: string): boolean {
+		if (!this.lobby) {
+			return false;
+		}
+
+		if (this.lobby.startedAt === startedAt) {
+			return true;
+		}
+
+		return (
+			this.sessionId != null &&
+			this.lobby.sessionId != null &&
+			this.lobby.sessionId === this.sessionId
+		);
 	}
 
 	#onPlayer(data: TriggerEvents['LOG:LOBBY:POPULATING:PLAYER']): void {
@@ -148,11 +171,14 @@ export class LogSession extends Emittery<SessionEvents> {
 	}
 
 	async #onStarted(): Promise<void> {
-		if (!this.lobby) return;
+		if (!this.lobby || this.lobby.started) return;
 
 		const profileIds = this.lobby.getPlayerIds();
 
 		if (profileIds.length === 0) return;
+
+		this.lobby.sessionId = this.sessionId;
+		this.lobby.started = true;
 
 		try {
 			const profiles = await this.#deps.getProfileByIds(profileIds);
@@ -167,10 +193,6 @@ export class LogSession extends Emittery<SessionEvents> {
 		}
 
 		await this.#attachMatchHistory();
-
-		this.lobby.sessionId = this.sessionId;
-		this.lobby.started = true;
-
 		await this.emitSerial('lobby.started', this.lobby);
 	}
 

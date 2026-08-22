@@ -19,9 +19,10 @@ export type GameLogEvents = {
  *
  * Readiness contract (identical to the previous implementation): when the
  * watcher starts on an existing log, all historical lines are replayed first
- * (consumers ignore events while not ready), then `ready` fires, and when a
- * lobby is currently active `lobby.started` is re-emitted so opening the app
- * mid-game still shows the current match.
+ * (consumers ignore events while not ready), then `ready` fires. If a lobby
+ * is still active, `lobby.started` or `lobby.joined` is re-emitted once so
+ * opening the app mid-game still shows the current match. App-level publish
+ * keys guarantee `game.lobby.joined` / `game.lobby.started` fire once per match.
  */
 export class GameLogService extends Emittery<GameLogEvents> {
 	isReady = $state(false);
@@ -35,9 +36,10 @@ export class GameLogService extends Emittery<GameLogEvents> {
 
 		this.session = new LogSession(deps);
 
-		// Re-emit session events one-to-one.
-		this.session.onAny((name, data) => {
-			void this.emitSerial(name as keyof SessionEvents, data as never);
+		// Re-emit session events one-to-one, awaited so historical replay
+		// finishes before `ready` / catch-up events.
+		this.session.onAny(async (name, data) => {
+			await this.emitSerial(name as keyof SessionEvents, data as never);
 		});
 
 		this.#tailer = new LogTailer({
@@ -107,10 +109,22 @@ export class GameLogService extends Emittery<GameLogEvents> {
 		this.isReady = true;
 
 		void this.emitSerial('ready').then(() => {
-			// Opened mid-game: surface the active lobby immediately.
-			if (this.session.lobby) {
-				void this.emitSerial('lobby.started', this.session.lobby);
+			const lobby = this.session.lobby;
+
+			if (!lobby) {
+				return;
 			}
+
+			// Opened mid-match: replay was ignored while not ready, so surface
+			// the active lobby once. Only re-emit `started` when the mission
+			// has actually started — otherwise `joined` so listeners do not
+			// get a premature `game.lobby.started`.
+			if (lobby.started) {
+				void this.emitSerial('lobby.started', lobby);
+				return;
+			}
+
+			void this.emitSerial('lobby.joined', lobby);
 		});
 	}
 }

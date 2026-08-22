@@ -24,7 +24,7 @@ import type { AppSettings } from '$core/config/schema';
 import { account } from '$core/account';
 import { game } from '$core/game/process.svelte';
 import { GameLogService } from '$core/game/log/index.svelte';
-import { Lobby, type Match } from '$core/game/lobby';
+import { Lobby, lobbyPublishKey, type Match } from '$core/game/lobby';
 import { database } from '$core/app/database';
 import { LOBBIES_LIVE_HEARTBEAT_MS } from '$core/app/database/lobbies-live';
 import { SocketManager, SocketState } from '$core/app/socket.svelte';
@@ -124,6 +124,10 @@ export class AppContext extends Emittery<AppEvents> {
 	#liveLobbyGeneration = 0;
 	/** True once the game process has been seen running this session. */
 	#hadGameRunning = false;
+	/** Last published `game.lobby.joined` match key (once per match). */
+	#publishedJoinedKey: string | null = null;
+	/** Last published `game.lobby.started` match key (once per match). */
+	#publishedStartedKey: string | null = null;
 
 	constructor() {
 		super();
@@ -357,6 +361,10 @@ export class AppContext extends Emittery<AppEvents> {
 			return;
 		}
 
+		if (!this.#claimLobbyPublish('joined', lobby)) {
+			return;
+		}
+
 		if (
 			this.game.isRunning &&
 			lobby.startedAt &&
@@ -380,6 +388,10 @@ export class AppContext extends Emittery<AppEvents> {
 
 	#onLobbyStarted(lobby: Lobby) {
 		if (!this.isReady) {
+			return;
+		}
+
+		if (!this.#claimLobbyPublish('started', lobby)) {
 			return;
 		}
 
@@ -470,10 +482,37 @@ export class AppContext extends Emittery<AppEvents> {
 	#clearLiveLobbyOnGameExit() {
 		this.#liveLobbyGeneration += 1;
 		this.#stopLiveLobbyHeartbeat();
+		this.#publishedJoinedKey = null;
+		this.#publishedStartedKey = null;
 		this.lobby = null;
 		this.database.lobbiesLive
 			.removeLobby()
 			.catch((error) => console.warn('[APP]: lobbies_live cleanup on game exit failed:', error));
+	}
+
+	/** Returns true when this match has not yet published the given lobby event. */
+	#claimLobbyPublish(kind: 'joined' | 'started', lobby: Lobby): boolean {
+		const key = lobbyPublishKey(lobby);
+
+		if (!key) {
+			return true;
+		}
+
+		if (kind === 'joined') {
+			if (this.#publishedJoinedKey === key) {
+				return false;
+			}
+
+			this.#publishedJoinedKey = key;
+			return true;
+		}
+
+		if (this.#publishedStartedKey === key) {
+			return false;
+		}
+
+		this.#publishedStartedKey = key;
+		return true;
 	}
 
 	/**
