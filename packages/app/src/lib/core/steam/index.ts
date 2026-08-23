@@ -90,9 +90,16 @@ export class SteamAPI {
 	private cache = new Map<string, { data: any; timestamp: number }>();
 	/** Per-steamId profile cache so batch fetches warm individual lookups. */
 	private profileCache = new Map<string, { data: SteamPlayerSummary | null; timestamp: number }>();
-	/** In-flight single-profile requests — dedupes concurrent Avatar mounts. */
-	private profileInflight = new Map<string, Promise<SteamPlayerSummary | null>>();
+	/** Profile lookups waiting to be sent as one GetPlayerSummaries call. */
+	private profileQueue = new Map<string, ((profile: SteamPlayerSummary | null) => void)[]>();
+	private profileFlushTimer: ReturnType<typeof setTimeout> | null = null;
+	/** Set after a failed batch so a broken/rate-limited API is not hammered. */
+	private profileBackoffUntil = 0;
 	private readonly cacheDuration = 5 * 60 * 1000; // 5 minutes
+	/** Collect lookups from a render pass before firing a request. */
+	private readonly profileBatchWindow = 25;
+	private readonly profileBatchSize = 100; // Steam's per-request limit
+	private readonly profileBackoff = 30 * 1000;
 
 	private get apiKey(): string {
 		const key = PUBLIC_STEAM_API_KEY;
@@ -171,7 +178,7 @@ export class SteamAPI {
 
 			if (!response.ok) {
 				throw new SteamAPIError(
-					`Steam API request failed: ${response.statusText}`,
+					`Steam API request failed: ${response.status} ${response.statusText}`.trim(),
 					response.status,
 					endpoint
 				);
@@ -193,83 +200,108 @@ export class SteamAPI {
 	}
 
 	/**
+	 * Queue a profile lookup; every lookup made within the batch window is sent
+	 * as a single GetPlayerSummaries request.
+	 */
+	private queueProfile(steamId: string): Promise<SteamPlayerSummary | null> {
+		return new Promise((resolve) => {
+			const waiting = this.profileQueue.get(steamId);
+
+			if (waiting) {
+				waiting.push(resolve);
+				return;
+			}
+
+			this.profileQueue.set(steamId, [resolve]);
+			this.scheduleProfileFlush();
+		});
+	}
+
+	private scheduleProfileFlush(): void {
+		if (this.profileFlushTimer !== null) {
+			return;
+		}
+
+		this.profileFlushTimer = setTimeout(() => {
+			this.profileFlushTimer = null;
+			void this.flushProfileQueue();
+		}, this.profileBatchWindow);
+	}
+
+	private async flushProfileQueue(): Promise<void> {
+		const batch = [...this.profileQueue.keys()].slice(0, this.profileBatchSize);
+
+		if (batch.length === 0) {
+			return;
+		}
+
+		const waiters = batch.map((steamId) => [steamId, this.profileQueue.get(steamId)!] as const);
+		for (const steamId of batch) {
+			this.profileQueue.delete(steamId);
+		}
+		if (this.profileQueue.size > 0) {
+			this.scheduleProfileFlush();
+		}
+
+		const byId = new Map<string, SteamPlayerSummary>();
+
+		if (Date.now() >= this.profileBackoffUntil) {
+			try {
+				const data = await this.request<{ response: { players: SteamPlayerSummary[] } }>(
+					'/ISteamUser/GetPlayerSummaries/v2/',
+					{ steamids: batch.join(',') }
+				);
+				const profiles = data.response?.players ?? [];
+				this.rememberProfiles(profiles, batch);
+				for (const profile of profiles) {
+					byId.set(profile.steamid, profile);
+				}
+			} catch (error) {
+				this.profileBackoffUntil = Date.now() + this.profileBackoff;
+				console.warn(
+					`[STEAM]: profile batch of ${batch.length} failed, pausing lookups for ${this.profileBackoff / 1000}s:`,
+					error
+				);
+			}
+		}
+
+		for (const [steamId, resolvers] of waiters) {
+			const profile = byId.get(steamId) ?? null;
+			for (const resolve of resolvers) {
+				resolve(profile);
+			}
+		}
+	}
+
+	/**
 	 * Get a Steam user profile by Steam ID
 	 *
 	 * @param steamId - The Steam ID (64-bit format) of the user
-	 * @returns Steam player summary or null if not found
+	 * @returns Steam player summary, or null when unknown or unavailable
 	 */
 	async getUserProfile(steamId: string): Promise<SteamPlayerSummary | null> {
+		if (!steamId) return null;
+
 		const cached = this.getCachedProfile(steamId);
 		if (cached !== undefined) {
 			return cached;
 		}
 
-		const inflight = this.profileInflight.get(steamId);
-		if (inflight) {
-			return inflight;
-		}
-
-		const promise = this.getUserProfiles([steamId])
-			.then((profiles) => profiles[0] ?? null)
-			.catch((error) => {
-				console.error(`Failed to get user profile for ${steamId}:`, error);
-				throw error;
-			})
-			.finally(() => {
-				this.profileInflight.delete(steamId);
-			});
-
-		this.profileInflight.set(steamId, promise);
-		return promise;
+		return this.queueProfile(steamId);
 	}
 
 	/**
 	 * Get multiple Steam user profiles by Steam IDs
 	 *
-	 * @param steamIds - Array of Steam IDs (up to 100)
-	 * @returns Array of Steam player summaries
+	 * @param steamIds - Array of Steam IDs, chunked into requests of 100
+	 * @returns Array of Steam player summaries, omitting unavailable ones
 	 */
 	async getUserProfiles(steamIds: string[]): Promise<SteamPlayerSummary[]> {
-		if (steamIds.length === 0) return [];
-		if (steamIds.length > 100) {
-			throw new SteamAPIError('Cannot request more than 100 profiles at once');
-		}
-
 		const uniqueIds = [...new Set(steamIds.filter(Boolean))];
-		const resultById = new Map<string, SteamPlayerSummary>();
-		const missing: string[] = [];
+		if (uniqueIds.length === 0) return [];
 
-		for (const steamId of uniqueIds) {
-			const cached = this.getCachedProfile(steamId);
-			if (cached !== undefined) {
-				if (cached) resultById.set(steamId, cached);
-				continue;
-			}
-			missing.push(steamId);
-		}
-
-		if (missing.length === 0) {
-			return uniqueIds.map((id) => resultById.get(id)).filter(Boolean) as SteamPlayerSummary[];
-		}
-
-		try {
-			const data = await this.request<{
-				response: { players: SteamPlayerSummary[] };
-			}>('/ISteamUser/GetPlayerSummaries/v2/', {
-				steamids: missing.join(',')
-			});
-
-			const profiles = data.response?.players ?? [];
-			this.rememberProfiles(profiles, missing);
-			for (const profile of profiles) {
-				resultById.set(profile.steamid, profile);
-			}
-
-			return uniqueIds.map((id) => resultById.get(id)).filter(Boolean) as SteamPlayerSummary[];
-		} catch (error) {
-			console.error('Failed to get user profiles:', error);
-			throw error;
-		}
+		const profiles = await Promise.all(uniqueIds.map((steamId) => this.getUserProfile(steamId)));
+		return profiles.filter(Boolean) as SteamPlayerSummary[];
 	}
 
 	/**
@@ -428,7 +460,7 @@ export class SteamAPI {
 	clearCache(): void {
 		this.cache.clear();
 		this.profileCache.clear();
-		this.profileInflight.clear();
+		this.profileBackoffUntil = 0;
 	}
 
 	/**

@@ -1,0 +1,31 @@
+---
+description: Do not write or expand tests unless the user explicitly asks
+alwaysApply: true
+---
+
+# No Tests
+
+Do **not** write, generate, expand, or “complete” tests as part of feature, fix, or refactor work. Product code is done without a test file.
+
+## When
+
+- Default: skip tests entirely
+- Allowed only when the user **explicitly** asks for tests in that message (e.g. “schrijf een test”, “add coverage for …”)
+- Existing tests: leave them alone unless the user asked to change tests, or a requested code change makes an existing test fail — then update that failing test as little as needed, do not add new cases
+
+## Do not
+
+- Add `*.test.ts` / `*.spec.ts` / `*.test.js` (or Playwright/Cypress files) alongside a change
+- Create `src/tests/**` fixtures or helpers “for the new behavior”
+- Expand an existing test file with extra `it(...)` / `test(...)` cases
+- Offer to write tests, add a “Test plan” of new unit tests, or run a test-writing pass unprompted
+- Use tests as a substitute for verifying the actual product change
+
+```typescript
+// ❌ BAD — unsolicited tests after a bugfix
+it('emits lobby.started only once when log lines repeat', async () => {
+	expect(started).toHaveBeenCalledOnce();
+});
+
+// ✅ GOOD — ship the fix only; no new test file or extra cases
+```

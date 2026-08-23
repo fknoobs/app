@@ -16,6 +16,14 @@ $app.onServe().bindFunc((e) => {
 			`[player_ratings] backfill batch processed=${result.processed} updated=${result.updated} complete=${result.complete}`
 		);
 	});
+
+	cronAdd('player_ratings_harvest', '*/5 * * * *', () => {
+		const harvest = require(`${__hooks}/lib/player-ratings-harvest.js`);
+		const result = harvest.runBatch();
+		console.log(
+			`[player_ratings] harvest processed=${result.processed} fetched=${result.fetched} updated=${result.updated} failed=${result.failed}`
+		);
+	});
 });
 
 routerAdd('POST', '/api/player-ratings/backfill/run', (e) => {
@@ -37,6 +45,16 @@ routerAdd('POST', '/api/player-ratings/backfill/run', (e) => {
 		page: backfill.getPage(),
 		complete: backfill.isComplete()
 	});
+});
+
+routerAdd('POST', '/api/player-ratings/harvest/run', (e) => {
+	const ratings = require(`${__hooks}/lib/player-ratings.js`);
+	if (!ratings.isServiceRequest(e) && !e.hasSuperuserAuth()) {
+		return e.json(401, { message: 'Unauthorized' });
+	}
+
+	const harvest = require(`${__hooks}/lib/player-ratings-harvest.js`);
+	return e.json(200, harvest.runBatch());
 });
 
 routerAdd('POST', '/api/player-ratings/ingest', (e) => {

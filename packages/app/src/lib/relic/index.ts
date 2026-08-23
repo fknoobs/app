@@ -241,7 +241,15 @@ export class RelicClient {
 			}
 		);
 
-		return transformMatchHistory(result, profileId);
+		const matches = transformMatchHistory(result, profileId);
+		void import('$core/pocketbase/player-ratings')
+			.then(({ ingestRatingsFromMatchHistory }) => {
+				ingestRatingsFromMatchHistory(matches);
+			})
+			.catch((error) => {
+				console.warn('[relic] player ratings ingest skipped', error);
+			});
+		return matches;
 	}
 
 	/**

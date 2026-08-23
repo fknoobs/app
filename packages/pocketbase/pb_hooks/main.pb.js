@@ -1,10 +1,6 @@
 /// <reference path="../pb_data/types.d.ts" />
 
 'use strict';
-onBootstrap((e) => {
-	e.next();
-	require(`${__hooks}/handler.js`).default();
-});
 onCollectionCreateRequest((e) => {
 	e.next();
 	require(`${__hooks}/handler.js`).default();

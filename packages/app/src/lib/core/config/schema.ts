@@ -23,6 +23,7 @@ export const SCHEMA_VERSION = 2;
 export const appSettingsSchema = z
 	.object({
 		autostart: z.boolean().default(true),
+		closeToTray: z.boolean().default(true),
 		isStreamer: z.boolean().default(false),
 		companyOfHeroesConfigPath: z.string().default(''),
 		companyOfHeroesInstallationPath: z.string().default('')

@@ -23,7 +23,7 @@ windows = { version = "0.52", features = [
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Input_KeyboardAndMouse",
 ] }
-tauri = { version = "2", features = ["protocol-asset", "devtools"] }
+tauri = { version = "2", features = ["protocol-asset", "devtools", "tray-icon"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

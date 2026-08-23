@@ -3,6 +3,7 @@ use tauri::Manager;
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 #[cfg(target_os = "windows")]
 use window_vibrancy::apply_acrylic;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
 
 mod coh_chat;
 mod global_shortcuts;
@@ -11,6 +12,7 @@ mod input;
 mod migrations;
 mod process_check;
 mod replay_parser;
+mod tray;
 mod unzip;
 mod window;
 mod ws_server;
@@ -56,6 +58,21 @@ pub fn run() {
             hold_bindings::sync_hold_bindings,
             window::get_active_window_title
         ])
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "tray-show" => tray::show_main(app),
+            "tray-quit" => tray::emit_quit(app),
+            _ => {}
+        })
+        .on_tray_icon_event(|tray_icon, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+            {
+                tray::toggle_main(tray_icon.app_handle());
+            }
+        })
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
 
@@ -76,6 +93,8 @@ pub fn run() {
             ws_server::spawn_ws_server();
 
             coh_chat::start_listener(app.handle());
+
+            tray::attach_menu(app)?;
 
             Ok(())
         })

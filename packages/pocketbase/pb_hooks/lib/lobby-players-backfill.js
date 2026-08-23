@@ -3,6 +3,7 @@
 const LOBBY_BACKFILL_BATCH_SIZE = 250;
 const LOBBY_BACKFILL_PAGE_KEY = 'lobby_players_backfill_page';
 const LOBBY_BACKFILL_COMPLETE_KEY = 'lobby_players_backfill_complete';
+const lobbyPlayers = require(`${__hooks}/lib/lobby-players.js`);
 
 function parsePlayers(raw) {
 	if (Array.isArray(raw)) {
@@ -46,36 +47,6 @@ function summarizeLobbyPlayers(players) {
 		csv: ids.length > 0 ? `,${ids.join(',')},` : '',
 		ids
 	};
-}
-
-function syncLobbyPlayerIndex(lobbyId, profileIds) {
-	try {
-		$app.findCollectionByNameOrId('lobby_player_index');
-	} catch {
-		return;
-	}
-
-	$app
-		.db()
-		.newQuery('DELETE FROM lobby_player_index WHERE lobby = {:lobbyId}')
-		.bind({ lobbyId })
-		.execute();
-
-	if (!profileIds || profileIds.length === 0) {
-		return;
-	}
-
-	const collection = $app.findCollectionByNameOrId('lobby_player_index');
-	const uniqueIds = [
-		...new Set(profileIds.map((id) => Number(id)).filter((id) => !Number.isNaN(id)))
-	];
-
-	for (const profileId of uniqueIds) {
-		const record = new Record(collection);
-		record.set('lobby', lobbyId);
-		record.set('profile_id', profileId);
-		$app.save(record);
-	}
 }
 
 function parseLobbyPlayersField(raw) {
@@ -126,7 +97,11 @@ function backfillLobbyFromRow(row) {
 		$app.save(record);
 	}
 
-	syncLobbyPlayerIndex(row.id, ids.length > 0 ? ids : summaries.map((player) => player.profile_id));
+	lobbyPlayers.syncLobbyPlayerIndex(
+		row.id,
+		ids.length > 0 ? ids : summaries.map((player) => player.profile_id),
+		row.result
+	);
 
 	return {
 		updated: needsLobbyUpdate && summaries.length > 0,
@@ -148,7 +123,8 @@ function runBatch() {
 			players: '',
 			lobbyPlayers: '',
 			playerProfileIdsCsv: '',
-			replay: ''
+			replay: '',
+			result: ''
 		})
 	);
 
@@ -160,7 +136,8 @@ function runBatch() {
 				COALESCE(players, '') AS players,
 				COALESCE(lobbyPlayers, '') AS lobbyPlayers,
 				COALESCE(playerProfileIdsCsv, '') AS playerProfileIdsCsv,
-				COALESCE(replay, '') AS replay
+				COALESCE(replay, '') AS replay,
+				COALESCE(result, '') AS result
 			FROM lobbies
 			ORDER BY createdAt ASC
 			LIMIT {:limit} OFFSET {:offset}`

@@ -18,6 +18,15 @@ function isServiceRequest(e) {
 
 function readRequestJsonBody(e) {
 	try {
+		const body = e.requestInfo()?.body;
+		if (body && typeof body === 'object' && Object.keys(body).length > 0) {
+			return body;
+		}
+	} catch (error) {
+		console.log('[player_ratings] failed to read requestInfo body', String(error));
+	}
+
+	try {
 		const raw = toString(e.request.body);
 		if (raw) {
 			return JSON.parse(raw);
@@ -26,16 +35,75 @@ function readRequestJsonBody(e) {
 		console.log('[player_ratings] failed to parse raw request body', String(error));
 	}
 
-	try {
-		const body = e.requestInfo()?.body;
-		if (body && typeof body === 'object') {
-			return body;
-		}
-	} catch (error) {
-		console.log('[player_ratings] failed to read requestInfo body', String(error));
+	return {};
+}
+
+function asList(raw) {
+	if (Array.isArray(raw)) {
+		return raw;
 	}
 
-	return {};
+	if (typeof raw === 'string') {
+		try {
+			return asList(JSON.parse(raw));
+		} catch {
+			return [];
+		}
+	}
+
+	if (raw && typeof raw === 'object') {
+		return Object.keys(raw)
+			.filter((key) => String(Number(key)) === key)
+			.sort((a, b) => Number(a) - Number(b))
+			.map((key) => raw[key]);
+	}
+
+	return [];
+}
+
+function keyedEntries(value) {
+	if (Array.isArray(value)) {
+		return value.map((item, index) => [String(index), item]);
+	}
+
+	if (value && typeof value === 'object') {
+		return Object.entries(value);
+	}
+
+	return [];
+}
+
+function eloToMap(raw) {
+	const parsed = parseJson(raw, {}) || {};
+	const next = {};
+
+	for (const [matchKey, races] of keyedEntries(parsed)) {
+		const group = {};
+
+		for (const [raceKey, slot] of keyedEntries(races)) {
+			if (!slot || typeof slot !== 'object') {
+				continue;
+			}
+
+			const rating = Number(slot.rating);
+			const matchId = Number(slot.matchId ?? slot.match_id);
+			const at = Number(slot.at);
+			if (!Number.isFinite(rating) || rating < 1) {
+				continue;
+			}
+
+			const current = group[raceKey];
+			if (!current || at > Number(current.at || 0)) {
+				group[raceKey] = { rating, matchId, at };
+			}
+		}
+
+		if (Object.keys(group).length > 0) {
+			next[matchKey] = group;
+		}
+	}
+
+	return next;
 }
 
 function isStoredMatchType(matchtypeId) {
@@ -98,16 +166,13 @@ function normalizeSlot(raw) {
 }
 
 function mergeElo(existing, slots) {
-	const elo = parseJson(existing, {}) || {};
-	const next = typeof elo === 'object' && !Array.isArray(elo) ? { ...elo } : {};
+	const next = eloToMap(existing);
 
 	for (const slot of slots) {
 		const matchKey = String(slot.matchtypeId);
 		const raceKey = String(slot.raceId);
 		const currentGroup =
-			next[matchKey] && typeof next[matchKey] === 'object' && !Array.isArray(next[matchKey])
-				? { ...next[matchKey] }
-				: {};
+			next[matchKey] && typeof next[matchKey] === 'object' ? { ...next[matchKey] } : {};
 		const current = currentGroup[raceKey];
 
 		if (!current || slot.at > Number(current.at || 0)) {
@@ -133,7 +198,7 @@ function serializeRecord(record) {
 		steamId: record.get('steamId'),
 		profileId: record.get('profileId'),
 		alias: record.get('alias'),
-		elo: parseJson(record.get('elo'), {}) || {}
+		elo: eloToMap(record.get('elo'))
 	};
 }
 
@@ -189,7 +254,7 @@ function extractPlayersFromMatch(result) {
 
 	const at = Number(match.completiontime ?? match.startgametime ?? 0);
 	const matchId = Number(match.id);
-	const players = Array.isArray(match.players) ? match.players : [];
+	const players = asList(match.players);
 	const bySteam = {};
 
 	for (const player of players) {
@@ -217,8 +282,24 @@ function extractPlayersFromMatch(result) {
 	return Object.values(bySteam);
 }
 
-function ingestLobbyResult(result) {
-	const players = extractPlayersFromMatch(result);
+function upsertSnapshotSlot(slots, slot) {
+	const existing = slots.find(
+		(item) => item.matchtypeId === slot.matchtypeId && item.raceId === slot.raceId
+	);
+
+	if (!existing) {
+		slots.push(slot);
+		return;
+	}
+
+	if (slot.at > existing.at) {
+		existing.rating = slot.rating;
+		existing.matchId = slot.matchId;
+		existing.at = slot.at;
+	}
+}
+
+function ingestPlayerList(players) {
 	const records = [];
 
 	for (const player of players) {
@@ -233,6 +314,57 @@ function ingestLobbyResult(result) {
 	}
 
 	return records;
+}
+
+function ingestLobbyResult(result) {
+	return ingestPlayerList(extractPlayersFromMatch(result));
+}
+
+function ingestTransformedMatches(matches) {
+	const bySteam = {};
+
+	for (const match of asList(matches)) {
+		if (!isStoredMatchType(match?.matchtype_id)) {
+			continue;
+		}
+
+		const at = Number(match.completiontime ?? match.startgametime ?? 0);
+		const matchId = Number(match.id);
+
+		for (const player of asList(match.players)) {
+			const steamId =
+				player?.steamId ||
+				(typeof player?.name === 'string' ? player.name.replace('/steam/', '') : '');
+			const slot = normalizeSlot({
+				matchtypeId: match.matchtype_id,
+				raceId: player?.race_id,
+				rating: player?.newrating,
+				matchId,
+				at
+			});
+			const alias = typeof player?.alias === 'string' ? player.alias.trim() : '';
+
+			if (!isValidSteamId(steamId) || !slot || !alias) {
+				continue;
+			}
+
+			if (!bySteam[steamId]) {
+				bySteam[steamId] = {
+					steamId,
+					profileId: player?.profile_id,
+					alias,
+					slots: [slot]
+				};
+				continue;
+			}
+
+			bySteam[steamId].profileId = player?.profile_id;
+			bySteam[steamId].alias = alias;
+			upsertSnapshotSlot(bySteam[steamId].slots, slot);
+		}
+	}
+
+	return ingestPlayerList(Object.values(bySteam));
 }
 
 function ingestLobbyRecord(e) {
@@ -254,7 +386,7 @@ function ingestLobbyRecord(e) {
 
 function handleGetBySteamId(e) {
 	const steamId = e.request.pathValue('steamId');
-	if (!isValidSteamId(steamId) || steamId === 'backfill') {
+	if (!isValidSteamId(steamId) || steamId === 'backfill' || steamId === 'harvest') {
 		return e.json(400, { message: 'steamId is required' });
 	}
 
@@ -272,7 +404,7 @@ function handleIngest(e) {
 	}
 
 	const body = readRequestJsonBody(e);
-	const players = Array.isArray(body?.players) ? body.players : [];
+	const players = asList(body?.players);
 
 	if (players.length === 0) {
 		return e.json(400, { message: 'players is required' });
@@ -286,9 +418,7 @@ function handleIngest(e) {
 
 	for (const player of players) {
 		const steamId = String(player?.steamId || player?.steam_id || '');
-		const slots = Array.isArray(player?.slots)
-			? player.slots.map(normalizeSlot).filter(Boolean)
-			: [];
+		const slots = asList(player?.slots).map(normalizeSlot).filter(Boolean);
 
 		try {
 			const record = upsertPlayerRating({
@@ -317,6 +447,7 @@ module.exports = {
 	parseJson,
 	ingestLobbyRecord,
 	ingestLobbyResult,
+	ingestTransformedMatches,
 	handleGetBySteamId,
 	handleIngest,
 	serializeRecord

@@ -29,6 +29,7 @@ import { database } from '$core/app/database';
 import { LOBBIES_LIVE_HEARTBEAT_MS } from '$core/app/database/lobbies-live';
 import { SocketManager, SocketState } from '$core/app/socket.svelte';
 import { notifications as notificationsService } from '$core/notifications/notifications.svelte';
+import { startTray } from '$core/app/tray.svelte';
 import { LOBBY_4V4, RANKED_2V2 } from '$lib/dev';
 import GameStartedNotificationAudio from '$lib/files/game-started-stop-watch-effect.mp3?url';
 
@@ -183,6 +184,11 @@ export class AppContext extends Emittery<AppEvents> {
 		}
 
 		this.#wired = true;
+
+		void startTray({
+			shouldCloseToTray: () => this.settings.closeToTray !== false,
+			onQuit: () => this.database.lobbiesLive.removeLobby().then(() => undefined)
+		});
 
 		$effect.root(() => {
 			this.#trackStatuses();

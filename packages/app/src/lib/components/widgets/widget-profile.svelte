@@ -73,7 +73,8 @@
 							props: {
 								matches: await relic.getRecentMatchHistoryForProfile(
 									app.game.profile!.relic.profile_id
-								)
+								),
+								showSessionId: true
 							}
 						});
 						app.modal.open();

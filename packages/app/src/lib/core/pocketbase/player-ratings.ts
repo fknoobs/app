@@ -1,8 +1,14 @@
 import { fetch } from '$core/http/fetch';
 import { pocketbase } from '$core/pocketbase';
 import { PUBLIC_PB_URL } from '$env/static/public';
-import type { PlayerEloMap, PlayerRatingSnapshot } from '$lib/utils/player-elo';
-import { eloMapFromRecord, isValidSteamId } from '$lib/utils/player-elo';
+import type { TransformedMatch } from '@fknoobs/app';
+import {
+	eloMapFromRecord,
+	extractPlayerRatingSnapshots,
+	isValidSteamId,
+	type PlayerEloMap,
+	type PlayerRatingSnapshot
+} from '$lib/utils/player-elo';
 
 export type PlayerRatingRecord = {
 	id: string;
@@ -81,28 +87,51 @@ export async function getPlayerRatings(
 
 export const INGEST_BATCH_SIZE = 64;
 
+export function ingestRatingsFromMatchHistory(matches: TransformedMatch[] | undefined): void {
+	if (!pocketbase.authStore.isValid) {
+		return;
+	}
+
+	const snapshots = extractPlayerRatingSnapshots(matches);
+	if (snapshots.length === 0) {
+		return;
+	}
+
+	void ingestPlayerRatings(snapshots);
+}
+
 export async function ingestPlayerRatings(
 	players: PlayerRatingSnapshot[]
 ): Promise<PlayerRatingRecord[]> {
-	if (players.length === 0) {
+	if (players.length === 0 || !pocketbase.authStore.isValid) {
 		return [];
 	}
 
 	const records: PlayerRatingRecord[] = [];
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json'
+	};
+
+	if (pocketbase.authStore.token) {
+		headers.Authorization = pocketbase.authStore.token;
+	}
 
 	for (let i = 0; i < players.length; i += INGEST_BATCH_SIZE) {
 		const batch = players.slice(i, i + INGEST_BATCH_SIZE);
 
 		try {
-			const payload = await pocketbase.send<{ players?: PlayerRatingRecord[] }>(
-				'/api/player-ratings/ingest',
-				{
-					method: 'POST',
-					body: { players: batch },
-					fetch
-				}
-			);
+			const response = await fetch(`${baseUrl()}/api/player-ratings/ingest`, {
+				method: 'POST',
+				headers,
+				body: JSON.stringify({ players: batch })
+			});
 
+			if (!response.ok) {
+				console.warn('[player_ratings] ingest failed', response.status);
+				continue;
+			}
+
+			const payload = (await response.json()) as { players?: PlayerRatingRecord[] };
 			if (Array.isArray(payload.players)) {
 				records.push(...payload.players.map(toRecord));
 			}

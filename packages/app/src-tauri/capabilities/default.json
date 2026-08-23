@@ -11,6 +11,11 @@
 		"core:window:allow-hide",
 		"core:window:allow-close",
 		"core:window:allow-show",
+		"core:window:allow-unminimize",
+		"core:window:allow-set-focus",
+		"core:window:allow-is-visible",
+		"core:tray:default",
+		"core:menu:default",
 		"cors-fetch:default",
 		"opener:allow-reveal-item-in-dir",
 		{

@@ -2,7 +2,11 @@
 	import type { Snippet } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { cn } from '$lib/utils';
+	import { interactive } from '$lib/components/ui/variants';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDownIcon';
+	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
+	import ArrowsDownUpIcon from 'phosphor-svelte/lib/ArrowsDownUpIcon';
 	import type { ColumnDef, DataTableProps } from './table.types';
 
 	type Props = DataTableProps<T>;
@@ -152,14 +156,50 @@
 				>
 					{#each columns as column (column.id)}
 						{@const header = getHeaderSnippet(column)}
-						<th class={cn(headerPad, column.headerCellClass)} onclick={column.onSort}>
-							<div class={cn('min-w-0', column.headerClass, column.sortable && 'cursor-pointer select-none')}>
-								{#if typeof header === 'string'}
-									{header}
-								{:else}
-									{@render header()}
-								{/if}
-							</div>
+						<th
+							class={cn(headerPad, column.headerCellClass)}
+							aria-sort={column.sortDirection === 'asc'
+								? 'ascending'
+								: column.sortDirection === 'desc'
+									? 'descending'
+									: column.sortable
+										? 'none'
+										: undefined}
+						>
+							{#if column.sortable}
+								<button
+									type="button"
+									class={cn(
+										interactive,
+										'flex w-full min-w-0 items-center bg-transparent p-0 text-inherit select-none',
+										typeof header === 'string' && 'gap-1',
+										column.headerClass
+									)}
+									aria-label={typeof header === 'string' ? `Sort by ${header}` : undefined}
+									onclick={column.onSort}
+								>
+									{#if typeof header === 'string'}
+										{header}
+										{#if column.sortDirection === 'desc'}
+											<ArrowDownIcon size={14} class="shrink-0" weight="duotone" />
+										{:else if column.sortDirection === 'asc'}
+											<ArrowUpIcon size={14} class="shrink-0" weight="duotone" />
+										{:else}
+											<ArrowsDownUpIcon size={14} class="shrink-0" weight="duotone" />
+										{/if}
+									{:else}
+										{@render header()}
+									{/if}
+								</button>
+							{:else}
+								<div class={cn('min-w-0', column.headerClass)}>
+									{#if typeof header === 'string'}
+										{header}
+									{:else}
+										{@render header()}
+									{/if}
+								</div>
+							{/if}
 						</th>
 					{/each}
 				</tr>

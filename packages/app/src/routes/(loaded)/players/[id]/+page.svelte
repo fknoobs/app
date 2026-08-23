@@ -11,15 +11,13 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { ButtonBack } from '$lib/components/ui/button';
 	import { MatchHistory } from '$lib/components/match-history';
+	import { PlayerPerformance } from '$lib/components/player-performance';
 	import SmurfAlert from '$lib/components/player/smurf-alert.svelte';
 	import { loadSmurfAlert } from '$lib/player/smurf';
 	import { account } from '$core/account';
-	import { getPlayerRating, ingestPlayerRatings } from '$core/pocketbase/player-ratings';
-	import {
-		eloMapForSteamId,
-		extractPlayerRatingSnapshots,
-		mergeEloMaps
-	} from '$lib/utils/player-elo';
+	import { app } from '$core/app/context';
+	import { getPlayerRating } from '$core/pocketbase/player-ratings';
+	import { eloMapForSteamId, mergeEloMaps } from '$lib/utils/player-elo';
 	import type { Snapshot } from '@sveltejs/kit';
 
 	let currentTab = $state('stats');
@@ -49,10 +47,6 @@
 
 			const smurf = await loadSmurfAlert(steamId, relicProfile.profile_id);
 
-			if (account.userId) {
-				void ingestPlayerRatings(extractPlayerRatingSnapshots(matchHistory));
-			}
-
 			return {
 				relic: relicProfile,
 				steam: steamProfile,
@@ -71,6 +65,15 @@
 		return mergeEloMaps(
 			current.playerRating?.elo,
 			eloMapForSteamId(current.matchHistory, current.steam.steamid, current.relic.profile_id)
+		);
+	});
+
+	const isSelf = $derived.by(() => {
+		const current = profile.current;
+		if (!current) return false;
+		return (
+			account.user.steamIds.includes(current.steam.steamid) ||
+			app.game.profile?.relic.profile_id === current.relic.profile_id
 		);
 	});
 
@@ -156,13 +159,22 @@
 			<Tabs.Root value={currentTab} onValueChange={(val) => (currentTab = val)}>
 				<Tabs.List>
 					<Tabs.Trigger value="stats">Stats</Tabs.Trigger>
+					<Tabs.Trigger value="performance">Performance</Tabs.Trigger>
 					<Tabs.Trigger value="match-history">Match history</Tabs.Trigger>
 				</Tabs.List>
 				<Tabs.Content value="stats">
 					<Leaderboard stats={profile.current.relic.leaderboardStats!} elo={playerElo} />
 				</Tabs.Content>
+				<Tabs.Content value="performance">
+					<PlayerPerformance
+						profileId={profile.current.relic.profile_id}
+						scope={isSelf ? 'user' : 'community'}
+						userId={isSelf ? account.userId : undefined}
+						empty={isSelf ? 'self' : 'other'}
+					/>
+				</Tabs.Content>
 				<Tabs.Content value="match-history">
-					<MatchHistory matches={profile.current.matchHistory} />
+					<MatchHistory matches={profile.current.matchHistory} showSessionId />
 				</Tabs.Content>
 			</Tabs.Root>
 		</div>

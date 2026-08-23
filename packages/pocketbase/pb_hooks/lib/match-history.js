@@ -412,6 +412,129 @@ function loadUserSteamIds(userId) {
 	}
 }
 
+function asList(raw) {
+	if (Array.isArray(raw)) {
+		return raw;
+	}
+
+	if (typeof raw === 'string') {
+		try {
+			return asList(JSON.parse(raw));
+		} catch {
+			return [];
+		}
+	}
+
+	if (raw && typeof raw === 'object') {
+		return Object.keys(raw)
+			.filter((key) => String(Number(key)) === key)
+			.sort((a, b) => Number(a) - Number(b))
+			.map((key) => raw[key]);
+	}
+
+	return [];
+}
+
+function steamIdFromName(name) {
+	if (typeof name !== 'string') {
+		return '';
+	}
+
+	return name.replace('/steam/', '');
+}
+
+/**
+ * Transforms a Relic getrecentmatchhistory response into match objects.
+ * Players with missing profile or report data are skipped (no throw).
+ */
+function transformMatchHistory(data, profileId) {
+	const matches = asList(data?.matchHistoryStats);
+	if (matches.length === 0) {
+		return [];
+	}
+
+	const profileMap = {};
+	for (const profile of asList(data?.profiles)) {
+		const id = Number(profile?.profile_id);
+		if (Number.isInteger(id) && id > 0) {
+			profileMap[id] = profile;
+		}
+	}
+
+	const transformed = [];
+
+	for (const match of matches) {
+		const reportResultsMap = {};
+		for (const result of asList(match.matchhistoryreportresults)) {
+			const id = Number(result?.profile_id);
+			if (Number.isInteger(id) && id > 0) {
+				reportResultsMap[id] = result;
+			}
+		}
+
+		const players = [];
+		for (const member of asList(match.matchhistorymember)) {
+			const id = Number(member?.profile_id);
+			const profile = profileMap[id];
+			const reportResult = reportResultsMap[id];
+			if (!profile || !reportResult) {
+				continue;
+			}
+
+			players.push({
+				profile_id: profile.profile_id,
+				name: profile.name,
+				alias: profile.alias,
+				personal_statgroup_id: profile.personal_statgroup_id,
+				xp: profile.xp,
+				level: profile.level,
+				leaderboardregion_id: profile.leaderboardregion_id,
+				country: profile.country,
+				steamId: steamIdFromName(profile.name),
+				resulttype: reportResult.resulttype,
+				teamid: reportResult.teamid,
+				race_id: reportResult.race_id,
+				xpgained: reportResult.xpgained,
+				counters: reportResult.counters,
+				matchstartdate: reportResult.matchstartdate,
+				statgroup_id: member.statgroup_id,
+				wins: member.wins,
+				losses: member.losses,
+				streak: member.streak,
+				arbitration: member.arbitration,
+				outcome: member.outcome,
+				oldrating: member.oldrating,
+				newrating: member.newrating,
+				reporttype: member.reporttype
+			});
+		}
+
+		if (players.length === 0) {
+			continue;
+		}
+
+		const resolvedProfileId = Number(profileId);
+		transformed.push({
+			id: match.id,
+			creator_profile_id: match.creator_profile_id,
+			mapname: match.mapname,
+			maxplayers: match.maxplayers,
+			matchtype_id: match.matchtype_id,
+			options: match.options,
+			slotinfo: match.slotinfo,
+			description: match.description,
+			startgametime: match.startgametime,
+			completiontime: match.completiontime,
+			observertotal: match.observertotal,
+			players,
+			outcome:
+				players.find((player) => Number(player.profile_id) === resolvedProfileId)?.outcome ?? 0
+		});
+	}
+
+	return transformed;
+}
+
 module.exports = {
 	parseLobbyPlayersField,
 	parseResultField,
@@ -423,5 +546,7 @@ module.exports = {
 	resolvePlayersForRow,
 	countFilteredMatches,
 	buildRaceFilterClause,
-	loadUserSteamIds
+	loadUserSteamIds,
+	asList,
+	transformMatchHistory
 };

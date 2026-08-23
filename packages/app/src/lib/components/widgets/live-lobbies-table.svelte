@@ -38,12 +38,12 @@
 <table class="w-full table-fixed">
 	<colgroup>
 		<col class="w-2/24" />
-		<col class="w-4/24" />
 		<col class="w-3/24" />
 		<col class="w-3/24" />
 		<col class="w-3/24" />
 		<col class="w-3/24" />
-		<col class="w-2/24" />
+		<col class="w-3/24" />
+		<col class="w-3/24" />
 		<col class="w-3/24" />
 		<col class="w-1/24" />
 	</colgroup>
@@ -55,7 +55,7 @@
 			<th class="px-4 py-3 font-semibold">Allies</th>
 			<th class="px-4 py-3 font-semibold">Axis</th>
 			<th class="px-4 py-3 font-semibold">Host</th>
-			<th class="px-4 py-3 font-semibold">Updated</th>
+			<th class="px-4 py-3 font-semibold whitespace-nowrap">Started at</th>
 			<th class="px-4 py-3"></th>
 			<th class="px-4 py-3"></th>
 		</tr>
@@ -120,7 +120,7 @@
 					</td>
 					<td class="text-secondary-400 truncate px-4 text-sm">{hostName}</td>
 					<td class="text-secondary-500 truncate px-4 text-xs tabular-nums">
-						{dayjs(lobby.updatedAt).fromNow()}
+						{dayjs(lobby.createdAt).fromNow()}
 					</td>
 					<td class="px-4">
 						<a

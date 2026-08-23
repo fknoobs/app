@@ -11,16 +11,16 @@
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
 	import Checks from 'phosphor-svelte/lib/ChecksIcon';
 	import { page } from '$app/state';
-	import { steam } from '$core/steam';
 	import { app } from '$core/app/context';
 	import { tooltip } from '$lib/attachments';
-	import { resource, watch } from 'runed';
+	import { resource } from 'runed';
 
 	type Props = {
 		matches: TransformedMatch[];
+		showSessionId?: boolean;
 	};
 
-	let { matches }: Props = $props();
+	let { matches, showSessionId = false }: Props = $props();
 
 	const orderedMatches = $derived(orderBy(matches, ['completiontime'], ['desc']));
 	const sessionIdsKey = $derived(orderedMatches.map((match) => match.id).join(','));
@@ -31,25 +31,6 @@
 			return app.database.matches.getIdsBySessionIds(key.split(',').map(Number)).catch((error) => {
 				console.warn('[MATCH-HISTORY]: saved match lookup failed:', error);
 				return new Map<number, string>();
-			});
-		}
-	);
-
-	const steamIds = $derived([
-		...new Set(
-			orderedMatches.flatMap((match) =>
-				match.players.map((player) => player.steamId).filter(Boolean)
-			)
-		)
-	]);
-
-	// Prefetch avatars in one request so Player.Avatar hits the warm cache.
-	watch(
-		() => steamIds,
-		(ids) => {
-			if (ids.length === 0) return;
-			void steam.getUserProfiles(ids.slice(0, 100)).catch((error) => {
-				console.warn('[MATCH-HISTORY]: steam profile prefetch failed:', error);
 			});
 		}
 	);
@@ -199,7 +180,9 @@
 						</h3>
 						<p class="text-secondary-400 text-sm">
 							{dayjs.unix(match.startgametime).format('MMM D, YYYY · HH:mm')}
-							<span class="text-secondary-500 text-xs tabular-nums"> · {match.id}</span>
+							{#if showSessionId}
+								<span class="text-secondary-500 text-xs tabular-nums"> · ID: {match.id}</span>
+							{/if}
 						</p>
 					</div>
 					<div class="flex shrink-0 items-center gap-4">

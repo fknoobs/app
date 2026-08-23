@@ -46,9 +46,79 @@ function summarizeLobbyPlayers(players) {
 	};
 }
 
-function syncLobbyPlayerIndex(lobbyId, profileIds) {
+function parseResultPlayerStats(raw) {
+	let result = raw;
+	if (typeof raw === 'string') {
+		if (!raw) {
+			return { matchtypeId: null, byProfile: {} };
+		}
+		try {
+			result = JSON.parse(raw);
+		} catch {
+			return { matchtypeId: null, byProfile: {} };
+		}
+	}
+	if (!result || typeof result !== 'object') {
+		return { matchtypeId: null, byProfile: {} };
+	}
+
+	const byProfile = {};
+	const players = Array.isArray(result.players) ? result.players : [];
+	for (const player of players) {
+		const profileId = Number(player?.profile_id);
+		if (!Number.isFinite(profileId) || profileId <= 0) {
+			continue;
+		}
+
+		let steamId = player.steamId ? String(player.steamId) : '';
+		if (!steamId && typeof player.name === 'string' && player.name.indexOf('/steam/') === 0) {
+			steamId = player.name.slice('/steam/'.length);
+		}
+
+		byProfile[profileId] = {
+			steamId,
+			outcome: player.outcome,
+			race_id: player.race_id
+		};
+	}
+
+	const matchtypeId = Number(result.matchtype_id);
+	return {
+		matchtypeId: Number.isFinite(matchtypeId) ? matchtypeId : null,
+		byProfile
+	};
+}
+
+function indexHasStatsFields(collection) {
+	return Boolean(collection.fields.getByName('steam_id'));
+}
+
+function applyIndexStats(record, stats, matchtypeId) {
+	if (!stats) {
+		return;
+	}
+
+	const outcome = Number(stats.outcome);
+	if (outcome !== 0 && outcome !== 1) {
+		return;
+	}
+
+	if (stats.steamId) {
+		record.set('steam_id', stats.steamId);
+	}
+	record.set('outcome', outcome);
+	if (stats.race_id != null && stats.race_id !== '') {
+		record.set('race_id', Number(stats.race_id));
+	}
+	if (matchtypeId != null) {
+		record.set('matchtype_id', matchtypeId);
+	}
+}
+
+function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw) {
+	let collection;
 	try {
-		$app.findCollectionByNameOrId('lobby_player_index');
+		collection = $app.findCollectionByNameOrId('lobby_player_index');
 	} catch {
 		return;
 	}
@@ -59,19 +129,35 @@ function syncLobbyPlayerIndex(lobbyId, profileIds) {
 		.bind({ lobbyId })
 		.execute();
 
-	if (!profileIds || profileIds.length === 0) {
+	const { matchtypeId, byProfile } = parseResultPlayerStats(resultRaw);
+	const uniqueIds = {};
+	for (const id of profileIds || []) {
+		const profileId = Number(id);
+		if (!Number.isNaN(profileId) && profileId > 0) {
+			uniqueIds[profileId] = true;
+		}
+	}
+	for (const key in byProfile) {
+		uniqueIds[Number(key)] = true;
+	}
+
+	const profileIdList = [];
+	for (const key in uniqueIds) {
+		profileIdList.push(Number(key));
+	}
+	if (profileIdList.length === 0) {
 		return;
 	}
 
-	const collection = $app.findCollectionByNameOrId('lobby_player_index');
-	const uniqueIds = [
-		...new Set(profileIds.map((id) => Number(id)).filter((id) => !Number.isNaN(id)))
-	];
-
-	for (const profileId of uniqueIds) {
+	const hasStats = indexHasStatsFields(collection);
+	for (let i = 0; i < profileIdList.length; i++) {
+		const profileId = profileIdList[i];
 		const record = new Record(collection);
 		record.set('lobby', lobbyId);
 		record.set('profile_id', profileId);
+		if (hasStats) {
+			applyIndexStats(record, byProfile[profileId], matchtypeId);
+		}
 		$app.save(record);
 	}
 }
@@ -127,10 +213,16 @@ function processLobbyRecord(e) {
 
 function syncLobbyPlayerIndexForRecord(e) {
 	const summaries = e.record.get('lobbyPlayers') || [];
-	syncLobbyPlayerIndex(
-		e.record.id,
-		summaries.map((player) => player.profile_id)
-	);
+	const profileIds = summaries.map((player) => player.profile_id);
+	syncLobbyPlayerIndex(e.record.id, profileIds, e.record.get('result'));
+	try {
+		require(`${__hooks}/lib/player-performance.js`).invalidatePerformanceCache(
+			e.record.get('user') || '',
+			profileIds
+		);
+	} catch {
+		// performance hook not loaded
+	}
 }
 
 function isServiceRequest(e) {
@@ -145,6 +237,7 @@ function isServiceRequest(e) {
 
 module.exports = {
 	processLobbyRecord,
+	syncLobbyPlayerIndex,
 	syncLobbyPlayerIndexForRecord,
 	isServiceRequest
 };

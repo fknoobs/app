@@ -1,35 +1,38 @@
 /// <reference path="../pb_data/types.d.ts" />
-migrate((app) => {
-  const collection = app.findCollectionByNameOrId("pbc_1574334436")
 
-  unmarshal({
-    "indexes": [
-      "CREATE INDEX `idx_8b5JbSpePY` ON `lobbies` (\n  `title`,\n  `map`\n)",
-      "CREATE INDEX `idx_lobbies_user_map_agg` ON `lobbies` (`user`, `map`)",
-      "CREATE INDEX `idx_lobbies_user_players_agg` ON `lobbies` (`user`, `players`)",
-      "CREATE INDEX `idx_lobbies_players_agg` ON `lobbies` (`players`)",
-      "CREATE INDEX `idx_lobbies_map_agg` ON `lobbies` (`map`)",
-      "CREATE INDEX `idx_lobbies_createdAt` ON `lobbies` (`createdAt`)",
-      "CREATE INDEX `idx_lobbies_user_createdAt` ON `lobbies` (`user`, `createdAt`)",
-      "CREATE INDEX `idx_lobbies_sessionId` ON `lobbies` (`sessionId`)"
-    ]
-  }, collection)
+const SESSION_INDEX = 'CREATE INDEX `idx_lobbies_sessionId` ON `lobbies` (`sessionId`)';
 
-  return app.save(collection)
-}, (app) => {
-  const collection = app.findCollectionByNameOrId("pbc_1574334436")
+function collectionIndexes(app) {
+	const row = new DynamicModel({ indexes: '' });
+	app.db().newQuery("SELECT indexes FROM _collections WHERE name='lobbies'").one(row);
+	return JSON.parse(row.indexes || '[]');
+}
 
-  unmarshal({
-    "indexes": [
-      "CREATE INDEX `idx_8b5JbSpePY` ON `lobbies` (\n  `title`,\n  `map`\n)",
-      "CREATE INDEX `idx_lobbies_user_map_agg` ON `lobbies` (`user`, `map`)",
-      "CREATE INDEX `idx_lobbies_user_players_agg` ON `lobbies` (`user`, `players`)",
-      "CREATE INDEX `idx_lobbies_players_agg` ON `lobbies` (`players`)",
-      "CREATE INDEX `idx_lobbies_map_agg` ON `lobbies` (`map`)",
-      "CREATE INDEX `idx_lobbies_createdAt` ON `lobbies` (`createdAt`)",
-      "CREATE INDEX `idx_lobbies_user_createdAt` ON `lobbies` (`user`, `createdAt`)"
-    ]
-  }, collection)
+function saveCollectionIndexes(app, indexes) {
+	app
+		.db()
+		.newQuery("UPDATE _collections SET indexes={:indexes} WHERE name='lobbies'")
+		.bind({ indexes: JSON.stringify(indexes) })
+		.execute();
+}
 
-  return app.save(collection)
-})
+migrate(
+	(app) => {
+		app.db().newQuery('CREATE INDEX IF NOT EXISTS `idx_lobbies_sessionId` ON `lobbies` (`sessionId`)').execute();
+
+		const indexes = collectionIndexes(app);
+		if (indexes.some((sql) => sql.includes('idx_lobbies_sessionId'))) {
+			return;
+		}
+
+		indexes.push(SESSION_INDEX);
+		saveCollectionIndexes(app, indexes);
+	},
+	(app) => {
+		app.db().newQuery('DROP INDEX IF EXISTS `idx_lobbies_sessionId`').execute();
+		saveCollectionIndexes(
+			app,
+			collectionIndexes(app).filter((sql) => !sql.includes('idx_lobbies_sessionId'))
+		);
+	}
+);

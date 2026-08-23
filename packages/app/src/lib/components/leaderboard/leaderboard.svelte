@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { LeaderboardStat } from '@fknoobs/app';
-	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
+	import { DataTable, type ColumnDef, type SortDirection } from '$lib/components/ui/table';
 	import { cn, getRankImage } from '$lib/utils';
 	import {
 		getFactionFlagFromLeaderboardId,
@@ -23,22 +23,48 @@
 
 	let { stats, elo, loading = false, empty = 'No stats found.', class: className }: Props = $props();
 
-	const sortedStats = $derived(
-		sortBy(orderBy(stats, 'ranklevel', 'desc'), (stat) => (isRanked(stat.leaderboard_id) ? 0 : 1))
-	);
+	let eloSort = $state<SortDirection>(null);
+
+	const sortedStats = $derived.by(() => {
+		if (!eloSort) {
+			return sortBy(orderBy(stats, 'ranklevel', 'desc'), (stat) =>
+				isRanked(stat.leaderboard_id) ? 0 : 1
+			);
+		}
+		return orderBy(
+			stats,
+			[
+				(stat) => {
+					const value = getStoredEloForLeaderboard(elo, stat.leaderboard_id);
+					if (value == null) {
+						return eloSort === 'asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY;
+					}
+					return value;
+				}
+			],
+			[eloSort]
+		);
+	});
+
+	function toggleEloSort() {
+		eloSort = eloSort === 'desc' ? 'asc' : eloSort === 'asc' ? null : 'desc';
+	}
 
 	const leftHeader = 'flex w-full justify-center';
 	const leftCell = 'flex w-full justify-center';
 	const statHeader = 'flex w-full justify-center';
 	const statCell = 'flex w-full justify-center';
 
-	const columns: ColumnDef<LeaderboardStat>[] = [
+	const columns: ColumnDef<LeaderboardStat>[] = $derived([
 		{
 			id: 'elo',
 			header: 'ELO',
-			width: 'w-[4.5rem]',
+			width: 'w-[6.5rem]',
 			headerClass: leftHeader,
-			class: `${leftCell} tabular-nums`
+			class: `${leftCell} tabular-nums`,
+			sortable: true,
+			onSort: toggleEloSort,
+			sortDirection: eloSort
 		},
 		{
 			id: 'level',
@@ -89,7 +115,7 @@
 			headerClass: statHeader,
 			class: statCell
 		}
-	];
+	]);
 </script>
 
 {#snippet cell_level({ row }: { row: LeaderboardStat })}

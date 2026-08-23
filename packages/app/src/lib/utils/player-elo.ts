@@ -29,11 +29,8 @@ export type PlayerRatingSnapshot = {
 };
 
 export function isStoredMatchType(matchtypeId: number): boolean {
-	return (
-		Number.isInteger(matchtypeId) &&
-		matchtypeId >= MIN_STORED_MATCH_TYPE &&
-		matchtypeId <= MAX_STORED_MATCH_TYPE
-	);
+	const id = Number(matchtypeId);
+	return Number.isInteger(id) && id >= MIN_STORED_MATCH_TYPE && id <= MAX_STORED_MATCH_TYPE;
 }
 
 export function isValidSteamId(value: string | undefined | null): value is string {
@@ -99,15 +96,18 @@ function slotFromMatchPlayer(
 	match: TransformedMatch,
 	player: TransformedMatch['players'][number]
 ): PlayerEloSlotInput | null {
-	if (!isStoredMatchType(match.matchtype_id)) {
+	const matchtypeId = Number(match.matchtype_id);
+	if (!isStoredMatchType(matchtypeId)) {
 		return null;
 	}
 
-	if (typeof player.newrating !== 'number' || player.newrating < 1) {
+	const rating = Number(player.newrating);
+	if (!Number.isFinite(rating) || rating < 1) {
 		return null;
 	}
 
-	if (!Number.isInteger(player.race_id) || player.race_id < 0 || player.race_id > 3) {
+	const raceId = Number(player.race_id);
+	if (!Number.isInteger(raceId) || raceId < 0 || raceId > 3) {
 		return null;
 	}
 
@@ -122,9 +122,9 @@ function slotFromMatchPlayer(
 	}
 
 	return {
-		matchtypeId: match.matchtype_id,
-		raceId: player.race_id,
-		rating: player.newrating,
+		matchtypeId,
+		raceId,
+		rating,
 		matchId,
 		at
 	};
@@ -157,7 +157,7 @@ export function extractPlayerRatingSnapshots(
 	const bySteamId = new Map<string, PlayerRatingSnapshot>();
 
 	for (const match of matches) {
-		if (!isStoredMatchType(match.matchtype_id) || !match.players?.length) {
+		if (!isStoredMatchType(Number(match.matchtype_id)) || !match.players?.length) {
 			continue;
 		}
 
@@ -210,12 +210,61 @@ export function extractPlayerRatingSnapshotsFromLobby(
 	return extractPlayerRatingSnapshots(matches);
 }
 
-export function eloMapFromRecord(elo: unknown): PlayerEloMap {
-	if (!elo || typeof elo !== 'object' || Array.isArray(elo)) {
-		return {};
+function keyedEntries(value: unknown): [string, unknown][] {
+	if (Array.isArray(value)) {
+		return value.map((item, index) => [String(index), item]);
 	}
 
-	return elo as PlayerEloMap;
+	if (value && typeof value === 'object') {
+		return Object.entries(value as Record<string, unknown>);
+	}
+
+	return [];
+}
+
+function asEloSlot(value: unknown): PlayerEloSlot | null {
+	if (!value || typeof value !== 'object') {
+		return null;
+	}
+
+	const raw = value as Record<string, unknown>;
+	const rating = Number(raw.rating);
+	const matchId = Number(raw.matchId ?? raw.match_id);
+	const at = Number(raw.at);
+
+	if (!Number.isFinite(rating) || rating < 1) {
+		return null;
+	}
+
+	if (!Number.isFinite(matchId) || matchId <= 0) {
+		return null;
+	}
+
+	if (!Number.isFinite(at) || at < 0) {
+		return null;
+	}
+
+	return { rating, matchId, at };
+}
+
+export function eloMapFromRecord(elo: unknown): PlayerEloMap {
+	const map: PlayerEloMap = {};
+
+	for (const [matchKey, races] of keyedEntries(elo)) {
+		for (const [raceKey, value] of keyedEntries(races)) {
+			const slot = asEloSlot(value);
+			if (!slot) continue;
+
+			const group = map[matchKey] ?? {};
+			const current = group[raceKey];
+			if (!current || slot.at > current.at) {
+				group[raceKey] = slot;
+				map[matchKey] = group;
+			}
+		}
+	}
+
+	return map;
 }
 
 export function eloMapFromSlots(slots: PlayerEloSlotInput[]): PlayerEloMap {
@@ -246,12 +295,8 @@ export function mergeEloMaps(...maps: (PlayerEloMap | undefined)[]): PlayerEloMa
 	for (const map of maps) {
 		if (!map) continue;
 
-		for (const [matchKey, races] of Object.entries(map)) {
-			if (!races) continue;
-
+		for (const [matchKey, races] of Object.entries(eloMapFromRecord(map))) {
 			for (const [raceKey, slot] of Object.entries(races)) {
-				if (!slot) continue;
-
 				const group = merged[matchKey] ?? {};
 				const current = group[raceKey];
 				if (!current || slot.at > current.at) {

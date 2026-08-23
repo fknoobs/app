@@ -12,8 +12,12 @@ const RACE_LABELS: Record<Race, string> = {
 	[Race.PanzerElite]: 'Panzer Elite'
 };
 
+export function getRaceLabel(race: Race | number): string {
+	return RACE_LABELS[race as Race] ?? 'Unknown';
+}
+
 export function getRaceLabelFromLeaderboardId(leaderboardId: number): string {
-	return RACE_LABELS[getRaceFromLeaderboardId(leaderboardId)] ?? 'Unknown';
+	return getRaceLabel(getRaceFromLeaderboardId(leaderboardId));
 }
 
 export function getRatioValue(wins: number, losses: number): number {
