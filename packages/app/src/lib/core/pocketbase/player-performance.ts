@@ -41,6 +41,7 @@ export const emptyPlayerPerformance = (): PlayerPerformance => ({
 });
 
 const CACHE_TTL_MS = 60_000;
+const CACHE_VERSION = 2;
 const performanceCache = new Map<string, { at: number; value: PlayerPerformance }>();
 
 function performanceCacheKey(options: {
@@ -48,7 +49,7 @@ function performanceCacheKey(options: {
 	scope: PerformanceScope;
 	userId?: string | null;
 }) {
-	return `${options.scope}:${options.userId ?? ''}:${options.profileId}`;
+	return `${CACHE_VERSION}:${options.scope}:${options.userId ?? ''}:${options.profileId}`;
 }
 
 export async function getPlayerPerformance(options: {

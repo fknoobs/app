@@ -4,7 +4,7 @@ const MATCH_CAP = 1500;
 const MAP_LIMIT = 8;
 const FORM_LIMIT = 10;
 const CACHE_TTL_MS = 60 * 1000;
-const CACHE_STORE_KEY = 'player_performance_cache';
+const CACHE_STORE_KEY = 'player_performance_cache_v2';
 
 function emptyPerformance() {
 	return {
@@ -98,7 +98,7 @@ function aggregateRows(rows) {
 		matchCount: matches.length,
 		wins,
 		losses,
-		recentMatches: matches.slice(0, FORM_LIMIT).reverse().map((match) => ({
+		recentMatches: matches.slice(0, FORM_LIMIT).map((match) => ({
 			id: match.id,
 			sessionId: match.sessionId,
 			outcome: match.outcome,
@@ -234,7 +234,7 @@ function loadFromIndex(profileId, scope, userId) {
 		 FROM lobbies l
 		 INNER JOIN lobby_player_index i ON i.lobby = l.id
 		 WHERE ${filters.join(' AND ')}
-		 ORDER BY l.createdAt DESC
+		 ORDER BY l.sessionId DESC
 		 LIMIT {:limit}`,
 		bindings,
 		{
@@ -289,7 +289,7 @@ function loadFromResultJson(profileId, scope, userId) {
 					) AS p
 		 WHERE ${lobbyFilters.join(' AND ')}
 			 AND (${playerClauses.join(' OR ')})
-		 ORDER BY l.createdAt DESC
+		 ORDER BY l.sessionId DESC
 		 LIMIT {:limit}`,
 		bindings,
 		{
@@ -303,6 +303,109 @@ function loadFromResultJson(profileId, scope, userId) {
 	);
 }
 
+function rowsToRecentMatches(rows) {
+	const seen = new Set();
+	const recent = [];
+	for (let i = 0; i < rows.length; i++) {
+		const row = rows[i];
+		const sessionId = toNumber(row.sessionId);
+		const outcome = toNumber(row.outcome);
+		if (sessionId == null || sessionId <= 0 || seen.has(sessionId)) {
+			continue;
+		}
+		if (outcome !== 0 && outcome !== 1) {
+			continue;
+		}
+		seen.add(sessionId);
+		recent.push({
+			id: String(row.id || ''),
+			sessionId,
+			outcome,
+			raceId: toNumber(row.raceId),
+			matchtypeId: toNumber(row.matchtypeId)
+		});
+	}
+	return recent;
+}
+
+function loadRecentMatches(profileId, scope, userId) {
+	const recentShape = {
+		id: '',
+		sessionId: 0,
+		outcome: '',
+		raceId: '',
+		matchtypeId: ''
+	};
+
+	if (scope === 'community' && indexHasStatsFields()) {
+		return rowsToRecentMatches(
+			queryAll(
+				`SELECT
+					 l.id AS id,
+					 l.sessionId AS sessionId,
+					 i.outcome AS outcome,
+					 i.race_id AS raceId,
+					 i.matchtype_id AS matchtypeId
+				 FROM lobby_player_index i
+				 INNER JOIN lobbies l ON l.id = i.lobby
+				 WHERE i.profile_id = {:profileId}
+					 AND l.needsResult = 0
+					 AND l.title != 'Skirmish'
+					 AND i.outcome IN (0, 1)
+				 ORDER BY l.sessionId DESC
+				 LIMIT {:formLimit}`,
+				{ profileId, formLimit: FORM_LIMIT },
+				recentShape
+			)
+		);
+	}
+
+	const bindings = { profileId, userId, lobbyLimit: 50, formLimit: FORM_LIMIT };
+	const playerClauses = ["CAST(json_extract(p.value, '$.profile_id') AS INTEGER) = {:profileId}"];
+	const lobbySql = `SELECT id, sessionId, result
+		 FROM lobbies
+		 WHERE needsResult = 0 AND title != 'Skirmish' AND user = {:userId}
+		 ORDER BY sessionId DESC
+		 LIMIT {:lobbyLimit}`;
+	playerClauses.push(`json_extract(p.value, '$.steamId') IN (
+		SELECT json_each.value
+		FROM json_each((SELECT steamIds FROM users WHERE id = {:userId}))
+	)`);
+	playerClauses.push(`json_extract(p.value, '$.name') IN (
+		SELECT '/steam/' || json_each.value
+		FROM json_each((SELECT steamIds FROM users WHERE id = {:userId}))
+	)`);
+
+	return rowsToRecentMatches(
+		queryAll(
+			`SELECT
+				 l.id AS id,
+				 l.sessionId AS sessionId,
+				 json_extract(p.value, '$.outcome') AS outcome,
+				 json_extract(p.value, '$.race_id') AS raceId,
+				 json_extract(l.result, '$.matchtype_id') AS matchtypeId
+			 FROM (
+				 ${lobbySql}
+			 ) AS l,
+			 json_each(
+				 CASE
+					 WHEN l.result IS NOT NULL AND l.result != ''
+								AND json_valid(l.result)
+								AND json_type(json_extract(l.result, '$.players')) = 'array'
+					 THEN json_extract(l.result, '$.players')
+					 ELSE '[]'
+				 END
+			 ) AS p
+			 WHERE (${playerClauses.join(' OR ')})
+				 AND CAST(json_extract(p.value, '$.outcome') AS INTEGER) IN (0, 1)
+			 ORDER BY l.sessionId DESC
+			 LIMIT {:formLimit}`,
+			bindings,
+			recentShape
+		)
+	);
+}
+
 function loadPlayerPerformance(profileId, scope, userId) {
 	const key = cacheKey(scope, userId, profileId);
 	const cached = getCachedPerformance(key);
@@ -310,11 +413,24 @@ function loadPlayerPerformance(profileId, scope, userId) {
 		return cached;
 	}
 
-	const data = aggregateRows(
-		indexHasStatsFields()
-			? loadFromIndex(profileId, scope, userId)
-			: loadFromResultJson(profileId, scope, userId)
-	);
+	let data;
+	try {
+		data = aggregateRows(
+			indexHasStatsFields()
+				? loadFromIndex(profileId, scope, userId)
+				: loadFromResultJson(profileId, scope, userId)
+		);
+	} catch (error) {
+		console.warn('[player_performance] index query failed, using result json:', String(error?.message || error));
+		data = aggregateRows(loadFromResultJson(profileId, scope, userId));
+	}
+
+	try {
+		data.recentMatches = loadRecentMatches(profileId, scope, userId);
+	} catch (error) {
+		console.warn('[player_performance] recent matches failed:', String(error?.message || error));
+	}
+
 	setCachedPerformance(key, data);
 	return data;
 }
