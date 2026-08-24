@@ -13,6 +13,7 @@ import PlayerAvatar from './player-avatar.svelte';
 import PlayerRating from './player-rating.svelte';
 import PlayerRatingChange from './player-rating-change.svelte';
 import PlayerSearchCard from './player-search-card.svelte';
+import PlayerProfileSkeleton from './player-profile-skeleton.svelte';
 
 export {
 	createPlayer,
@@ -30,5 +31,6 @@ export {
 	PlayerFaction as Faction,
 	PlayerAvatar as Avatar,
 	PlayerRatingChange as RatingChange,
-	PlayerSearchCard as SearchCard
+	PlayerSearchCard as SearchCard,
+	PlayerProfileSkeleton as ProfileSkeleton
 };

@@ -120,43 +120,45 @@
 	}
 </script>
 
-<Form.Root>
-	<Form.Group>
-		<Form.Label for="overlay-url">Overlay URL</Form.Label>
-		<Form.Description>
-			Use this URL in your streaming software to add the Opponent Bot overlay to your stream.
-		</Form.Description>
-		<div class="relative flex">
-			<Input
-				id="overlay-url"
-				readonly
-				value={overlayUrl}
-				placeholder="Log in to generate your overlay URL"
-				class={cn(copied && 'border-success bg-success/5')}
-			/>
-			<Button
-				variant="ghost"
-				size="icon-sm"
-				type="button"
-				class={cn(
-					'text-secondary-400 absolute top-1.5 right-1.5',
-					copied && 'text-success pointer-events-none'
-				)}
-				onclick={copyToClipboard}
-				disabled={!overlayUrl}
-				title="Copy Overlay URL"
-			>
-				{#if copied}
-					<CheckIcon size={20} />
-				{:else}
-					<CopyIcon size={20} />
-				{/if}
-			</Button>
-		</div>
-	</Form.Group>
+<Form.Root class="space-y-0">
+	<div class="border-secondary-800 border-b p-4">
+		<Form.Group class="mb-0">
+			<Form.Label for="overlay-url">Overlay URL</Form.Label>
+			<Form.Description>
+				Use this URL in your streaming software to add the Opponent Bot overlay to your stream.
+			</Form.Description>
+			<div class="relative flex">
+				<Input
+					id="overlay-url"
+					readonly
+					value={overlayUrl}
+					placeholder="Log in to generate your overlay URL"
+					class={cn(copied && 'border-success bg-success/5')}
+				/>
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					type="button"
+					class={cn(
+						'text-secondary-400 absolute top-1.5 right-1.5',
+						copied && 'text-success pointer-events-none'
+					)}
+					onclick={copyToClipboard}
+					disabled={!overlayUrl}
+					title="Copy Overlay URL"
+				>
+					{#if copied}
+						<CheckIcon size={20} />
+					{:else}
+						<CopyIcon size={20} />
+					{/if}
+				</Button>
+			</div>
+		</Form.Group>
+	</div>
 </Form.Root>
 
-<div class="mt-4 flex flex-wrap gap-2">
+<div class="border-secondary-800 flex flex-wrap gap-2 border-b p-4">
 	<Button type="button" variant="secondary" onclick={openInEditor}>
 		<FolderOpenIcon size={18} />
 		Open in editor
@@ -167,7 +169,7 @@
 	</Button>
 </div>
 
-<div class="text-secondary-400 mt-4 max-w-2xl space-y-2 text-sm">
+<div class="text-secondary-400 max-w-2xl space-y-2 p-4 text-sm">
 	<p>
 		Your overlay is hosted at the URL above. To customize it, open the overlay folder, edit files in
 		<code class="text-secondary-300">src/</code>, then build and publish:

@@ -81,6 +81,17 @@
 	--color-surface-200: var(--color-secondary-900);
 	--color-surface-300: var(--color-secondary-950);
 	--color-surface-content: var(--color-gray-100);
+
+	--animate-shimmer: shimmer 1.8s ease-in-out infinite;
+
+	@keyframes shimmer {
+		from {
+			transform: translateX(-100%);
+		}
+		to {
+			transform: translateX(100%);
+		}
+	}
 }
 
 @utility bg-dark {

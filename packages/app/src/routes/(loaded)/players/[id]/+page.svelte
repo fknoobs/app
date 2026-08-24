@@ -6,7 +6,7 @@
 	import { relic } from '$lib/relic';
 	import { cn, isSteamId } from '$lib/utils';
 	import { resource } from 'runed';
-	import { Skeleton } from '$lib/components/ui/skeleton';
+	import * as Player from '$lib/components/player';
 	import { SetCrumbs } from '$lib/components/ui/breadcrumb';
 	import { MatchHistory } from '$lib/components/match-history';
 	import { PlayerPerformance, PlayerPerformanceSummary } from '$lib/components/player-performance';
@@ -94,22 +94,7 @@
 <SetCrumbs items={[{ label: profile.current?.relic.alias ?? 'Player' }]} />
 
 {#if profile.loading}
-	<div class="border-secondary-900 overflow-clip border-b">
-		<div class="border-secondary-800 flex gap-4 border-b p-4">
-			<Skeleton class="size-40 shrink-0 rounded-xl sm:size-44" />
-			<div class="min-w-0 grow py-1">
-				<Skeleton class="mb-3 h-9 w-48" />
-				<div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-					{#each Array(4) as _, index (index)}
-						<Skeleton class="h-4 w-20" />
-						<Skeleton class="h-4 w-36" />
-					{/each}
-				</div>
-			</div>
-		</div>
-		<Skeleton class="h-12 w-full rounded-none" />
-		<Skeleton class="h-64 w-full rounded-none" />
-	</div>
+	<Player.ProfileSkeleton />
 {:else if profile.current}
 	<div class="border-secondary-900 overflow-clip border-b">
 		<div class="border-secondary-800 flex gap-4 border-b p-4">

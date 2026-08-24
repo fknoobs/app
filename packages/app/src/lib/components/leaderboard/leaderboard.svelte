@@ -17,11 +17,19 @@
 		stats: LeaderboardStat[];
 		elo?: PlayerEloMap;
 		loading?: boolean;
+		skeletonRows?: number;
 		empty?: string;
 		class?: string;
 	};
 
-	let { stats, elo, loading = false, empty = 'No stats found.', class: className }: Props = $props();
+	let {
+		stats,
+		elo,
+		loading = false,
+		skeletonRows = 5,
+		empty = 'No stats found.',
+		class: className
+	}: Props = $props();
 
 	let eloSort = $state<SortDirection>(null);
 
@@ -172,6 +180,7 @@
 		data={sortedStats}
 		{columns}
 		{loading}
+		{skeletonRows}
 		{empty}
 		tableLayout="fixed"
 		rowKey={(stat) => `${stat.statgroup_id}-${stat.leaderboard_id}`}

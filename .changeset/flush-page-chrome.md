@@ -27,3 +27,5 @@ enhance; move download replay button below match detail metadata
 enhance; align replay chat tab with flush dashboard layout
 enhance; add subtle background to replay chat message area
 enhance; align replay timeline tab with flush dashboard layout
+enhance; align twitch settings page with flush dashboard layout
+enhance; align personal voices settings with flush dashboard layout
