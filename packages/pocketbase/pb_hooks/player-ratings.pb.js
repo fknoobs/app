@@ -21,7 +21,15 @@ $app.onServe().bindFunc((e) => {
 		const harvest = require(`${__hooks}/lib/player-ratings-harvest.js`);
 		const result = harvest.runBatch();
 		console.log(
-			`[player_ratings] harvest processed=${result.processed} fetched=${result.fetched} updated=${result.updated} failed=${result.failed}`
+			`[player_ratings] harvest processed=${result.processed} fetched=${result.fetched} updated=${result.updated} failed=${result.failed} snowball=${JSON.stringify(result.snowball)}`
+		);
+	});
+
+	cronAdd('player_ratings_lobby_fill', '*/5 * * * *', () => {
+		const ratings = require(`${__hooks}/lib/player-ratings.js`);
+		const result = ratings.runLobbyFillBatch();
+		console.log(
+			`[player_ratings] lobby fill players=${result.players} processed=${result.processed} updated=${result.updated}`
 		);
 	});
 });
@@ -55,6 +63,10 @@ routerAdd('POST', '/api/player-ratings/harvest/run', (e) => {
 
 	const harvest = require(`${__hooks}/lib/player-ratings-harvest.js`);
 	return e.json(200, harvest.runBatch());
+});
+
+routerAdd('POST', '/api/player-ratings/fill-from-lobbies', (e) => {
+	return require(`${__hooks}/lib/player-ratings.js`).handleFillFromLobbies(e);
 });
 
 routerAdd('POST', '/api/player-ratings/ingest', (e) => {

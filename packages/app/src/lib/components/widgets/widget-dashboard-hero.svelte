@@ -207,6 +207,7 @@
 									scope="user"
 									userId={app.features.auth.userId}
 									empty="self"
+									class="rounded-none border-0"
 								/>
 							{:else if recentMatches.loading}
 								<div class="px-5 py-3">

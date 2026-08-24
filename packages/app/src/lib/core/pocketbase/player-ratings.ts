@@ -42,7 +42,7 @@ export async function getPlayerRating(steamId: string): Promise<PlayerRatingReco
 	}
 
 	try {
-		const response = await fetch(`${baseUrl()}/api/player-ratings/${steamId}`);
+		const response = await fetch(`${baseUrl()}/api/player-ratings/${steamId}?fill=1`);
 		if (response.status === 404) {
 			return null;
 		}

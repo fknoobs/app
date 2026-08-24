@@ -11,7 +11,6 @@
 	import * as List from '$lib/components/ui/list';
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import MapImage from '$lib/components/ui/map-image.svelte';
-	import { H } from '$lib/components/ui/h';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { Badge } from '$lib/components/ui/badge';
 	import { cn, getFactionFlagFromRace, normalizeMapName } from '$lib/utils';
@@ -200,120 +199,116 @@
 {#if !performance.loading && stats.matchCount === 0}
 	<p class={cn('text-secondary-400 px-5 py-3 text-sm', className)}>{emptyMessage}</p>
 {:else}
-	<div class={cn('space-y-6 px-5 py-3', className)}>
+	<div class={cn(className)}>
 		{#if isLoading}
-			<div class="grid grid-cols-[auto_1fr] gap-x-8 gap-y-2">
+			<div class="grid grid-cols-[auto_1fr] gap-x-8 gap-y-2 px-5 py-3">
 				{#each Array(4) as _, index (index)}
 					<Skeleton class="h-4 w-20" />
 					<Skeleton class="h-4 w-36" />
 				{/each}
 			</div>
 		{:else}
-			<List.Root>
-				<List.Title>Tracked:</List.Title>
-				<List.Value>{stats.matchCount} matches</List.Value>
-				<List.Title>Record:</List.Title>
-				<List.Value class="flex items-center gap-2">
-					<span class={statWins}>{stats.wins}W</span>
-					<span class="text-secondary-600">·</span>
-					<span class={statLosses}>{stats.losses}L</span>
-					<LeaderboardStatPill type="ratio" wins={stats.wins} losses={stats.losses} streak={0} />
-				</List.Value>
-				{#if recentMatches.length > 0}
-					<List.Title>Recent matches:</List.Title>
-					<List.Value class="flex items-center gap-1">
-						{#each recentMatches as match (match.id || match.sessionId)}
-							<a
-								href="/history/{match.id}"
-								class={cn(interactive, 'inline-flex')}
-								aria-label="{match.outcome === 1 ? 'Win' : 'Loss'} — {recentMatchLabel(match)}"
-								{@attach tooltip(recentMatchTooltip(match))}
-							>
-								<Badge
-									variant={match.outcome === 1 ? 'success' : 'destructive'}
-									class={cn(
-										'min-w-6 px-1.5 py-0.5 text-center font-semibold',
-										match.outcome === 1 && 'border-success/25 bg-success/5 text-green-400'
-									)}
-								>
-									{match.outcome === 1 ? 'W' : 'L'}
-								</Badge>
-							</a>
-						{/each}
-					</List.Value>
-				{/if}
-				{#if bestMap}
-					<List.Title>Best map:</List.Title>
+			<div class="px-5 py-3">
+				<List.Root>
+					<List.Title>Tracked:</List.Title>
+					<List.Value>{stats.matchCount} matches</List.Value>
+					<List.Title>Record:</List.Title>
 					<List.Value class="flex items-center gap-2">
-						<span class="text-secondary-300">{normalizeMapName(bestMap.map)}</span>
-						<span class={statWins}>{bestMap.wins}W</span>
+						<span class={statWins}>{stats.wins}W</span>
 						<span class="text-secondary-600">·</span>
-						<span class={statLosses}>{bestMap.losses}L</span>
-						<span class="font-medium" style:color={getRatioColor(bestMap.wins, bestMap.losses)}>
-							{winrate(bestMap)}
-						</span>
+						<span class={statLosses}>{stats.losses}L</span>
+						<LeaderboardStatPill type="ratio" wins={stats.wins} losses={stats.losses} streak={0} />
 					</List.Value>
-				{/if}
-			</List.Root>
+					{#if recentMatches.length > 0}
+						<List.Title>Recent matches:</List.Title>
+						<List.Value class="flex items-center gap-1">
+							{#each recentMatches as match (match.id || match.sessionId)}
+								<a
+									href="/history/{match.id}"
+									class={cn(interactive, 'inline-flex')}
+									aria-label="{match.outcome === 1 ? 'Win' : 'Loss'} — {recentMatchLabel(match)}"
+									{@attach tooltip(recentMatchTooltip(match))}
+								>
+									<Badge
+										variant={match.outcome === 1 ? 'success' : 'destructive'}
+										class={cn(
+											'min-w-6 px-1.5 py-0.5 text-center font-semibold',
+											match.outcome === 1 && 'border-success/25 bg-success/5 text-green-400'
+										)}
+									>
+										{match.outcome === 1 ? 'W' : 'L'}
+									</Badge>
+								</a>
+							{/each}
+						</List.Value>
+					{/if}
+					{#if bestMap}
+						<List.Title>Best map:</List.Title>
+						<List.Value class="flex items-center gap-2">
+							<span class="text-secondary-300">{normalizeMapName(bestMap.map)}</span>
+							<span class={statWins}>{bestMap.wins}W</span>
+							<span class="text-secondary-600">·</span>
+							<span class={statLosses}>{bestMap.losses}L</span>
+							<span class="font-medium" style:color={getRatioColor(bestMap.wins, bestMap.losses)}>
+								{winrate(bestMap)}
+							</span>
+						</List.Value>
+					{/if}
+				</List.Root>
+			</div>
 		{/if}
 
-		<div>
-			<H level="5" class="text-secondary-300 mb-2">Maps</H>
+		<DataTable
+			data={stats.byMap}
+			columns={mapColumns}
+			rowKey={(row) => row.map}
+			loading={isLoading}
+			skeletonRows={4}
+			density="compact"
+			empty="No map stats yet."
+			class="border-secondary-800 rounded-none border-0 border-t"
+			cells={{
+				map: cell_map,
+				games: cell_games,
+				wins: cell_wins,
+				losses: cell_losses,
+				winrate: cell_winrate
+			}}
+		/>
+
+		<div class="border-secondary-800 grid border-t lg:grid-cols-2">
 			<DataTable
-				data={stats.byMap}
-				columns={mapColumns}
-				rowKey={(row) => row.map}
+				data={stats.byFaction}
+				columns={factionColumns}
+				rowKey={(row) => row.raceId}
 				loading={isLoading}
-				skeletonRows={4}
+				skeletonRows={3}
 				density="compact"
-				empty="No map stats yet."
+				empty="No faction stats yet."
+				class="border-secondary-800 rounded-none border-0 lg:border-r"
 				cells={{
-					map: cell_map,
-					games: cell_games,
+					faction: cell_faction,
 					wins: cell_wins,
 					losses: cell_losses,
 					winrate: cell_winrate
 				}}
 			/>
-		</div>
-
-		<div class="grid gap-6 lg:grid-cols-2">
-			<div>
-				<H level="5" class="text-secondary-300 mb-2">Factions</H>
-				<DataTable
-					data={stats.byFaction}
-					columns={factionColumns}
-					rowKey={(row) => row.raceId}
-					loading={isLoading}
-					skeletonRows={3}
-					density="compact"
-					empty="No faction stats yet."
-					cells={{
-						faction: cell_faction,
-						wins: cell_wins,
-						losses: cell_losses,
-						winrate: cell_winrate
-					}}
-				/>
-			</div>
-			<div>
-				<H level="5" class="text-secondary-300 mb-2">Modes</H>
-				<DataTable
-					data={byMode}
-					columns={modeColumns}
-					rowKey={(row) => row.matchtypeId}
-					loading={isLoading}
-					skeletonRows={3}
-					density="compact"
-					empty="No mode stats yet."
-					cells={{
-						mode: cell_mode,
-						wins: cell_wins,
-						losses: cell_losses,
-						winrate: cell_winrate
-					}}
-				/>
-			</div>
+			<DataTable
+				data={byMode}
+				columns={modeColumns}
+				rowKey={(row) => row.matchtypeId}
+				loading={isLoading}
+				skeletonRows={3}
+				density="compact"
+				empty="No mode stats yet."
+				class="rounded-none border-0"
+				cells={{
+					mode: cell_mode,
+					wins: cell_wins,
+					losses: cell_losses,
+					winrate: cell_winrate
+				}}
+			/>
 		</div>
 	</div>
 {/if}

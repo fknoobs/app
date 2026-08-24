@@ -5,6 +5,9 @@ const STEAM_ID_REGEX = /^7656119\d{10}$/;
 const MIN_STORED_MATCH_TYPE = 0;
 const MAX_STORED_MATCH_TYPE = 7;
 const MAX_INGEST_PLAYERS = 64;
+const LOBBY_FILL_LIMIT = 200;
+const LOBBY_FILL_BATCH_SIZE = 8;
+const MAX_ELO_SLOTS = 32;
 
 function isServiceRequest(e) {
 	const token = $os.getenv('SMURF_SERVICE_TOKEN') || '';
@@ -210,6 +213,170 @@ function findBySteamId(steamId) {
 	}
 }
 
+function findByProfileId(profileId) {
+	const id = Number(profileId);
+	if (!Number.isInteger(id) || id <= 0) {
+		return null;
+	}
+
+	try {
+		return $app.findFirstRecordByFilter(COLLECTION, 'profileId = {:profileId}', { profileId: id });
+	} catch {
+		return null;
+	}
+}
+
+function countEloSlots(raw) {
+	const map = eloToMap(raw);
+	let count = 0;
+
+	for (const matchKey of Object.keys(map)) {
+		count += Object.keys(map[matchKey]).length;
+	}
+
+	return count;
+}
+
+function eloHasGaps(raw) {
+	return countEloSlots(raw) < MAX_ELO_SLOTS;
+}
+
+function hasLobbyIndexSteamId() {
+	try {
+		const collection = $app.findCollectionByNameOrId('lobby_player_index');
+		return Boolean(collection.fields.getByName('steam_id'));
+	} catch {
+		return false;
+	}
+}
+
+function loadLobbyResultsForSteamId(steamId, limit) {
+	const rows = arrayOf(
+		new DynamicModel({
+			result: ''
+		})
+	);
+
+	if (hasLobbyIndexSteamId()) {
+		$app
+			.db()
+			.newQuery(
+				`SELECT COALESCE(l.result, '') AS result
+				FROM lobby_player_index i
+				INNER JOIN lobbies l ON l.id = i.lobby
+				WHERE i.steam_id = {:steamId}
+					AND l.result IS NOT NULL
+					AND l.result != ''
+					AND l.result != 'null'
+					AND COALESCE(l.title, '') != 'Skirmish'
+				ORDER BY COALESCE(l.sessionId, 0) DESC, l.createdAt DESC
+				LIMIT {:limit}`
+			)
+			.bind({ steamId, limit })
+			.all(rows);
+	} else {
+		const record = findBySteamId(steamId);
+		const profileId = Number(record?.get('profileId'));
+		if (!Number.isInteger(profileId) || profileId <= 0) {
+			return [];
+		}
+
+		$app
+			.db()
+			.newQuery(
+				`SELECT COALESCE(l.result, '') AS result
+				FROM lobby_player_index i
+				INNER JOIN lobbies l ON l.id = i.lobby
+				WHERE i.profile_id = {:profileId}
+					AND l.result IS NOT NULL
+					AND l.result != ''
+					AND l.result != 'null'
+					AND COALESCE(l.title, '') != 'Skirmish'
+				ORDER BY COALESCE(l.sessionId, 0) DESC, l.createdAt DESC
+				LIMIT {:limit}`
+			)
+			.bind({ profileId, limit })
+			.all(rows);
+	}
+
+	const results = [];
+	for (const row of rows) {
+		const result = row.result;
+		if (typeof result === 'string' && result && result !== 'null') {
+			results.push(result);
+		}
+	}
+
+	return results;
+}
+
+function fillFromLobbies(steamId) {
+	if (!isValidSteamId(steamId)) {
+		return { processed: 0, updated: 0 };
+	}
+
+	const results = loadLobbyResultsForSteamId(steamId, LOBBY_FILL_LIMIT);
+	let updated = 0;
+
+	for (const result of results) {
+		const records = ingestLobbyResult(result);
+		if (records.length > 0) {
+			updated += 1;
+		}
+	}
+
+	return { processed: results.length, updated };
+}
+
+function selectPlayersForLobbyFill(limit) {
+	const rows = arrayOf(
+		new DynamicModel({
+			steamId: '',
+			elo: ''
+		})
+	);
+
+	$app
+		.db()
+		.newQuery(
+			`SELECT steamId, COALESCE(elo, '') AS elo
+			FROM player_ratings
+			WHERE steamId IS NOT NULL
+				AND steamId != ''
+			LIMIT 256`
+		)
+		.all(rows);
+
+	const candidates = [];
+	for (const row of rows) {
+		if (!isValidSteamId(row.steamId) || !eloHasGaps(row.elo)) {
+			continue;
+		}
+
+		candidates.push({
+			steamId: row.steamId,
+			slots: countEloSlots(row.elo)
+		});
+	}
+
+	candidates.sort((a, b) => a.slots - b.slots);
+	return candidates.slice(0, limit);
+}
+
+function runLobbyFillBatch() {
+	const players = selectPlayersForLobbyFill(LOBBY_FILL_BATCH_SIZE);
+	let processed = 0;
+	let updated = 0;
+
+	for (const player of players) {
+		const result = fillFromLobbies(player.steamId);
+		processed += result.processed;
+		updated += result.updated;
+	}
+
+	return { players: players.length, processed, updated };
+}
+
 function upsertPlayerRating({ steamId, profileId, alias, slots }) {
 	if (!isValidSteamId(steamId) || !slots?.length) {
 		return null;
@@ -386,16 +553,41 @@ function ingestLobbyRecord(e) {
 
 function handleGetBySteamId(e) {
 	const steamId = e.request.pathValue('steamId');
-	if (!isValidSteamId(steamId) || steamId === 'backfill' || steamId === 'harvest') {
+	if (
+		!isValidSteamId(steamId) ||
+		steamId === 'backfill' ||
+		steamId === 'harvest' ||
+		steamId === 'fill-from-lobbies'
+	) {
 		return e.json(400, { message: 'steamId is required' });
 	}
 
-	const record = findBySteamId(steamId);
+	const forceFill = e.request.url.query().get('fill') === '1';
+	let record = findBySteamId(steamId);
+
+	if (!record || forceFill || eloHasGaps(record.get('elo'))) {
+		fillFromLobbies(steamId);
+		record = findBySteamId(steamId);
+	}
+
 	if (!record) {
 		return e.json(404, { message: 'Not found' });
 	}
 
 	return e.json(200, serializeRecord(record));
+}
+
+function handleFillFromLobbies(e) {
+	if (!e.hasSuperuserAuth() && !isServiceRequest(e)) {
+		return e.json(401, { message: 'Unauthorized' });
+	}
+
+	const steamId = e.request.url.query().get('steamId');
+	if (steamId && isValidSteamId(steamId)) {
+		return e.json(200, fillFromLobbies(steamId));
+	}
+
+	return e.json(200, runLobbyFillBatch());
 }
 
 function handleIngest(e) {
@@ -441,14 +633,23 @@ function handleIngest(e) {
 
 module.exports = {
 	COLLECTION,
+	MAX_ELO_SLOTS,
+	LOBBY_FILL_BATCH_SIZE,
 	isServiceRequest,
 	isStoredMatchType,
 	isValidSteamId,
 	parseJson,
+	asList,
+	countEloSlots,
+	eloHasGaps,
+	findByProfileId,
+	fillFromLobbies,
+	runLobbyFillBatch,
 	ingestLobbyRecord,
 	ingestLobbyResult,
 	ingestTransformedMatches,
 	handleGetBySteamId,
+	handleFillFromLobbies,
 	handleIngest,
 	serializeRecord
 };
