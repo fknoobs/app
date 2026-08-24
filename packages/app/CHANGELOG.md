@@ -1,5 +1,67 @@
 # @company-of-heroes/app
 
+## 0.54.0
+
+- fix; batch steam profile lookups so match lists no longer flood the api with failing requests
+- enhance; replace page titles with breadcrumbs and align routes with the flush dashboard layout
+- fix; lay out history and replay filter toolbars in a single horizontal strip
+- fix; align performance tables with dashboard padding and match-list column rhythm
+- fix; lay out replay filters like the history toolbar
+- fix; share DataTable chrome across match lists, performance, and recent games
+- enhance; use p-4 padding on dashboard sections and tables
+- fix; tighten performance stat column spacing
+- enhance; move tracked performance summary into dashboard profile header alongside steam id and created date
+- enhance; align player profile page layout with dashboard profile widget
+- enhance; redesign keybindings page with compact key caps and chord recorder fields
+- fix; allow saving, cancelling, and restoring keybinding recordings
+- enhance; align leaderboards page with flush layout and inline podium stats
+- enhance; align players search page with flush dashboard layout
+- enhance; restore global back button in header to return with page snapshot state
+- enhance; align match history detail page with flush dashboard layout
+- fix; remove stacked borders between match detail sections
+- enhance; align replay detail page with flush dashboard layout
+- enhance; redesign replay overview player grid with team headers and compact rows
+- enhance; highlight replay CPM values with prominent gold badges
+- enhance; align match history detail player list and replay tabs with dashboard layout
+- fix; pair detail metadata in one grid so labels align across columns
+- enhance; move download replay button below match detail metadata
+- enhance; align replay chat tab with flush dashboard layout
+- enhance; add subtle background to replay chat message area
+- enhance; align replay timeline tab with flush dashboard layout
+- enhance; align twitch settings page with flush dashboard layout
+- enhance; align personal voices settings with flush dashboard layout
+- enhance; highlight the logged-in player in gold across lobby and match player lists
+- enhance; show a larger map thumbnail on match history detail
+- enhance; show a larger profile avatar on the dashboard hero and player profile page
+- enhance; split performance tab into collapsible colored sections for maps, factions, and modes
+- feat; harvest match-history ELO ratings for known players via cron
+- fix; upsert all match-history ELO ratings into player_ratings
+- fix; restore match-history API helpers after harvest rewrite
+- enhance; fill missing player ELO from PocketBase matches and teammate Relic history
+- enhance; make the leaderboard ELO column sortable
+- fix; read and merge player_ratings elo via SQL fallback when PocketBase json field returns empty
+- feat; show tracked winrate by map, faction, and mode on dashboard and player profiles
+- feat; close to system tray so match tracking and overlays keep running
+- enhance; align performance tab with leaderboard and match history styling; hide skirmish from modes; combine tracked stats across all linked steam accounts; drop the elo trend chart
+- enhance; link recent match badges to match details with faction flag and mode tooltips
+- enhance; load the performance tab from indexed match stats instead of scanning lobby json on every request
+- fix; show the latest matches in the performance recent row, newest first
+- enhance; blend performance map tables into the profile widget like stats and live lobbies
+- feat; expand map rows inline to show matches and link each row to match history
+- fix; group lobby players by team and drop yellow me-row background while keeping primary name color
+- fix; ignore invalid country codes in player country flags instead of crashing display names
+- improvement; player profile loading skeleton matches layout with shimmer animation
+- improvement; dashboard profile widget uses matching profile skeleton while loading
+- fix; show session id on Relic match history cards, not the history table
+- enhance; stop storing opponent match history inside saved lobbies, which shrinks the database and speeds up every match query
+- enhance; aggregate the performance tab entirely in the match index so it no longer scans the lobby table
+- fix; keep backfill progress across restarts so the batch jobs finish instead of restarting from the first page
+- fix; spread the batch jobs over separate minutes so they no longer all write in the same minute
+- enhance; only load the performance tab once its panel is opened
+- enhance; show live lobby start time instead of last update
+- fix; fire `game.lobby.joined` and `game.lobby.started` only once per match
+- fix; matches played today resolve participation from the logged-in user steamIds via lobby_player_index
+
 ## 0.53.2
 
 - feat; update overlay to reflect ELO changes

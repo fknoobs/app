@@ -1,5 +1,31 @@
 # @company-of-heroes/pocketbase
 
+## 0.3.0
+
+- fix; speed up local PocketBase startup
+- feat; harvest match-history ELO ratings for known players via cron
+- fix; upsert all match-history ELO ratings into player_ratings
+- fix; restore match-history API helpers after harvest rewrite
+- enhance; fill missing player ELO from PocketBase matches and teammate Relic history
+- enhance; make the leaderboard ELO column sortable
+- fix; read and merge player_ratings elo via SQL fallback when PocketBase json field returns empty
+- feat; show tracked winrate by map, faction, and mode on dashboard and player profiles
+- feat; close to system tray so match tracking and overlays keep running
+- enhance; align performance tab with leaderboard and match history styling; hide skirmish from modes; combine tracked stats across all linked steam accounts; drop the elo trend chart
+- enhance; link recent match badges to match details with faction flag and mode tooltips
+- enhance; load the performance tab from indexed match stats instead of scanning lobby json on every request
+- fix; show the latest matches in the performance recent row, newest first
+- enhance; blend performance map tables into the profile widget like stats and live lobbies
+- feat; expand map rows inline to show matches and link each row to match history
+- fix; group lobby players by team and drop yellow me-row background while keeping primary name color
+- fix; ignore invalid country codes in player country flags instead of crashing display names
+- enhance; stop storing opponent match history inside saved lobbies, which shrinks the database and speeds up every match query
+- enhance; aggregate the performance tab entirely in the match index so it no longer scans the lobby table
+- fix; keep backfill progress across restarts so the batch jobs finish instead of restarting from the first page
+- fix; spread the batch jobs over separate minutes so they no longer all write in the same minute
+- enhance; only load the performance tab once its panel is opened
+- fix; matches played today resolve participation from the logged-in user steamIds via lobby_player_index
+
 ## 0.2.10
 
 - feat; update overlay to reflect ELO changes
