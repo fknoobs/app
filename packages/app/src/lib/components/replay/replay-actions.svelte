@@ -1,21 +1,26 @@
 <script lang="ts">
+	import type { HTMLAttributes } from 'svelte/elements';
 	import { useReplay } from '.';
 	import { cn, getFactionFlagFromRace } from '$lib/utils';
 	import { groupBy, isEmpty } from 'lodash-es';
 	import { Axis, Circle, Highlight, Layer, LineChart, Spline, Text, Tooltip } from 'layerchart';
 	import { IsInViewport } from 'runed';
 	import { Checkbox } from '../ui/input';
-	import { menuItem } from '../ui/variants';
+	import { interactive, mePlayerText } from '../ui/variants';
+	import { isMeReplayAlias } from '$lib/utils/player-me';
 	import { H } from '../ui/h';
 
+	type Props = HTMLAttributes<HTMLDivElement> & {
+		flush?: boolean;
+	};
+
+	let { flush = false, ...restProps }: Props = $props();
 	const replay = $derived(useReplay());
 
 	let selectedPlayerValue = $state('');
 	let filteredPlayers = $state<number[]>([]);
 
-	const selectedPlayer = $derived(
-		selectedPlayerValue ? Number(selectedPlayerValue) : null
-	);
+	const selectedPlayer = $derived(selectedPlayerValue ? Number(selectedPlayerValue) : null);
 
 	$effect(() => {
 		if (!selectedPlayerValue && replay.players[0]?.id) {
@@ -26,16 +31,16 @@
 	let actions = $derived.by(() => {
 		if (!selectedPlayer) return [];
 
-		const actions = replay.actions.filter(
+		const playerActions = replay.actions.filter(
 			(a) => a.playerID === selectedPlayer && a.command && !isEmpty(a.command.description)
 		);
-		const aiTakeOverIndex = actions.findIndex((a) => a.command?.type === 'AI_TAKEOVER');
+		const aiTakeOverIndex = playerActions.findIndex((a) => a.command?.type === 'AI_TAKEOVER');
 
 		if (aiTakeOverIndex !== -1) {
-			return actions.slice(0, aiTakeOverIndex + 1);
+			return playerActions.slice(0, aiTakeOverIndex + 1);
 		}
 
-		return actions;
+		return playerActions;
 	});
 
 	const data = $derived.by(() => {
@@ -106,179 +111,237 @@
 
 	let target = $state<HTMLElement>();
 	let isInViewport = new IsInViewport(() => target);
+
+	const sectionTitle = flush
+		? 'text-secondary-300 text-xs font-semibold tracking-wide uppercase'
+		: 'text-secondary-300';
 </script>
 
 {#snippet group(title: string, type: string, color: string)}
 	<div class={color}>
-		<H level="6" class="mb-2">{title}</H>
-		{#each aggregatedGroups.find((a) => a.type === type)?.counts as item}
-			<div class={cn('grid', type !== 'DOCTRINAL' ? 'grid-cols-[40px_auto]' : 'grid-cols-[auto]')}>
+		<p class={cn(flush ? 'text-secondary-400 mb-2 text-xs font-semibold tracking-wide uppercase' : 'mb-2 font-semibold')}>
+			{title}
+		</p>
+		{#each aggregatedGroups.find((a) => a.type === type)?.counts ?? [] as item (item.command?.name)}
+			<div
+				class={cn(
+					'grid text-sm',
+					type !== 'DOCTRINAL' ? 'grid-cols-[2.5rem_minmax(0,1fr)] gap-x-2' : 'grid-cols-1'
+				)}
+			>
 				{#if type !== 'DOCTRINAL'}
-					<span class="truncate">{item.count}x</span>
+					<span class="text-secondary-400 tabular-nums">{item.count}x</span>
 				{/if}
-				<span>{item.command?.name}</span>
+				<span class="min-w-0 truncate">{item.command?.name}</span>
 			</div>
 		{/each}
 	</div>
 {/snippet}
 
-<H level="5" class="text-secondary-300">CPM Over Time</H>
-<div class="flex gap-4">
-	{#each replay.players as player (player.id)}
-		<Checkbox
-			size="sm"
-			label={player.name}
-			checked={filteredPlayers.includes(player.id!)}
-			onCheckedChange={() => {
-				if (filteredPlayers.includes(player.id!)) {
-					filteredPlayers = filteredPlayers.filter((p) => p !== player.id!);
-				} else {
-					filteredPlayers = [...filteredPlayers, player.id!];
-				}
-			}}
-		/>
-	{/each}
-</div>
-<div class="border-secondary-800 h-54 w-full rounded-xl border p-4" bind:this={target}>
-	{#if isInViewport.current}
-		<div class="size-full">
-			<LineChart
-				{data}
-				x="minute"
-				y="value"
-				yDomain={[0, null]}
-				yNice
-				padding={{ left: 16, bottom: 24, right: 48 }}
-				tooltip={{ mode: 'quadtree' }}
-			>
-				{#snippet children({ context })}
-					<Layer type="svg">
-						<Axis placement="left" grid rule />
-						<Axis placement="bottom" rule />
-						{#each series as s, i (s.key + '-' + i)}
-							{@const active =
-								s.key === context.tooltip.data?.player?.id || s.key === selectedPlayer}
-							<g class={cn(!active && 'opacity-20 saturate-0')}>
-								<Spline
-									data={s.data}
-									y="value"
-									class={cn('stroke-2', s.color)}
-									draw={{ duration: 0 }}
-								>
-									{#snippet endContent()}
-										<Circle r={4} class={s.color} />
-										<Text
-											value={s.label}
-											verticalAnchor="middle"
-											dx={6}
-											dy={-2}
-											class={cn('text-xs', s.color)}
-										/>
-									{/snippet}
-								</Spline>
-							</g>
-						{/each}
-						<Highlight points lines />
-					</Layer>
-					<Tooltip.Root>
-						<Tooltip.Header>{context.tooltip.data?.player?.name}</Tooltip.Header>
-						<Tooltip.List>
-							<Tooltip.Item
-								value={`${context.tooltip.data?.value} CPM`}
-								label={`${context.tooltip.data?.minute} min`}
-							/>
-						</Tooltip.List>
-					</Tooltip.Root>
-				{/snippet}
-			</LineChart>
-		</div>
-	{/if}
-</div>
-
-<H level="5" class="text-secondary-300 mt-4">Actions Over Time</H>
-<div class="border-secondary-800 grid grid-cols-[minmax(0,13rem)_auto] items-start gap-4 rounded-xl border p-4">
-	<nav
-		class="bg-secondary-800/30 flex h-fit w-full flex-col gap-0.5 rounded-xl p-2"
-		aria-label="Select player"
-	>
-		{#each replay.players as player (player.id)}
-			{@const isSelected = selectedPlayerValue === String(player.id)}
-			<button
-				type="button"
-				class={cn(
-					menuItem,
-					'flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm',
-					isSelected
-						? 'bg-secondary-800 text-primary font-medium'
-						: 'text-secondary-300 hover:text-white'
-				)}
-				aria-current={isSelected ? 'true' : undefined}
-				onclick={() => (selectedPlayerValue = String(player.id))}
-			>
-				<img
-					src={getFactionFlagFromRace(
-						player.faction as
-							| 'allies'
-							| 'axis'
-							| 'allies_commonwealth'
-							| 'axis_panzer_elite'
-					)}
-					alt={player.faction}
-					class="h-3.5 shrink-0"
-				/>
-				<span class="min-w-0 flex-1 truncate">{player.name}</span>
-			</button>
-		{/each}
-	</nav>
-	<div class="flex flex-col gap-4">
+<div {...restProps} class={cn('flex flex-col', flush ? '' : 'gap-4', restProps.class)}>
+	<section>
 		<div
 			class={cn(
-				'bg-secondary-800/30 overflow-auto rounded-xl',
-				'flex grow flex-col gap-1 px-4 py-4',
-				'grid grid-cols-2 gap-6'
+				flush
+					? 'border-secondary-800 flex flex-col gap-3 border-b px-4 py-3'
+					: 'flex flex-col gap-3'
 			)}
 		>
-			<div>
-				{@render group('BUILDINGS', 'BUILDING', 'text-green-200')}
-			</div>
-			<div>
-				{@render group('UNITS', 'UNIT', 'text-green-400')}
-			</div>
-			<div>
-				{@render group('UNIT COMMANDS', 'UNIT_COMMAND', 'text-blue-300')}
-			</div>
-			<div>
-				{@render group('UPGRADES', 'UPGRADE', 'text-purple-300')}
-			</div>
-			<div>
-				{@render group('SPECIAL ABILITIES', 'SPECIAL_ABILITY', 'text-yellow-200')}
-			</div>
-			<div>
-				{@render group('DOCTRINALS', 'DOCTRINAL', 'text-primary-200')}
-			</div>
-		</div>
-		<div
-			class="bg-secondary-800/30 flex max-h-125 grow flex-col gap-1 overflow-auto rounded-xl px-4 py-2"
-		>
-			<div class="flex flex-col">
-				{#each actions as action, index (index)}
-					<div class="grid grid-cols-[4rem_auto_1fr] gap-2 py-0.5 last:pb-0">
-						<span class="flex items-center text-sm text-gray-200">{action.timestamp}</span>
-						<span
-							class={cn(
-								action.command?.type === 'MOVE_COMMAND' && 'text-blue-400',
-								action.command?.type === 'BUILDING' && 'text-green-200',
-								action.command?.type === 'UNIT' && 'text-green-400',
-								action.command?.type === 'DOCTRINAL' && 'text-primary-200',
-								action.command?.type === 'AI_TAKEOVER' && 'text-destructive'
-							)}
-						>
-							{action.command?.description}
-						</span>
-						<span class="text-secondary-500 text-xs">({action.command?.type})</span>
-					</div>
+			{#if flush}
+				<p class={sectionTitle}>CPM over time</p>
+			{:else}
+				<H level="5" class={sectionTitle}>CPM Over Time</H>
+			{/if}
+			<div class="flex flex-wrap gap-x-4 gap-y-2">
+				{#each replay.players as player (player.id)}
+					<Checkbox
+						size="sm"
+						label={player.name}
+						checked={filteredPlayers.includes(player.id!)}
+						onCheckedChange={() => {
+							if (filteredPlayers.includes(player.id!)) {
+								filteredPlayers = filteredPlayers.filter((p) => p !== player.id!);
+							} else {
+								filteredPlayers = [...filteredPlayers, player.id!];
+							}
+						}}
+					/>
 				{/each}
 			</div>
 		</div>
-	</div>
+
+		<div
+			class={cn(
+				'h-54 w-full p-4',
+				flush
+					? 'border-secondary-800 bg-secondary-950/50 border-b'
+					: 'border-secondary-800 rounded-xl border'
+			)}
+			bind:this={target}
+		>
+			{#if isInViewport.current}
+				<div class="size-full">
+					<LineChart
+						{data}
+						x="minute"
+						y="value"
+						yDomain={[0, null]}
+						yNice
+						padding={{ left: 16, bottom: 24, right: 48 }}
+						tooltip={{ mode: 'quadtree' }}
+					>
+						{#snippet children({ context })}
+							<Layer type="svg">
+								<Axis placement="left" grid rule />
+								<Axis placement="bottom" rule />
+								{#each series as s, i (s.key + '-' + i)}
+									{@const active =
+										s.key === context.tooltip.data?.player?.id || s.key === selectedPlayer}
+									<g class={cn(!active && 'opacity-20 saturate-0')}>
+										<Spline
+											data={s.data}
+											y="value"
+											class={cn('stroke-2', s.color)}
+											draw={{ duration: 0 }}
+										>
+											{#snippet endContent()}
+												<Circle r={4} class={s.color} />
+												<Text
+													value={s.label}
+													verticalAnchor="middle"
+													dx={6}
+													dy={-2}
+													class={cn('text-xs', s.color)}
+												/>
+											{/snippet}
+										</Spline>
+									</g>
+								{/each}
+								<Highlight points lines />
+							</Layer>
+							<Tooltip.Root>
+								<Tooltip.Header>{context.tooltip.data?.player?.name}</Tooltip.Header>
+								<Tooltip.List>
+									<Tooltip.Item
+										value={`${context.tooltip.data?.value} CPM`}
+										label={`${context.tooltip.data?.minute} min`}
+									/>
+								</Tooltip.List>
+							</Tooltip.Root>
+						{/snippet}
+					</LineChart>
+				</div>
+			{/if}
+		</div>
+	</section>
+
+	<section class="flex min-h-0 flex-col">
+		<div class={cn(flush ? 'border-secondary-800 border-b px-4 py-2.5' : 'mt-4')}>
+			{#if flush}
+				<p class={sectionTitle}>Actions over time</p>
+			{:else}
+				<H level="5" class={sectionTitle}>Actions Over Time</H>
+			{/if}
+		</div>
+
+		<div
+			class={cn(
+				'grid min-h-0 items-stretch',
+				flush
+					? 'grid-cols-[minmax(0,13rem)_minmax(0,1fr)]'
+					: 'border-secondary-800 grid-cols-[minmax(0,13rem)_auto] gap-4 rounded-xl border p-4'
+			)}
+		>
+			<nav
+				class={cn(
+					'flex h-full min-h-0 flex-col',
+					flush
+						? 'border-secondary-800 divide-secondary-800 divide-y border-r'
+						: 'bg-secondary-800/30 h-fit gap-0.5 rounded-xl p-2'
+				)}
+				aria-label="Select player"
+			>
+				{#each replay.players as player (player.id)}
+					{@const isSelected = selectedPlayerValue === String(player.id)}
+					<button
+						type="button"
+						class={cn(
+							interactive,
+							'flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm transition-colors',
+							flush ? '' : 'rounded-md',
+							isSelected
+								? 'bg-secondary-950/80 text-primary font-medium'
+								: 'text-secondary-300 hover:bg-secondary-950/50 hover:text-white'
+						)}
+						aria-current={isSelected ? 'true' : undefined}
+						onclick={() => (selectedPlayerValue = String(player.id))}
+					>
+						<img
+							src={getFactionFlagFromRace(
+								player.faction as
+									| 'allies'
+									| 'axis'
+									| 'allies_commonwealth'
+									| 'axis_panzer_elite'
+							)}
+							alt={player.faction}
+							class="h-3.5 shrink-0"
+						/>
+						<span class={cn('min-w-0 flex-1 truncate', isMeReplayAlias(player.name) && mePlayerText)}>
+							{player.name}
+						</span>
+					</button>
+				{/each}
+			</nav>
+
+			<div class="flex min-h-0 min-w-0 flex-col">
+				<div
+					class={cn(
+						'grid grid-cols-1 gap-4 px-4 py-4 sm:grid-cols-2 sm:gap-6',
+						flush
+							? 'bg-secondary-950/50 border-secondary-800 border-b'
+							: 'bg-secondary-800/30 overflow-auto rounded-xl'
+					)}
+				>
+					{@render group('Buildings', 'BUILDING', 'text-green-200')}
+					{@render group('Units', 'UNIT', 'text-green-400')}
+					{@render group('Unit commands', 'UNIT_COMMAND', 'text-blue-300')}
+					{@render group('Upgrades', 'UPGRADE', 'text-purple-300')}
+					{@render group('Special abilities', 'SPECIAL_ABILITY', 'text-yellow-200')}
+					{@render group('Doctrine', 'DOCTRINAL', 'text-primary-200')}
+				</div>
+
+				<div
+					class={cn(
+						'flex min-h-0 flex-col overflow-auto',
+						flush ? 'bg-secondary-950/50 max-h-125' : 'bg-secondary-800/30 max-h-125 rounded-xl px-4 py-2'
+					)}
+				>
+					{#each actions as action, index (index)}
+						<div
+							class={cn(
+								'grid grid-cols-[4rem_minmax(0,auto)_1fr] items-start gap-x-3 px-4 py-2',
+								flush && 'border-secondary-800 border-b last:border-b-0'
+							)}
+						>
+							<span class="text-secondary-500 text-xs tabular-nums">{action.timestamp}</span>
+							<span
+								class={cn(
+									'text-sm',
+									action.command?.type === 'MOVE_COMMAND' && 'text-blue-400',
+									action.command?.type === 'BUILDING' && 'text-green-200',
+									action.command?.type === 'UNIT' && 'text-green-400',
+									action.command?.type === 'DOCTRINAL' && 'text-primary-200',
+									action.command?.type === 'AI_TAKEOVER' && 'text-destructive'
+								)}
+							>
+								{action.command?.description}
+							</span>
+							<span class="text-secondary-500 text-xs">({action.command?.type})</span>
+						</div>
+					{/each}
+				</div>
+			</div>
+		</div>
+	</section>
 </div>

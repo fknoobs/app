@@ -16,11 +16,11 @@
 
 <div
 	class={cn(
-		'bg-secondary-950/40 border-secondary-900 overflow-clip rounded-lg border',
+		'border-secondary-900 overflow-clip border-b',
 		'hover:border-secondary-700 transition-colors'
 	)}
 >
-	<div class="border-secondary-800 flex items-center justify-between border-b px-5 py-3">
+	<div class="border-secondary-800 flex items-center justify-between border-b px-4 py-3">
 		<H level="6" class="mb-0 font-semibold">Live lobbies</H>
 		{#if !feed.isLoading}
 			<span class="text-secondary-400 text-sm tabular-nums">{feed.totalItems} active</span>
@@ -30,7 +30,9 @@
 	{#if feed.isLoading}
 		<LiveLobbiesTable lobbies={[]} loading />
 	{:else if feed.items.length === 0}
-		<p class="text-secondary-400 px-5 py-3 text-sm">No community members are in a match right now.</p>
+		<p class="text-secondary-400 px-4 py-3 text-sm">
+			No community members are in a match right now.
+		</p>
 	{:else}
 		<LiveLobbiesTable lobbies={feed.items} />
 	{/if}

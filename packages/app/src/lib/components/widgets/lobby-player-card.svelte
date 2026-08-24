@@ -41,7 +41,7 @@
 				{/if}
 				<div class="flex min-w-0 items-center gap-2">
 					<Player.Country />
-					<Player.Alias class={cn('truncate text-lg font-bold', isMe && 'text-primary')} />
+					<Player.Alias class="truncate text-lg font-bold" />
 				</div>
 			</div>
 			{#if isCpu}

@@ -23,35 +23,33 @@
 	);
 </script>
 
-<div
-	class={cn(
-		'bg-secondary-950/40 border-secondary-900 overflow-clip rounded-lg border',
-		'hover:border-secondary-700 transition-colors'
-	)}
->
-	<div class="border-secondary-800 flex items-center gap-4 border-b p-4">
+<div class="border-secondary-800 overflow-clip border-b">
+	<div class="border-secondary-800 flex gap-4 border-b p-4">
 		<a href="/players/{player.relic.profile_id}" class={cn(interactive, 'shrink-0')}>
 			<img
 				src={player.steam.avatarfull}
 				alt={player.relic.alias}
-				class="h-16 w-16 rounded-xl object-cover"
+				class="size-16 rounded-xl border-3 border-gray-400 object-cover"
 			/>
 		</a>
-		<div class="min-w-0 grow">
+		<div class="min-w-0 grow py-1">
 			<a
 				href="/players/{player.relic.profile_id}"
-				class={cn(interactive, 'hover:text-primary flex items-center gap-2 transition-colors')}
+				class={cn(
+					interactive,
+					'hover:text-primary mb-2 flex min-w-0 items-center gap-2 transition-colors'
+				)}
 			>
 				{#if player.relic.country}
 					<img
-						class="h-5 w-auto shrink-0 rounded-[2px]"
+						class="h-5 w-auto shrink-0 rounded-xs"
 						src="https://flagsapi.com/{upperCase(player.relic.country)}/shiny/64.png"
 						alt={player.relic.country}
 					/>
 				{/if}
-				<span class="truncate text-lg font-bold">{player.relic.alias}</span>
+				<span class="font-heading truncate text-xl font-bold">{player.relic.alias}</span>
 			</a>
-			<List.Root class="mt-2">
+			<List.Root class="gap-x-4">
 				<List.Title>Steam ID:</List.Title>
 				<List.Value>{player.steam.steamid}</List.Value>
 				<List.Title>Profile ID:</List.Title>
@@ -64,7 +62,7 @@
 			type="button"
 			class={cn(
 				interactive,
-				'text-secondary-300 hover:text-primary hover:bg-secondary-900/40 flex w-full items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors'
+				'text-secondary-400 hover:text-primary flex w-full items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors'
 			)}
 			aria-expanded={statsExpanded}
 			onclick={() => (statsExpanded = !statsExpanded)}
@@ -82,8 +80,8 @@
 			</div>
 		{/if}
 	{:else}
-		<div class="text-secondary-300 px-4 py-3 text-sm">
-			Level <span class="font-medium text-white">{player.relic.level}</span>
+		<div class="text-secondary-400 px-4 py-3 text-sm">
+			Level <span class="text-secondary-200 font-medium">{player.relic.level}</span>
 		</div>
 	{/if}
 </div>

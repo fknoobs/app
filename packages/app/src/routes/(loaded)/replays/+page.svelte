@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { Snapshot } from './$types';
 	import { app } from '$core/app/context';
-	import { H } from '$lib/components/ui/h';
 	import { getString } from '$lib/utils/game';
 	import { resource } from 'runed';
 	import { ReplayList, type ReplayListState } from './replay-list.svelte';
@@ -55,8 +54,6 @@
 		}
 	};
 </script>
-
-<H level="1" class="mb-8">Replays</H>
 
 <ReplayFilters bind:list {mapsList} {playersList} />
 <ReplayTable {list} />

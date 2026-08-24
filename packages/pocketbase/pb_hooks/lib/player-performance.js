@@ -1,10 +1,15 @@
 'use strict';
 
-const MATCH_CAP = 1500;
 const MAP_LIMIT = 8;
 const FORM_LIMIT = 10;
-const CACHE_TTL_MS = 60 * 1000;
-const CACHE_STORE_KEY = 'player_performance_cache_v2';
+const JSON_FALLBACK_CAP = 1500;
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const CACHE_STORE_KEY = 'player_performance_cache_v5';
+
+const AGGREGATE_SHAPE = { dim: '', groupKey: '', wins: 0, losses: 0 };
+const RECENT_SHAPE = { id: '', sessionId: 0, outcome: '', raceId: '', matchtypeId: '' };
+
+let indexStatsFields = null;
 
 function emptyPerformance() {
 	return {
@@ -27,95 +32,17 @@ function toNumber(value) {
 	return Number.isFinite(parsed) ? parsed : null;
 }
 
-function bumpRecord(table, key, won, extras) {
-	if (!table[key]) {
-		table[key] = { wins: 0, losses: 0, ...extras };
-	}
-
-	if (won) {
-		table[key].wins += 1;
-	} else {
-		table[key].losses += 1;
-	}
-}
-
 function sortByGames(a, b) {
 	return b.wins + b.losses - (a.wins + a.losses);
 }
 
-function aggregateRows(rows) {
-	const seen = new Set();
-	const matches = [];
-
-	for (const row of rows) {
-		const sessionId = toNumber(row.sessionId);
-		if (sessionId == null || sessionId <= 0 || seen.has(sessionId)) {
-			continue;
-		}
-
-		const outcome = toNumber(row.outcome);
-		if (outcome !== 0 && outcome !== 1) {
-			continue;
-		}
-
-		seen.add(sessionId);
-		matches.push({
-			id: String(row.id || ''),
-			sessionId,
-			map: row.map || 'Unknown',
-			outcome,
-			raceId: toNumber(row.raceId),
-			matchtypeId: toNumber(row.matchtypeId)
-		});
+function sortByMode(a, b) {
+	const aRanked = a.matchtypeId >= 1 && a.matchtypeId <= 4;
+	const bRanked = b.matchtypeId >= 1 && b.matchtypeId <= 4;
+	if (aRanked !== bRanked) {
+		return aRanked ? -1 : 1;
 	}
-
-	const byMap = {};
-	const byFaction = {};
-	const byMode = {};
-	let wins = 0;
-	let losses = 0;
-
-	for (const match of matches) {
-		const won = match.outcome === 1;
-		if (won) {
-			wins += 1;
-		} else {
-			losses += 1;
-		}
-
-		bumpRecord(byMap, match.map, won, { map: match.map });
-
-		if (match.raceId != null && match.raceId >= 0 && match.raceId <= 3) {
-			bumpRecord(byFaction, match.raceId, won, { raceId: match.raceId });
-		}
-
-		if (match.matchtypeId != null) {
-			bumpRecord(byMode, match.matchtypeId, won, { matchtypeId: match.matchtypeId });
-		}
-	}
-
-	return {
-		matchCount: matches.length,
-		wins,
-		losses,
-		recentMatches: matches.slice(0, FORM_LIMIT).map((match) => ({
-			id: match.id,
-			sessionId: match.sessionId,
-			outcome: match.outcome,
-			raceId: match.raceId,
-			matchtypeId: match.matchtypeId
-		})),
-		byMap: Object.values(byMap).sort(sortByGames).slice(0, MAP_LIMIT),
-		byFaction: Object.values(byFaction).sort(sortByGames),
-		byMode: Object.values(byMode).sort((a, b) => {
-			const aRanked = a.matchtypeId >= 1 && a.matchtypeId <= 4;
-			const bRanked = b.matchtypeId >= 1 && b.matchtypeId <= 4;
-			if (aRanked !== bRanked) {
-				return aRanked ? -1 : 1;
-			}
-			return a.matchtypeId - b.matchtypeId;
-		})
-	};
+	return a.matchtypeId - b.matchtypeId;
 }
 
 function cacheKey(scope, userId, profileId) {
@@ -141,15 +68,10 @@ function getCacheStore() {
 	return {};
 }
 
+/** Read-only: an expired entry is simply ignored, the next write overwrites it. */
 function getCachedPerformance(key) {
-	const store = getCacheStore();
-	const hit = store[key];
-	if (!hit) {
-		return null;
-	}
-	if (nowMs() - hit.at > CACHE_TTL_MS) {
-		delete store[key];
-		$app.store().set(CACHE_STORE_KEY, JSON.stringify(store));
+	const hit = getCacheStore()[key];
+	if (!hit || nowMs() - hit.at > CACHE_TTL_MS) {
 		return null;
 	}
 	return hit.value;
@@ -190,12 +112,34 @@ function invalidatePerformanceCache(userId, profileIds) {
 	}
 }
 
-function indexHasStatsFields() {
-	try {
-		return Boolean($app.findCollectionByNameOrId('lobby_player_index').fields.getByName('steam_id'));
-	} catch {
-		return false;
+/**
+ * How much we can get out of `lobby_player_index` alone:
+ * `meta` = it also carries the denormalized lobby columns, so no join is needed;
+ * `stats` = outcome/race/matchtype only, so `lobbies` still has to be joined;
+ * `none`  = fall back to parsing `lobbies.result`.
+ *
+ * The schema only changes through migrations (which restart the process), so
+ * this is memoized per runtime.
+ */
+function indexCapability() {
+	if (indexStatsFields !== null) {
+		return indexStatsFields;
 	}
+
+	try {
+		const fields = $app.findCollectionByNameOrId('lobby_player_index').fields;
+		if (fields.getByName('session_id')) {
+			indexStatsFields = 'meta';
+		} else if (fields.getByName('steam_id')) {
+			indexStatsFields = 'stats';
+		} else {
+			indexStatsFields = 'none';
+		}
+	} catch {
+		indexStatsFields = 'none';
+	}
+
+	return indexStatsFields;
 }
 
 function queryAll(sql, bindings, shape) {
@@ -204,60 +148,101 @@ function queryAll(sql, bindings, shape) {
 	return rows;
 }
 
-function loadFromIndex(profileId, scope, userId) {
-	const bindings = { profileId, userId, limit: MATCH_CAP };
+function loadSteamIds(userId) {
+	if (!userId) {
+		return [];
+	}
+
+	try {
+		return require(`${__hooks}/lib/match-history.js`).loadUserSteamIds(userId);
+	} catch {
+		return [];
+	}
+}
+
+/** Inlines steam ids as bind params so SQLite can use the steam_id indexes. */
+function steamIdClause(steamIds, bindings) {
+	const placeholders = [];
+
+	for (let i = 0; i < steamIds.length; i++) {
+		const key = 'sid' + String(i);
+		bindings[key] = steamIds[i];
+		placeholders.push('{:' + key + '}');
+	}
+
+	return `i.steam_id IN (${placeholders.join(', ')})`;
+}
+
+/** Filters against the denormalized columns only, so `lobbies` stays untouched. */
+function metaFilters(scope, steamIds, bindings) {
+	const filters = ['i.counts = 1', 'i.session_id > 0', 'i.outcome IN (0, 1)'];
+
+	if (scope === 'community') {
+		filters.push('i.profile_id = {:profileId}');
+		return filters;
+	}
+
+	filters.push('i.lobby_user = {:userId}');
+	filters.push(
+		steamIds.length > 0 ? steamIdClause(steamIds, bindings) : 'i.profile_id = {:profileId}'
+	);
+
+	return filters;
+}
+
+function joinFilters(scope, steamIds, bindings) {
 	const filters = [
-		"l.needsResult = 0",
+		'l.needsResult = 0',
 		"l.title != 'Skirmish'",
-		'i.outcome IN (0, 1)',
-		"i.steam_id != ''"
+		'l.sessionId > 0',
+		'i.outcome IN (0, 1)'
 	];
 
 	if (scope === 'community') {
 		filters.push('i.profile_id = {:profileId}');
-	} else {
-		filters.push('l.user = {:userId}');
-		filters.push(`i.steam_id IN (
-			SELECT json_each.value
-			FROM json_each((SELECT steamIds FROM users WHERE id = {:userId}))
-		)`);
+		return filters;
 	}
 
-	return queryAll(
-		`SELECT
-			 l.id AS id,
-			 l.sessionId AS sessionId,
+	filters.push('l.user = {:userId}');
+	filters.push(
+		steamIds.length > 0 ? steamIdClause(steamIds, bindings) : 'i.profile_id = {:profileId}'
+	);
+
+	return filters;
+}
+
+/** One row per session, deduped for users with several linked steam accounts. */
+function metaMatchesSql(scope, steamIds, bindings) {
+	return `SELECT
+			 i.map AS map,
+			 i.outcome AS outcome,
+			 i.race_id AS raceId,
+			 i.matchtype_id AS matchtypeId,
+			 ROW_NUMBER() OVER (PARTITION BY i.session_id ORDER BY i.id) AS rn
+		 FROM lobby_player_index i
+		 WHERE ${metaFilters(scope, steamIds, bindings).join(' AND ')}`;
+}
+
+function joinMatchesSql(scope, steamIds, bindings) {
+	return `SELECT
 			 l.map AS map,
 			 i.outcome AS outcome,
 			 i.race_id AS raceId,
-			 i.matchtype_id AS matchtypeId
+			 i.matchtype_id AS matchtypeId,
+			 ROW_NUMBER() OVER (PARTITION BY l.sessionId ORDER BY i.id) AS rn
 		 FROM lobbies l
 		 INNER JOIN lobby_player_index i ON i.lobby = l.id
-		 WHERE ${filters.join(' AND ')}
-		 ORDER BY l.sessionId DESC
-		 LIMIT {:limit}`,
-		bindings,
-		{
-			id: '',
-			sessionId: 0,
-			map: '',
-			outcome: '',
-			raceId: '',
-			matchtypeId: ''
-		}
-	);
+		 WHERE ${joinFilters(scope, steamIds, bindings).join(' AND ')}`;
 }
 
-function loadFromResultJson(profileId, scope, userId) {
-	const bindings = { profileId, limit: MATCH_CAP };
-	const lobbyFilters = ["l.needsResult = 0", "l.title != 'Skirmish'"];
+function jsonMatchesSql(scope, profileId, bindings) {
+	const lobbyFilters = ['l.needsResult = 0', "l.title != 'Skirmish'", 'l.sessionId > 0'];
 	const playerClauses = ["CAST(json_extract(p.value, '$.profile_id') AS INTEGER) = {:profileId}"];
 
 	if (scope === 'community') {
 		bindings.csvNeedle = `%,${profileId},%`;
 		lobbyFilters.push('l.playerProfileIdsCsv LIKE {:csvNeedle}');
 	} else {
-		bindings.userId = userId;
 		lobbyFilters.push('l.user = {:userId}');
 		playerClauses.push(`json_extract(p.value, '$.steamId') IN (
 			SELECT json_each.value
@@ -269,53 +254,150 @@ function loadFromResultJson(profileId, scope, userId) {
 		)`);
 	}
 
-	return queryAll(
-		`SELECT
-			 l.id AS id,
-			 l.sessionId AS sessionId,
-			 l.map AS map,
-			 json_extract(p.value, '$.outcome') AS outcome,
-			 json_extract(p.value, '$.race_id') AS raceId,
-			 json_extract(l.result, '$.matchtype_id') AS matchtypeId
-		 FROM lobbies l,
-					json_each(
-						CASE
-							WHEN l.result IS NOT NULL AND l.result != ''
-									 AND json_valid(l.result)
-									 AND json_type(json_extract(l.result, '$.players')) = 'array'
-							THEN json_extract(l.result, '$.players')
-							ELSE '[]'
-						END
-					) AS p
-		 WHERE ${lobbyFilters.join(' AND ')}
-			 AND (${playerClauses.join(' OR ')})
-		 ORDER BY l.sessionId DESC
-		 LIMIT {:limit}`,
-		bindings,
-		{
-			id: '',
-			sessionId: 0,
-			map: '',
-			outcome: '',
-			raceId: '',
-			matchtypeId: ''
+	bindings.cap = JSON_FALLBACK_CAP;
+
+	return `SELECT
+			 s.map AS map,
+			 CAST(json_extract(p.value, '$.outcome') AS INTEGER) AS outcome,
+			 CAST(json_extract(p.value, '$.race_id') AS INTEGER) AS raceId,
+			 CAST(json_extract(s.result, '$.matchtype_id') AS INTEGER) AS matchtypeId,
+			 ROW_NUMBER() OVER (
+				 PARTITION BY s.sessionId
+				 ORDER BY json_extract(p.value, '$.outcome')
+			 ) AS rn
+		 FROM (
+			 SELECT l.sessionId, l.map, l.result
+			 FROM lobbies l
+			 WHERE ${lobbyFilters.join(' AND ')}
+			 ORDER BY l.sessionId DESC
+			 LIMIT {:cap}
+		 ) AS s,
+		 json_each(
+			 CASE
+				 WHEN s.result IS NOT NULL AND s.result != ''
+							AND json_valid(s.result)
+							AND json_type(json_extract(s.result, '$.players')) = 'array'
+				 THEN json_extract(s.result, '$.players')
+				 ELSE '[]'
+			 END
+		 ) AS p
+		 WHERE (${playerClauses.join(' OR ')})
+			 AND CAST(json_extract(p.value, '$.outcome') AS INTEGER) IN (0, 1)`;
+}
+
+/**
+ * Aggregates in SQLite instead of JS: returns ~30-50 grouped rows rather than
+ * one row per match, which is what made this endpoint slow (goja marshalling).
+ */
+function aggregateSql(matchesSql) {
+	const wins = 'SUM(CASE WHEN outcome = 1 THEN 1 ELSE 0 END)';
+	const losses = 'SUM(CASE WHEN outcome = 0 THEN 1 ELSE 0 END)';
+	const mapKey = "COALESCE(NULLIF(map, ''), 'Unknown')";
+
+	return `WITH
+		 raw AS (${matchesSql}),
+		 d AS (SELECT * FROM raw WHERE rn = 1)
+	 SELECT 'total' AS dim, '' AS groupKey,
+			COALESCE(${wins}, 0) AS wins,
+			COALESCE(${losses}, 0) AS losses
+		 FROM d
+	 UNION ALL
+	 SELECT 'map', ${mapKey}, ${wins}, ${losses}
+		 FROM d
+		 GROUP BY ${mapKey}
+	 UNION ALL
+	 SELECT 'race', CAST(raceId AS TEXT), ${wins}, ${losses}
+		 FROM d
+		 WHERE raceId IS NOT NULL AND raceId BETWEEN 0 AND 3
+		 GROUP BY raceId
+	 UNION ALL
+	 SELECT 'mode', CAST(matchtypeId AS TEXT), ${wins}, ${losses}
+		 FROM d
+		 WHERE matchtypeId IS NOT NULL
+		 GROUP BY matchtypeId`;
+}
+
+function mapAggregateRows(rows) {
+	const byMap = [];
+	const byFaction = [];
+	const byMode = [];
+	let wins = 0;
+	let losses = 0;
+
+	for (const row of rows) {
+		const rowWins = toNumber(row.wins) || 0;
+		const rowLosses = toNumber(row.losses) || 0;
+
+		if (row.dim === 'total') {
+			wins = rowWins;
+			losses = rowLosses;
+			continue;
 		}
-	);
+
+		if (row.dim === 'map') {
+			byMap.push({ map: row.groupKey || 'Unknown', wins: rowWins, losses: rowLosses });
+			continue;
+		}
+
+		if (row.dim === 'race') {
+			const raceId = toNumber(row.groupKey);
+			if (raceId != null) {
+				byFaction.push({ raceId, wins: rowWins, losses: rowLosses });
+			}
+			continue;
+		}
+
+		if (row.dim === 'mode') {
+			const matchtypeId = toNumber(row.groupKey);
+			if (matchtypeId != null) {
+				byMode.push({ matchtypeId, wins: rowWins, losses: rowLosses });
+			}
+		}
+	}
+
+	return {
+		matchCount: wins + losses,
+		wins,
+		losses,
+		recentMatches: [],
+		byMap: byMap.sort(sortByGames).slice(0, MAP_LIMIT),
+		byFaction: byFaction.sort(sortByGames),
+		byMode: byMode.sort(sortByMode)
+	};
+}
+
+function loadAggregates(profileId, scope, userId, steamIds) {
+	const bindings = { profileId, userId };
+	const capability = indexCapability();
+	let matchesSql;
+
+	if (capability === 'meta') {
+		matchesSql = metaMatchesSql(scope, steamIds, bindings);
+	} else if (capability === 'stats') {
+		matchesSql = joinMatchesSql(scope, steamIds, bindings);
+	} else {
+		matchesSql = jsonMatchesSql(scope, profileId, bindings);
+	}
+
+	return mapAggregateRows(queryAll(aggregateSql(matchesSql), bindings, AGGREGATE_SHAPE));
 }
 
 function rowsToRecentMatches(rows) {
 	const seen = new Set();
 	const recent = [];
+
 	for (let i = 0; i < rows.length; i++) {
 		const row = rows[i];
 		const sessionId = toNumber(row.sessionId);
 		const outcome = toNumber(row.outcome);
+
 		if (sessionId == null || sessionId <= 0 || seen.has(sessionId)) {
 			continue;
 		}
 		if (outcome !== 0 && outcome !== 1) {
 			continue;
 		}
+
 		seen.add(sessionId);
 		recent.push({
 			id: String(row.id || ''),
@@ -324,20 +406,42 @@ function rowsToRecentMatches(rows) {
 			raceId: toNumber(row.raceId),
 			matchtypeId: toNumber(row.matchtypeId)
 		});
+
+		if (recent.length >= FORM_LIMIT) {
+			break;
+		}
 	}
+
 	return recent;
 }
 
-function loadRecentMatches(profileId, scope, userId) {
-	const recentShape = {
-		id: '',
-		sessionId: 0,
-		outcome: '',
-		raceId: '',
-		matchtypeId: ''
-	};
+function loadRecentMatches(profileId, scope, userId, steamIds) {
+	const capability = indexCapability();
 
-	if (scope === 'community' && indexHasStatsFields()) {
+	if (capability === 'meta') {
+		const bindings = { profileId, userId, formLimit: FORM_LIMIT * 4 };
+
+		return rowsToRecentMatches(
+			queryAll(
+				`SELECT
+					 i.lobby AS id,
+					 i.session_id AS sessionId,
+					 i.outcome AS outcome,
+					 i.race_id AS raceId,
+					 i.matchtype_id AS matchtypeId
+				 FROM lobby_player_index i
+				 WHERE ${metaFilters(scope, steamIds, bindings).join(' AND ')}
+				 ORDER BY i.session_id DESC
+				 LIMIT {:formLimit}`,
+				bindings,
+				RECENT_SHAPE
+			)
+		);
+	}
+
+	if (capability === 'stats') {
+		const bindings = { profileId, userId, formLimit: FORM_LIMIT * 4 };
+
 		return rowsToRecentMatches(
 			queryAll(
 				`SELECT
@@ -346,35 +450,29 @@ function loadRecentMatches(profileId, scope, userId) {
 					 i.outcome AS outcome,
 					 i.race_id AS raceId,
 					 i.matchtype_id AS matchtypeId
-				 FROM lobby_player_index i
-				 INNER JOIN lobbies l ON l.id = i.lobby
-				 WHERE i.profile_id = {:profileId}
-					 AND l.needsResult = 0
-					 AND l.title != 'Skirmish'
-					 AND i.outcome IN (0, 1)
+				 FROM lobbies l
+				 INNER JOIN lobby_player_index i ON i.lobby = l.id
+				 WHERE ${joinFilters(scope, steamIds, bindings).join(' AND ')}
 				 ORDER BY l.sessionId DESC
 				 LIMIT {:formLimit}`,
-				{ profileId, formLimit: FORM_LIMIT },
-				recentShape
+				bindings,
+				RECENT_SHAPE
 			)
 		);
 	}
 
-	const bindings = { profileId, userId, lobbyLimit: 50, formLimit: FORM_LIMIT };
-	const playerClauses = ["CAST(json_extract(p.value, '$.profile_id') AS INTEGER) = {:profileId}"];
-	const lobbySql = `SELECT id, sessionId, result
-		 FROM lobbies
-		 WHERE needsResult = 0 AND title != 'Skirmish' AND user = {:userId}
-		 ORDER BY sessionId DESC
-		 LIMIT {:lobbyLimit}`;
-	playerClauses.push(`json_extract(p.value, '$.steamId') IN (
-		SELECT json_each.value
-		FROM json_each((SELECT steamIds FROM users WHERE id = {:userId}))
-	)`);
-	playerClauses.push(`json_extract(p.value, '$.name') IN (
-		SELECT '/steam/' || json_each.value
-		FROM json_each((SELECT steamIds FROM users WHERE id = {:userId}))
-	)`);
+	const bindings = { profileId, userId, lobbyLimit: 50, formLimit: FORM_LIMIT * 4 };
+	const playerClauses = [
+		"CAST(json_extract(p.value, '$.profile_id') AS INTEGER) = {:profileId}",
+		`json_extract(p.value, '$.steamId') IN (
+			SELECT json_each.value
+			FROM json_each((SELECT steamIds FROM users WHERE id = {:userId}))
+		)`,
+		`json_extract(p.value, '$.name') IN (
+			SELECT '/steam/' || json_each.value
+			FROM json_each((SELECT steamIds FROM users WHERE id = {:userId}))
+		)`
+	];
 
 	return rowsToRecentMatches(
 		queryAll(
@@ -385,7 +483,11 @@ function loadRecentMatches(profileId, scope, userId) {
 				 json_extract(p.value, '$.race_id') AS raceId,
 				 json_extract(l.result, '$.matchtype_id') AS matchtypeId
 			 FROM (
-				 ${lobbySql}
+				 SELECT id, sessionId, result
+				 FROM lobbies
+				 WHERE needsResult = 0 AND title != 'Skirmish' AND user = {:userId}
+				 ORDER BY sessionId DESC
+				 LIMIT {:lobbyLimit}
 			 ) AS l,
 			 json_each(
 				 CASE
@@ -401,34 +503,60 @@ function loadRecentMatches(profileId, scope, userId) {
 			 ORDER BY l.sessionId DESC
 			 LIMIT {:formLimit}`,
 			bindings,
-			recentShape
+			RECENT_SHAPE
 		)
 	);
 }
 
-function loadPlayerPerformance(profileId, scope, userId) {
+function loadPlayerPerformance(profileId, scope, userId, timings) {
 	const key = cacheKey(scope, userId, profileId);
 	const cached = getCachedPerformance(key);
+
 	if (cached) {
+		if (timings) {
+			timings.cache = 'hit';
+		}
 		return cached;
 	}
 
-	let data;
-	try {
-		data = aggregateRows(
-			indexHasStatsFields()
-				? loadFromIndex(profileId, scope, userId)
-				: loadFromResultJson(profileId, scope, userId)
-		);
-	} catch (error) {
-		console.warn('[player_performance] index query failed, using result json:', String(error?.message || error));
-		data = aggregateRows(loadFromResultJson(profileId, scope, userId));
+	if (timings) {
+		timings.cache = 'miss';
 	}
 
+	const steamIds = scope === 'user' ? loadSteamIds(userId) : [];
+	let startedAt = nowMs();
+	let data;
+
 	try {
-		data.recentMatches = loadRecentMatches(profileId, scope, userId);
+		data = loadAggregates(profileId, scope, userId, steamIds);
 	} catch (error) {
-		console.warn('[player_performance] recent matches failed:', String(error?.message || error));
+		console.warn(
+			'[player_performance] aggregate query failed, using result json:',
+			String(error?.message || error)
+		);
+		const bindings = { profileId, userId };
+		data = mapAggregateRows(
+			queryAll(aggregateSql(jsonMatchesSql(scope, profileId, bindings)), bindings, AGGREGATE_SHAPE)
+		);
+	}
+
+	if (timings) {
+		timings.aggregateMs = nowMs() - startedAt;
+	}
+
+	startedAt = nowMs();
+
+	try {
+		data.recentMatches = loadRecentMatches(profileId, scope, userId, steamIds);
+	} catch (error) {
+		console.warn(
+			'[player_performance] recent matches failed:',
+			String(error?.message || error)
+		);
+	}
+
+	if (timings) {
+		timings.recentMs = nowMs() - startedAt;
 	}
 
 	setCachedPerformance(key, data);

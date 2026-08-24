@@ -1,5 +1,4 @@
 <script lang="ts">
-	import * as Form from '$lib/components/ui/form';
 	import { Input, Selection, Checkbox } from '$lib/components/ui/input';
 	import type { ReplayList } from './replay-list.svelte';
 
@@ -12,50 +11,50 @@
 	let { list = $bindable(), mapsList, playersList }: Props = $props();
 </script>
 
-<Form.Root class="border-secondary-800 mb-4 border-b pb-4">
-	<Form.Group>
-		<Checkbox
-			label="Only ranked games"
-			bind:checked={list.filters.ranked.value}
-			bind:indeterminate={list.filters.ranked.indeterminate}
-		/>
-	</Form.Group>
-	<Form.Group>
-		<Checkbox
-			label="Only games with Victory Points"
-			bind:checked={list.filters.vp.value}
-			bind:indeterminate={list.filters.vp.indeterminate}
-		/>
-	</Form.Group>
-	<Form.Group>
-		<Checkbox
-			label="Only games with High Resources"
-			bind:checked={list.filters.highResources.value}
-			bind:indeterminate={list.filters.highResources.indeterminate}
-		/>
-	</Form.Group>
-	<Form.Group>
-		<Form.Label>Filter players</Form.Label>
-		<Selection
-			options={playersList}
-			placeholder="Select players..."
-			multiple
-			bind:value={list.filters.players}
-		/>
-	</Form.Group>
-	<div class="grid grid-cols-[250px_1fr] gap-4">
-		<Form.Group>
-			<Form.Label>Title</Form.Label>
-			<Input placeholder="Enter title" bind:value={list.filters.query} />
-		</Form.Group>
-		<Form.Group>
-			<Form.Label>Filter map(s)</Form.Label>
-			<Selection
-				options={mapsList}
-				placeholder="Select maps..."
-				multiple
-				bind:value={list.filters.maps}
+<div
+	class="border-secondary-800 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-b p-4"
+>
+	<div class="flex flex-col flex-wrap gap-4">
+		<div class="flex h-11 flex-wrap items-center gap-4">
+			<Checkbox
+				label="Ranked only"
+				bind:checked={list.filters.ranked.value}
+				bind:indeterminate={list.filters.ranked.indeterminate}
 			/>
-		</Form.Group>
+			<Checkbox
+				label="Victory Points"
+				bind:checked={list.filters.vp.value}
+				bind:indeterminate={list.filters.vp.indeterminate}
+			/>
+			<Checkbox
+				label="High Resources"
+				bind:checked={list.filters.highResources.value}
+				bind:indeterminate={list.filters.highResources.indeterminate}
+			/>
+		</div>
+		<div class="flex gap-4">
+			<div class="flex w-fit min-w-48 flex-col gap-1.5">
+				<span class="text-secondary-400 text-xs font-medium">Title</span>
+				<Input placeholder="Enter title" bind:value={list.filters.query} />
+			</div>
+			<div class="flex w-fit flex-col gap-1.5">
+				<span class="text-secondary-400 text-xs font-medium">Players</span>
+				<Selection
+					options={playersList}
+					placeholder="Select players"
+					multiple
+					bind:value={list.filters.players}
+				/>
+			</div>
+			<div class="flex w-fit flex-col gap-1.5">
+				<span class="text-secondary-400 text-xs font-medium">Maps</span>
+				<Selection
+					options={mapsList}
+					placeholder="Select maps"
+					multiple
+					bind:value={list.filters.maps}
+				/>
+			</div>
+		</div>
 	</div>
-</Form.Root>
+</div>

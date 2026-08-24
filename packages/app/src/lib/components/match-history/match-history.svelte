@@ -2,15 +2,14 @@
 	import type { LobbyPlayer, MatchHistoryPlayer, TransformedMatch } from '@fknoobs/app';
 	import type { Snippet } from 'svelte';
 	import dayjs from '$lib/dayjs';
-	import { interactive, surfacePanel } from '$lib/components/ui/variants';
-	import { cn, isSteamId, normalizeMapName } from '$lib/utils';
+	import { interactive } from '$lib/components/ui/variants';
+	import { cn, normalizeMapName } from '$lib/utils';
 	import * as Player from '$lib/components/player';
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import MapImage from '$lib/components/ui/map-image.svelte';
 	import { orderBy, sortBy } from 'lodash-es';
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
 	import Checks from 'phosphor-svelte/lib/ChecksIcon';
-	import { page } from '$app/state';
 	import { app } from '$core/app/context';
 	import { tooltip } from '$lib/attachments';
 	import { resource } from 'runed';
@@ -93,13 +92,6 @@
 		return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 	}
 
-	function isCurrentProfile(player: MatchHistoryPlayer): boolean {
-		const id = page.params.id;
-		if (!id) return false;
-		if (isSteamId(id)) return player.steamId === id;
-		return player.profile_id === parseInt(id, 10);
-	}
-
 	function toLobbyPlayer(player: MatchHistoryPlayer, index: number): LobbyPlayer {
 		return {
 			index,
@@ -122,11 +114,7 @@
 	}
 
 	function getPlayerRowClass(player: MatchHistoryPlayer) {
-		return cn(
-			'border-secondary-800 not-last:border-b',
-			player.outcome === 1 ? 'bg-success/5' : 'bg-destructive/5',
-			isCurrentProfile(player) && 'bg-primary/5'
-		);
+		return cn(player.outcome === 1 ? 'bg-success/5' : 'bg-destructive/5');
 	}
 </script>
 
@@ -142,12 +130,11 @@
 	<Player.RatingChange />
 {/snippet}
 {#snippet cell_player({ row }: { row: MatchHistoryPlayer })}
-	{@const isMe = isCurrentProfile(row)}
 	<span class="border-secondary-800 size-8 shrink-0 overflow-hidden rounded-lg border">
 		<Player.Avatar />
 	</span>
 	<Player.Country class="shrink-0" />
-	<Player.Alias class={cn('min-w-0 flex-1 truncate', isMe && 'text-primary font-semibold')} />
+	<Player.Alias class="min-w-0 flex-1 truncate" />
 {/snippet}
 {#snippet cell_wins({ row }: { row: MatchHistoryPlayer })}
 	<Player.Wins class="text-center font-medium tabular-nums" />
@@ -165,13 +152,13 @@
 {/snippet}
 
 {#if orderedMatches.length === 0}
-	<p class="text-secondary-400 text-sm">No recent matches found.</p>
+	<p class="text-secondary-400 px-4 py-3 text-sm">No recent matches found.</p>
 {:else}
-	<div class="grid gap-3">
+	<div>
 		{#each orderedMatches as match (match.id)}
 			{@const players = sortBy(match.players, ['teamid'])}
 			{@const savedId = savedBySession.current?.get(match.id)}
-			<article class={cn(surfacePanel, 'overflow-clip')}>
+			<section class="border-secondary-800 border-b">
 				<div class="border-secondary-800 flex items-center gap-4 border-b px-4 py-2">
 					<MapImage small map={match.mapname} alt={normalizeMapName(match.mapname)} />
 					<div class="min-w-0 grow">
@@ -223,7 +210,7 @@
 						streak: cell_streak
 					}}
 				/>
-			</article>
+			</section>
 		{/each}
 	</div>
 {/if}

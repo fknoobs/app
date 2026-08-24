@@ -4,12 +4,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Alert } from '$lib/components/ui/alert';
 	import { Input } from '$lib/components/ui/input';
-	import * as Form from '$lib/components/ui/form';
-	import { H } from '$lib/components/ui/h';
 	import { relic } from '$lib/relic';
 	import { steam } from '$core/steam';
 	import { goto } from '$app/navigation';
-	import { cn, isProfileId, isSteamId } from '$lib/utils';
+	import { isProfileId, isSteamId } from '$lib/utils';
 	import {
 		mergeSteamProfiles,
 		PlayersSearch,
@@ -69,38 +67,37 @@
 		capture: () => playersSearch.capture(),
 		restore: (state) => playersSearch.restore(state)
 	};
-
-	$inspect(playersSearch.results);
 </script>
 
-<H level="1">Players</H>
+<div class="border-secondary-800 border-b p-4">
+	<p class="text-secondary-400 mb-4 text-sm">
+		Search for a player by Steam ID, profile ID, or in-game name.
+	</p>
 
-<p class="text-secondary-300 mb-6">Search for a player by Steam ID, profile ID, or in-game name.</p>
-
-<Form.Root class="mb-4 flex max-w-xl items-end gap-3" onsubmit={search}>
-	<Form.Group class="mb-0 grow">
-		<Form.Label for="player-search">Search</Form.Label>
+	<form class="flex flex-wrap items-center gap-3" onsubmit={search}>
 		<Input
 			id="player-search"
 			type="text"
 			placeholder="Steam ID, profile ID, or player name"
-			class={cn('w-full grow')}
+			class="min-w-0 flex-1 sm:max-w-xl"
 			bind:value={playersSearch.query}
 			disabled={loading}
 		/>
-	</Form.Group>
-	<Button type="submit" {loading} disabled={!playersSearch.query.trim() || loading}>Search</Button>
-</Form.Root>
+		<Button type="submit" {loading} disabled={!playersSearch.query.trim() || loading}>Search</Button>
+	</form>
+</div>
 
 {#if playersSearch.error}
-	<Alert variant="destructive" class="mb-4">{playersSearch.error}</Alert>
+	<div class="border-secondary-800 border-b px-4 py-3">
+		<Alert variant="destructive">{playersSearch.error}</Alert>
+	</div>
 {/if}
 
 {#if playersSearch.results.length > 0}
-	<p class="text-secondary-300 mb-4">
+	<p class="text-secondary-400 border-secondary-800 border-b px-4 py-3 text-sm">
 		{playersSearch.results.length} player{playersSearch.results.length === 1 ? '' : 's'} found
 	</p>
-	<div class="grid grid-cols-1 gap-4">
+	<div>
 		{#each playersSearch.results as player (player.relic.profile_id)}
 			<Player.SearchCard {player} />
 		{/each}

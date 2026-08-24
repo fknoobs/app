@@ -9,6 +9,7 @@ import MatchDate from './match-date.svelte';
 import MatchTime from './match-time.svelte';
 import MatchStatus from './match-status.svelte';
 import MatchDuration from './match-duration.svelte';
+import MatchListTable from './match-list-table.svelte';
 
 export {
 	createMatch,
@@ -22,5 +23,7 @@ export {
 	MatchDate as Date,
 	MatchTime as Time,
 	MatchStatus as Status,
-	MatchDuration as Duration
+	MatchDuration as Duration,
+	MatchListTable as ListTable,
+	MatchListTable
 };

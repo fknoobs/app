@@ -1,11 +1,11 @@
 <script lang="ts">
 	import * as Profile from '$lib/components/ui/profile';
-	import * as List from '$lib/components/ui/list';
 	import { app } from '$core/app/context';
 	import { Alert } from '$lib/components/ui/alert';
 	import { Leaderboard } from '../leaderboard';
 	import { MatchHistory } from '../match-history';
-	import { PlayerPerformance } from '$lib/components/player-performance';
+	import { PlayerPerformance, PlayerPerformanceSummary } from '$lib/components/player-performance';
+	import * as List from '$lib/components/ui/list';
 	import { relic } from '$lib/relic';
 	import { steam } from '$core/steam';
 	import { cn } from '$lib/utils';
@@ -15,9 +15,11 @@
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import {
+		collectTodayMatchSteamIds,
 		countTodayRecord,
 		isMatchFromLocalToday,
-		todayPlayedMatchesFilter
+		matchIncludesSteamIds,
+		todayStartFilterValue
 	} from './dashboard-utils';
 	import { getPlayerRating } from '$core/pocketbase/player-ratings';
 	import { eloMapForSteamId, mergeEloMaps } from '$lib/utils/player-elo';
@@ -45,16 +47,18 @@
 
 	const profile = $derived(app.game.profile ?? resolvedProfile.current ?? null);
 	const profileId = $derived(profile?.relic.profile_id ?? null);
+	const todaySteamIds = $derived(collectTodayMatchSteamIds(app.features.auth.user.steamIds));
+	const userId = $derived(app.features.auth.userId ?? null);
 
 	const todayMatches = resource(
-		() => [profileId, app.features.auth.userId ?? null] as const,
-		async ([id, userId]) => {
-			if (!id && !userId) return [];
-			const items = await app.database.matches.getList({
-				filter: todayPlayedMatchesFilter(id, userId),
-				sort: '-createdAt'
-			});
-			return items.filter(isMatchFromLocalToday);
+		() => [userId, todaySteamIds.join(',')] as const,
+		async ([id, steamIdsKey]) => {
+			if (!id) return [];
+			const ids = steamIdsKey ? steamIdsKey.split(',').filter(Boolean) : [];
+			const items = await app.database.matches.getTodayMatches(id, todayStartFilterValue());
+			return items.filter(
+				(match) => isMatchFromLocalToday(match) && matchIncludesSteamIds(match, ids)
+			);
 		}
 	);
 
@@ -73,12 +77,12 @@
 	);
 
 	const todayRecord = $derived(
-		countTodayRecord(todayMatches.current ?? [], profileId ?? undefined)
+		countTodayRecord(todayMatches.current ?? [], profileId ?? undefined, todaySteamIds)
 	);
 
 	const storedRating = resource(
 		() => steamId,
-		(id) => (id ? getPlayerRating(id) : null)
+		async (id) => (id ? getPlayerRating(id) : null)
 	);
 	const playerElo = $derived(
 		mergeEloMaps(
@@ -106,16 +110,16 @@
 		<Profile.Root {profile}>
 			<div
 				class={cn(
-					'bg-secondary-950/40 border-secondary-900 overflow-clip rounded-lg border',
+					'border-secondary-900 overflow-clip border-b',
 					'hover:border-secondary-700 transition-colors'
 				)}
 			>
-				<div class="border-secondary-800 flex gap-5 border-b p-5">
+				<div class="border-secondary-800 flex gap-4 border-b p-4">
 					<img
 						src={profile.steam.avatarfull}
 						alt={profile.relic.alias}
 						class={cn(
-							'size-28 shrink-0 rounded-xl border-3 object-cover',
+							'size-40 shrink-0 rounded-xl border-3 object-cover sm:size-44',
 							app.lobby ? 'border-green-500' : 'border-gray-400'
 						)}
 					/>
@@ -150,17 +154,28 @@
 							{/if}
 						</div>
 
-						<List.Root>
-							<List.Title>Steam ID:</List.Title>
-							<List.Value><Profile.Steamid /></List.Value>
-							<List.Title>Created:</List.Title>
-							<List.Value><Profile.Created /></List.Value>
-						</List.Root>
+						<PlayerPerformanceSummary
+							profileId={profile.relic.profile_id}
+							scope="user"
+							userId={app.features.auth.userId}
+							empty="self"
+						>
+							{#snippet meta()}
+								<List.Title>Steam ID:</List.Title>
+								<List.Value>
+									<Profile.Steamid />
+								</List.Value>
+								<List.Title>Created:</List.Title>
+								<List.Value>
+									<Profile.Created />
+								</List.Value>
+							{/snippet}
+						</PlayerPerformanceSummary>
 					</div>
 				</div>
 
 				<div class="border-secondary-800 border-b">
-					<div class="flex items-center justify-between px-5 py-2.5">
+					<div class="flex items-center justify-between px-4 py-2.5">
 						<div class="flex items-center gap-2">
 							<button type="button" class={tabClass('stats')} onclick={() => openTab('stats')}>
 								Stats
@@ -210,19 +225,17 @@
 									class="rounded-none border-0"
 								/>
 							{:else if recentMatches.loading}
-								<div class="px-5 py-3">
+								<div class="px-4 py-3">
 									<Skeleton class="h-32 w-full" />
 								</div>
 							{:else}
-								<div class="px-5 py-3">
-									<MatchHistory matches={recentMatches.current ?? []} showSessionId />
-								</div>
+								<MatchHistory matches={recentMatches.current ?? []} showSessionId />
 							{/if}
 						</div>
 					{/if}
 				</div>
 
-				<div class="text-secondary-400 flex flex-wrap gap-x-5 gap-y-1 px-5 py-3 text-sm">
+				<div class="text-secondary-400 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm">
 					<span>
 						<span class="text-secondary-500">Today</span>
 						{todayRecord.total} matches

@@ -11,6 +11,7 @@ import { download } from '@tauri-apps/plugin-upload';
 import { Matches } from './matches.svelte';
 import { extractPlayerRatingSnapshotsFromLobby, type PlayerEloMap } from '$lib/utils/player-elo';
 import { ingestPlayerRatings } from '$core/pocketbase/player-ratings';
+import { toPersistablePlayers } from '$core/game/lobby-utils';
 
 const POLL_INITIAL_MS = 10_000;
 const POLL_MAX_MS = 60_000;
@@ -143,7 +144,7 @@ export class History extends Feature {
 				map: lobby.map || 'Unknown',
 				sessionId: lobby.sessionId,
 				needsResult: true,
-				players: lobby.players,
+				players: toPersistablePlayers(lobby.players),
 				replay: replayFile ?? undefined
 			});
 

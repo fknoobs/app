@@ -46,3 +46,8 @@ Before writing any UI markup, search `$lib/components` for an existing component
 - Recreate Button / Input / Dialog / Table / Badge styling with raw `<button>`, `<input>`, `<div>` + Tailwind
 - Duplicate domain UI (player row, match card, lobby controls) that already lives under `$lib/components`
 - Skip the search because “a quick custom div is faster”
+- Hand-roll match list tables — use **`Match.ListTable`** (`match-list-table.svelte`) for tabular match rows (dashboard “Matches played today”, performance map expand, etc.); extend via props (`showMap`, `showRating`, `footer`) instead of copying `<table>` markup
+
+## Match lists
+
+For rows of saved lobbies / match history in a table, use **`Match.ListTable`** from `$lib/components/match` with **`Match.*`** cell primitives (`MapImage`, `Title`, `Players`, `Duration`, `Rating`, `Status`). Do not build a second table with `DataTable` or raw `<table>` unless the layout is fundamentally different (e.g. full history page with pagination controls).

@@ -4,6 +4,7 @@
 	import { useLobby } from './context.svelte';
 	import { sortBy } from 'lodash-es';
 	import { cn } from '$lib/utils';
+	import { isMePlayer } from '$lib/utils/player-me';
 
 	let lobby = useLobby();
 </script>
@@ -19,7 +20,7 @@
 	<List.Value class="flex items-center gap-2">
 		{#each sortBy(lobby.players, 'team') as player}
 			<Player.Root {player}>
-				<Player.Faction class={cn(player.playerId === lobby.me?.playerId && 'ring-blue-500')} />
+				<Player.Faction class={cn(isMePlayer(player) && 'ring-primary')} />
 			</Player.Root>
 		{/each}
 	</List.Value>

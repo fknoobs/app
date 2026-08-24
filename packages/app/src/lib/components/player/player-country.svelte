@@ -1,34 +1,49 @@
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
-	import { upperCase } from 'lodash-es';
 	import { usePlayer } from '.';
 	import { cn } from '$lib/utils';
 	import { tooltip } from '$lib/attachments';
 
 	type Props = HTMLAttributes<HTMLImageElement>;
 
-	const { ...restProps }: Props = $props();
+	let { class: className, ...restProps }: Props = $props();
+	const { player } = $derived(usePlayer());
+
+	const regionCode = $derived.by(() => {
+		if (!player.profile?.country) {
+			return null;
+		}
+
+		const region = String(player.profile.country).trim().toUpperCase();
+		if (!/^[A-Z]{2}$/.test(region)) {
+			return null;
+		}
+
+		return region;
+	});
+
 	const countryName = $derived.by(() => {
-		if (!player.profile) {
+		if (!regionCode) {
 			return 'Unknown';
 		}
 
-		const region = String(player.profile.country).toUpperCase();
-
-		const dn = new Intl.DisplayNames(['en'], { type: 'region' });
-		const countryName = dn.of(region);
-
-		return countryName || 'Unknown';
+		try {
+			const dn = new Intl.DisplayNames(['en'], { type: 'region' });
+			return dn.of(regionCode) || 'Unknown';
+		} catch {
+			return 'Unknown';
+		}
 	});
-	const { player } = $derived(usePlayer());
 </script>
 
-{#if player.profile}
+{#if regionCode}
 	<div
-		class="ring-secondary-800 h-5 w-5 rounded-full bg-size-[48px] bg-center bg-no-repeat ring-4"
-		style="background-image: url('https://flagsapi.com/{upperCase(
-			player.profile.country
-		)}/flat/64.png');"
+		{...restProps}
+		class={cn(
+			'ring-secondary-800 h-5 w-5 rounded-full bg-size-[48px] bg-center bg-no-repeat ring-4',
+			className
+		)}
+		style="background-image: url('https://flagsapi.com/{regionCode}/flat/64.png');"
 		{@attach tooltip(countryName)}
 	></div>
 {/if}

@@ -1,9 +1,9 @@
 'use strict';
 
 const LOBBY_BACKFILL_BATCH_SIZE = 250;
-const LOBBY_BACKFILL_PAGE_KEY = 'lobby_players_backfill_page';
-const LOBBY_BACKFILL_COMPLETE_KEY = 'lobby_players_backfill_complete';
+const JOB_ID = 'lobby_players_backfill';
 const lobbyPlayers = require(`${__hooks}/lib/lobby-players.js`);
+const jobState = require(`${__hooks}/lib/job-state.js`);
 
 function parsePlayers(raw) {
 	if (Array.isArray(raw)) {
@@ -63,7 +63,7 @@ function parseLobbyPlayersField(raw) {
 }
 
 function isComplete() {
-	return $app.store().get(LOBBY_BACKFILL_COMPLETE_KEY) === true;
+	return jobState.isComplete(JOB_ID);
 }
 
 function backfillLobbyFromRow(row) {
@@ -100,7 +100,8 @@ function backfillLobbyFromRow(row) {
 	lobbyPlayers.syncLobbyPlayerIndex(
 		row.id,
 		ids.length > 0 ? ids : summaries.map((player) => player.profile_id),
-		row.result
+		row.result,
+		lobbyPlayers.lobbyMeta(row.sessionId, row.map, row.user, row.needsResult, row.title)
 	);
 
 	return {
@@ -110,10 +111,11 @@ function backfillLobbyFromRow(row) {
 }
 
 function runBatch() {
-	const page = Number($app.store().get(LOBBY_BACKFILL_PAGE_KEY) || 1);
+	const state = jobState.readState(JOB_ID);
+	const page = state.page;
 	const offset = (page - 1) * LOBBY_BACKFILL_BATCH_SIZE;
 
-	if (isComplete()) {
+	if (state.complete) {
 		return { processed: 0, updated: 0, indexed: 0, complete: true };
 	}
 
@@ -124,7 +126,12 @@ function runBatch() {
 			lobbyPlayers: '',
 			playerProfileIdsCsv: '',
 			replay: '',
-			result: ''
+			result: '',
+			sessionId: 0,
+			map: '',
+			user: '',
+			needsResult: false,
+			title: ''
 		})
 	);
 
@@ -137,7 +144,12 @@ function runBatch() {
 				COALESCE(lobbyPlayers, '') AS lobbyPlayers,
 				COALESCE(playerProfileIdsCsv, '') AS playerProfileIdsCsv,
 				COALESCE(replay, '') AS replay,
-				COALESCE(result, '') AS result
+				COALESCE(result, '') AS result,
+				COALESCE(sessionId, 0) AS sessionId,
+				COALESCE(map, '') AS map,
+				COALESCE(user, '') AS user,
+				COALESCE(needsResult, 0) AS needsResult,
+				COALESCE(title, '') AS title
 			FROM lobbies
 			ORDER BY createdAt ASC
 			LIMIT {:limit} OFFSET {:offset}`
@@ -146,7 +158,7 @@ function runBatch() {
 		.all(rows);
 
 	if (rows.length === 0) {
-		$app.store().set(LOBBY_BACKFILL_COMPLETE_KEY, true);
+		jobState.setComplete(JOB_ID, page);
 		return { processed: 0, updated: 0, indexed: 0, complete: true };
 	}
 
@@ -163,23 +175,21 @@ function runBatch() {
 		}
 	}
 
-	$app.store().set(LOBBY_BACKFILL_PAGE_KEY, page + 1);
-
 	if (rows.length < LOBBY_BACKFILL_BATCH_SIZE) {
-		$app.store().set(LOBBY_BACKFILL_COMPLETE_KEY, true);
+		jobState.setComplete(JOB_ID, page + 1);
 		return { processed: rows.length, updated, indexed, complete: true };
 	}
 
+	jobState.setPage(JOB_ID, page + 1);
 	return { processed: rows.length, updated, indexed, complete: false };
 }
 
 function reset() {
-	$app.store().set(LOBBY_BACKFILL_COMPLETE_KEY, false);
-	$app.store().set(LOBBY_BACKFILL_PAGE_KEY, 1);
+	jobState.reset(JOB_ID);
 }
 
 function getPage() {
-	return Number($app.store().get(LOBBY_BACKFILL_PAGE_KEY) || 1);
+	return jobState.getPage(JOB_ID);
 }
 
 module.exports = {

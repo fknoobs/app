@@ -9,9 +9,16 @@
 		loading?: boolean;
 		empty?: string;
 		class?: string;
+		striped?: boolean;
 	};
 
-	let { stats, loading = false, empty = 'No players found.', class: className }: Props = $props();
+	let {
+		stats,
+		loading = false,
+		empty = 'No players found.',
+		class: className,
+		striped = false
+	}: Props = $props();
 
 	const centeredHeader = 'flex w-full justify-center';
 	const centeredCell = 'flex w-full justify-center';
@@ -97,6 +104,7 @@
 	{columns}
 	{loading}
 	{empty}
+	{striped}
 	rowKey={(stat) => stat.profile.profile_id}
 	rowHref={(stat) => `/players/${stat.profile.profile_id}`}
 	tableLayout="auto"

@@ -1,20 +1,21 @@
 'use strict';
 
 const ratings = require(`${__hooks}/lib/player-ratings.js`);
+const jobState = require(`${__hooks}/lib/job-state.js`);
 
 const BACKFILL_BATCH_SIZE = 100;
-const BACKFILL_PAGE_KEY = 'player_ratings_backfill_page';
-const BACKFILL_COMPLETE_KEY = 'player_ratings_backfill_complete';
+const JOB_ID = 'player_ratings_backfill';
 
 function isComplete() {
-	return $app.store().get(BACKFILL_COMPLETE_KEY) === true;
+	return jobState.isComplete(JOB_ID);
 }
 
 function runBatch() {
-	const page = Number($app.store().get(BACKFILL_PAGE_KEY) || 1);
+	const state = jobState.readState(JOB_ID);
+	const page = state.page;
 	const offset = (page - 1) * BACKFILL_BATCH_SIZE;
 
-	if (isComplete()) {
+	if (state.complete) {
 		return { processed: 0, updated: 0, complete: true };
 	}
 
@@ -45,7 +46,7 @@ function runBatch() {
 		.all(rows);
 
 	if (rows.length === 0) {
-		$app.store().set(BACKFILL_COMPLETE_KEY, true);
+		jobState.setComplete(JOB_ID, page);
 		return { processed: 0, updated: 0, complete: true };
 	}
 
@@ -58,23 +59,21 @@ function runBatch() {
 		}
 	}
 
-	$app.store().set(BACKFILL_PAGE_KEY, page + 1);
-
 	if (rows.length < BACKFILL_BATCH_SIZE) {
-		$app.store().set(BACKFILL_COMPLETE_KEY, true);
+		jobState.setComplete(JOB_ID, page + 1);
 		return { processed: rows.length, updated, complete: true };
 	}
 
+	jobState.setPage(JOB_ID, page + 1);
 	return { processed: rows.length, updated, complete: false };
 }
 
 function reset() {
-	$app.store().set(BACKFILL_COMPLETE_KEY, false);
-	$app.store().set(BACKFILL_PAGE_KEY, 1);
+	jobState.reset(JOB_ID);
 }
 
 function getPage() {
-	return Number($app.store().get(BACKFILL_PAGE_KEY) || 1);
+	return jobState.getPage(JOB_ID);
 }
 
 module.exports = {

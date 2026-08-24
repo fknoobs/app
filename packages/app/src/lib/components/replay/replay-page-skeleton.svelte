@@ -1,29 +1,29 @@
-<script lang="ts">
-	import type { HTMLAttributes } from 'svelte/elements';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import ReplayTabsSkeleton from './replay-tabs-skeleton.svelte';
-	import { cn } from '$lib/utils';
-
-	type Props = {} & HTMLAttributes<HTMLDivElement>;
-
-	let { class: className, ...restProps }: Props = $props();
-</script>
-
-<div {...restProps} class={cn('flex grow flex-col gap-4', className)}>
-	<Skeleton class="mb-4 h-10 w-2/3" />
-
-	<div class="mb-4 grid grid-cols-[300px_auto] gap-8">
-		<Skeleton class="border-secondary-800 aspect-square rounded-lg border" />
-		<div class="flex flex-col gap-4 py-4">
-			<Skeleton class="h-8 w-1/2" />
-			{#each Array(5) as _, i (i)}
-				<div class="grid max-w-md grid-cols-2 gap-4">
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-full" />
-				</div>
-			{/each}
-		</div>
-	</div>
-
-	<ReplayTabsSkeleton showTitle={false} class="mt-0" />
-</div>
+<script lang="ts">
+	import type { HTMLAttributes } from 'svelte/elements';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import ReplayTabsSkeleton from './replay-tabs-skeleton.svelte';
+	import { cn } from '$lib/utils';
+	import { detailMetaGrid } from '$lib/components/ui/variants';
+
+	type Props = {} & HTMLAttributes<HTMLDivElement>;
+
+	let { class: className, ...restProps }: Props = $props();
+</script>
+
+<div {...restProps} class={cn('border-secondary-900 overflow-clip border-b', className)}>
+	<div class="border-secondary-800 grid grid-cols-1 gap-4 border-b p-4 sm:grid-cols-[minmax(200px,280px)_minmax(0,1fr)] sm:gap-6">
+		<Skeleton class="border-secondary-800 aspect-square rounded-lg border" />
+		<div class="min-w-0 py-1">
+			<Skeleton class="mb-3 h-9 w-2/3" />
+			<div class={detailMetaGrid}>
+				{#each Array(7) as _, index (index)}
+					<Skeleton class="h-4 w-20" />
+					<Skeleton class="h-4 w-36" />
+				{/each}
+			</div>
+		</div>
+	</div>
+
+	<ReplayTabsSkeleton flush showTitle={false} />
+</div>
+

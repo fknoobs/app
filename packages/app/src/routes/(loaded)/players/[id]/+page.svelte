@@ -1,23 +1,23 @@
 <script lang="ts">
-	import * as Tabs from '$lib/components/ui/tabs';
 	import dayjs from '$lib/dayjs';
 	import { Leaderboard } from '$lib/components/leaderboard';
 	import { page } from '$app/state';
 	import { steam } from '$core/steam';
-	import { H } from '$lib/components/ui/h';
 	import { relic } from '$lib/relic';
 	import { cn, isSteamId } from '$lib/utils';
 	import { resource } from 'runed';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { ButtonBack } from '$lib/components/ui/button';
+	import { SetCrumbs } from '$lib/components/ui/breadcrumb';
 	import { MatchHistory } from '$lib/components/match-history';
-	import { PlayerPerformance } from '$lib/components/player-performance';
+	import { PlayerPerformance, PlayerPerformanceSummary } from '$lib/components/player-performance';
 	import SmurfAlert from '$lib/components/player/smurf-alert.svelte';
 	import { loadSmurfAlert } from '$lib/player/smurf';
 	import { account } from '$core/account';
 	import { app } from '$core/app/context';
 	import { getPlayerRating } from '$core/pocketbase/player-ratings';
 	import { eloMapForSteamId, mergeEloMaps } from '$lib/utils/player-elo';
+	import { interactive } from '$lib/components/ui/variants';
+	import { upperCase } from 'lodash-es';
 	import type { Snapshot } from '@sveltejs/kit';
 
 	let currentTab = $state('stats');
@@ -77,106 +77,137 @@
 		);
 	});
 
+	function tabClass(tab: string) {
+		return cn(
+			interactive,
+			'rounded-md px-4 py-1.5 font-bold transition-colors',
+			currentTab === tab ? 'bg-primary text-secondary-950' : 'text-white hover:bg-secondary-950/50'
+		);
+	}
+
 	export const snapshot: Snapshot<string> = {
 		capture: () => currentTab,
 		restore: (tab) => (currentTab = tab)
 	};
 </script>
 
-<ButtonBack />
+<SetCrumbs items={[{ label: profile.current?.relic.alias ?? 'Player' }]} />
 
 {#if profile.loading}
-	<div class="border-b-3 border-gray-700 pb-8">
-		<div class="grid grid-cols-[220px_auto] gap-12">
-			<div>
-				<Skeleton class="size-50" />
-			</div>
-			<div class="py-4">
-				<Skeleton class="mb-6 h-12 w-1/3" />
-				<div>
-					<Skeleton class="mb-2 h-4 w-3/12" />
-					<Skeleton class="mb-2 h-4 w-2/12" />
-					<Skeleton class="mb-2 h-4 w-4/12" />
+	<div class="border-secondary-900 overflow-clip border-b">
+		<div class="border-secondary-800 flex gap-4 border-b p-4">
+			<Skeleton class="size-40 shrink-0 rounded-xl sm:size-44" />
+			<div class="min-w-0 grow py-1">
+				<Skeleton class="mb-3 h-9 w-48" />
+				<div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+					{#each Array(4) as _, index (index)}
+						<Skeleton class="h-4 w-20" />
+						<Skeleton class="h-4 w-36" />
+					{/each}
 				</div>
 			</div>
 		</div>
+		<Skeleton class="h-12 w-full rounded-none" />
+		<Skeleton class="h-64 w-full rounded-none" />
 	</div>
 {:else if profile.current}
-	<div class="space-y-12">
-		<div class="border-b-3 border-gray-700 pb-8">
-			<div class="grid grid-cols-[220px_auto] gap-12">
-				<img
-					src={profile.current.steam.avatarfull}
-					alt="Steam Avatar"
-					class={cn(
-						'w-full rounded-xl border-3 border-gray-400',
-						profile.current.steam.personastate > 0 && 'border-blue-400',
-						profile.current.steam.gameextrainfo?.trim() === 'Company of Heroes' &&
-							'border-green-500'
-					)}
-				/>
-				<div class="py-4">
-					<div class="mb-6 flex flex-wrap items-center gap-x-8 gap-y-1">
-						<H level="1" class="mb-0">{profile.current.relic.alias}</H>
-						<SmurfAlert smurf={profile.current.smurf} />
-					</div>
-					<div class="flex flex-col gap-0.5">
-						{#if profile.current.steam.timecreated}
-							<span class="text-secondary-300 grid grid-cols-[150px_auto]">
-								Account created:
-								<span>{dayjs.unix(profile.current.steam.timecreated).format('MMMM D, YYYY')}</span>
-							</span>
-						{/if}
-						{#if profile.current.steam.steamid}
-							<span class="text-secondary-300 grid grid-cols-[150px_auto]">
-								Steam ID:
-								<span>{profile.current.steam.steamid}</span>
-							</span>
-						{/if}
-						{#if profile.current.steam.lastlogoff}
-							<span class="text-secondary-300 grid grid-cols-[150px_auto]">
-								Last seen:
-								<span>{dayjs.unix(profile.current.steam.lastlogoff).fromNow()}</span>
-							</span>
-						{/if}
-						{#if profile.current.game?.playtime_forever}
-							<span class="text-secondary-300 grid grid-cols-[150px_auto]">
-								Total playtime:
-								<span>{(profile.current.game.playtime_forever / 60).toFixed(0)} hours</span>
-							</span>
-						{/if}
-						{#if profile.current.game?.playtime_2weeks}
-							<span class="text-secondary-300 grid grid-cols-[150px_auto]">
-								Past 2 weeks:
-								<span>{(profile.current.game.playtime_2weeks / 60).toFixed(0)} hours</span>
-							</span>
-						{/if}
-					</div>
+	<div class="border-secondary-900 overflow-clip border-b">
+		<div class="border-secondary-800 flex gap-4 border-b p-4">
+			<img
+				src={profile.current.steam.avatarfull}
+				alt={profile.current.relic.alias}
+				class={cn(
+					'size-40 shrink-0 rounded-xl border-3 object-cover sm:size-44',
+					profile.current.steam.personastate > 0 && 'border-blue-400',
+					profile.current.steam.gameextrainfo?.trim() === 'Company of Heroes'
+						? 'border-green-500'
+						: 'border-gray-400'
+				)}
+			/>
+
+			<div class="min-w-0 grow py-1">
+				<div class="mb-3 flex flex-wrap items-center gap-2.5">
+					{#if profile.current.relic.country}
+						<img
+							class="h-5 w-auto shrink-0 rounded-xs"
+							src="https://flagsapi.com/{upperCase(profile.current.relic.country)}/shiny/64.png"
+							alt={profile.current.relic.country}
+						/>
+					{/if}
+					<span class="font-heading truncate text-3xl font-bold">{profile.current.relic.alias}</span>
+					<SmurfAlert smurf={profile.current.smurf} />
 				</div>
+
+				<PlayerPerformanceSummary
+					profileId={profile.current.relic.profile_id}
+					scope={isSelf ? 'user' : 'community'}
+					userId={isSelf ? account.userId : undefined}
+					empty={isSelf ? 'self' : 'other'}
+				/>
 			</div>
 		</div>
-		<div>
-			<Tabs.Root value={currentTab} onValueChange={(val) => (currentTab = val)}>
-				<Tabs.List>
-					<Tabs.Trigger value="stats">Stats</Tabs.Trigger>
-					<Tabs.Trigger value="performance">Performance</Tabs.Trigger>
-					<Tabs.Trigger value="match-history">Match history</Tabs.Trigger>
-				</Tabs.List>
-				<Tabs.Content value="stats">
-					<Leaderboard stats={profile.current.relic.leaderboardStats!} elo={playerElo} />
-				</Tabs.Content>
-				<Tabs.Content value="performance">
+
+		<div class="border-secondary-800 border-b">
+			<div class="flex items-center gap-2 px-4 py-2.5">
+				<button type="button" class={tabClass('stats')} onclick={() => (currentTab = 'stats')}>
+					Stats
+				</button>
+				<button
+					type="button"
+					class={tabClass('performance')}
+					onclick={() => (currentTab = 'performance')}
+				>
+					Performance
+				</button>
+				<button
+					type="button"
+					class={tabClass('match-history')}
+					onclick={() => (currentTab = 'match-history')}
+				>
+					Match history
+				</button>
+			</div>
+
+			<div class="border-secondary-800 border-t">
+				{#if currentTab === 'stats'}
+					<Leaderboard
+						stats={profile.current.relic.leaderboardStats ?? []}
+						elo={playerElo}
+						class="rounded-none border-0"
+					/>
+				{:else if currentTab === 'performance'}
 					<PlayerPerformance
 						profileId={profile.current.relic.profile_id}
 						scope={isSelf ? 'user' : 'community'}
 						userId={isSelf ? account.userId : undefined}
 						empty={isSelf ? 'self' : 'other'}
+						class="rounded-none border-0"
 					/>
-				</Tabs.Content>
-				<Tabs.Content value="match-history">
+				{:else}
 					<MatchHistory matches={profile.current.matchHistory} showSessionId />
-				</Tabs.Content>
-			</Tabs.Root>
+				{/if}
+			</div>
+		</div>
+
+		<div class="text-secondary-400 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm">
+			{#if profile.current.steam.lastlogoff}
+				<span>
+					<span class="text-secondary-500">Last seen</span>
+					{dayjs.unix(profile.current.steam.lastlogoff).fromNow()}
+				</span>
+			{/if}
+			{#if profile.current.game?.playtime_forever}
+				<span>
+					<span class="text-secondary-500">Playtime</span>
+					{(profile.current.game.playtime_forever / 60).toFixed(0)} hours
+				</span>
+			{/if}
+			{#if profile.current.game?.playtime_2weeks}
+				<span>
+					<span class="text-secondary-500">Past 2 weeks</span>
+					{(profile.current.game.playtime_2weeks / 60).toFixed(0)} hours
+				</span>
+			{/if}
 		</div>
 	</div>
 {/if}

@@ -5,7 +5,7 @@
 $app.onServe().bindFunc((e) => {
 	e.next();
 
-	cronAdd('player_ratings_backfill', '*/5 * * * *', () => {
+	cronAdd('player_ratings_backfill', '1-59/5 * * * *', () => {
 		const backfill = require(`${__hooks}/lib/player-ratings-backfill.js`);
 		if (backfill.isComplete()) {
 			return;
@@ -17,7 +17,7 @@ $app.onServe().bindFunc((e) => {
 		);
 	});
 
-	cronAdd('player_ratings_harvest', '*/5 * * * *', () => {
+	cronAdd('player_ratings_harvest', '3-59/5 * * * *', () => {
 		const harvest = require(`${__hooks}/lib/player-ratings-harvest.js`);
 		const result = harvest.runBatch();
 		console.log(
@@ -25,7 +25,7 @@ $app.onServe().bindFunc((e) => {
 		);
 	});
 
-	cronAdd('player_ratings_lobby_fill', '*/5 * * * *', () => {
+	cronAdd('player_ratings_lobby_fill', '4-59/5 * * * *', () => {
 		const ratings = require(`${__hooks}/lib/player-ratings.js`);
 		const result = ratings.runLobbyFillBatch();
 		console.log(

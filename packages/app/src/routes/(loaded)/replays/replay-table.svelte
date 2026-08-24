@@ -141,17 +141,15 @@
 {/snippet}
 {#snippet tableFooter()}
 	{#if list.replays.length > 0 || !list.isLoading}
-		<div use:viewport>
-			<small>
-				{#if list.replays.length > 0}
-					Showing {list.replays.length} replays
-					{#if list.isLoading}
-						(loading...)
-					{/if}
-				{:else}
-					No replays found.
+		<div use:viewport class="text-secondary-400 text-sm">
+			{#if list.replays.length > 0}
+				Showing {list.replays.length} replays
+				{#if list.isLoading}
+					(loading...)
 				{/if}
-			</small>
+			{:else}
+				No replays found.
+			{/if}
 		</div>
 	{/if}
 {/snippet}

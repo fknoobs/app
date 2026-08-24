@@ -182,7 +182,7 @@ This starts PocketBase on `http://localhost:8090` and launches the Tauri dev win
 Copy `packages/app/.env.example` to `packages/app/.env` and set:
 
 ```env
-PUBLIC_PB_URL=http://localhost:8090
+PUBLIC_PB_URL=http://127.0.0.1:8090
 ```
 
 When `PUBLIC_PB_URL` is not set, the app falls back to the production API at `https://api.coh1stats.com`.

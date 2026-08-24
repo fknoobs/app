@@ -8,7 +8,6 @@
 	import { goto } from '$app/navigation';
 	import { app } from '$core/app/context';
 	import { liveLobbyToLobbyData } from '$core/game/lobby-utils';
-	import { ButtonBack } from '$lib/components/ui/button';
 	import CurrentGameView from '$lib/components/widgets/current-game-view.svelte';
 	import { resource, watch } from 'runed';
 
@@ -72,11 +71,9 @@
 	});
 </script>
 
-<ButtonBack href="/">Back to Dashboard</ButtonBack>
-
 {#key match}
 	{#if match}
-		<div class="mt-4">
+		<div class="px-5 py-4">
 			<CurrentGameView lobby={match} />
 		</div>
 	{/if}

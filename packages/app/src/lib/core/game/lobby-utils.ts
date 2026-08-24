@@ -19,6 +19,17 @@ export function liveLobbyToMatch(record: LiveLobbyRecord): Match {
 	return instance.toJSON();
 }
 
+/**
+ * Strips the per-player payloads that are only needed while a lobby is live.
+ * `matchHistory` embeds every opponent's recent matches, which made a stored
+ * lobby row roughly 438 KB and turned any query over `lobbies` into a
+ * multi-second table scan. Consumers re-fetch these from Relic / the ratings
+ * API when they need them.
+ */
+export function toPersistablePlayers(players: LobbyPlayer[]): LobbyPlayer[] {
+	return players.map(({ matchHistory, storedElo, ...player }) => player);
+}
+
 function resolveMe(players: LobbyPlayer[], steamIds?: string[] | null) {
 	if (!steamIds?.length) return undefined;
 	const me = players.find((player) => player.steamId && steamIds.includes(player.steamId));

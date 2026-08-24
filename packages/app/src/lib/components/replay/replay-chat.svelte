@@ -7,17 +7,23 @@
 	import { translateText } from '$lib/translate';
 	import { app } from '$core/app/context';
 	import { Button } from '$lib/components/ui/button';
-	import { controlBase, controlDisabled } from '$lib/components/ui/variants';
+	import { controlBase, controlDisabled, mePlayerText } from '$lib/components/ui/variants';
+	import { isMeReplayAlias } from '$lib/utils/player-me';
 	import ArrowBendDownLeft from 'phosphor-svelte/lib/ArrowBendDownLeftIcon';
 	import ArrowBendUpRight from 'phosphor-svelte/lib/ArrowBendUpRightIcon';
 
-	type Props = {} & HTMLAttributes<HTMLDivElement>;
+	type Props = {} & HTMLAttributes<HTMLDivElement> & {
+		flush?: boolean;
+	};
 
-	let { ...restProps }: Props = $props();
+	let { flush = false, ...restProps }: Props = $props();
 	let replay = $derived(useReplay());
 	let targetLanguage = $state('en');
 	let translatedContents = $state<Map<string, string> | null>(null);
 	let translating = $state(false);
+
+	const messageRow =
+		'grid grid-cols-[4.5rem_minmax(0,auto)_1fr] items-start gap-x-3 gap-y-0.5 px-4 py-2.5';
 
 	function messageKey(message: Message, index: number) {
 		return `${message.playerID}-${index}`;
@@ -52,6 +58,21 @@
 		}
 	}
 
+	function messageTone(message: Message) {
+		if (message.sender === 'System') return 'text-secondary-400';
+		if (isMeReplayAlias(message.sender)) return mePlayerText;
+		if (message.recipient === 0) return 'text-primary';
+		if (message.recipient === 3 || message.recipient === 4) return 'text-primary-50';
+
+		const isAllies =
+			(replay.playerCount === 8 && message.playerID < 1004) ||
+			(replay.playerCount === 6 && message.playerID < 1003) ||
+			(replay.playerCount === 4 && message.playerID < 1002) ||
+			(replay.playerCount === 2 && message.playerID < 1001);
+
+		return isAllies ? 'text-blue-400' : 'text-red-400';
+	}
+
 	watch(
 		() => replay.messages,
 		() => {
@@ -65,38 +86,43 @@
 	{@const displayContent = translatedContents?.get(key) ?? message.content}
 	<div
 		class={cn(
-			'grid grid-cols-[4rem_auto_1fr] items-center gap-2',
-			message.sender === 'System' && 'text-secondary-400!',
-			replay.playerCount === 8 && (message.playerID < 1004 ? 'text-blue-400' : 'text-red-400'),
-			replay.playerCount === 6 && (message.playerID < 1003 ? 'text-blue-400' : 'text-red-400'),
-			replay.playerCount === 4 && (message.playerID < 1002 ? 'text-blue-400' : 'text-red-400'),
-			replay.playerCount === 2 && (message.playerID < 1001 ? 'text-blue-400' : 'text-red-400'),
-			message.recipient === 0 && 'text-primary!',
-			(message.recipient === 3 || message.recipient === 4) && 'text-primary-50'
+			messageRow,
+			flush ? 'border-secondary-800 border-b last:border-b-0' : 'rounded-md',
+			messageTone(message)
 		)}
 	>
-		<span class="text-sm text-gray-200">{message.timestamp}</span>
-		<span class="flex items-center gap-2">
+		<span class="text-secondary-500 pt-0.5 text-xs tabular-nums">{message.timestamp}</span>
+		<span class="flex shrink-0 items-center gap-1.5 pt-0.5 font-semibold whitespace-nowrap">
 			{#if message.recipient === 3}
-				<ArrowBendDownLeft />
+				<ArrowBendDownLeft class="size-3.5 shrink-0" />
 			{:else if message.recipient === 4}
-				<ArrowBendUpRight />
+				<ArrowBendUpRight class="size-3.5 shrink-0" />
 			{/if}
 			{message.sender}:
 		</span>
-		<span>{displayContent}</span>
+		<span class="text-secondary-200 min-w-0 pt-0.5 wrap-break-word">{displayContent}</span>
 	</div>
 {/snippet}
 
-<div {...restProps} class={cn('flex flex-col gap-2', restProps.class)}>
-	<div class="flex items-center gap-2">
+<div
+	{...restProps}
+	class={cn('flex flex-col', flush ? '' : 'gap-2', restProps.class)}
+>
+	<div
+		class={cn(
+			'flex items-center gap-2',
+			flush
+				? 'border-secondary-800 border-b px-4 py-2.5'
+				: 'border-secondary-800 bg-secondary-950/40 rounded-lg border px-4 py-3'
+		)}
+	>
 		<input
 			type="text"
 			placeholder="en"
 			aria-label="Target language"
 			bind:value={targetLanguage}
 			disabled={translating}
-			class={cn(controlBase, 'h-8 w-16 shrink-0 px-2 text-center text-sm', controlDisabled)}
+			class={cn(controlBase, 'h-9 w-16 shrink-0 px-2 text-center text-sm', controlDisabled)}
 		/>
 		<Button
 			size="sm"
@@ -112,14 +138,17 @@
 			</Button>
 		{/if}
 	</div>
+
 	<div
 		class={cn(
-			'border-secondary-800 border',
-			'bg-secondary-950/40 flex max-h-[500px] flex-col gap-1 overflow-auto rounded-xl px-6 py-4'
+			'flex flex-col',
+			flush
+				? 'bg-secondary-950/50 max-h-128 overflow-auto'
+				: 'border-secondary-800 bg-secondary-950/40 max-h-125 overflow-auto rounded-xl border px-2 py-2'
 		)}
 	>
 		{#if replay.messages.length === 0}
-			<span>No messages</span>
+			<p class="text-secondary-400 px-4 py-3 text-sm">No messages</p>
 		{/if}
 		{#each replay.messages as m, i (m.playerID + '-' + i)}
 			{@render message(m, i)}

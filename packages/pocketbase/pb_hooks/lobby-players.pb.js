@@ -23,6 +23,8 @@ onRecordAfterUpdateSuccess((e) => {
 $app.onServe().bindFunc((e) => {
 	e.next();
 
+	// Staggered across the five-minute window: these all write to `lobbies` /
+	// `lobby_player_index`, so running them in the same minute starved reads.
 	cronAdd('lobby_players_backfill', '*/5 * * * *', () => {
 		const backfill = require(`${__hooks}/lib/lobby-players-backfill.js`);
 		if (backfill.isComplete()) {

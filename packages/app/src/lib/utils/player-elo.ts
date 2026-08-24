@@ -210,16 +210,30 @@ export function extractPlayerRatingSnapshotsFromLobby(
 	return extractPlayerRatingSnapshots(matches);
 }
 
-function keyedEntries(value: unknown): [string, unknown][] {
+function normalizeKeyedContainer(value: unknown): Record<string, unknown> {
+	if (value == null) {
+		return {};
+	}
+
 	if (Array.isArray(value)) {
-		return value.map((item, index) => [String(index), item]);
+		const obj: Record<string, unknown> = {};
+		for (let i = 0; i < value.length; i++) {
+			if (value[i] != null) {
+				obj[String(i)] = value[i];
+			}
+		}
+		return obj;
 	}
 
-	if (value && typeof value === 'object') {
-		return Object.entries(value as Record<string, unknown>);
+	if (typeof value === 'object') {
+		return value as Record<string, unknown>;
 	}
 
-	return [];
+	return {};
+}
+
+function keyedEntries(value: unknown): [string, unknown][] {
+	return Object.entries(normalizeKeyedContainer(value));
 }
 
 function asEloSlot(value: unknown): PlayerEloSlot | null {

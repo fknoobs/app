@@ -2,8 +2,8 @@
 
 const SMURF_COLLECTION = 'smurf_watch';
 const SMURF_BACKFILL_BATCH_SIZE = 50;
-const SMURF_BACKFILL_PAGE_KEY = 'smurf_watch_backfill_page';
-const SMURF_BACKFILL_COMPLETE_KEY = 'smurf_watch_backfill_complete';
+const JOB_ID = 'smurf_watch_backfill';
+const jobState = require(`${__hooks}/lib/job-state.js`);
 const SOURCE_PRIORITY = {
 	lobby_live: 100,
 	profile: 75,
@@ -151,7 +151,7 @@ function parseLobbyPlayersFromRow(row) {
 }
 
 function isComplete() {
-	return $app.store().get(SMURF_BACKFILL_COMPLETE_KEY) === true;
+	return jobState.isComplete(JOB_ID);
 }
 
 function runBatch() {
@@ -161,11 +161,12 @@ function runBatch() {
 		return { processed: 0, enqueued: 0, complete: true };
 	}
 
-	if (isComplete()) {
+	const state = jobState.readState(JOB_ID);
+	if (state.complete) {
 		return { processed: 0, enqueued: 0, complete: true };
 	}
 
-	const page = Number($app.store().get(SMURF_BACKFILL_PAGE_KEY) || 1);
+	const page = state.page;
 	const offset = (page - 1) * SMURF_BACKFILL_BATCH_SIZE;
 
 	const rows = arrayOf(
@@ -191,7 +192,7 @@ function runBatch() {
 		.all(rows);
 
 	if (rows.length === 0) {
-		$app.store().set(SMURF_BACKFILL_COMPLETE_KEY, true);
+		jobState.setComplete(JOB_ID, page);
 		return { processed: 0, enqueued: 0, complete: true };
 	}
 
@@ -204,23 +205,21 @@ function runBatch() {
 		enqueued += before;
 	}
 
-	$app.store().set(SMURF_BACKFILL_PAGE_KEY, page + 1);
-
 	if (rows.length < SMURF_BACKFILL_BATCH_SIZE) {
-		$app.store().set(SMURF_BACKFILL_COMPLETE_KEY, true);
+		jobState.setComplete(JOB_ID, page + 1);
 		return { processed: rows.length, enqueued, complete: true };
 	}
 
+	jobState.setPage(JOB_ID, page + 1);
 	return { processed: rows.length, enqueued, complete: false };
 }
 
 function reset() {
-	$app.store().set(SMURF_BACKFILL_COMPLETE_KEY, false);
-	$app.store().set(SMURF_BACKFILL_PAGE_KEY, 1);
+	jobState.reset(JOB_ID);
 }
 
 function getPage() {
-	return Number($app.store().get(SMURF_BACKFILL_PAGE_KEY) || 1);
+	return jobState.getPage(JOB_ID);
 }
 
 module.exports = {

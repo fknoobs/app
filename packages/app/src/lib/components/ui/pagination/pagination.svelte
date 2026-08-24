@@ -46,7 +46,7 @@
 
 <Pagination.Root {...restProps} {count} {perPage} bind:page>
 	{#snippet children({ pages })}
-		<div class="my-4 flex items-center gap-2">
+		<div class="flex items-center gap-2">
 			<Pagination.PrevButton
 				class={cn(
 					interactive,

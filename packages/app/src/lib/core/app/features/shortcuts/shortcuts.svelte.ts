@@ -179,14 +179,23 @@ function normalizeSettings(settings: ShortcutSettings) {
 	}
 }
 
+type RecordingSession = {
+	handler: (e: KeyboardEvent) => void;
+	timeout: ReturnType<typeof setTimeout>;
+	previousKeys: string[];
+};
+
 export class Shortcuts extends Feature<ShortcutSettings> {
 	name = 'shortcuts';
+
+	/** Bumped whenever recording UI state changes so nested shortcut rows re-render. */
+	recordingTick = $state(0);
 
 	handlers = new Map<
 		Shortcut,
 		{
-			trigger?: { handler: (e: KeyboardEvent) => void; timeout: ReturnType<typeof setTimeout> };
-			action?: { handler: (e: KeyboardEvent) => void; timeout: ReturnType<typeof setTimeout> };
+			trigger?: RecordingSession;
+			action?: RecordingSession;
 		}
 	>();
 
@@ -448,18 +457,184 @@ export class Shortcuts extends Feature<ShortcutSettings> {
 
 	stopAllRecording() {
 		for (const shortcut of [...this.handlers.keys()]) {
-			this.stopRecording(shortcut);
+			this.cancelRecording(shortcut, 'trigger');
+			this.cancelRecording(shortcut, 'action');
 		}
 		this.handlers.clear();
+		this.bumpRecording();
 	}
 
 	stopRecording(keybinding: Shortcut) {
 		if (keybinding.isRecordingTriggerKeys) {
-			this.record(keybinding, 'trigger');
+			this.commitRecording(keybinding, 'trigger');
 		}
 		if (keybinding.isRecordingActionKeys) {
-			this.record(keybinding, 'action');
+			this.commitRecording(keybinding, 'action');
 		}
+	}
+
+	private bumpRecording() {
+		this.recordingTick++;
+	}
+
+	private clearRecordingSession(keybinding: Shortcut, type: 'trigger' | 'action') {
+		const entry = this.handlers.get(keybinding);
+		const session = entry?.[type];
+		if (!session) {
+			return;
+		}
+
+		document.removeEventListener('keydown', session.handler);
+		clearTimeout(session.timeout);
+		delete entry![type];
+
+		if (type === 'trigger') {
+			keybinding.isRecordingTriggerKeys = false;
+		} else {
+			keybinding.isRecordingActionKeys = false;
+		}
+	}
+
+	commitRecording(keybinding: Shortcut, type: 'trigger' | 'action') {
+		if (type === 'trigger' ? !keybinding.isRecordingTriggerKeys : !keybinding.isRecordingActionKeys) {
+			return;
+		}
+
+		this.clearRecordingSession(keybinding, type);
+		this.bumpRecording();
+	}
+
+	cancelRecording(keybinding: Shortcut, type: 'trigger' | 'action') {
+		const entry = this.handlers.get(keybinding);
+		const session = entry?.[type];
+		if (!session) {
+			return;
+		}
+
+		if (type === 'trigger') {
+			keybinding.triggerKeys = [...session.previousKeys];
+		} else {
+			keybinding.actionKeys = [...session.previousKeys];
+		}
+
+		this.clearRecordingSession(keybinding, type);
+		this.bumpRecording();
+	}
+
+	isRecording(keybinding: Shortcut, type: 'trigger' | 'action') {
+		void this.recordingTick;
+		return type === 'trigger'
+			? Boolean(keybinding.isRecordingTriggerKeys)
+			: Boolean(keybinding.isRecordingActionKeys);
+	}
+
+	record(keybinding: Shortcut, type: 'trigger' | 'action') {
+		if (this.isRecording(keybinding, type)) {
+			this.commitRecording(keybinding, type);
+			return;
+		}
+
+		for (const shortcut of [...this.handlers.keys()]) {
+			if (shortcut.isRecordingTriggerKeys) {
+				this.commitRecording(shortcut, 'trigger');
+			}
+			if (shortcut.isRecordingActionKeys) {
+				this.commitRecording(shortcut, 'action');
+			}
+		}
+
+		let entry = this.handlers.get(keybinding);
+		if (!entry) {
+			entry = {};
+			this.handlers.set(keybinding, entry);
+		}
+
+		const previousKeys = [
+			...(type === 'trigger' ? keybinding.triggerKeys : keybinding.actionKeys)
+		];
+
+		const commit = () => {
+			this.commitRecording(keybinding, type);
+		};
+
+		const getShortcutKey = (event: KeyboardEvent) => {
+			const { key, code } = event;
+
+			if (key === 'CapsLock') return null;
+			if (key === 'Control') return 'CommandOrControl';
+			if (key === 'Shift') return 'Shift';
+			if (key === 'Alt') return 'Alt';
+			if (key === 'Meta') return 'Super';
+			if (key === ' ') return 'Space';
+
+			if (code.startsWith('Key')) return code;
+			if (code.startsWith('Digit')) return code;
+			if (code.startsWith('Numpad')) return code;
+
+			const punctuationMap: Record<string, string> = {
+				Backquote: '`',
+				Minus: '-',
+				Equal: '=',
+				BracketLeft: '[',
+				BracketRight: ']',
+				Backslash: '\\',
+				Semicolon: ';',
+				Quote: "'",
+				Comma: ',',
+				Period: '.',
+				Slash: '/'
+			};
+
+			if (code in punctuationMap) return punctuationMap[code];
+
+			return key;
+		};
+
+		const handleKeydown = (event: KeyboardEvent) => {
+			if (event.key === 'Escape') {
+				event.preventDefault();
+				this.cancelRecording(keybinding, type);
+				return;
+			}
+
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				this.commitRecording(keybinding, type);
+				return;
+			}
+
+			event.preventDefault();
+			const key = getShortcutKey(event);
+
+			if (!key) return;
+
+			const targetArray = type === 'trigger' ? keybinding.triggerKeys : keybinding.actionKeys;
+			if (!targetArray.includes(key)) {
+				targetArray.push(key);
+			}
+
+			const active = entry?.[type];
+			if (active) {
+				clearTimeout(active.timeout);
+				active.timeout = setTimeout(commit, 4000);
+			}
+
+			this.bumpRecording();
+		};
+
+		const timeout = setTimeout(commit, 4000);
+		entry[type] = { handler: handleKeydown, timeout, previousKeys };
+		document.addEventListener('keydown', handleKeydown);
+
+		if (type === 'trigger') {
+			keybinding.triggerKeys = [];
+			keybinding.isRecordingTriggerKeys = true;
+		} else {
+			keybinding.actionKeys = [];
+			keybinding.isRecordingActionKeys = true;
+		}
+
+		this.bumpRecording();
 	}
 
 	async validateSettings(settings: Partial<ShortcutSettings>): Promise<ShortcutSettings> {
@@ -487,103 +662,6 @@ export class Shortcuts extends Feature<ShortcutSettings> {
 		}
 
 		this.registeredTriggers.clear();
-	}
-
-	record(keybinding: Shortcut, type: 'trigger' | 'action') {
-		let entry = this.handlers.get(keybinding);
-		if (!entry) {
-			entry = {};
-			this.handlers.set(keybinding, entry);
-		}
-
-		const isRecording =
-			type === 'trigger' ? keybinding.isRecordingTriggerKeys : keybinding.isRecordingActionKeys;
-
-		if (isRecording) {
-			const recordEntry = entry[type];
-			if (recordEntry) {
-				document.removeEventListener('keydown', recordEntry.handler);
-				clearTimeout(recordEntry.timeout);
-				delete entry[type];
-			}
-
-			if (type === 'trigger') {
-				keybinding.isRecordingTriggerKeys = false;
-			} else {
-				keybinding.isRecordingActionKeys = false;
-			}
-		} else {
-			for (const [s] of this.handlers) {
-				if (s.isRecordingTriggerKeys) this.record(s, 'trigger');
-				if (s.isRecordingActionKeys) this.record(s, 'action');
-			}
-
-			const stopRecording = () => {
-				this.record(keybinding, type);
-			};
-
-			const getShortcutKey = (event: KeyboardEvent) => {
-				const { key, code } = event;
-
-				if (key === 'CapsLock') return null;
-				if (key === 'Control') return 'CommandOrControl';
-				if (key === 'Shift') return 'Shift';
-				if (key === 'Alt') return 'Alt';
-				if (key === 'Meta') return 'Super';
-				if (key === ' ') return 'Space';
-
-				if (code.startsWith('Key')) return code;
-				if (code.startsWith('Digit')) return code;
-				if (code.startsWith('Numpad')) return code;
-
-				const punctuationMap: Record<string, string> = {
-					Backquote: '`',
-					Minus: '-',
-					Equal: '=',
-					BracketLeft: '[',
-					BracketRight: ']',
-					Backslash: '\\',
-					Semicolon: ';',
-					Quote: "'",
-					Comma: ',',
-					Period: '.',
-					Slash: '/'
-				};
-
-				if (code in punctuationMap) return punctuationMap[code];
-
-				return key;
-			};
-
-			const handleKeydown = (event: KeyboardEvent) => {
-				event.preventDefault();
-				const key = getShortcutKey(event);
-
-				if (!key) return;
-
-				const targetArray = type === 'trigger' ? keybinding.triggerKeys : keybinding.actionKeys;
-				if (!targetArray.includes(key)) {
-					targetArray.push(key);
-				}
-
-				if (entry && entry[type]) {
-					clearTimeout(entry[type]!.timeout);
-					entry[type]!.timeout = setTimeout(stopRecording, 4000);
-				}
-			};
-
-			const timeout = setTimeout(stopRecording, 4000);
-			entry[type] = { handler: handleKeydown, timeout };
-			document.addEventListener('keydown', handleKeydown);
-
-			if (type === 'trigger') {
-				keybinding.triggerKeys = [];
-				keybinding.isRecordingTriggerKeys = true;
-			} else {
-				keybinding.actionKeys = [];
-				keybinding.isRecordingActionKeys = true;
-			}
-		}
 	}
 
 	defaultSettings() {

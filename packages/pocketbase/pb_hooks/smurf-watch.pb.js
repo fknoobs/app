@@ -5,7 +5,7 @@
 $app.onServe().bindFunc((e) => {
 	e.next();
 
-	cronAdd('smurf_watch_backfill', '*/5 * * * *', () => {
+	cronAdd('smurf_watch_backfill', '2-59/5 * * * *', () => {
 		const backfill = require(`${__hooks}/lib/smurf-watch-backfill.js`);
 		if (backfill.isComplete()) {
 			return;

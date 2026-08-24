@@ -39,6 +39,11 @@ export const menuItem =
 
 export const interactive = 'cursor-pointer disabled:cursor-not-allowed';
 
+export const mePlayerText = 'text-primary font-semibold';
+
+export const detailMetaGrid =
+	'grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-1 sm:grid-cols-[auto_1fr_auto_1fr] sm:gap-x-6';
+
 export const statWins = 'text-green-100 tabular-nums';
 export const statLosses = 'text-red-100 tabular-nums';
 export const statStreakPositive = 'text-green-300 tabular-nums';

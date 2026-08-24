@@ -4,8 +4,11 @@
 	import * as Player from '$lib/components/player';
 	import { cn } from '$lib/utils';
 	import { getLeaderboardStatsForPlayerByMatchType } from '$lib/utils/game';
-	import { sortBy } from 'lodash-es';
-	import { getPlayerProfileId } from './dashboard-utils';
+	import {
+		getPlayerProfileId,
+		getPlayerRowKey,
+		orderLobbyPlayersByTeam
+	} from './dashboard-utils';
 
 	type Props = {
 		players: LobbyPlayer[];
@@ -16,7 +19,7 @@
 
 	let { players, matchType, highlightPlayerId, result = null }: Props = $props();
 
-	const orderedPlayers = $derived(sortBy(players, ['team', 'index']));
+	const orderedPlayers = $derived(orderLobbyPlayersByTeam(players, result));
 	const playerGrid =
 		'grid grid-cols-[2.5rem_3.5rem_3.5rem_5rem_minmax(0,1fr)_3.5rem_3.5rem_3.5rem] items-center gap-3';
 
@@ -57,19 +60,22 @@
 		<span class="text-center">Losses</span>
 		<span class="text-center">Streak</span>
 	</div>
-	{#each orderedPlayers as player (player.index)}
+	{#each orderedPlayers as player, rowIndex (getPlayerRowKey(player, rowIndex))}
 		{@const stats = playerStats(player)}
 		{@const playerResult = getPlayerResult(player)}
-		{@const isMe = highlightPlayerId !== undefined && player.playerId === highlightPlayerId}
 		{@const outcome = playerOutcome(player)}
-		<Player.Root {player} {playerResult} {stats} race={player.race}>
+		<Player.Root
+			{player}
+			{playerResult}
+			{stats}
+			race={playerResult?.race_id ?? player.race}
+		>
 			<div
 				class={cn(
 					playerGrid,
 					'border-secondary-800 border-b px-4 py-3 last:border-b-0',
 					outcome === 1 && 'bg-success/5',
-					outcome === 0 && 'bg-destructive/5',
-					isMe && 'bg-primary/5'
+					outcome === 0 && 'bg-destructive/5'
 				)}
 			>
 				<div class="flex justify-center">
@@ -93,9 +99,7 @@
 						</span>
 					{/if}
 					<Player.Country class="shrink-0" />
-					<Player.Alias
-						class={cn('min-w-0 flex-1 truncate', isMe && 'text-primary font-semibold')}
-					/>
+					<Player.Alias class="min-w-0 flex-1 truncate" />
 				</div>
 				<Player.Wins class="text-center font-medium tabular-nums" />
 				<Player.Losses class="text-center font-medium tabular-nums" />

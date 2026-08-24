@@ -9,6 +9,7 @@
 	import { getLeaderboardStatsForPlayerByMatchType } from '$lib/utils/game';
 	import LobbyPlayersCards from './lobby-players-cards.svelte';
 	import { getAlliesPlayers, getAxisPlayers, getPlayerAlias } from './dashboard-utils';
+	import { isMePlayer } from '$lib/utils/player-me';
 
 	type Props = {
 		lobby: Match;
@@ -57,9 +58,7 @@
 						{@const stats = getLeaderboardStatsForPlayerByMatchType(lobby.matchType, player)}
 						<Player.Root {player} {stats} race={player.race}>
 							<span {@attach tooltip(getPlayerAlias(player))}>
-								<Player.Faction
-									class={cn(player.playerId === lobby.me?.playerId && 'ring-primary')}
-								/>
+								<Player.Faction class={cn(isMePlayer(player) && 'ring-primary')} />
 							</span>
 						</Player.Root>
 					{/each}
@@ -72,9 +71,7 @@
 						{@const stats = getLeaderboardStatsForPlayerByMatchType(lobby.matchType, player)}
 						<Player.Root {player} {stats} race={player.race}>
 							<span {@attach tooltip(getPlayerAlias(player))}>
-								<Player.Faction
-									class={cn(player.playerId === lobby.me?.playerId && 'ring-primary')}
-								/>
+								<Player.Faction class={cn(isMePlayer(player) && 'ring-primary')} />
 							</span>
 						</Player.Root>
 					{/each}

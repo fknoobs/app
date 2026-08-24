@@ -7,6 +7,6 @@
 	let { children, ...restProps }: Props = $props();
 </script>
 
-<span {...restProps} class={cn('text-secondary-400', restProps.class)}>
+<span {...restProps} class={cn('text-secondary-400 min-w-0', restProps.class)}>
 	{@render children?.()}
 </span>

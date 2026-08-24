@@ -4,12 +4,13 @@
 	import { Label } from '$lib/components/ui/label';
 	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { app, createApp } from '$core/app/context';
+	import { Breadcrumb, createBreadcrumbs } from '$lib/components/ui/breadcrumb';
 	import { ToastReplaysProgress } from '$lib/components/toasts';
 	import { Avatar } from '$lib/components/ui/avatar';
 	import { page } from '$app/state';
 	import { Modal } from '$lib/components/ui/modal';
 	import { Toaster } from '$lib/components/ui/toasts';
-	import { Button } from '$lib/components/ui/button';
+	import { Button, ButtonBack } from '$lib/components/ui/button';
 	import { Dialog } from '$lib/components/ui/dialog';
 	import DashboardIcon from 'phosphor-svelte/lib/SquaresFourIcon';
 	import RankingIcon from 'phosphor-svelte/lib/RankingIcon';
@@ -57,6 +58,9 @@
 	);
 
 	createApp(app);
+	createBreadcrumbs();
+
+	const showBack = $derived(page.url.pathname !== '/');
 </script>
 
 <svelte:boundary>
@@ -163,7 +167,13 @@
 				</div>
 			</Nav.Root>
 		</div>
-		<main class="flex grow flex-col overflow-auto bg-gray-950/90 p-8 text-white">
+		<main class="flex grow flex-col overflow-auto bg-gray-950/90 text-white">
+			<header class="border-secondary-800 flex items-center gap-3 border-b p-4">
+				{#if showBack}
+					<ButtonBack iconOnly aria-label="Go back to previous page" title="Go back" />
+				{/if}
+				<Breadcrumb />
+			</header>
 			{@render children()}
 		</main>
 	</div>
@@ -171,5 +181,4 @@
 
 <Dialog />
 <Modal />
-
 <Toaster />

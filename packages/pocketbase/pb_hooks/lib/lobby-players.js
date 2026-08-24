@@ -17,6 +17,41 @@ function parsePlayers(raw) {
 	return [];
 }
 
+/**
+ * Per-player keys that are written by the client but never read back from a
+ * saved lobby. `matchHistory` alone accounted for ~438 KB per lobby row, which
+ * made every query touching `lobbies` read hundreds of megabytes.
+ */
+const HEAVY_PLAYER_KEYS = ['matchHistory', 'storedElo'];
+
+function slimLobbyPlayers(players) {
+	let changed = false;
+	const slimmed = [];
+
+	for (const player of players) {
+		if (!player || typeof player !== 'object') {
+			slimmed.push(player);
+			continue;
+		}
+
+		let stripped = null;
+		for (const key of HEAVY_PLAYER_KEYS) {
+			if (player[key] === undefined) {
+				continue;
+			}
+			if (!stripped) {
+				stripped = Object.assign({}, player);
+			}
+			delete stripped[key];
+			changed = true;
+		}
+
+		slimmed.push(stripped || player);
+	}
+
+	return { players: slimmed, changed };
+}
+
 function summarizeLobbyPlayers(players) {
 	const summaries = [];
 	const ids = [];
@@ -93,6 +128,32 @@ function indexHasStatsFields(collection) {
 	return Boolean(collection.fields.getByName('steam_id'));
 }
 
+function indexHasLobbyMeta(collection) {
+	return Boolean(collection.fields.getByName('session_id'));
+}
+
+/** Denormalized copy of the lobby columns the performance aggregation needs. */
+function lobbyMeta(sessionId, map, user, needsResult, title) {
+	const parsedSession = Number(sessionId);
+	return {
+		sessionId: Number.isFinite(parsedSession) ? parsedSession : 0,
+		map: map ? String(map) : '',
+		user: user ? String(user) : '',
+		counts: !needsResult && title !== 'Skirmish'
+	};
+}
+
+function applyLobbyMeta(record, meta) {
+	if (!meta) {
+		return;
+	}
+
+	record.set('session_id', meta.sessionId);
+	record.set('map', meta.map);
+	record.set('lobby_user', meta.user);
+	record.set('counts', meta.counts);
+}
+
 function applyIndexStats(record, stats, matchtypeId) {
 	if (!stats) {
 		return;
@@ -115,7 +176,7 @@ function applyIndexStats(record, stats, matchtypeId) {
 	}
 }
 
-function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw) {
+function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw, meta) {
 	let collection;
 	try {
 		collection = $app.findCollectionByNameOrId('lobby_player_index');
@@ -150,6 +211,7 @@ function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw) {
 	}
 
 	const hasStats = indexHasStatsFields(collection);
+	const hasMeta = meta && indexHasLobbyMeta(collection);
 	for (let i = 0; i < profileIdList.length; i++) {
 		const profileId = profileIdList[i];
 		const record = new Record(collection);
@@ -157,6 +219,9 @@ function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw) {
 		record.set('profile_id', profileId);
 		if (hasStats) {
 			applyIndexStats(record, byProfile[profileId], matchtypeId);
+		}
+		if (hasMeta) {
+			applyLobbyMeta(record, meta);
 		}
 		$app.save(record);
 	}
@@ -194,7 +259,12 @@ function updateCommunitySnapshot(summaries, map) {
 
 function processLobbyRecord(e) {
 	const players = parsePlayers(e.record.get('players'));
-	const { summaries, csv, ids } = summarizeLobbyPlayers(players);
+	const slim = slimLobbyPlayers(players);
+	if (slim.changed) {
+		e.record.set('players', slim.players);
+	}
+
+	const { summaries, csv, ids } = summarizeLobbyPlayers(slim.players);
 
 	e.record.set('lobbyPlayers', summaries);
 	e.record.set('playerProfileIdsCsv', csv);
@@ -214,7 +284,14 @@ function processLobbyRecord(e) {
 function syncLobbyPlayerIndexForRecord(e) {
 	const summaries = e.record.get('lobbyPlayers') || [];
 	const profileIds = summaries.map((player) => player.profile_id);
-	syncLobbyPlayerIndex(e.record.id, profileIds, e.record.get('result'));
+	const meta = lobbyMeta(
+		e.record.get('sessionId'),
+		e.record.get('map'),
+		e.record.get('user'),
+		e.record.get('needsResult'),
+		e.record.get('title')
+	);
+	syncLobbyPlayerIndex(e.record.id, profileIds, e.record.get('result'), meta);
 	try {
 		require(`${__hooks}/lib/player-performance.js`).invalidatePerformanceCache(
 			e.record.get('user') || '',
@@ -237,6 +314,8 @@ function isServiceRequest(e) {
 
 module.exports = {
 	processLobbyRecord,
+	slimLobbyPlayers,
+	lobbyMeta,
 	syncLobbyPlayerIndex,
 	syncLobbyPlayerIndexForRecord,
 	isServiceRequest

@@ -16,6 +16,8 @@
 		columns,
 		rowKey,
 		rowHref,
+		onRowClick,
+		isRowExpanded,
 		rowClass,
 		loading = false,
 		skeletonRows = 5,
@@ -31,12 +33,12 @@
 		headers = {},
 		tableLayout = 'fixed',
 		density = 'default',
-		striped = true
+		striped = false
 	}: Props = $props();
 
 	const isCompact = $derived(density === 'compact');
-	const cellPad = $derived(isCompact ? 'px-3 py-1.5' : 'px-4');
-	const headerPad = $derived(isCompact ? 'px-3 py-2' : 'px-4 py-3');
+	const cellPad = $derived(isCompact ? 'px-4 py-1.5' : 'px-4');
+	const headerPad = $derived(isCompact ? 'px-4 py-2' : 'px-4 py-3');
 	const rowHeight = $derived(isCompact ? 'h-9' : 'h-11');
 	const stripeClass = $derived(striped ? 'odd:bg-secondary-600/5' : undefined);
 
@@ -62,17 +64,14 @@
 		void goto(href);
 	}
 
-	function handleRowClick(event: MouseEvent, href: string | undefined) {
-		if (!href) return;
+	function handleRowClick(event: MouseEvent, href: string | undefined, row: T) {
 		const target = event.target as HTMLElement;
 		if (target.closest('a, button')) return;
-		navigate(href);
-	}
-
-	function handleRowKeydown(event: KeyboardEvent, href: string | undefined) {
+		if (onRowClick) {
+			onRowClick(row);
+			return;
+		}
 		if (!href) return;
-		if (event.key !== 'Enter' && event.key !== ' ') return;
-		event.preventDefault();
 		navigate(href);
 	}
 </script>
@@ -106,7 +105,7 @@
 {/snippet}
 
 {#snippet skeletonRow()}
-	<tr class={cn(rowHeight, stripeClass, bodyRowClass)}>
+	<tr class={cn(rowHeight, 'border-secondary-800 border-b', stripeClass, bodyRowClass)}>
 		{#each columns as column (column.id)}
 			<td class={cn(cellPad, column.hideSkeleton && 'p-0')}>
 				{#if column.hideSkeleton}
@@ -121,24 +120,39 @@
 
 {#snippet dataRow(row: T)}
 	{@const href = rowHref?.(row)}
+	{@const clickable = href || onRowClick}
+	{@const expanded = isRowExpanded?.(row) ?? false}
 	<tr
 		class={cn(
 			rowHeight,
+			'border-secondary-800 border-b',
 			stripeClass,
 			bodyRowClass,
-			href && 'hover:text-primary cursor-pointer transition-colors',
+			clickable && 'hover:text-primary cursor-pointer transition-colors',
+			clickable && 'hover:bg-secondary-950/60',
+			expanded && 'bg-secondary-950/60 text-primary',
 			rowClass?.(row)
 		)}
-		tabindex={href ? 0 : undefined}
-		role={href ? 'link' : undefined}
-		onclick={(event) => handleRowClick(event, href)}
-		onkeydown={(event) => handleRowKeydown(event, href)}
+		tabindex={clickable ? 0 : undefined}
+		role={href ? 'link' : onRowClick ? 'button' : undefined}
+		aria-expanded={onRowClick ? expanded : undefined}
+		onclick={(event) => handleRowClick(event, href, row)}
+		onkeydown={(event) => {
+			if (!clickable) return;
+			if (event.key !== 'Enter' && event.key !== ' ') return;
+			event.preventDefault();
+			if (onRowClick) {
+				onRowClick(row);
+				return;
+			}
+			if (href) navigate(href);
+		}}
 	>
 		{@render rowCells(row)}
 	</tr>
 {/snippet}
 
-<div class={cn('border-secondary-800 overflow-clip rounded-lg border', className)}>
+<div class={cn(className)}>
 	<table class={cn('w-full', tableLayout === 'auto' ? 'table-auto' : 'table-fixed')}>
 		<colgroup>
 			{#each columns as column (column.id)}
@@ -149,8 +163,7 @@
 			<thead class={headerClass}>
 				<tr
 					class={cn(
-						'bg-secondary-950/90 text-secondary-300 text-left font-semibold',
-						isCompact && 'text-xs tracking-wide uppercase',
+						'bg-secondary-950/90 text-secondary-300 border-secondary-800 border-b text-left text-xs font-semibold tracking-wide uppercase',
 						headerRowClass
 					)}
 				>
@@ -232,7 +245,7 @@
 		{#if children}
 			<tfoot>
 				<tr>
-					<td colspan={columns.length} class="border-secondary-800 border-t px-4 py-2">
+					<td colspan={columns.length} class={cn('border-secondary-800 border-t', cellPad, isCompact ? 'py-2' : 'py-3')}>
 						{@render children()}
 					</td>
 				</tr>

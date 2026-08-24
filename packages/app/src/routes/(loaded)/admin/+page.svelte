@@ -2,7 +2,6 @@
 	import { goto } from '$app/navigation';
 	import { watch } from 'runed';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { H } from '$lib/components/ui/h';
 	import { app } from '$core/app/context';
 	import NotificationsTab from './tabs/notifications-tab.svelte';
 
@@ -18,14 +17,14 @@
 </script>
 
 {#if app.account.isStaff}
-	<H level="1">Management</H>
-
-	<Tabs.Root value="notifications" class="mt-8">
-		<Tabs.List>
-			<Tabs.Trigger value="notifications">Notifications</Tabs.Trigger>
-		</Tabs.List>
-		<Tabs.Content value="notifications">
-			<NotificationsTab />
-		</Tabs.Content>
-	</Tabs.Root>
+	<div class="px-5 py-4">
+		<Tabs.Root value="notifications">
+			<Tabs.List>
+				<Tabs.Trigger value="notifications">Notifications</Tabs.Trigger>
+			</Tabs.List>
+			<Tabs.Content value="notifications">
+				<NotificationsTab />
+			</Tabs.Content>
+		</Tabs.Root>
+	</div>
 {/if}

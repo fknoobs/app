@@ -14,22 +14,43 @@
 	import DoctrineLuft from '$lib/files/ct_branchbanner_top_pnze_00.png?url';
 	import DoctrineSector from '$lib/files/ct_branchbanner_top_pnze_01.png?url';
 	import DoctrineTank from '$lib/files/ct_branchbanner_top_pnze_02.png?url';
-	import { AspectRatio } from 'bits-ui';
 	import { cn, getFactionFlagFromRace } from '$lib/utils';
+	import { mePlayerText } from '$lib/components/ui/variants';
+	import { isMeReplayAlias } from '$lib/utils/player-me';
 
-	type Props = {} & HTMLAttributes<HTMLDivElement>;
+	type Props = {} & HTMLAttributes<HTMLDivElement> & {
+		flush?: boolean;
+	};
 
-	let { ...restProps }: Props = $props();
+	let { flush = false, ...restProps }: Props = $props();
 	let replay = $derived(useReplay());
 
-	const teams = $derived.by(() => {
-		const axis = replay.players.filter((p) => p.faction.startsWith('axis'));
-		const allies = replay.players.filter((p) => p.faction.startsWith('allies'));
+	const teams = $derived.by(() => ({
+		allies: replay.players.filter((player) => player.faction.startsWith('allies')),
+		axis: replay.players.filter((player) => player.faction.startsWith('axis'))
+	}));
 
-		return { axis, allies };
+	const playerCpm = $derived.by(() => {
+		const durationMinutes = replay.duration / 60;
+		const cpm = new Map<number, string>();
+
+		for (const player of replay.players) {
+			const actions = replay.actions.filter((action) => action.playerID === player.id);
+			const takeoverIndex = actions.findIndex((action) => action.command?.type === 'AI_TAKEOVER') + 1;
+			const counted = takeoverIndex > 0 ? actions.slice(0, takeoverIndex) : actions;
+			cpm.set(
+				player.id,
+				durationMinutes > 0 ? (counted.length / durationMinutes).toFixed(0) : '0'
+			);
+		}
+
+		return cpm;
 	});
 
-	const getDoctrineImage = (player: Player) => {
+	const playerRow =
+		'grid grid-cols-[3.5rem_minmax(0,1fr)_3.25rem] items-center gap-3 px-4 py-3';
+
+	function getDoctrineImage(player: Player): string {
 		if (player.faction.startsWith('allies')) {
 			switch (player.doctrine) {
 				case 2:
@@ -47,77 +68,99 @@
 				default:
 					return '';
 			}
-		} else {
-			switch (player.doctrine) {
-				case 186:
-					return DoctrineBlitz;
-				case 194:
-					return DoctrineDefense;
-				case 265:
-					return DoctrineTerror;
-				case 295:
-					return DoctrineLuft;
-				case 302:
-					return DoctrineSector;
-				case 309:
-					return DoctrineTank;
-				default:
-					return '';
-			}
 		}
-	};
+
+		switch (player.doctrine) {
+			case 186:
+				return DoctrineBlitz;
+			case 194:
+				return DoctrineDefense;
+			case 265:
+				return DoctrineTerror;
+			case 295:
+				return DoctrineLuft;
+			case 302:
+				return DoctrineSector;
+			case 309:
+				return DoctrineTank;
+			default:
+				return '';
+		}
+	}
+
+	function factionFlag(player: Player) {
+		return getFactionFlagFromRace(
+			player.faction as 'allies' | 'axis' | 'allies_commonwealth' | 'axis_panzer_elite'
+		);
+	}
 </script>
 
-{#snippet player(player: Player)}
-	{@const a = replay.actions.filter((a) => a.playerID === player.id)}
-	{@const index = a.findIndex((a) => a.command?.type === 'AI_TAKEOVER') + 1}
-	{@const actions = index > 0 ? a.slice(0, index) : a}
-	{@const durationMinutes = replay.duration / 60}
-	{@const CPM = durationMinutes > 0 ? (actions.length / durationMinutes).toFixed(0) : '0'}
-	<div
-		class={cn(
-			'border-secondary-800 border',
-			'grid grid-cols-[130px_auto] overflow-clip rounded-lg',
-			'bg-secondary-950/40 bg-cover bg-center bg-no-repeat bg-blend-multiply'
-		)}
-	>
-		<div>
-			<AspectRatio.Root ratio={1 / 1} class="bg-secondary-950/80">
-				{#if player.doctrineName}
-					<img
-						src={getDoctrineImage(player)}
-						alt={player.doctrineName}
-						class="h-full w-full object-cover opacity-65"
-					/>
-				{/if}
-			</AspectRatio.Root>
-		</div>
-		<div class="flex flex-col px-6 py-4">
-			<span class="text-primary-50 flex items-center gap-2 truncate text-lg font-bold">
+{#snippet playerRowContent(player: Player)}
+	{@const doctrineImage = getDoctrineImage(player)}
+	{@const isMe = isMeReplayAlias(player.name)}
+	<div class={cn(playerRow, 'border-secondary-800 border-b last:border-b-0')}>
+		<span class="border-secondary-800 size-14 shrink-0 overflow-hidden rounded-lg border bg-secondary-950/80">
+			{#if doctrineImage}
 				<img
-					src={getFactionFlagFromRace(
-						player.faction as 'allies' | 'axis' | 'allies_commonwealth' | 'axis_panzer_elite'
-					)}
-					alt={player.faction}
-					class="h-4"
+					src={doctrineImage}
+					alt={player.doctrineName || 'Doctrine'}
+					class="h-full w-full object-cover"
 				/>
-				<span>{player.name}</span>
-			</span>
-			<span>Doctrine: {player.doctrineName || '-'}</span>
-			<span>CPM: {CPM}</span>
+			{:else}
+				<img src={factionFlag(player)} alt={player.faction} class="h-full w-full object-contain p-2" />
+			{/if}
+		</span>
+
+		<div class="min-w-0">
+			<div class="flex min-w-0 items-center gap-2">
+				<img src={factionFlag(player)} alt={player.faction} class="h-4 shrink-0" />
+				<span class={cn('truncate font-semibold', isMe ? mePlayerText : 'text-primary-50')}>
+					{player.name}
+				</span>
+			</div>
+			<p class="text-secondary-400 mt-0.5 truncate text-sm">
+				{player.doctrineName || 'Unknown doctrine'}
+			</p>
 		</div>
+
+		<span
+			class="bg-primary/10 text-primary border-primary/25 ml-auto flex min-w-11 items-center justify-center rounded-md border px-2 py-1 text-lg font-bold tabular-nums"
+		>
+			{playerCpm.get(player.id) ?? '0'}
+		</span>
 	</div>
 {/snippet}
 
-<div {...restProps} class={cn('grid grid-cols-2 gap-4', restProps.class)}>
-	<div class={cn('grid grid-cols-1 gap-2', teams.allies.length === 1 && ' grid-cols-1')}>
-		{#each teams.allies as p (p.id + '-' + p.name)}
-			{@render player(p)}
+{#snippet teamColumn(label: string, players: Player[])}
+	<div class="min-w-0">
+		<div
+			class={cn(
+				playerRow,
+				'bg-secondary-950/90 text-secondary-300 border-secondary-800 border-b py-2! text-xs font-semibold tracking-wide uppercase'
+			)}
+		>
+			<span aria-hidden="true"></span>
+			<span>{label}</span>
+			<span class="text-primary text-right font-semibold">CPM</span>
+		</div>
+		{#each players as player (player.id + '-' + player.name)}
+			{@render playerRowContent(player)}
 		{/each}
 	</div>
-	<div class={cn('grid grid-cols-1 gap-2', teams.axis.length === 1 && ' grid-cols-1')}>
-		{#each teams.axis as p (p.id + '-' + p.name)}
-			{@render player(p)}
-		{/each}
+{/snippet}
+
+<div
+	{...restProps}
+	class={cn(
+		'grid grid-cols-1 md:grid-cols-2',
+		flush ? 'divide-secondary-800 md:divide-x' : 'gap-4',
+		restProps.class
+	)}
+>
+	<div class={cn(!flush && 'border-secondary-800 overflow-clip rounded-lg border')}>
+		{@render teamColumn('Allies', teams.allies)}
+	</div>
+	<div class={cn(!flush && 'border-secondary-800 overflow-clip rounded-lg border')}>
+		{@render teamColumn('Axis', teams.axis)}
 	</div>
 </div>

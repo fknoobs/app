@@ -3,7 +3,6 @@
 	import { page } from '$app/state';
 	import { app } from '$core/app/context';
 	import { resource } from 'runed';
-	import { ButtonBack } from '$lib/components/ui/button';
 
 	let query = resource(
 		() => page.params.replayId!,
@@ -11,16 +10,14 @@
 	);
 </script>
 
-<ButtonBack>Go back</ButtonBack>
-
 {#if query.loading}
 	<Replay.PageSkeleton />
 {:else if query.current}
-	<Replay.Root file={query.current} class="flex grow flex-col gap-4">
-		<Replay.Title class="mb-4" />
-		<Replay.Details class="mb-4" />
-		<Replay.Tabs />
+	<Replay.Root file={query.current} class="border-secondary-900 overflow-clip border-b">
+		<Replay.Title />
+		<Replay.Details />
+		<Replay.Tabs flush />
 	</Replay.Root>
 {:else if query.error}
-	<p class="text-secondary-400 text-sm">Failed to load replay.</p>
+	<p class="text-secondary-400 px-4 py-3 text-sm">Failed to load replay.</p>
 {/if}

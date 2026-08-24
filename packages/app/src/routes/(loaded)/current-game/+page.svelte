@@ -3,7 +3,6 @@
 	import type { Snapshot } from './$types';
 	import { dev } from '$app/environment';
 	import { app } from '$core/app/context';
-	import { ButtonBack } from '$lib/components/ui/button';
 	import CurrentGameView from '$lib/components/widgets/current-game-view.svelte';
 	import { CURRENT_GAME_TEST } from '$lib/dev';
 	import { goto } from '$app/navigation';
@@ -39,11 +38,9 @@
 	};
 </script>
 
-<ButtonBack href="/">Back to Dashboard</ButtonBack>
-
 {#key match}
 	{#if match}
-		<div class="mt-4">
+		<div class="px-5 py-4">
 			<CurrentGameView lobby={match} />
 		</div>
 	{/if}

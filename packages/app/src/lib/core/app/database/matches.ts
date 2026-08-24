@@ -166,6 +166,17 @@ export class Matches {
 		};
 	}
 
+	/** Retrieves matches played today for the logged-in account (by user.steamIds). */
+	async getTodayMatches(userId: string, todayStart: string): Promise<MatchExpanded[]> {
+		const response = await pocketbase.send<{ items: Match[] }>('/api/today-matches', {
+			method: 'GET',
+			query: { userId, todayStart },
+			fetch
+		});
+
+		return response.items.map(exp) as MatchExpanded[];
+	}
+
 	/** Retrieves a full list of matches. */
 	async getList(options: RecordFullListOptions): Promise<MatchExpanded[]> {
 		const response = await pocketbase.collection('lobbies').getFullList<Match>({

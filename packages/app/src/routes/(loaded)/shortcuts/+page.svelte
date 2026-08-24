@@ -1,24 +1,14 @@
 <script lang="ts">
-	import * as Form from '$lib/components/ui/form';
 	import Sortable from 'sortablejs';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
-	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
-	import RecordIcon from 'phosphor-svelte/lib/RecordIcon';
-	import StopIcon from 'phosphor-svelte/lib/StopIcon';
-	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
-	import HandleIcon from 'phosphor-svelte/lib/DotsSixVerticalIcon';
 	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 	import ImportIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
-	import { H } from '$lib/components/ui/h';
+	import KeyboardIcon from 'phosphor-svelte/lib/KeyboardIcon';
 	import { onDestroy } from 'svelte';
 	import { ToggleGroup } from '$lib/components/ui/toggle-group';
-	import { cn } from '$lib/utils';
-	import { shortcuts, type Shortcut, type FactionKey } from '$core/app/features/shortcuts';
-	import { Input } from '$lib/components/ui/input';
+	import { shortcuts, type FactionKey } from '$core/app/features/shortcuts';
 	import { Button } from '$lib/components/ui/button';
-	import { Kbd } from '$lib/components/ui/kbd';
-	import { tooltip } from '$lib/attachments';
-	import { Alert } from '$lib/components/ui/alert';
+	import { KeybindingRow } from '$lib/components/shortcuts';
 
 	const factions: { label: string; value: FactionKey }[] = [
 		{ label: 'USA', value: 'allies' },
@@ -29,7 +19,7 @@
 
 	let faction = $state<FactionKey>('allies');
 	let keybindings = $derived(shortcuts.getBindings(faction));
-	let sortableEl = $state<HTMLDivElement | null>(null);
+	let sortableEl = $state<HTMLTableSectionElement | null>(null);
 	let sortableInstance: Sortable | undefined;
 
 	function destroySortable() {
@@ -75,67 +65,10 @@
 		destroySortable();
 		shortcuts.stopAllRecording();
 	});
-
-	function isRecording(keybinding: Shortcut, type: 'trigger' | 'action') {
-		return type === 'trigger'
-			? Boolean(keybinding.isRecordingTriggerKeys)
-			: Boolean(keybinding.isRecordingActionKeys);
-	}
 </script>
 
-{#snippet keyColumn(type: 'trigger' | 'action', keybinding: Shortcut)}
-	{@const recording = isRecording(keybinding, type)}
-	{@const keys = type === 'trigger' ? keybinding.triggerKeys : keybinding.actionKeys}
-	<div
-		class={cn(
-			'flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-transparent px-2 py-1',
-			recording && 'border-destructive/40 bg-destructive/5'
-		)}
-	>
-		<Button
-			variant={recording ? 'destructive' : 'secondary'}
-			size="sm"
-			class="shrink-0"
-			onclick={() => shortcuts.record(keybinding, type)}
-			{@attach tooltip(
-				recording
-					? 'Stop recording'
-					: type === 'trigger'
-						? 'Record trigger keys'
-						: 'Record action keys'
-			)}
-		>
-			{#if recording}
-				<StopIcon weight="fill" />
-			{:else}
-				<RecordIcon weight="fill" />
-			{/if}
-		</Button>
-		<div class="flex min-w-0 flex-wrap items-center gap-1.5">
-			{#if keys.length === 0}
-				<span class="text-secondary-500 text-sm italic">
-					{recording ? 'Press keys…' : 'Not set'}
-				</span>
-			{:else}
-				{#each keys as key, keyIndex (key)}
-					{#if keyIndex > 0}
-						<PlusIcon class="text-secondary-400 size-3 shrink-0" />
-					{/if}
-					<Kbd>{key}</Kbd>
-				{/each}
-			{/if}
-		</div>
-	</div>
-{/snippet}
-
-<div class="mb-8 flex flex-wrap items-center justify-between gap-4">
-	<div>
-		<H level="1">Keybindings</H>
-		<p class="text-secondary-400 mt-1 text-sm">
-			Configure hotkeys per faction. They only work during an active match while Company of Heroes
-			is focused (not in chat). Use the faction tab that matches your army.
-		</p>
-	</div>
+<div class="border-secondary-800 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b p-4">
+	<ToggleGroup bind:value={faction} items={factions} class="w-fit" />
 	<div class="flex flex-wrap gap-1">
 		<Button variant="ghost" onclick={() => shortcuts.importSettings()}>
 			<ImportIcon />
@@ -148,82 +81,60 @@
 	</div>
 </div>
 
-<Form.Root class="justify-start gap-6">
-	<ToggleGroup bind:value={faction} items={factions} class="w-fit" />
+<p class="text-secondary-400 border-secondary-800 border-b px-4 py-3 text-sm">
+	Hotkeys are per faction and only work during an active match while Company of Heroes is focused
+	(not in chat). Pick the tab that matches your army, then click a chord field to record keys.
+</p>
 
-	<section class="border-secondary-800 overflow-hidden rounded-lg border">
-		{#if keybindings.length > 0}
-			<div
-				class="text-secondary-500 border-secondary-800 bg-secondary-950/40 hidden grid-cols-[2rem_minmax(8rem,1fr)_1fr_auto_1fr_2.5rem] items-center gap-3 border-b px-3 py-2 text-xs font-medium tracking-wide uppercase sm:grid"
+<table class="w-full table-fixed">
+	<colgroup>
+		<col class="w-10" />
+		<col class="w-[22%]" />
+		<col />
+		<col class="w-10" />
+		<col />
+		<col class="w-10" />
+	</colgroup>
+	{#if keybindings.length > 0}
+		<thead>
+			<tr
+				class="bg-secondary-950/90 text-secondary-300 border-secondary-800 border-b text-left text-xs font-semibold tracking-wide uppercase"
 			>
-				<span aria-hidden="true"></span>
-				<span>Description</span>
-				<span>Trigger</span>
-				<span aria-hidden="true"></span>
-				<span>Action</span>
-				<span aria-hidden="true"></span>
-			</div>
-		{/if}
-
-		<div bind:this={sortableEl} class="divide-secondary-800/70 divide-y">
-			{#if keybindings.length === 0}
-				<div class="p-6">
-					<Alert variant="info">
-						No keybindings for this faction yet. Add one below, then record trigger and action keys.
-					</Alert>
-				</div>
-			{:else}
-				{#each keybindings as keybinding (keybinding.id)}
-					<div
-						class={cn(
-							'item group grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 sm:grid-cols-[2rem_minmax(8rem,1fr)_1fr_auto_1fr_2.5rem]',
-							'[&.sortable-ghost]:bg-primary/5 [&.sortable-chosen]:cursor-grabbing'
-						)}
-					>
-						<Button
-							type="button"
-							variant="ghost"
-							size="icon-sm"
-							class="handle text-secondary-500 hover:text-secondary-200 cursor-grab"
-							aria-label="Reorder keybinding"
-						>
-							<HandleIcon size={24} weight="bold" />
-						</Button>
-
-						<Input
-							bind:value={keybinding.description}
-							placeholder="Description"
-							class="border-none bg-transparent font-medium focus:text-white"
-						/>
-
-						<div class="col-span-full grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:contents">
-							{@render keyColumn('trigger', keybinding)}
-							<ArrowRightIcon
-								class="text-secondary-600 mx-auto hidden size-4 shrink-0 sm:block"
-								aria-hidden="true"
-							/>
-							{@render keyColumn('action', keybinding)}
+				<th class="px-2 py-3" aria-hidden="true"></th>
+				<th class="px-4 py-3">Name</th>
+				<th class="px-4 py-3">When you press</th>
+				<th class="px-2 py-3" aria-hidden="true"></th>
+				<th class="px-4 py-3">Game receives</th>
+				<th class="px-2 py-3" aria-hidden="true"></th>
+			</tr>
+		</thead>
+	{/if}
+	<tbody bind:this={sortableEl}>
+		{#if keybindings.length === 0}
+			<tr>
+				<td colspan="6" class="px-4 py-10">
+					<div class="flex flex-col items-center gap-3 text-center">
+						<KeyboardIcon class="text-secondary-600 size-10" weight="duotone" />
+						<div>
+							<p class="text-secondary-300 font-medium">No keybindings for this faction</p>
+							<p class="text-secondary-500 mt-1 text-sm">
+								Add a binding below, then record what you press and what the game should receive.
+							</p>
 						</div>
-
-						<Button
-							variant="ghost"
-							size="sm"
-							class="hover:text-destructive text-secondary-500 justify-self-end"
-							onclick={() => shortcuts.removeBinding(faction, keybinding.id)}
-							{@attach tooltip('Delete keybinding')}
-						>
-							<TrashIcon />
-						</Button>
 					</div>
-				{/each}
-			{/if}
-		</div>
-	</section>
+				</td>
+			</tr>
+		{:else}
+			{#each keybindings as keybinding (keybinding.id)}
+				<KeybindingRow {keybinding} {faction} />
+			{/each}
+		{/if}
+	</tbody>
+</table>
 
-	<Form.Group>
-		<Button variant="secondary" class="w-fit" onclick={() => shortcuts.addBinding(faction)}>
-			<PlusIcon />
-			Add keybinding
-		</Button>
-	</Form.Group>
-</Form.Root>
+<div class="border-secondary-800 border-t p-4">
+	<Button variant="secondary" class="w-fit" onclick={() => shortcuts.addBinding(faction)}>
+		<PlusIcon />
+		Add keybinding
+	</Button>
+</div>

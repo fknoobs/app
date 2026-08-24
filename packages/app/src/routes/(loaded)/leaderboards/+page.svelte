@@ -1,10 +1,8 @@
 <script lang="ts">
 	import type { Snapshot } from '@sveltejs/kit';
-	import * as Form from '$lib/components/ui/form';
 	import { relic } from '$lib/relic';
 	import { resource, useDebounce, watch } from 'runed';
 	import { ToggleGroup } from '$lib/components/ui/toggle-group';
-	import { H } from '$lib/components/ui/h';
 	import { getRaceLabelFromLeaderboardId } from '$lib/components/leaderboard/leaderboard-utils';
 	import { LeaderboardPodium, LeaderboardList } from '$lib/components/leaderboard';
 	import { leaderboards } from '$lib/utils/game';
@@ -79,34 +77,35 @@
 	};
 </script>
 
-<H level="1">Leaderboards</H>
-<p class="text-secondary-400 mb-4 text-sm">{activeModeLabel}</p>
-
-<form class="mb-6 flex flex-wrap items-center justify-between gap-4">
-	<div class="flex flex-wrap gap-4">
-		<ToggleGroup bind:value={leaderboardId} items={leaderboards} />
-		<ToggleGroup bind:value={leaderboardFactionId} items={leaderboardFactionsIds} />
+<div
+	class="border-secondary-800 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b p-4"
+>
+	<div class="flex flex-wrap items-center gap-4">
+		<ToggleGroup bind:value={leaderboardId} items={leaderboards} class="w-fit" />
+		<ToggleGroup bind:value={leaderboardFactionId} items={leaderboardFactionsIds} class="w-fit" />
+		<p class="text-secondary-400 text-sm">{activeModeLabel}</p>
 	</div>
-	<Form.Root>
-		<Input
-			type="text"
-			placeholder="Search player..."
-			class="w-58"
-			bind:value={searchInput}
-			oninput={() => searchPlayer()}
-		>
-			{#snippet leading()}
-				<MagnifyingGlass class="size-4" />
-			{/snippet}
-		</Input>
-	</Form.Root>
-</form>
+	<Input
+		type="text"
+		placeholder="Search player..."
+		class="w-full sm:w-58"
+		bind:value={searchInput}
+		oninput={() => searchPlayer()}
+	>
+		{#snippet leading()}
+			<MagnifyingGlass class="size-4" />
+		{/snippet}
+	</Input>
+</div>
 
 {#if !isSearching}
 	<LeaderboardPodium stats={podiumStats} loading={statsResource.loading} />
 {/if}
+
 <LeaderboardList
 	stats={listStats}
 	loading={statsResource.loading}
 	empty={filteredStats.length === 0 ? 'No players found.' : 'No more players to show.'}
+	class="rounded-none border-0"
+	striped={false}
 />

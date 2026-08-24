@@ -76,14 +76,36 @@ function keyedEntries(value) {
 	return [];
 }
 
+function normalizeKeyedContainer(value) {
+	if (value == null) {
+		return {};
+	}
+
+	if (Array.isArray(value)) {
+		const obj = {};
+		for (let i = 0; i < value.length; i++) {
+			if (value[i] != null) {
+				obj[String(i)] = value[i];
+			}
+		}
+		return obj;
+	}
+
+	if (typeof value === 'object') {
+		return value;
+	}
+
+	return {};
+}
+
 function eloToMap(raw) {
-	const parsed = parseJson(raw, {}) || {};
+	const parsed = normalizeKeyedContainer(parseJson(raw, {}) || {});
 	const next = {};
 
-	for (const [matchKey, races] of keyedEntries(parsed)) {
+	for (const [matchKey, races] of Object.entries(normalizeKeyedContainer(parsed))) {
 		const group = {};
 
-		for (const [raceKey, slot] of keyedEntries(races)) {
+		for (const [raceKey, slot] of Object.entries(normalizeKeyedContainer(races))) {
 			if (!slot || typeof slot !== 'object') {
 				continue;
 			}
@@ -191,6 +213,43 @@ function mergeElo(existing, slots) {
 	return next;
 }
 
+function loadEloRawFromDb(steamId) {
+	try {
+		const row = new DynamicModel({ elo: '' });
+		$app
+			.db()
+			.newQuery(
+				`SELECT COALESCE(elo, '') AS elo
+				FROM player_ratings
+				WHERE steamId = {:steamId}
+				LIMIT 1`
+			)
+			.bind({ steamId })
+			.one(row);
+		return row.elo;
+	} catch {
+		return null;
+	}
+}
+
+function readEloFromRecord(record) {
+	if (!record) {
+		return {};
+	}
+
+	const fromField = eloToMap(record.get('elo'));
+	if (Object.keys(fromField).length > 0) {
+		return fromField;
+	}
+
+	const steamId = record.get('steamId');
+	if (!isValidSteamId(steamId)) {
+		return {};
+	}
+
+	return eloToMap(loadEloRawFromDb(steamId));
+}
+
 function serializeRecord(record) {
 	if (!record) {
 		return null;
@@ -201,7 +260,7 @@ function serializeRecord(record) {
 		steamId: record.get('steamId'),
 		profileId: record.get('profileId'),
 		alias: record.get('alias'),
-		elo: eloToMap(record.get('elo'))
+		elo: readEloFromRecord(record)
 	};
 }
 
@@ -227,11 +286,17 @@ function findByProfileId(profileId) {
 }
 
 function countEloSlots(raw) {
-	const map = eloToMap(raw);
+	const map = typeof raw === 'object' && raw !== null && !Array.isArray(raw) && !raw.rating
+		? raw
+		: eloToMap(raw);
+	return countEloSlotsFromMap(map);
+}
+
+function countEloSlotsFromMap(map) {
 	let count = 0;
 
-	for (const matchKey of Object.keys(map)) {
-		count += Object.keys(map[matchKey]).length;
+	for (const matchKey of Object.keys(map || {})) {
+		count += Object.keys(map[matchKey] || {}).length;
 	}
 
 	return count;
@@ -250,55 +315,22 @@ function hasLobbyIndexSteamId() {
 	}
 }
 
-function loadLobbyResultsForSteamId(steamId, limit) {
-	const rows = arrayOf(
-		new DynamicModel({
-			result: ''
-		})
-	);
-
-	if (hasLobbyIndexSteamId()) {
-		$app
-			.db()
-			.newQuery(
-				`SELECT COALESCE(l.result, '') AS result
-				FROM lobby_player_index i
-				INNER JOIN lobbies l ON l.id = i.lobby
-				WHERE i.steam_id = {:steamId}
-					AND l.result IS NOT NULL
-					AND l.result != ''
-					AND l.result != 'null'
-					AND COALESCE(l.title, '') != 'Skirmish'
-				ORDER BY COALESCE(l.sessionId, 0) DESC, l.createdAt DESC
-				LIMIT {:limit}`
-			)
-			.bind({ steamId, limit })
-			.all(rows);
-	} else {
-		const record = findBySteamId(steamId);
-		const profileId = Number(record?.get('profileId'));
-		if (!Number.isInteger(profileId) || profileId <= 0) {
-			return [];
-		}
-
-		$app
-			.db()
-			.newQuery(
-				`SELECT COALESCE(l.result, '') AS result
-				FROM lobby_player_index i
-				INNER JOIN lobbies l ON l.id = i.lobby
-				WHERE i.profile_id = {:profileId}
-					AND l.result IS NOT NULL
-					AND l.result != ''
-					AND l.result != 'null'
-					AND COALESCE(l.title, '') != 'Skirmish'
-				ORDER BY COALESCE(l.sessionId, 0) DESC, l.createdAt DESC
-				LIMIT {:limit}`
-			)
-			.bind({ profileId, limit })
-			.all(rows);
+function resolveProfileIdForSteamId(steamId, profileIdHint) {
+	const hinted = Number(profileIdHint);
+	if (Number.isInteger(hinted) && hinted > 0) {
+		return hinted;
 	}
 
+	const record = findBySteamId(steamId);
+	const fromRecord = Number(record?.get('profileId'));
+	if (Number.isInteger(fromRecord) && fromRecord > 0) {
+		return fromRecord;
+	}
+
+	return null;
+}
+
+function collectLobbyResults(rows) {
 	const results = [];
 	for (const row of rows) {
 		const result = row.result;
@@ -310,28 +342,114 @@ function loadLobbyResultsForSteamId(steamId, limit) {
 	return results;
 }
 
-function fillFromLobbies(steamId) {
-	if (!isValidSteamId(steamId)) {
-		return { processed: 0, updated: 0 };
-	}
+function queryLobbyResultsByProfileId(profileId, limit) {
+	const rows = arrayOf(
+		new DynamicModel({
+			result: ''
+		})
+	);
 
-	const results = loadLobbyResultsForSteamId(steamId, LOBBY_FILL_LIMIT);
-	let updated = 0;
+	$app
+		.db()
+		.newQuery(
+			`SELECT COALESCE(l.result, '') AS result
+			FROM lobby_player_index i
+			INNER JOIN lobbies l ON l.id = i.lobby
+			WHERE i.profile_id = {:profileId}
+				AND l.result IS NOT NULL
+				AND l.result != ''
+				AND l.result != 'null'
+				AND COALESCE(l.title, '') != 'Skirmish'
+			ORDER BY COALESCE(l.sessionId, 0) DESC, l.createdAt DESC
+			LIMIT {:limit}`
+		)
+		.bind({ profileId, limit })
+		.all(rows);
 
-	for (const result of results) {
-		const records = ingestLobbyResult(result);
-		if (records.length > 0) {
-			updated += 1;
+	return collectLobbyResults(rows);
+}
+
+function queryLobbyResultsBySteamId(steamId, limit) {
+	const rows = arrayOf(
+		new DynamicModel({
+			result: ''
+		})
+	);
+
+	$app
+		.db()
+		.newQuery(
+			`SELECT COALESCE(l.result, '') AS result
+			FROM lobby_player_index i
+			INNER JOIN lobbies l ON l.id = i.lobby
+			WHERE i.steam_id = {:steamId}
+				AND l.result IS NOT NULL
+				AND l.result != ''
+				AND l.result != 'null'
+				AND COALESCE(l.title, '') != 'Skirmish'
+			ORDER BY COALESCE(l.sessionId, 0) DESC, l.createdAt DESC
+			LIMIT {:limit}`
+		)
+		.bind({ steamId, limit })
+		.all(rows);
+
+	return collectLobbyResults(rows);
+}
+
+function loadLobbyResultsForSteamId(steamId, limit, profileIdHint) {
+	try {
+		let results = [];
+
+		if (hasLobbyIndexSteamId()) {
+			results = queryLobbyResultsBySteamId(steamId, limit);
 		}
+
+		if (results.length === 0) {
+			const profileId = resolveProfileIdForSteamId(steamId, profileIdHint);
+			if (profileId != null) {
+				results = queryLobbyResultsByProfileId(profileId, limit);
+			}
+		}
+
+		return results;
+	} catch (error) {
+		console.log('[player_ratings] lobby fill query failed', steamId, String(error));
+		return [];
+	}
+}
+
+function fillFromLobbies(steamId, profileIdHint) {
+	if (!isValidSteamId(steamId)) {
+		return { processed: 0, updated: 0, failed: false };
 	}
 
-	return { processed: results.length, updated };
+	try {
+		const results = loadLobbyResultsForSteamId(steamId, LOBBY_FILL_LIMIT, profileIdHint);
+		let updated = 0;
+
+		for (const result of results) {
+			try {
+				const records = ingestLobbyResult(result);
+				if (records.length > 0) {
+					updated += 1;
+				}
+			} catch (error) {
+				console.log('[player_ratings] lobby fill ingest failed', steamId, String(error));
+			}
+		}
+
+		return { processed: results.length, updated, failed: false };
+	} catch (error) {
+		console.log('[player_ratings] lobby fill failed', steamId, String(error));
+		return { processed: 0, updated: 0, failed: true };
+	}
 }
 
 function selectPlayersForLobbyFill(limit) {
 	const rows = arrayOf(
 		new DynamicModel({
 			steamId: '',
+			profileId: 0,
 			elo: ''
 		})
 	);
@@ -339,7 +457,7 @@ function selectPlayersForLobbyFill(limit) {
 	$app
 		.db()
 		.newQuery(
-			`SELECT steamId, COALESCE(elo, '') AS elo
+			`SELECT steamId, profileId, COALESCE(elo, '') AS elo
 			FROM player_ratings
 			WHERE steamId IS NOT NULL
 				AND steamId != ''
@@ -355,6 +473,7 @@ function selectPlayersForLobbyFill(limit) {
 
 		candidates.push({
 			steamId: row.steamId,
+			profileId: row.profileId,
 			slots: countEloSlots(row.elo)
 		});
 	}
@@ -369,7 +488,7 @@ function runLobbyFillBatch() {
 	let updated = 0;
 
 	for (const player of players) {
-		const result = fillFromLobbies(player.steamId);
+		const result = fillFromLobbies(player.steamId, player.profileId);
 		processed += result.processed;
 		updated += result.updated;
 	}
@@ -387,13 +506,15 @@ function upsertPlayerRating({ steamId, profileId, alias, slots }) {
 		return null;
 	}
 
-	const resolvedAlias = typeof alias === 'string' ? alias.trim() : '';
+	const existing = findBySteamId(steamId);
+	const incomingAlias = typeof alias === 'string' ? alias.trim() : '';
+	const resolvedAlias =
+		incomingAlias || (existing ? String(existing.get('alias') || '').trim() : '');
 	if (!resolvedAlias) {
 		return null;
 	}
 
-	const existing = findBySteamId(steamId);
-	const merged = mergeElo(existing?.get('elo'), slots);
+	const merged = mergeElo(readEloFromRecord(existing), slots);
 
 	if (existing) {
 		existing.set('profileId', resolvedProfileId);
@@ -564,10 +685,15 @@ function handleGetBySteamId(e) {
 
 	const forceFill = e.request.url.query().get('fill') === '1';
 	let record = findBySteamId(steamId);
+	const currentElo = record ? readEloFromRecord(record) : {};
 
-	if (!record || forceFill || eloHasGaps(record.get('elo'))) {
-		fillFromLobbies(steamId);
-		record = findBySteamId(steamId);
+	if (!record || forceFill || countEloSlotsFromMap(currentElo) < MAX_ELO_SLOTS) {
+		try {
+			fillFromLobbies(steamId, record?.get('profileId'));
+			record = findBySteamId(steamId);
+		} catch (error) {
+			console.log('[player_ratings] lobby fill on get failed', steamId, String(error));
+		}
 	}
 
 	if (!record) {

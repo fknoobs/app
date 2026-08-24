@@ -5,7 +5,7 @@
 	import { cn } from '$lib/utils';
 	import { tooltip } from '$lib/attachments';
 	import { Race } from '$lib/utils/game';
-	import { app } from '$core/app/context';
+	import { isMePlayer } from '$lib/utils/player-me';
 	import { intersection } from 'lodash-es';
 
 	type Props = {
@@ -44,7 +44,7 @@
 				player.profile?.profile_id?.toString(),
 				player.steamId
 			]).length > 0}
-		{@const isMe = intersection(app.features.auth.user?.steamIds, [player.steamId]).length > 0}
+		{@const isMe = isMePlayer(player)}
 
 		<Player.Root {player}>
 			<a href={`/players/${player.steamId}`}>
@@ -52,7 +52,7 @@
 					{@attach tooltip(player.profile?.alias || 'Unknown')}
 					class={cn(
 						isMe || isHighlighted ? 'grayscale-0' : 'opacity-50 grayscale-80',
-						isHighlighted ? 'ring-primary' : isMe && 'ring-blue-500',
+						(isMe || isHighlighted) && 'ring-primary',
 						'hover:opacity-100 hover:grayscale-0'
 					)}
 				/>

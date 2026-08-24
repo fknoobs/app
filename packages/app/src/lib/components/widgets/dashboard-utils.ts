@@ -4,7 +4,10 @@ import type { MatchExpanded } from '$core/app/database/matches';
 import type { TransformedMatch } from '@fknoobs/app';
 import { Lobby, MATCH_TYPES, type Match, type MatchTypeId } from '$core/game/lobby';
 import { Race } from '$lib/utils/game';
+import { isMePlayer } from '$lib/utils/player-me';
+import { isValidSteamId } from '$lib/utils/player-elo';
 import dayjs from '$lib/dayjs';
+import { sortBy, uniq } from 'lodash-es';
 
 export function formatMapDisplayName(map?: string): string {
 	if (!map) return 'Unknown Map';
@@ -48,8 +51,52 @@ export function getPlayerProfileId(player: LobbyPlayer): number | undefined {
 	return player.profile?.profile_id ?? (player.playerId > 0 ? player.playerId : undefined);
 }
 
+export function getPlayerRowKey(player: LobbyPlayer, rowIndex = 0): string {
+	const profileId = getPlayerProfileId(player);
+	if (profileId != null) return `profile:${profileId}`;
+	if (player.steamId) return `steam:${player.steamId}`;
+	if (player.index != null) return `index:${player.index}`;
+	return `row:${rowIndex}`;
+}
+
 export function getPlayerAlias(player: LobbyPlayer): string {
-	return player.profile?.alias ?? `Player ${player.index + 1}`;
+	if (player.profile?.alias) return player.profile.alias;
+	if (player.index != null) return `Player ${player.index + 1}`;
+	const profileId = getPlayerProfileId(player);
+	if (profileId != null) return `Player ${profileId}`;
+	return 'Unknown';
+}
+
+export function getLobbyPlayerTeamId(
+	player: LobbyPlayer,
+	result?: TransformedMatch | null
+): number {
+	const profileId = getPlayerProfileId(player);
+	if (result?.players && profileId != null) {
+		const matchPlayer = result.players.find((entry) => entry.profile_id === profileId);
+		if (matchPlayer?.teamid != null) return matchPlayer.teamid;
+	}
+	if (player.team != null) return player.team;
+	const race = player.race;
+	if (race === Race.US || race === Race.Commonwealth) return 0;
+	if (race === Race.Wehrmacht || race === Race.PanzerElite) return 1;
+	return 0;
+}
+
+export function orderLobbyPlayersByTeam(
+	players: LobbyPlayer[],
+	result?: TransformedMatch | null
+): LobbyPlayer[] {
+	return sortBy(players, [
+		(player) => getLobbyPlayerTeamId(player, result),
+		(player) => player.index ?? getPlayerProfileId(player) ?? 0
+	]);
+}
+
+export function isHighlightedPlayer(player: LobbyPlayer, highlightPlayerId?: number): boolean {
+	if (isMePlayer(player)) return true;
+	if (highlightPlayerId == null) return false;
+	return getPlayerProfileId(player) === highlightPlayerId;
 }
 
 export function getAlliesPlayers(players: LobbyPlayer[] = []): LobbyPlayer[] {
@@ -72,7 +119,63 @@ export function liveLobbyToMatch(lobby: LiveLobby): Match {
 	return instance.toJSON();
 }
 
-export function countTodayRecord(matches: MatchExpanded[], profileId?: number) {
+function steamIdFromResultPlayer(player: {
+	steamId?: string | null;
+	name?: string | null;
+}): string | null {
+	if (player.steamId && isValidSteamId(player.steamId)) {
+		return player.steamId;
+	}
+	if (typeof player.name === 'string' && player.name.startsWith('/steam/')) {
+		const steamId = player.name.slice('/steam/'.length);
+		return isValidSteamId(steamId) ? steamId : null;
+	}
+	return null;
+}
+
+export function collectTodayMatchSteamIds(authSteamIds?: string[] | null): string[] {
+	const ids = new Set<string>();
+	for (const steamId of authSteamIds ?? []) {
+		if (isValidSteamId(steamId)) {
+			ids.add(steamId);
+		}
+	}
+	return [...ids];
+}
+
+/** PocketBase autodate filter value for local midnight. */
+export function todayStartFilterValue(): string {
+	return dayjs().startOf('day').toISOString().replace('T', ' ');
+}
+
+function matchResultIncludesSubject(
+	match: MatchExpanded,
+	profileId?: number,
+	steamIds?: string[]
+): boolean {
+	const result = match.result as TransformedMatch | null | undefined;
+	if (!result?.players?.length) {
+		return false;
+	}
+
+	for (const player of result.players) {
+		if (profileId != null && player.profile_id === profileId) {
+			return true;
+		}
+		const steamId = steamIdFromResultPlayer(player);
+		if (steamId && steamIds?.includes(steamId)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+export function countTodayRecord(
+	matches: MatchExpanded[],
+	profileId?: number,
+	steamIds: string[] = []
+) {
 	let wins = 0;
 	let losses = 0;
 	let pending = 0;
@@ -84,9 +187,15 @@ export function countTodayRecord(matches: MatchExpanded[], profileId?: number) {
 		}
 
 		const result = match.result as TransformedMatch | null | undefined;
-		if (!result || !profileId) continue;
+		if (!result) continue;
 
-		const player = result.players.find((entry) => entry.profile_id === profileId);
+		const player = result.players.find((entry) => {
+			if (profileId != null && entry.profile_id === profileId) {
+				return true;
+			}
+			const steamId = steamIdFromResultPlayer(entry);
+			return !!steamId && steamIds.includes(steamId);
+		});
 		if (!player) continue;
 
 		if (player.outcome === 1) wins++;
@@ -106,30 +215,47 @@ export function matchIncludesPlayer(match: MatchExpanded, profileId: number): bo
 	return !!result?.players?.some((player) => player.profile_id === profileId);
 }
 
-/**
- * Matches played today for this account/profile.
- * - `user`: matches you saved (same source as History → My matches)
- * - CSV / lobbyPlayers: matches a teammate saved where you still participated
- * Never search raw `players` JSON — it embeds opponents' matchHistory and false-positives.
- *
- * Server window starts at local midnight (PB autodate needs `YYYY-MM-DD HH:mm:ss.SSSZ`).
- * Callers should still client-filter with {@link isMatchFromLocalToday} so timezone
- * edges never drop games.
- */
-export function todayPlayedMatchesFilter(
-	profileId?: number | null,
-	userId?: string | null
-): string {
-	const who: string[] = [];
-	if (userId) who.push(`user = "${userId}"`);
-	if (profileId) {
-		who.push(`playerProfileIdsCsv ~ ",${profileId},"`);
-		who.push(`lobbyPlayers ~ '"profile_id":${profileId},'`);
+/** True when one of the linked Steam accounts participated in the match. */
+export function matchIncludesSteamIds(match: MatchExpanded, steamIds: string[]): boolean {
+	if (steamIds.length === 0) {
+		return false;
 	}
+
+	if (
+		(match.players ?? []).some(
+			(player) => player.steamId && steamIds.includes(String(player.steamId))
+		)
+	) {
+		return true;
+	}
+
+	const lobbyPlayersRaw = (match as MatchExpanded & { lobbyPlayers?: unknown }).lobbyPlayers;
+	if (typeof lobbyPlayersRaw === 'string' && lobbyPlayersRaw.length > 2) {
+		for (const steamId of steamIds) {
+			if (lobbyPlayersRaw.includes(`"steamId":"${steamId}"`)) {
+				return true;
+			}
+		}
+	}
+
+	return matchResultIncludesSubject(match, undefined, steamIds);
+}
+
+/**
+ * Realtime subscription filter for matches played today.
+ * Uses steam IDs from the logged-in user record; each id is matched anywhere in lobbyPlayers.
+ */
+export function todayPlayedMatchesFilter(steamIds: string[] = []): string {
+	const who: string[] = [];
+	const uniqueSteamIds = uniq(steamIds.filter(isValidSteamId));
+
+	for (const steamId of uniqueSteamIds) {
+		who.push(`lobbyPlayers ~ "${steamId}"`);
+	}
+
 	if (who.length === 0) return 'id=""';
 	const clause = who.length === 1 ? who[0]! : `(${who.join(' || ')})`;
-	// PocketBase autodate filters use a space, not ISO `T` (see lobbiesLiveFreshFilter).
-	const todayStart = dayjs().startOf('day').toISOString().replace('T', ' ');
+	const todayStart = todayStartFilterValue();
 	return `createdAt >= "${todayStart}" && ${clause}`;
 }
 

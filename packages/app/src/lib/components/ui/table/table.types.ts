@@ -26,6 +26,8 @@ export type DataTableProps<T> = {
 	columns: ColumnDef<T>[];
 	rowKey: (row: T) => string | number;
 	rowHref?: (row: T) => string | undefined;
+	onRowClick?: (row: T) => void;
+	isRowExpanded?: (row: T) => boolean;
 	rowClass?: (row: T) => string;
 	loading?: boolean;
 	skeletonRows?: number;

@@ -3,7 +3,7 @@
 	import type { MatchTypeId } from '$core/game/lobby';
 	import { sortBy } from 'lodash-es';
 	import LobbyPlayerCard from './lobby-player-card.svelte';
-	import { getAlliesPlayers, getAxisPlayers } from './dashboard-utils';
+	import { getAlliesPlayers, getAxisPlayers, getPlayerRowKey, isHighlightedPlayer } from './dashboard-utils';
 
 	type Props = {
 		players: LobbyPlayer[];
@@ -21,11 +21,11 @@
 	<section>
 		<h3 class="text-secondary-400 mb-4 text-xs font-semibold tracking-wide uppercase">Allies</h3>
 		<div class="grid gap-3">
-			{#each allies as player (player.index)}
+			{#each allies as player, rowIndex (getPlayerRowKey(player, rowIndex))}
 				<LobbyPlayerCard
 					{player}
 					{matchType}
-					isMe={highlightPlayerId !== undefined && player.playerId === highlightPlayerId}
+					isMe={isHighlightedPlayer(player, highlightPlayerId)}
 				/>
 			{/each}
 		</div>
@@ -33,11 +33,11 @@
 	<section>
 		<h3 class="text-secondary-400 mb-4 text-xs font-semibold tracking-wide uppercase">Axis</h3>
 		<div class="grid gap-3">
-			{#each axis as player (player.index)}
+			{#each axis as player, rowIndex (getPlayerRowKey(player, rowIndex))}
 				<LobbyPlayerCard
 					{player}
 					{matchType}
-					isMe={highlightPlayerId !== undefined && player.playerId === highlightPlayerId}
+					isMe={isHighlightedPlayer(player, highlightPlayerId)}
 				/>
 			{/each}
 		</div>
