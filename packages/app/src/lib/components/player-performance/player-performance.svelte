@@ -16,7 +16,11 @@
 	import { resource } from 'runed';
 	import type { Snippet } from 'svelte';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
+	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifoldIcon';
+	import FlagIcon from 'phosphor-svelte/lib/FlagIcon';
+	import UsersThreeIcon from 'phosphor-svelte/lib/UsersThreeIcon';
 	import PlayerPerformanceMapMatches from './player-performance-map-matches.svelte';
+	import PlayerPerformanceSection from './player-performance-section.svelte';
 
 	type Props = {
 		profileId: number | null | undefined;
@@ -52,10 +56,21 @@
 	const byMode = $derived(stats.byMode.filter((mode) => mode.matchtypeId !== 14));
 	const isLoading = $derived(performance.loading && stats.matchCount === 0);
 	let expandedMap = $state<string | null>(null);
+	let mapsExpanded = $state(false);
+	let factionExpanded = $state(false);
+	let modeExpanded = $state(false);
+
+	const mapGames = $derived(
+		stats.byMap.reduce((total, row) => total + row.wins + row.losses, 0)
+	);
+	const mapSummary = $derived(`${stats.byMap.length} maps · ${mapGames} games`);
+	const factionSummary = $derived(`${stats.byFaction.length} factions tracked`);
+	const modeSummary = $derived(`${byMode.length} game modes`);
 
 	const statHeader = 'flex w-full justify-center';
 	const statCell = 'flex w-full justify-center tabular-nums';
 	const statPad = { headerCellClass: 'px-2', cellClass: () => 'px-2' };
+	const sectionHeaderRow = 'bg-secondary-950/60 text-secondary-400';
 
 	const mapColumns: ColumnDef<PerformanceMapRecord>[] = [
 		{ id: 'map', header: 'Map', class: 'flex min-w-0 items-center gap-3' },
@@ -218,9 +233,9 @@
 				{#if profileId}
 					<PlayerPerformanceMapMatches
 						mapKey={row.map}
-						profileId={profileId}
-						scope={scope}
-						userId={userId}
+						{profileId}
+						{scope}
+						{userId}
 						totalGames={row.wins + row.losses}
 					/>
 				{/if}
@@ -233,59 +248,84 @@
 	<p class={cn('text-secondary-400 px-4 py-3 text-sm', className)}>{emptyMessage}</p>
 {:else}
 	<div class={cn(className)}>
-		<DataTable
-			data={stats.byMap}
-			columns={mapColumns}
-			rowKey={(row) => row.map}
-			onRowClick={toggleMapRow}
-			isRowExpanded={(row) => expandedMap === row.map}
-			rowWrapper={mapRowWrapper}
-			loading={isLoading}
-			skeletonRows={4}
-			striped={false}
-			empty="No map stats yet."
-			class="rounded-none border-0"
-			cells={{
-				map: cell_map,
-				games: cell_games,
-				wins: cell_wins,
-				losses: cell_losses,
-				winrate: cell_winrate,
-				expand: cell_expand
-			}}
-		/>
+		<PlayerPerformanceSection
+			title="By map"
+			summary={mapSummary}
+			icon={MapTrifoldIcon}
+			bind:expanded={mapsExpanded}
+		>
+			<DataTable
+				data={stats.byMap}
+				columns={mapColumns}
+				rowKey={(row) => row.map}
+				onRowClick={toggleMapRow}
+				isRowExpanded={(row) => expandedMap === row.map}
+				rowWrapper={mapRowWrapper}
+				loading={isLoading}
+				skeletonRows={4}
+				striped
+				empty="No map stats yet."
+				class="rounded-none border-0"
+				headerRowClass={sectionHeaderRow}
+				cells={{
+					map: cell_map,
+					games: cell_games,
+					wins: cell_wins,
+					losses: cell_losses,
+					winrate: cell_winrate,
+					expand: cell_expand
+				}}
+			/>
+		</PlayerPerformanceSection>
 
-		<DataTable
-			data={stats.byFaction}
-			columns={factionColumns}
-			rowKey={(row) => row.raceId}
-			loading={isLoading}
-			skeletonRows={3}
-			striped={false}
-			empty="No faction stats yet."
-			class="border-secondary-800 rounded-none border-0 border-t"
-			cells={{
-				faction: cell_faction,
-				wins: cell_wins,
-				losses: cell_losses,
-				winrate: cell_winrate
-			}}
-		/>
-		<DataTable
-			data={byMode}
-			columns={modeColumns}
-			rowKey={(row) => row.matchtypeId}
-			loading={isLoading}
-			skeletonRows={3}
-			striped={false}
-			empty="No mode stats yet."
-			class="border-secondary-800 rounded-none border-0 border-t"
-			cells={{
-				mode: cell_mode,
-				wins: cell_wins,
-				losses: cell_losses,
-				winrate: cell_winrate
-			}}
-		/>
+		<PlayerPerformanceSection
+			title="By faction"
+			summary={factionSummary}
+			icon={FlagIcon}
+			bind:expanded={factionExpanded}
+		>
+			<DataTable
+				data={stats.byFaction}
+				columns={factionColumns}
+				rowKey={(row) => row.raceId}
+				loading={isLoading}
+				skeletonRows={3}
+				striped
+				empty="No faction stats yet."
+				class="rounded-none border-0"
+				headerRowClass={sectionHeaderRow}
+				cells={{
+					faction: cell_faction,
+					wins: cell_wins,
+					losses: cell_losses,
+					winrate: cell_winrate
+				}}
+			/>
+		</PlayerPerformanceSection>
+
+		<PlayerPerformanceSection
+			title="By mode"
+			summary={modeSummary}
+			icon={UsersThreeIcon}
+			bind:expanded={modeExpanded}
+		>
+			<DataTable
+				data={byMode}
+				columns={modeColumns}
+				rowKey={(row) => row.matchtypeId}
+				loading={isLoading}
+				skeletonRows={3}
+				striped
+				empty="No mode stats yet."
+				class="rounded-none border-0"
+				headerRowClass={sectionHeaderRow}
+				cells={{
+					mode: cell_mode,
+					wins: cell_wins,
+					losses: cell_losses,
+					winrate: cell_winrate
+				}}
+			/>
+		</PlayerPerformanceSection>
 	</div>
 {/if}

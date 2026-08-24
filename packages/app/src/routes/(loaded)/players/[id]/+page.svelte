@@ -174,7 +174,7 @@
 			</div>
 		</div>
 
-		<div class="text-secondary-400 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm">
+		<div class="text-secondary-400 bg-secondary-950/50 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm">
 			{#if profile.current.steam.lastlogoff}
 				<span>
 					<span class="text-secondary-500">Last seen</span>

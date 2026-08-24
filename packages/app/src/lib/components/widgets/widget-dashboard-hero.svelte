@@ -13,6 +13,7 @@
 	import { resource } from 'runed';
 	import { upperCase } from 'lodash-es';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
+	import * as Player from '$lib/components/player';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import {
 		collectTodayMatchSteamIds,
@@ -225,8 +226,12 @@
 									class="rounded-none border-0"
 								/>
 							{:else if recentMatches.loading}
-								<div class="px-4 py-3">
-									<Skeleton class="h-32 w-full" />
+								<div class="divide-secondary-800 divide-y border-secondary-800 border-t">
+									{#each Array(5) as _, index (index)}
+										<div class="px-4 py-3">
+											<Skeleton class="h-4 w-full" />
+										</div>
+									{/each}
 								</div>
 							{:else}
 								<MatchHistory matches={recentMatches.current ?? []} showSessionId />
@@ -235,7 +240,7 @@
 					{/if}
 				</div>
 
-				<div class="text-secondary-400 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm">
+				<div class="text-secondary-400 bg-secondary-950/50 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm">
 					<span>
 						<span class="text-secondary-500">Today</span>
 						{todayRecord.total} matches
@@ -262,7 +267,7 @@
 		</Profile.Root>
 	{/key}
 {:else if resolvedProfile.loading}
-	<Skeleton class="h-48 w-full" />
+	<Player.ProfileSkeleton widget />
 {:else}
 	<Alert variant="warning">
 		Company of Heroes is not running. Start the game to see your profile and match tracking.
