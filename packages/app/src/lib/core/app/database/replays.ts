@@ -14,7 +14,8 @@ import { fetch } from '$core/http/fetch';
 import { account } from '$core/account';
 import { app } from '$core/app/context';
 import { join } from '@tauri-apps/api/path';
-import { exists, writeFile } from '@tauri-apps/plugin-fs';
+import { exists, writeFile, remove } from '@tauri-apps/plugin-fs';
+import { download } from '@tauri-apps/plugin-upload';
 
 export type ReplaysExpanded = Expand<
 	ReplaysResponse<Message[], Player[], { createdBy: UsersResponse }>
@@ -94,29 +95,61 @@ export class Replays {
 
 	/**
 	 * Rewrites `replayName` in the `.rec` binary, updates PocketBase title/file,
-	 * and writes the local playback copy when `filename` still exists on disk.
+	 * and replaces the local playback file (`filename`).
 	 */
 	async rename(id: string, replayName: string): Promise<{ bytes: Uint8Array; title: string }> {
 		const record = await pocketbase.collection('replays').getOne<ReplaysRecord>(id, { fetch });
 		const current = await getFile(record, record.file);
 		const title = replayName.trim() || '-';
 		const bytes = setReplayName(current, title === '-' ? '' : title);
-		const file = new File([bytes], record.filename || record.file || 'replay.rec');
+		const localName = record.filename || record.file || 'replay.rec';
+		const file = new File([bytes], localName);
 
 		await this.update(id, { title, file });
 
-		if (record.filename) {
-			try {
-				const localPath = await join(await app.paths.cohPlaybackDir(), record.filename);
-				if (await exists(localPath)) {
-					await writeFile(localPath, bytes);
-				}
-			} catch (error) {
-				console.warn('[REPLAYS]: failed to write renamed local replay', record.filename, error);
-			}
+		try {
+			const localPath = await join(await app.paths.cohPlaybackDir(), localName);
+			await writeFile(localPath, bytes);
+		} catch (error) {
+			console.warn('[REPLAYS]: failed to write renamed local replay', localName, error);
 		}
 
 		return { bytes, title };
+	}
+
+	/** Local playback path for a stored replay filename. */
+	async localPath(filename: string): Promise<string> {
+		return join(await app.paths.cohPlaybackDir(), filename);
+	}
+
+	async localExists(filename: string): Promise<boolean> {
+		if (!filename) return false;
+		try {
+			return await exists(await this.localPath(filename));
+		} catch {
+			return false;
+		}
+	}
+
+	/** Deletes the local playback copy when present. Returns whether a file was removed. */
+	async deleteLocal(filename: string): Promise<boolean> {
+		if (!filename) return false;
+		const path = await this.localPath(filename);
+		if (!(await exists(path))) return false;
+		await remove(path);
+		return true;
+	}
+
+	/** Downloads the PocketBase replay file into the CoH playback folder. */
+	async download(record: Pick<ReplaysRecord, 'id' | 'file' | 'filename'> & Record<string, unknown>) {
+		const localName = record.filename || record.file;
+		if (!localName || !record.file) {
+			throw new Error('Replay file is missing');
+		}
+
+		const path = await this.localPath(localName);
+		const url = pocketbase.files.getURL(record, record.file);
+		await download(url, path);
 	}
 
 	/** Retrieves a single replay by its filename. */

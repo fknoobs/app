@@ -2,5 +2,5 @@
 '@company-of-heroes/app': patch
 ---
 
-enhance; restyle toasts to match app surface and semantic colors
-enhance; give toast variants clearer tinted backgrounds and text colors
+enhance; restyle toasts to match app surface panels
+fix; use opaque toast backgrounds so content no longer shows through

@@ -1,15 +1,25 @@
 <script lang="ts">
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import MapImage from '$lib/components/ui/map-image.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import { cn, getFactionFlagFromRace } from '$lib/utils';
 	import { getString } from '$lib/utils/game';
 	import { tooltip } from '$lib/attachments';
+	import { interactive } from '$lib/components/ui/variants';
 	import SortAscending from 'phosphor-svelte/lib/ArrowDownIcon';
 	import SortDescending from 'phosphor-svelte/lib/ArrowUpIcon';
 	import Sortable from 'phosphor-svelte/lib/ArrowsDownUpIcon';
+	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
+	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import dayjs from '$lib/dayjs';
 	import type { ReplaysExpanded } from '$core/app/database/replays';
 	import type { ReplayList } from './replay-list.svelte';
+	import { app } from '$core/app/context';
+	import { resource } from 'runed';
+	import ReplayRenameModal from './replay-rename-modal.svelte';
+	import ReplayDeleteModal from './replay-delete-modal.svelte';
 
 	interface Props {
 		list: ReplayList;
@@ -17,16 +27,71 @@
 
 	let { list }: Props = $props();
 
+	let downloadingIds = $state<Record<string, boolean>>({});
+	let confirmedLocalIds = $state<Record<string, true>>({});
+
+	const localPresence = resource(
+		() => list.replays.map((replay) => `${replay.id}:${replay.filename}`).join('|'),
+		async () => {
+			const entries = await Promise.all(
+				list.replays.map(
+					async (row) =>
+						[row.id, await app.database.replays.localExists(row.filename)] as const
+				)
+			);
+			return Object.fromEntries(entries) as Record<string, boolean>;
+		}
+	);
+
+	const localPresentIds = $derived({
+		...(localPresence.current ?? {}),
+		...confirmedLocalIds
+	});
+
 	const columns: ColumnDef<ReplaysExpanded>[] = [
-		{ id: 'title', header: 'Title', width: 'w-4/24', class: 'truncate', accessor: (item) => item.title },
+		{ id: 'title', header: 'Title', width: 'w-3/24', class: 'truncate', accessor: (item) => item.title },
 		{ id: 'allies', header: 'Allies', width: 'w-3/24', class: 'flex gap-2' },
 		{ id: 'axis', header: 'Axis', width: 'w-3/24', class: 'flex gap-2' },
-		{ id: 'duration', header: 'Duration', width: 'w-3/24', sortable: true, onSort: toggleDurationSort, headerClass: 'flex items-center select-none' },
-		{ id: 'players', header: 'Players', width: 'w-2/24', class: 'text-center', headerClass: 'text-center', accessor: (item) => item.players?.length },
-		{ id: 'map', header: 'Map', width: 'w-5/24', class: 'flex items-center gap-4' },
-		{ id: 'date', header: 'Date', width: 'w-4/24', class: 'truncate', sortable: true, onSort: toggleDateSort, headerClass: 'flex items-center select-none' }
+		{
+			id: 'duration',
+			header: 'Duration',
+			width: 'w-3/24',
+			sortable: true,
+			onSort: toggleDurationSort,
+			headerClass: 'flex items-center select-none'
+		},
+		{
+			id: 'players',
+			header: 'Players',
+			width: 'w-2/24',
+			class: 'text-center',
+			headerClass: 'text-center',
+			accessor: (item) => item.players?.length
+		},
+		{ id: 'map', header: 'Map', width: 'w-4/24', class: 'flex items-center gap-4' },
+		{
+			id: 'date',
+			header: 'Date',
+			width: 'w-3/24',
+			class: 'truncate',
+			sortable: true,
+			onSort: toggleDateSort,
+			headerClass: 'flex items-center select-none'
+		},
+		{ id: 'actions', header: '', width: 'w-3/24', class: 'justify-end gap-0.5' }
 	];
 
+	function markLocalPresent(id: string) {
+		confirmedLocalIds = { ...confirmedLocalIds, [id]: true };
+	}
+
+	function markLocalAbsent(id: string) {
+		const { [id]: _removed, ...rest } = confirmedLocalIds;
+		confirmedLocalIds = rest;
+		if (localPresence.current?.[id]) {
+			localPresence.mutate({ ...localPresence.current, [id]: false });
+		}
+	}
 	function viewport(node: HTMLElement) {
 		const observer = new IntersectionObserver((entries) => {
 			if (!entries[0]?.isIntersecting) return;
@@ -64,6 +129,84 @@
 	function isFilteredPlayer(name: string) {
 		const normalized = name.toLowerCase();
 		return list.filters.players.some((player) => player.toLowerCase() === normalized);
+	}
+
+	function openRename(row: ReplaysExpanded) {
+		app.modal.create({
+			title: 'Rename replay',
+			size: 'sm',
+			component: ReplayRenameModal,
+			props: {
+				initialName: row.title === '-' ? '' : row.title,
+				onCancel: () => app.modal.close(),
+				onSave: async (name: string) => {
+					try {
+						const result = await app.database.replays.rename(row.id, name);
+						list.patch(row.id, { title: result.title });
+						markLocalPresent(row.id);
+						app.toast.success('Replay name updated.');
+						app.modal.close();
+					} catch (error) {
+						app.toast.error('Failed to rename replay: ' + (error as Error).message);
+					}
+				}
+			}
+		});
+		app.modal.open();
+	}
+
+	function openDelete(row: ReplaysExpanded) {
+		app.modal.create({
+			title: 'Delete replay',
+			size: 'md',
+			component: ReplayDeleteModal,
+			props: {
+				title: row.title,
+				hasLocal: !!localPresentIds[row.id],
+				onCancel: () => app.modal.close(),
+				onConfirm: async (mode) => {
+					try {
+						if (mode === 'local') {
+							const removed = await app.database.replays.deleteLocal(row.filename);
+							if (!removed) {
+								app.toast.error('Local replay file was not found.');
+								return;
+							}
+							markLocalAbsent(row.id);
+							app.toast.success('Local replay file deleted.');
+						} else {
+							try {
+								await app.database.replays.deleteLocal(row.filename);
+							} catch (error) {
+								console.warn('[REPLAYS]: failed to delete local replay', row.filename, error);
+							}
+							await app.database.replays.delete(row.id);
+							list.remove(row.id);
+							markLocalAbsent(row.id);
+							app.toast.success('Replay deleted from library and disk.');
+						}
+						app.modal.close();
+					} catch (error) {
+						app.toast.error('Failed to delete replay: ' + (error as Error).message);
+					}
+				}
+			}
+		});
+		app.modal.open();
+	}
+
+	async function downloadReplay(row: ReplaysExpanded) {
+		if (downloadingIds[row.id] || localPresentIds[row.id]) return;
+		downloadingIds = { ...downloadingIds, [row.id]: true };
+		try {
+			await app.database.replays.download(row);
+			markLocalPresent(row.id);
+			app.toast.success('Replay saved to the Company of Heroes playback folder.');
+		} catch (error) {
+			app.toast.error('Failed to download replay: ' + (error as Error).message);
+		} finally {
+			downloadingIds = { ...downloadingIds, [row.id]: false };
+		}
 	}
 </script>
 
@@ -139,6 +282,53 @@
 {#snippet cell_date({ row }: { row: ReplaysExpanded })}
 	{dayjs(row.gameDate).format('YYYY-MM-DD HH:mm')}
 {/snippet}
+{#snippet cell_actions({ row }: { row: ReplaysExpanded })}
+	{@const isDownloading = !!downloadingIds[row.id]}
+	{@const isLocal = !!localPresentIds[row.id]}
+	<Button
+		type="button"
+		variant="ghost"
+		size="icon-sm"
+		class={cn(
+			interactive,
+			'text-secondary-500 hover:text-secondary-200',
+			isLocal && 'pointer-events-none cursor-not-allowed opacity-50'
+		)}
+		loading={isDownloading}
+		disabled={isDownloading || isLocal}
+		aria-label={isLocal ? 'Replay available locally' : 'Download replay'}
+		{@attach tooltip(isLocal ? 'Available in playback folder' : 'Download to playback folder')}
+		onclick={() => void downloadReplay(row)}
+	>
+		{#if isLocal && !isDownloading}
+			<CheckIcon size={16} />
+		{:else if !isDownloading}
+			<DownloadIcon size={16} />
+		{/if}
+	</Button>
+	<Button
+		type="button"
+		variant="ghost"
+		size="icon-sm"
+		class={cn(interactive, 'text-secondary-500 hover:text-secondary-200')}
+		aria-label="Rename replay"
+		{@attach tooltip('Rename')}
+		onclick={() => openRename(row)}
+	>
+		<PencilSimpleIcon size={16} />
+	</Button>
+	<Button
+		type="button"
+		variant="ghost"
+		size="icon-sm"
+		class={cn(interactive, 'text-secondary-500 hover:text-destructive')}
+		aria-label="Delete replay"
+		{@attach tooltip('Delete')}
+		onclick={() => openDelete(row)}
+	>
+		<TrashIcon size={16} />
+	</Button>
+{/snippet}
 {#snippet tableFooter()}
 	{#if list.replays.length > 0 || !list.isLoading}
 		<div use:viewport class="text-secondary-400 text-sm">
@@ -169,7 +359,8 @@
 		axis: cell_axis,
 		duration: cell_duration,
 		map: cell_map,
-		date: cell_date
+		date: cell_date,
+		actions: cell_actions
 	}}
 >
 	{@render tableFooter()}

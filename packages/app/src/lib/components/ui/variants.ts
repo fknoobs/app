@@ -78,18 +78,4 @@ export function semanticVariant(variant: SemanticVariant = 'default') {
 
 /** Shared toast chrome — pairs with Sonner `classes.toast` when unstyled. */
 export const toastBase =
-	'relative flex w-[min(22rem,calc(100vw-2rem))] items-center gap-2.5 rounded-md border px-3 py-2.5 text-sm shadow-md';
-
-export type ToastVariant = 'default' | 'success' | 'error' | 'info' | 'warning';
-
-const toastVariantClasses: Record<ToastVariant, string> = {
-	default: 'border-secondary-700 bg-secondary-900 text-secondary-100',
-	success: 'border-success/50 bg-success/20 text-green-100',
-	error: 'border-destructive/45 bg-destructive/20 text-red-100',
-	info: 'border-info/45 bg-info/20 text-sky-100',
-	warning: 'border-warning/50 bg-warning/20 text-amber-100'
-};
-
-export function toastVariant(variant: ToastVariant = 'default') {
-	return toastVariantClasses[variant];
-}
+	'relative flex w-[min(22rem,calc(100vw-2rem))] items-center gap-2.5 rounded-md border border-secondary-800 bg-secondary-950 px-3 py-2.5 text-sm text-secondary-100 shadow-md';

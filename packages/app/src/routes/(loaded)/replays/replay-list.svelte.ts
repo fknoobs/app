@@ -194,4 +194,14 @@ export class ReplayList {
 			}
 		}
 	}
+
+	remove(id: string) {
+		this.replays = this.replays.filter((replay) => replay.id !== id);
+	}
+
+	patch(id: string, patch: Partial<ReplaysExpanded>) {
+		this.replays = this.replays.map((replay) =>
+			replay.id === id ? { ...replay, ...patch } : replay
+		);
+	}
 }

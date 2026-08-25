@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Toaster as SonnerToaster } from 'svelte-sonner';
-	import { toastBase, toastVariant } from '../variants';
+	import { toastBase } from '../variants';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import WarningIcon from 'phosphor-svelte/lib/WarningIcon';
 	import InfoIcon from 'phosphor-svelte/lib/InfoIcon';
@@ -15,22 +15,15 @@
 		classes: {
 			toast: toastBase,
 			title: 'text-sm font-semibold',
-			description: 'text-sm opacity-80',
+			description: 'text-sm text-secondary-300',
 			icon: 'shrink-0',
 			content: 'min-w-0 flex-1',
 			actionButton:
 				'border-primary/30 bg-primary/15 text-primary ml-auto cursor-pointer rounded border px-2 py-1 text-xs font-medium',
 			cancelButton:
-				'border-secondary-700 bg-secondary-800/80 text-secondary-300 ml-auto cursor-pointer rounded border px-2 py-1 text-xs font-medium',
+				'border-secondary-700 bg-secondary-800 text-secondary-300 ml-auto cursor-pointer rounded border px-2 py-1 text-xs font-medium',
 			closeButton:
-				'border-current/20 bg-black/20 text-current/70 hover:text-current absolute top-1.5 right-1.5 cursor-pointer rounded border p-0.5',
-			normal: toastVariant('default'),
-			default: toastVariant('default'),
-			loading: toastVariant('default'),
-			success: toastVariant('success'),
-			error: toastVariant('error'),
-			info: toastVariant('info'),
-			warning: toastVariant('warning')
+				'border-secondary-700 bg-secondary-900 text-secondary-400 hover:text-secondary-100 absolute top-1.5 right-1.5 cursor-pointer rounded border p-0.5'
 		}
 	}}
 >
