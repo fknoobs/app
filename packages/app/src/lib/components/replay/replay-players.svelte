@@ -18,10 +18,14 @@
 	import DoctrineSector from '$lib/files/ct_branchbanner_top_pnze_01.png?url';
 	import DoctrineTank from '$lib/files/ct_branchbanner_top_pnze_02.png?url';
 	import { cn, getFactionFlagFromRace } from '$lib/utils';
-	import { mePlayerText } from '$lib/components/ui/variants';
+	import { interactive, mePlayerText } from '$lib/components/ui/variants';
 	import { isMeReplayAlias } from '$lib/utils/player-me';
 	import { getLeaderboardStatsForPlayerByMatchType } from '$lib/utils/game';
-	import { getLiveLobbyMatchType, getPlayerAlias } from '$lib/components/widgets/dashboard-utils';
+	import {
+		getLiveLobbyMatchType,
+		getPlayerAlias,
+		getPlayerProfileId
+	} from '$lib/components/widgets/dashboard-utils';
 
 	type Props = {} & HTMLAttributes<HTMLDivElement> & {
 		flush?: boolean;
@@ -127,6 +131,12 @@
 		? getLeaderboardStatsForPlayerByMatchType(result?.matchtype_id ?? matchType, lobbyPlayer)
 		: undefined}
 	{@const doctrineLabel = player.doctrineName || 'Unknown doctrine'}
+	{@const profileId = lobbyPlayer ? getPlayerProfileId(lobbyPlayer) : undefined}
+	{@const nameClass = cn(
+		'block truncate text-base font-semibold tracking-tight transition-colors',
+		isMe ? mePlayerText : 'text-primary-50',
+		profileId && cn(interactive, 'hover:text-primary')
+	)}
 	<div
 		class={cn(
 			'border-secondary-800 relative overflow-hidden border-b last:border-b-0',
@@ -156,14 +166,11 @@
 				>
 					<div class="flex min-w-0 flex-1 items-center gap-3.5">
 						<div class="min-w-0 flex-1">
-							<span
-								class={cn(
-									'block truncate text-base font-semibold tracking-tight',
-									isMe ? mePlayerText : 'text-primary-50'
-								)}
-							>
-								{player.name}
-							</span>
+							{#if profileId}
+								<a href="/players/{profileId}" class={nameClass}>{player.name}</a>
+							{:else}
+								<span class={nameClass}>{player.name}</span>
+							{/if}
 							<div
 								class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm tabular-nums"
 							>
@@ -205,14 +212,11 @@
 				</PlayerUi.Root>
 			{:else}
 				<div class="min-w-0 flex-1">
-					<span
-						class={cn(
-							'block truncate text-base font-semibold tracking-tight',
-							isMe ? mePlayerText : 'text-primary-50'
-						)}
-					>
-						{player.name}
-					</span>
+					{#if profileId}
+						<a href="/players/{profileId}" class={nameClass}>{player.name}</a>
+					{:else}
+						<span class={nameClass}>{player.name}</span>
+					{/if}
 					<div class="text-secondary-400 mt-1 flex min-w-0 items-center gap-1.5 text-sm">
 						<img
 							src={factionFlag(player)}
