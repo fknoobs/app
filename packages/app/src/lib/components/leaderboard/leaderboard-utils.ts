@@ -73,38 +73,58 @@ export function getStreakColor(streak: number): string {
 	return interpolateRatioColor(streakToProgress(streak));
 }
 
-function eloToProgress(elo: number): number {
-	if (elo <= 1000) return 0;
-	if (elo >= 2400) return 1;
-	if (elo <= 1400) return ((elo - 1000) / 400) * (1 / 3);
-	if (elo <= 1800) return 1 / 3 + ((elo - 1400) / 400) * (1 / 3);
-	return 2 / 3 + ((elo - 1800) / 600) * (1 / 3);
+function eloBandProgress(elo: number, min: number, max: number): number {
+	if (elo <= min) return 0;
+	if (elo >= max) return 1;
+	return (elo - min) / (max - min);
 }
 
-function interpolateEloColor(t: number): string {
-	const stops = [
-		{ t: 0, l: 0.5, c: 0.2, h: 25 },
-		{ t: 1 / 3, l: 0.8, c: 0.14, h: 112 },
-		{ t: 2 / 3, l: 0.72, c: 0.21, h: 145 },
-		{ t: 1, l: 0.84, c: 0.18, h: 85 }
-	] as const;
-
-	for (let i = 0; i < stops.length - 1; i++) {
-		const from = stops[i];
-		const to = stops[i + 1];
-		if (t <= to.t) {
-			const local = (t - from.t) / (to.t - from.t);
-			return `oklch(${lerp(from.l, to.l, local)} ${lerp(from.c, to.c, local)} ${lerp(from.h, to.h, local)})`;
-		}
-	}
-
-	const last = stops[stops.length - 1];
-	return `oklch(${last.l} ${last.c} ${last.h})`;
+function lerpOklch(
+	from: { l: number; c: number; h: number },
+	to: { l: number; c: number; h: number },
+	t: number
+): string {
+	return `oklch(${lerp(from.l, to.l, t)} ${lerp(from.c, to.c, t)} ${lerp(from.h, to.h, t)})`;
 }
 
+/** Low = blue, mid = green, pro = brand gold; each band light → dark as elo rises. */
 export function getEloColor(elo: number | null | undefined): string {
 	if (typeof elo !== 'number' || elo < 1) return 'var(--color-secondary-400)';
-	return interpolateEloColor(eloToProgress(elo));
+
+	if (elo < 1500) {
+		return lerpOklch(
+			{ l: 0.82, c: 0.09, h: 230 },
+			{ l: 0.5, c: 0.15, h: 255 },
+			eloBandProgress(elo, 1000, 1500)
+		);
+	}
+
+	if (elo < 1950) {
+		return lerpOklch(
+			{ l: 0.84, c: 0.12, h: 145 },
+			{ l: 0.52, c: 0.16, h: 155 },
+			eloBandProgress(elo, 1500, 1950)
+		);
+	}
+
+	// Champagne → vivid brand gold → deep amber (premium)
+	return lerpOklch(
+		{ l: 0.92, c: 0.14, h: 92 },
+		{ l: 0.72, c: 0.19, h: 72 },
+		eloBandProgress(elo, 1950, 2400)
+	);
+}
+
+export function isPremiumElo(elo: number | null | undefined): boolean {
+	return typeof elo === 'number' && elo >= 1950;
+}
+
+export function getEloTextShadow(elo: number | null | undefined): string | undefined {
+	if (!isPremiumElo(elo)) return undefined;
+	const t = eloBandProgress(elo!, 1950, 2400);
+	const glow = lerp(0.28, 0.48, t);
+	const blur = lerp(8, 14, t);
+	return `0 0 ${blur}px color-mix(in oklch, ${getEloColor(elo)} ${Math.round(glow * 100)}%, transparent)`;
 }
 
 export function formatRatio(wins: number, losses: number): string {

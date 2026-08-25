@@ -10,7 +10,7 @@
 	} from '$lib/utils/game';
 	import { getStoredEloForLeaderboard, type PlayerEloMap } from '$lib/utils/player-elo';
 	import LeaderboardStatPill from './leaderboard-stat-pill.svelte';
-	import { getEloColor } from './leaderboard-utils';
+	import { getEloColor, getEloTextShadow } from './leaderboard-utils';
 	import { orderBy, sortBy } from 'lodash-es';
 
 	type Props = {
@@ -161,7 +161,13 @@
 	{#if value == null}
 		<span class="text-secondary-500 text-xs">N/A</span>
 	{:else}
-		<span class="font-medium tabular-nums" style:color={getEloColor(value)}>{value}</span>
+		<span
+			class="font-medium tabular-nums"
+			style:color={getEloColor(value)}
+			style:text-shadow={getEloTextShadow(value)}
+		>
+			{value}
+		</span>
 	{/if}
 {/snippet}
 {#snippet cell_wins({ row }: { row: LeaderboardStat })}
