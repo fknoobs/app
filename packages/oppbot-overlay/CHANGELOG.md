@@ -1,5 +1,10 @@
 # @company-of-heroes/oppbot-overlay
 
+## 3.2.2
+
+- enhance; apply blue/green/gold elo tiers and elite glow on the oppbot overlay
+- fix; color oppbot overlay streaks green when positive and red when negative
+
 ## 3.2.1
 
 - feat; update overlay to reflect ELO changes
