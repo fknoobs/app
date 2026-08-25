@@ -1,11 +1,22 @@
 <script lang="ts">
 	import type { LeaderboardStatWithProfile } from '@fknoobs/app';
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
-	import { getRankImageByLeaderboardId } from '$lib/utils';
+	import { cn, getRankImageByLeaderboardId } from '$lib/utils';
+	import { getStoredEloForLeaderboard, type PlayerEloMap } from '$lib/utils/player-elo';
+	import { upperCase } from 'lodash-es';
+	import { tooltip } from '$lib/attachments';
 	import LeaderboardStatPill from './leaderboard-stat-pill.svelte';
+	import {
+		getCountryDisplayName,
+		getEloColor,
+		getEloTextShadow,
+		getSteamIdFromProfile,
+		isEliteElo
+	} from './leaderboard-utils';
 
 	type Props = {
 		stats: LeaderboardStatWithProfile[];
+		eloBySteamId?: Map<string, PlayerEloMap>;
 		loading?: boolean;
 		empty?: string;
 		class?: string;
@@ -14,6 +25,7 @@
 
 	let {
 		stats,
+		eloBySteamId = new Map(),
 		loading = false,
 		empty = 'No players found.',
 		class: className,
@@ -22,6 +34,13 @@
 
 	const centeredHeader = 'flex w-full justify-center';
 	const centeredCell = 'flex w-full justify-center';
+
+	function eloForRow(row: LeaderboardStatWithProfile): number | null {
+		return getStoredEloForLeaderboard(
+			eloBySteamId.get(getSteamIdFromProfile(row.profile)),
+			row.leaderboard_id
+		);
+	}
 
 	const columns: ColumnDef<LeaderboardStatWithProfile>[] = [
 		{
@@ -41,7 +60,14 @@
 		{
 			id: 'alias',
 			header: 'Alias',
-			class: 'w-full truncate font-medium'
+			class: 'flex w-full min-w-0 items-center gap-2 font-medium'
+		},
+		{
+			id: 'elo',
+			header: 'ELO',
+			width: 'w-[5rem]',
+			headerClass: centeredHeader,
+			class: `${centeredCell} tabular-nums`
 		},
 		{
 			id: 'wins',
@@ -83,7 +109,30 @@
 	<span class="text-secondary-400 text-sm tabular-nums">{row.ranklevel}</span>
 {/snippet}
 {#snippet cell_alias({ row }: { row: LeaderboardStatWithProfile })}
-	{row.profile?.alias}
+	{#if row.profile?.country}
+		{@const countryName = getCountryDisplayName(row.profile.country)}
+		<img
+			class="h-4 w-auto shrink-0 rounded-xs"
+			src="https://flagsapi.com/{upperCase(row.profile.country)}/shiny/64.png"
+			alt={countryName ?? row.profile.country}
+			{@attach tooltip(countryName ?? row.profile.country)}
+		/>
+	{/if}
+	<span class="truncate">{row.profile?.alias}</span>
+{/snippet}
+{#snippet cell_elo({ row }: { row: LeaderboardStatWithProfile })}
+	{@const value = eloForRow(row)}
+	{#if value == null}
+		<span class="text-secondary-500 text-xs">N/A</span>
+	{:else}
+		<span
+			class={cn('tabular-nums', isEliteElo(value) ? 'font-bold tracking-wide' : 'font-medium')}
+			style:color={getEloColor(value)}
+			style:text-shadow={getEloTextShadow(value)}
+		>
+			{value}
+		</span>
+	{/if}
 {/snippet}
 {#snippet cell_wins({ row }: { row: LeaderboardStatWithProfile })}
 	<LeaderboardStatPill type="wins" wins={row.wins} losses={row.losses} streak={row.streak} />
@@ -111,6 +160,7 @@
 	cells={{
 		ranklevel: cell_ranklevel,
 		alias: cell_alias,
+		elo: cell_elo,
 		wins: cell_wins,
 		losses: cell_losses,
 		streak: cell_streak,

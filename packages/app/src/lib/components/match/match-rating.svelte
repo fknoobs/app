@@ -8,9 +8,11 @@
 	import CaretDown from 'phosphor-svelte/lib/CaretDownIcon';
 	import MinusIcon from 'phosphor-svelte/lib/MinusIcon';
 
-	type Props = HTMLAttributes<HTMLSpanElement>;
+	type Props = HTMLAttributes<HTMLSpanElement> & {
+		profileId?: number | string | null;
+	};
 
-	const { ...restProps }: Props = $props();
+	const { profileId = null, ...restProps }: Props = $props();
 	const match = useMatch();
 	const steamIds = app.features.auth.user.steamIds;
 
@@ -20,7 +22,14 @@
 			return null;
 		}
 
-		return players.find((p) => steamIds.includes(p.steamId)) ?? null;
+		if (profileId != null && profileId !== '') {
+			const id = Number(profileId);
+			if (Number.isFinite(id)) {
+				return players.find((entry) => entry.profile_id === id) ?? null;
+			}
+		}
+
+		return players.find((entry) => steamIds.includes(entry.steamId)) ?? null;
 	});
 
 	const change = $derived.by(() => {

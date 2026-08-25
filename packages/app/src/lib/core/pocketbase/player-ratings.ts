@@ -67,19 +67,33 @@ export async function getPlayerRatings(
 		return results;
 	}
 
-	try {
-		const filter = uniqueIds.map((id) => `steamId="${id}"`).join('||');
-		const records = await pocketbase.collection('player_ratings').getFullList({
-			filter,
-			fetch
-		});
+	// PocketBase rejects oversized filter query strings; keep each OR-clause batch small.
+	const BATCH_SIZE = 40;
+	const batches: string[][] = [];
+	for (let i = 0; i < uniqueIds.length; i += BATCH_SIZE) {
+		batches.push(uniqueIds.slice(i, i + BATCH_SIZE));
+	}
 
+	const settled = await Promise.all(
+		batches.map(async (batch) => {
+			try {
+				const filter = batch.map((id) => `steamId="${id}"`).join('||');
+				return await pocketbase.collection('player_ratings').getFullList({
+					filter,
+					fetch
+				});
+			} catch (error) {
+				console.warn('[player_ratings] batch fetch failed', error);
+				return [];
+			}
+		})
+	);
+
+	for (const records of settled) {
 		for (const record of records) {
 			const mapped = toRecord(record);
 			results.set(mapped.steamId, mapped);
 		}
-	} catch (error) {
-		console.warn('[player_ratings] batch fetch failed', error);
 	}
 
 	return results;
@@ -141,4 +155,68 @@ export async function ingestPlayerRatings(
 	}
 
 	return records;
+}
+
+export type PlayerEloHistoryPoint = {
+	at: number;
+	rating: number;
+	matchtypeId: number;
+	raceId: number;
+	matchId: number;
+};
+
+export type PlayerEloHistoryResponse = {
+	points: PlayerEloHistoryPoint[];
+};
+
+export async function getPlayerEloHistory(options: {
+	profileId?: number | null;
+	steamId?: string | null;
+}): Promise<PlayerEloHistoryPoint[]> {
+	const profileId = Number(options.profileId);
+	const steamId = options.steamId?.trim() || '';
+	const hasProfile = Number.isInteger(profileId) && profileId > 0;
+	const hasSteam = isValidSteamId(steamId);
+
+	if (!hasProfile && !hasSteam) {
+		return [];
+	}
+
+	const params = new URLSearchParams();
+	if (hasProfile) params.set('profileId', String(profileId));
+	if (hasSteam) params.set('steamId', steamId);
+
+	try {
+		const response = await fetch(`${baseUrl()}/api/player-ratings/history?${params}`);
+		if (!response.ok) {
+			return [];
+		}
+
+		const payload = (await response.json()) as PlayerEloHistoryResponse;
+		return Array.isArray(payload.points) ? payload.points : [];
+	} catch (error) {
+		console.warn('[player_ratings] elo history failed', error);
+		return [];
+	}
+}
+
+export function groupEloHistoryByModeAndRace(
+	points: PlayerEloHistoryPoint[]
+): Record<number, Record<number, PlayerEloHistoryPoint[]>> {
+	const grouped: Record<number, Record<number, PlayerEloHistoryPoint[]>> = {};
+
+	for (const point of points) {
+		if (point.matchtypeId === 14) continue;
+		const byRace = (grouped[point.matchtypeId] ??= {});
+		const series = (byRace[point.raceId] ??= []);
+		series.push(point);
+	}
+
+	for (const byRace of Object.values(grouped)) {
+		for (const series of Object.values(byRace)) {
+			series.sort((a, b) => a.at - b.at || a.matchId - b.matchId);
+		}
+	}
+
+	return grouped;
 }

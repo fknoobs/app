@@ -5,6 +5,19 @@ export function getSteamIdFromProfile(profile: RelicProfile): string {
 	return profile.name.replace('/steam/', '');
 }
 
+export function getCountryDisplayName(country: string | null | undefined): string | null {
+	if (!country) return null;
+
+	const region = String(country).trim().toUpperCase();
+	if (!/^[A-Z]{2}$/.test(region)) return null;
+
+	try {
+		return new Intl.DisplayNames(['en'], { type: 'region' }).of(region) || region;
+	} catch {
+		return region;
+	}
+}
+
 const RACE_LABELS: Record<Race, string> = {
 	[Race.US]: 'US Forces',
 	[Race.Wehrmacht]: 'Wehrmacht',

@@ -142,7 +142,7 @@
 	matches={allMatches}
 	loading={initialLoading}
 	{showMap}
-	showRating={scope === 'user'}
+	showRating
 	{highlightedPlayers}
 	{emptyMessage}
 	class="bg-gray-950/90"

@@ -12,6 +12,8 @@ import { Matches } from './matches.svelte';
 import { extractPlayerRatingSnapshotsFromLobby, type PlayerEloMap } from '$lib/utils/player-elo';
 import { ingestPlayerRatings } from '$core/pocketbase/player-ratings';
 import { toPersistablePlayers } from '$core/game/lobby-utils';
+import { embedSteamIdsInReplay } from '$lib/utils/replay-steam-ids';
+import { getFile } from '$core/pocketbase';
 
 const POLL_INITIAL_MS = 10_000;
 const POLL_MAX_MS = 60_000;
@@ -206,7 +208,7 @@ export class History extends Feature {
 		}
 
 		const needingResults = await app.database.matches.getPaginated(1, 100, {
-			filter: `needsResult=true && user = "${account.userId}"`,
+			filter: `needsResult=true && hasFailed!=true && user = "${account.userId}"`,
 			expand: false
 		});
 
@@ -225,10 +227,30 @@ export class History extends Feature {
 			}
 
 			try {
-				await app.database.matches.update(item.id, {
+				const update: {
+					needsResult: false;
+					result: typeof result;
+					replay?: File;
+				} = {
 					needsResult: false,
 					result
-				});
+				};
+
+				if (item.replay) {
+					try {
+						const bytes = await getFile(item, item.replay);
+						const withSteamIds = embedSteamIdsInReplay(bytes, result.players);
+						update.replay = new File([withSteamIds], item.replay);
+					} catch (error) {
+						console.warn(
+							'[HISTORY]: failed to embed Steam IDs into replay for match',
+							item.id,
+							error
+						);
+					}
+				}
+
+				await app.database.matches.update(item.id, update);
 
 				pending--;
 			} catch (error) {

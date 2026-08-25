@@ -33,6 +33,8 @@ export const lobbiesSchema = z.object({
     players: z.unknown(),
     result: z.unknown().optional(),
     needsResult: z.boolean().optional(),
+    hasFailed: z.boolean().optional(),
+    resultAttempts: z.number().optional(),
     replay: z.string().optional(),
     createdAt: z.string().regex(DATETIME_REGEX).optional(),
     updatedAt: z.string().regex(DATETIME_REGEX).optional(),

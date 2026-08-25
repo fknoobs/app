@@ -6,9 +6,11 @@
 		formatStreak,
 		getCombatRecord,
 		getEloColor,
+		getEloTextShadow,
 		getFlagImage,
 		getRaceImage,
-		getRankImage
+		getRankImage,
+		isEliteElo
 	} from '../lib/lobby';
 	import type { Player } from '../lib/types';
 
@@ -26,6 +28,7 @@
 	const rec = $derived(getCombatRecord(matchType, player));
 	const streak = $derived(formatStreak(rec.streak));
 	const eloColor = $derived(getEloColor(rec.eloValue));
+	const eloShadow = $derived(getEloTextShadow(rec.eloValue));
 </script>
 
 <article class="unit side-{teamIndex}" class:unit--self={isMe}>
@@ -58,7 +61,9 @@
 				<span
 					class="unit__elo"
 					class:unit__elo--na={rec.elo === 'NA'}
+					class:unit__elo--elite={isEliteElo(rec.eloValue)}
 					style:color={eloColor}
+					style:text-shadow={eloShadow}
 				>
 					{rec.elo === 'NA' ? 'NA' : `${rec.elo} ELO`}
 				</span>

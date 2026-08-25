@@ -115,6 +115,7 @@ export type AttachmentsRecord = {
 
 export type LobbiesRecord<Tplayers = unknown, Tresult = unknown> = {
 	createdAt: IsoAutoDateString
+	hasFailed?: boolean
 	hasReplay?: boolean
 	id: string
 	isRanked?: boolean
@@ -125,6 +126,7 @@ export type LobbiesRecord<Tplayers = unknown, Tresult = unknown> = {
 	players: null | Tplayers
 	replay?: FileNameString
 	result?: null | Tresult
+	resultAttempts?: number
 	sessionId: number
 	title: string
 	updatedAt: IsoAutoDateString

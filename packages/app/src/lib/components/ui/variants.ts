@@ -76,14 +76,20 @@ export function semanticVariant(variant: SemanticVariant = 'default') {
 	return semanticVariantClasses[variant];
 }
 
-const toastVariantClasses: Record<'success' | 'error' | 'info', string> = {
-	success:
-		'gap-2 flex items-center bg-success/10 border-success text-success border rounded-md px-3 py-1.5 shadow-xl text-sm',
-	error:
-		'gap-2 flex items-center bg-destructive/5 border-destructive/30 text-destructive/80 border rounded-md px-3 py-1.5 shadow-xl text-sm',
-	info: 'gap-2 flex items-center bg-secondary-900 border-secondary-600 text-white border rounded-md px-3 py-1.5 shadow-xl text-sm'
+/** Shared toast chrome — pairs with Sonner `classes.toast` when unstyled. */
+export const toastBase =
+	'relative flex w-[min(22rem,calc(100vw-2rem))] items-center gap-2.5 rounded-md border px-3 py-2.5 text-sm shadow-md';
+
+export type ToastVariant = 'default' | 'success' | 'error' | 'info' | 'warning';
+
+const toastVariantClasses: Record<ToastVariant, string> = {
+	default: 'border-secondary-700 bg-secondary-900 text-secondary-100',
+	success: 'border-success/50 bg-success/20 text-green-100',
+	error: 'border-destructive/45 bg-destructive/20 text-red-100',
+	info: 'border-info/45 bg-info/20 text-sky-100',
+	warning: 'border-warning/50 bg-warning/20 text-amber-100'
 };
 
-export function toastVariant(variant: 'success' | 'error' | 'info') {
+export function toastVariant(variant: ToastVariant = 'default') {
 	return toastVariantClasses[variant];
 }

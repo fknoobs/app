@@ -153,6 +153,17 @@ h6 {
 	background: #555;
 }
 
+/* Sonner: keep layout, drop default chrome when unstyled + match app type */
+[data-sonner-toaster] {
+	font-family: var(--default-font-family);
+}
+
+[data-sonner-toast]:focus-visible {
+	box-shadow:
+		var(--shadow-md),
+		0 0 0 2px color-mix(in oklch, var(--color-primary) 35%, transparent);
+}
+
 /*
  * Selection picker is portaled to body. bits-ui sets pointer-events: auto on both
  * dialog overlay and content (content is w-screen and covers the picker area).

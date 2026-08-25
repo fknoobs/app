@@ -5,5 +5,5 @@ export class OppBotOverlay extends Overlay {
 	name = 'Opponent Bot';
 	path = 'overlays/oppbot';
 	zipUrl = zip;
-	version = '9';
+	version = '10';
 }

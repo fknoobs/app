@@ -3,8 +3,13 @@
 	import { relic } from '$lib/relic';
 	import { resource, useDebounce, watch } from 'runed';
 	import { ToggleGroup } from '$lib/components/ui/toggle-group';
-	import { getRaceLabelFromLeaderboardId } from '$lib/components/leaderboard/leaderboard-utils';
+	import {
+		getRaceLabelFromLeaderboardId,
+		getSteamIdFromProfile
+	} from '$lib/components/leaderboard/leaderboard-utils';
 	import { LeaderboardPodium, LeaderboardList } from '$lib/components/leaderboard';
+	import { getPlayerRatings } from '$core/pocketbase/player-ratings';
+	import type { PlayerEloMap } from '$lib/utils/player-elo';
 	import { leaderboards } from '$lib/utils/game';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { isEmpty } from 'lodash-es';
@@ -30,6 +35,22 @@
 		{
 			initialValue: []
 		}
+	);
+
+	const eloBySteamId = resource(
+		() => statsResource.current.map((stat) => stat.profile.profile_id).join(','),
+		async () => {
+			const steamIds = statsResource.current
+				.map((stat) => getSteamIdFromProfile(stat.profile))
+				.filter(Boolean);
+			const records = await getPlayerRatings(steamIds);
+			const map = new Map<string, PlayerEloMap>();
+			for (const [steamId, record] of records) {
+				map.set(steamId, record.elo);
+			}
+			return map;
+		},
+		{ initialValue: new Map<string, PlayerEloMap>() }
 	);
 
 	const filteredStats = $derived.by(() => {
@@ -99,11 +120,16 @@
 </div>
 
 {#if !isSearching}
-	<LeaderboardPodium stats={podiumStats} loading={statsResource.loading} />
+	<LeaderboardPodium
+		stats={podiumStats}
+		eloBySteamId={eloBySteamId.current}
+		loading={statsResource.loading}
+	/>
 {/if}
 
 <LeaderboardList
 	stats={listStats}
+	eloBySteamId={eloBySteamId.current}
 	loading={statsResource.loading}
 	empty={filteredStats.length === 0 ? 'No players found.' : 'No more players to show.'}
 	class="rounded-none border-0"

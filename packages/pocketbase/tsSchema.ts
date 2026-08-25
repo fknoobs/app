@@ -246,6 +246,22 @@ export interface Lobbies {
      */
     needsResult: boolean
     /**
+     * |        |         |
+     * | ------ | ------- |
+     * | type   | `bool`  |
+     * | hidden | `false` |
+     */
+    hasFailed: boolean
+    /**
+     * |         |         |
+     * | ------- | ------- |
+     * | type    | `number`|
+     * | hidden  | `false` |
+     * | min     | `0`     |
+     * | onlyInt | `true`  |
+     */
+    resultAttempts: number
+    /**
      * |           |                |
      * | --------- | -------------- |
      * | type      | `file(single)` |

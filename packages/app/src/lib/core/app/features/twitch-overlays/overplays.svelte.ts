@@ -31,7 +31,7 @@ export class TwitchOverlays extends Feature {
 		return `${overlay.name}:${overlay.version ?? 'unknown'}`;
 	}
 
-	#confirmOverwrite(): Promise<boolean> {
+	#confirmUpdate(overlay: Overlay): Promise<boolean> {
 		return new Promise((resolve) => {
 			let settled = false;
 
@@ -52,11 +52,11 @@ export class TwitchOverlays extends Feature {
 
 			app.modal.create({
 				component: OverlayOverwriteConfirm,
-				title: 'Overwrite overlay?',
-				description:
-					'A new overlay version is available. Your current customized overlay will be backed up first.',
+				title: 'Opponent Bot overlay update',
+				description: 'A new version of the oppbot overlay is available.',
 				size: 'md',
 				props: {
+					version: overlay.version,
 					onConfirm: () => settle(true),
 					onCancel: () => settle(false)
 				}
@@ -87,7 +87,7 @@ export class TwitchOverlays extends Feature {
 				if (this.#skippedPendingUpdates.has(key)) continue;
 				if (!(await overlay.hasPendingUpdate())) continue;
 
-				const ok = await this.#confirmOverwrite();
+				const ok = await this.#confirmUpdate(overlay);
 				// Never re-prompt for this version in the same session (yes or no).
 				this.#skippedPendingUpdates.add(key);
 
@@ -98,18 +98,18 @@ export class TwitchOverlays extends Feature {
 					const published = await this.#publishUpdatedOverlay(overlay);
 					app.toast.success(
 						published
-							? 'Overlay updated and published. Your previous version was backed up.'
-							: 'Overlay updated. Your previous version was backed up.'
+							? 'Opponent Bot overlay updated and published. Your previous version was backed up.'
+							: 'Opponent Bot overlay updated. Your previous version was backed up.'
 					);
 					if (!published && pocketbase.authStore.isValid) {
 						app.toast.error('Could not publish the updated overlay to the server.');
 					}
 				} catch (error) {
-					console.error('[TWITCH-OVERLAYS]: overwrite failed:', error);
+					console.error('[TWITCH-OVERLAYS]: update failed:', error);
 					const message =
 						error instanceof Error
 							? error.message
-							: 'Failed to overwrite overlay. Check the logs.';
+							: 'Failed to update the Opponent Bot overlay. Check the logs.';
 					app.toast.error(message);
 				}
 			}

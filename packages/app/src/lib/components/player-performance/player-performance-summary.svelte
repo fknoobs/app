@@ -66,6 +66,12 @@
 	const recentMatches = $derived(stats.recentMatches ?? []);
 
 	const valueRow = 'inline-flex min-w-0 flex-nowrap items-center gap-2 whitespace-nowrap';
+	const recentMatchBase =
+		'min-w-6 px-1.5 py-0.5 text-center font-semibold transition-colors duration-150';
+	const recentMatchWin =
+		'border-success/15 bg-success/5 text-success/45 group-hover:border-success/50 group-hover:bg-success/25 group-hover:text-green-300 group-focus-visible:border-success/50 group-focus-visible:bg-success/25 group-focus-visible:text-green-300';
+	const recentMatchLoss =
+		'border-destructive/15 bg-destructive/5 text-destructive/45 group-hover:border-destructive/50 group-hover:bg-destructive/25 group-hover:text-red-300 group-focus-visible:border-destructive/50 group-focus-visible:bg-destructive/25 group-focus-visible:text-red-300';
 
 	function winrate(row: { wins: number; losses: number }): string {
 		const total = row.wins + row.losses;
@@ -116,15 +122,15 @@
 						{#each recentMatches as match (match.id || match.sessionId)}
 							<a
 								href="/history/{match.id}"
-								class={cn(interactive, 'inline-flex shrink-0')}
+								class={cn(interactive, 'group inline-flex shrink-0')}
 								aria-label="{match.outcome === 1 ? 'Win' : 'Loss'} — {recentMatchLabel(match)}"
 								{@attach tooltip(recentMatchTooltip(match))}
 							>
 								<Badge
 									variant={match.outcome === 1 ? 'success' : 'destructive'}
 									class={cn(
-										'min-w-6 px-1.5 py-0.5 text-center font-semibold',
-										match.outcome === 1 && 'border-success/25 bg-success/5 text-green-400'
+										recentMatchBase,
+										match.outcome === 1 ? recentMatchWin : recentMatchLoss
 									)}
 								>
 									{match.outcome === 1 ? 'W' : 'L'}

@@ -1,6 +1,10 @@
 import type { RelicProfile } from '@fknoobs/app';
 import { steam, type SteamPlayerSummary } from '$core/steam';
-import { enqueueSmurfWatch, getSmurfWatch } from '$core/pocketbase/smurf-watch';
+import {
+	enqueueSmurfWatch,
+	getSmurfWatch,
+	type SmurfWatchSource
+} from '$core/pocketbase/smurf-watch';
 import { relic } from '$lib/relic';
 
 export type SmurfAlertState =
@@ -15,12 +19,13 @@ export type SmurfAlertState =
 
 export async function loadSmurfAlert(
 	steamId: string,
-	profileId?: number
+	profileId?: number,
+	source: SmurfWatchSource = 'profile'
 ): Promise<SmurfAlertState> {
 	const watch = await getSmurfWatch(steamId);
 
 	if (!watch) {
-		void enqueueSmurfWatch({ steamId, profileId, source: 'profile', priority: 75 });
+		void enqueueSmurfWatch({ steamId, profileId, source, priority: 75 });
 		return { status: 'pending' };
 	}
 

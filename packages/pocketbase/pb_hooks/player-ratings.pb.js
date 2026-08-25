@@ -73,6 +73,10 @@ routerAdd('POST', '/api/player-ratings/ingest', (e) => {
 	return require(`${__hooks}/lib/player-ratings.js`).handleIngest(e);
 });
 
+routerAdd('GET', '/api/player-ratings/history', (e) => {
+	return require(`${__hooks}/lib/player-ratings.js`).handleEloHistory(e);
+});
+
 routerAdd('GET', '/api/player-ratings/{steamId}', (e) => {
 	return require(`${__hooks}/lib/player-ratings.js`).handleGetBySteamId(e);
 });

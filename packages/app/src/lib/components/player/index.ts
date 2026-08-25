@@ -14,6 +14,7 @@ import PlayerRating from './player-rating.svelte';
 import PlayerRatingChange from './player-rating-change.svelte';
 import PlayerSearchCard from './player-search-card.svelte';
 import PlayerProfileSkeleton from './player-profile-skeleton.svelte';
+import SmurfAlert from './smurf-alert.svelte';
 
 export {
 	createPlayer,
@@ -32,5 +33,6 @@ export {
 	PlayerAvatar as Avatar,
 	PlayerRatingChange as RatingChange,
 	PlayerSearchCard as SearchCard,
-	PlayerProfileSkeleton as ProfileSkeleton
+	PlayerProfileSkeleton as ProfileSkeleton,
+	SmurfAlert
 };

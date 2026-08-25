@@ -1,18 +1,21 @@
 <script lang="ts">
 	import type { SmurfAlertState } from '$lib/player/smurf';
 	import { interactive } from '$lib/components/ui/variants';
+	import { tooltip } from '$lib/attachments';
+	import { resolve } from '$app/paths';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import BinocularsIcon from 'phosphor-svelte/lib/BinocularsIcon';
 
 	type Props = {
 		smurf: SmurfAlertState;
+		compact?: boolean;
 	};
 
-	let { smurf }: Props = $props();
+	let { smurf, compact = false }: Props = $props();
 
-	const lenderHref = $derived(
+	const lenderId = $derived(
 		smurf.status === 'shared'
-			? `/players/${smurf.lenderProfile?.profile_id ?? smurf.lenderSteamId}`
+			? String(smurf.lenderProfile?.profile_id ?? smurf.lenderSteamId)
 			: undefined
 	);
 
@@ -29,16 +32,33 @@
 	);
 </script>
 
-{#if smurf.status === 'shared' && lenderHref}
-	<div class="text-destructive inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
-		<BinocularsIcon class="shrink-0" size={16} weight="bold" />
-		<span>Smurf account</span>
-		<a href={lenderHref} class={[interactive, 'inline-flex items-center gap-1.5 hover:underline']}>
-			{#if lenderAvatar}
-				<img src={lenderAvatar} alt="" class="size-5 rounded-sm object-cover" />
-			{/if}
-			<span>{lenderLabel}</span>
-			<ArrowRightIcon size={12} weight="bold" />
+{#if smurf.status === 'shared' && lenderId}
+	{#if compact}
+		<a
+			href={resolve('/(loaded)/players/[id]', { id: lenderId })}
+			class={[
+				interactive,
+				'text-destructive inline-flex shrink-0 items-center gap-0.5 text-[10px] font-bold tracking-wide uppercase hover:underline'
+			]}
+			{@attach tooltip(`Smurf · ${lenderLabel}`)}
+		>
+			<BinocularsIcon class="shrink-0" size={12} weight="bold" />
+			Smurf
 		</a>
-	</div>
+	{:else}
+		<div class="text-destructive inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
+			<BinocularsIcon class="shrink-0" size={16} weight="bold" />
+			<span>Smurf account</span>
+			<a
+				href={resolve('/(loaded)/players/[id]', { id: lenderId })}
+				class={[interactive, 'inline-flex items-center gap-1.5 hover:underline']}
+			>
+				{#if lenderAvatar}
+					<img src={lenderAvatar} alt="" class="size-5 rounded-sm object-cover" />
+				{/if}
+				<span>{lenderLabel}</span>
+				<ArrowRightIcon size={12} weight="bold" />
+			</a>
+		</div>
+	{/if}
 {/if}

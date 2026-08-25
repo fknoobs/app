@@ -41,38 +41,85 @@ function lerp(min: number, max: number, t: number): number {
 	return min + (max - min) * t;
 }
 
-function eloToProgress(elo: number): number {
-	if (elo <= 1000) return 0;
-	if (elo >= 2400) return 1;
-	if (elo <= 1400) return ((elo - 1000) / 400) * (1 / 3);
-	if (elo <= 1800) return 1 / 3 + ((elo - 1400) / 400) * (1 / 3);
-	return 2 / 3 + ((elo - 1800) / 600) * (1 / 3);
+function eloBandProgress(elo: number, min: number, max: number): number {
+	if (elo <= min) return 0;
+	if (elo >= max) return 1;
+	return (elo - min) / (max - min);
 }
 
-function interpolateEloColor(t: number): string {
-	const stops = [
-		{ t: 0, l: 0.62, c: 0.14, h: 35 },
-		{ t: 1 / 3, l: 0.78, c: 0.12, h: 112 },
-		{ t: 2 / 3, l: 0.76, c: 0.18, h: 145 },
-		{ t: 1, l: 0.86, c: 0.16, h: 85 }
-	] as const;
+function lerpOklch(
+	from: { l: number; c: number; h: number },
+	to: { l: number; c: number; h: number },
+	t: number
+): string {
+	return `oklch(${lerp(from.l, to.l, t)} ${lerp(from.c, to.c, t)} ${lerp(from.h, to.h, t)})`;
+}
 
-	for (let i = 0; i < stops.length - 1; i++) {
-		const from = stops[i];
-		const to = stops[i + 1];
-		if (t <= to.t) {
-			const local = (t - from.t) / (to.t - from.t);
-			return `oklch(${lerp(from.l, to.l, local)} ${lerp(from.c, to.c, local)} ${lerp(from.h, to.h, local)})`;
-		}
+/** Low = blue, mid = green, pro = gold, elite (2400+) = luminous gold. */
+export function getEloColor(elo: number | null | undefined): string {
+	if (typeof elo !== 'number' || elo < 1) return 'var(--ink-dim)';
+
+	if (elo < 1500) {
+		return lerpOklch(
+			{ l: 0.82, c: 0.09, h: 230 },
+			{ l: 0.5, c: 0.15, h: 255 },
+			eloBandProgress(elo, 1000, 1500)
+		);
 	}
 
-	const last = stops[stops.length - 1];
-	return `oklch(${last.l} ${last.c} ${last.h})`;
+	if (elo < 1950) {
+		return lerpOklch(
+			{ l: 0.84, c: 0.12, h: 145 },
+			{ l: 0.52, c: 0.16, h: 155 },
+			eloBandProgress(elo, 1500, 1950)
+		);
+	}
+
+	if (elo < 2400) {
+		return lerpOklch(
+			{ l: 0.9, c: 0.13, h: 90 },
+			{ l: 0.78, c: 0.17, h: 78 },
+			eloBandProgress(elo, 1950, 2400)
+		);
+	}
+
+	return lerpOklch(
+		{ l: 0.95, c: 0.16, h: 88 },
+		{ l: 0.88, c: 0.2, h: 78 },
+		eloBandProgress(elo, 2400, 2800)
+	);
 }
 
-export function getEloColor(elo: number | null): string {
-	if (typeof elo !== 'number' || elo < 1) return 'var(--ink-dim)';
-	return interpolateEloColor(eloToProgress(elo));
+export function isPremiumElo(elo: number | null | undefined): boolean {
+	return typeof elo === 'number' && elo >= 1950;
+}
+
+export function isEliteElo(elo: number | null | undefined): boolean {
+	return typeof elo === 'number' && elo >= 2400;
+}
+
+export function getEloTextShadow(elo: number | null | undefined): string | undefined {
+	if (!isPremiumElo(elo)) return undefined;
+
+	const color = getEloColor(elo);
+	const brandGold = 'oklch(0.88 0.11 80)';
+
+	if (isEliteElo(elo)) {
+		const t = eloBandProgress(elo!, 2400, 2800);
+		const outer = lerp(18, 28, t);
+		const mid = lerp(10, 16, t);
+		return [
+			`0 0 1px color-mix(in oklch, ${color} 90%, white)`,
+			`0 0 ${mid}px color-mix(in oklch, ${color} 70%, transparent)`,
+			`0 0 ${outer}px color-mix(in oklch, ${color} 45%, transparent)`,
+			`0 0 ${outer * 1.6}px color-mix(in oklch, ${brandGold} 25%, transparent)`
+		].join(', ');
+	}
+
+	const t = eloBandProgress(elo!, 1950, 2400);
+	const glow = lerp(0.28, 0.48, t);
+	const blur = lerp(8, 14, t);
+	return `0 0 ${blur}px color-mix(in oklch, ${color} ${Math.round(glow * 100)}%, transparent)`;
 }
 
 export function getCombatRecord(type: number, player: Player): CombatRecord {

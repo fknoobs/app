@@ -5,12 +5,10 @@
 	import MatchMapName from './match-map-name.svelte';
 	import MatchPlayers from './match-players.svelte';
 	import MatchRating from './match-rating.svelte';
-	import MatchStatus from './match-status.svelte';
 	import MatchDuration from './match-duration.svelte';
-	import { goto } from '$app/navigation';
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
+	import { Button } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
-	import { interactive } from '$lib/components/ui/variants';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import MatchLobbyPlayers from '$lib/components/widgets/match-lobby-players.svelte';
 	import { getMatchModeLabel } from '$lib/components/widgets/dashboard-utils';
@@ -87,16 +85,7 @@
 		if (showRating) {
 			cols.push({ id: 'rating', header: 'Rating', width: 'w-3/24' });
 		}
-		cols.push(
-			{
-				id: 'status',
-				header: 'Status',
-				width: 'w-2/24',
-				headerClass: 'text-center',
-				class: 'flex w-full justify-center'
-			},
-			{ id: 'actions', header: '', width: 'w-3/24', hideSkeleton: true }
-		);
+		cols.push({ id: 'actions', header: '', width: 'w-3/24', hideSkeleton: true });
 		if (expandable) {
 			cols.push({
 				id: 'expand',
@@ -114,12 +103,6 @@
 	function toggleExpanded(id: string) {
 		if (!expandable) return;
 		expandedId = expandedId === id ? null : id;
-	}
-
-	function openDetails(event: MouseEvent, href: string) {
-		event.preventDefault();
-		event.stopPropagation();
-		void goto(href);
 	}
 </script>
 
@@ -156,19 +139,20 @@
 	<MatchDuration />
 {/snippet}
 {#snippet cell_rating({ row }: { row: MatchExpanded })}
-	<MatchRating class="text-sm" />
-{/snippet}
-{#snippet cell_status({ row }: { row: MatchExpanded })}
-	<MatchStatus />
+	<MatchRating class="text-sm" profileId={highlightedPlayers[0]} />
 {/snippet}
 {#snippet cell_actions({ row }: { row: MatchExpanded })}
-	<a
-		href="/history/{row.id}"
-		class={cn(interactive, 'text-primary text-sm whitespace-nowrap hover:underline')}
-		onclick={(event) => openDetails(event, `/history/${row.id}`)}
-	>
-		View details
-	</a>
+	<div onpointerdown={(event) => event.stopPropagation()}>
+		<Button
+			href="/history/{row.id}"
+			size="sm"
+			variant="secondary"
+			class="h-7 px-2.5 text-xs"
+			onclick={(event) => event.stopPropagation()}
+		>
+			Details
+		</Button>
+	</div>
 {/snippet}
 {#snippet cell_expand({ row }: { row: MatchExpanded })}
 	<CaretDownIcon class={cn('size-4 transition-transform', expandedId === row.id && 'rotate-180')} />
@@ -210,7 +194,6 @@
 				axis: cell_axis,
 				duration: cell_duration,
 				rating: cell_rating,
-				status: cell_status,
 				actions: cell_actions,
 				expand: cell_expand
 			}}

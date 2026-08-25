@@ -21,6 +21,13 @@
 	import UsersThreeIcon from 'phosphor-svelte/lib/UsersThreeIcon';
 	import PlayerPerformanceMatches from './player-performance-matches.svelte';
 	import PlayerPerformanceSection from './player-performance-section.svelte';
+	import PlayerPerformanceEloHistory from './player-performance-elo-history.svelte';
+	import ChartLineIcon from 'phosphor-svelte/lib/ChartLineIcon';
+	import {
+		getPlayerEloHistory,
+		groupEloHistoryByModeAndRace
+	} from '$core/pocketbase/player-ratings';
+	import type { PlayerEloHistoryPoint } from '$core/pocketbase/player-ratings';
 
 	type Props = {
 		profileId: number | null | undefined;
@@ -61,6 +68,26 @@
 	let mapsExpanded = $state(false);
 	let factionExpanded = $state(false);
 	let modeExpanded = $state(false);
+	let eloExpanded = $state(false);
+
+	const eloHistory = resource(
+		[() => (eloExpanded ? (profileId ?? null) : null)],
+		async ([id]) => {
+			if (!id) return [] as PlayerEloHistoryPoint[];
+			return getPlayerEloHistory({ profileId: id });
+		},
+		{ initialValue: [] as PlayerEloHistoryPoint[] }
+	);
+
+	const eloPoints = $derived(eloHistory.current ?? []);
+	const eloModeCount = $derived(Object.keys(groupEloHistoryByModeAndRace(eloPoints)).length);
+	const eloSummary = $derived(
+		!eloExpanded
+			? 'Tracked lobby ratings'
+			: eloHistory.loading && eloPoints.length === 0
+				? 'Loading…'
+				: `${eloPoints.length} rating points · ${eloModeCount} modes`
+	);
 
 	const mapGames = $derived(
 		stats.byMap.reduce((total, row) => total + row.wins + row.losses, 0)
@@ -319,10 +346,21 @@
 	{/if}
 {/snippet}
 
-{#if !performance.loading && stats.matchCount === 0}
-	<p class={cn('text-secondary-400 px-4 py-3 text-sm', className)}>{emptyMessage}</p>
-{:else}
-	<div class={cn(className)}>
+<div class={cn(className)}>
+	<PlayerPerformanceSection
+		title="ELO history"
+		summary={eloSummary}
+		icon={ChartLineIcon}
+		bind:expanded={eloExpanded}
+	>
+		{#if profileId}
+			<PlayerPerformanceEloHistory points={eloPoints} loading={eloHistory.loading} />
+		{/if}
+	</PlayerPerformanceSection>
+
+	{#if !performance.loading && stats.matchCount === 0}
+		<p class="text-secondary-400 px-4 py-3 text-sm">{emptyMessage}</p>
+	{:else}
 		<PlayerPerformanceSection
 			title="By map"
 			summary={mapSummary}
@@ -409,5 +447,5 @@
 				}}
 			/>
 		</PlayerPerformanceSection>
-	</div>
-{/if}
+	{/if}
+</div>

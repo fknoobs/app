@@ -12,16 +12,31 @@
 		statStreakClass,
 		statWins
 	} from '$lib/components/ui/variants';
-	import { getSteamIdFromProfile } from './leaderboard-utils';
-	import Crown from 'phosphor-svelte/lib/CrownIcon';
+	import { getStoredEloForLeaderboard, type PlayerEloMap } from '$lib/utils/player-elo';
+	import {
+		getCountryDisplayName,
+		getEloColor,
+		getEloTextShadow,
+		getSteamIdFromProfile,
+		isEliteElo
+	} from './leaderboard-utils';
+	import CrownIcon from 'phosphor-svelte/lib/CrownIcon';
+	import { upperCase } from 'lodash-es';
+	import { tooltip } from '$lib/attachments';
 
 	type Props = {
 		stats: LeaderboardStatWithProfile[];
+		eloBySteamId?: Map<string, PlayerEloMap>;
 		loading?: boolean;
 		class?: string;
 	};
 
-	let { stats, loading = false, class: className }: Props = $props();
+	let {
+		stats,
+		eloBySteamId = new Map(),
+		loading = false,
+		class: className
+	}: Props = $props();
 
 	const podiumOrder = $derived.by(() => {
 		const first = stats[0];
@@ -44,6 +59,13 @@
 
 	function getSteamAvatar(stat: LeaderboardStatWithProfile): string | undefined {
 		return steamProfiles.current[getSteamIdFromProfile(stat.profile)]?.avatarfull;
+	}
+
+	function eloForStat(stat: LeaderboardStatWithProfile): number | null {
+		return getStoredEloForLeaderboard(
+			eloBySteamId.get(getSteamIdFromProfile(stat.profile)),
+			stat.leaderboard_id
+		);
 	}
 
 	function navigate(profileId: number) {
@@ -84,6 +106,7 @@
 	{:else}
 		{#each podiumOrder as stat (stat.profile.profile_id)}
 			{@const steamAvatar = getSteamAvatar(stat)}
+			{@const elo = eloForStat(stat)}
 			<button
 				type="button"
 				class={podiumCellClass(stat.rank)}
@@ -100,7 +123,7 @@
 						#{stat.rank}
 					</span>
 					{#if stat.rank === 1}
-						<Crown class="text-primary size-5" weight="duotone" />
+						<CrownIcon class="text-primary size-5" weight="duotone" />
 					{/if}
 				</div>
 
@@ -126,14 +149,39 @@
 					<span class="text-secondary-400 text-sm tabular-nums">Lvl {stat.ranklevel}</span>
 				</div>
 
-				<span
+				<div
 					class={cn(
-						'font-heading w-full truncate font-bold',
+						'font-heading flex w-full min-w-0 items-center justify-center gap-2 font-bold',
 						stat.rank === 1 ? 'text-primary text-xl' : 'text-white'
 					)}
 				>
-					{stat.profile?.alias}
-				</span>
+					{#if stat.profile?.country}
+						{@const countryName = getCountryDisplayName(stat.profile.country)}
+						<img
+							class={cn('w-auto shrink-0 rounded-xs', stat.rank === 1 ? 'h-5' : 'h-4')}
+							src="https://flagsapi.com/{upperCase(stat.profile.country)}/shiny/64.png"
+							alt={countryName ?? stat.profile.country}
+							{@attach tooltip(countryName ?? stat.profile.country)}
+						/>
+					{/if}
+					<span class="truncate">{stat.profile?.alias}</span>
+				</div>
+
+				{#if elo == null}
+					<span class="text-secondary-500 text-xs">N/A</span>
+				{:else}
+					<span
+						class={cn(
+							'tabular-nums',
+							stat.rank === 1 ? 'text-lg' : 'text-base',
+							isEliteElo(elo) ? 'font-bold tracking-wide' : 'font-medium'
+						)}
+						style:color={getEloColor(elo)}
+						style:text-shadow={getEloTextShadow(elo)}
+					>
+						{elo}
+					</span>
+				{/if}
 
 				<div class="text-secondary-400 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm">
 					<span class={statWins}>{stat.wins}W</span>

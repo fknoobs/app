@@ -13,7 +13,7 @@ import { join, appDataDir } from '@tauri-apps/api/path';
 import { invoke } from '@tauri-apps/api/core';
 import { pocketbase } from '$core/pocketbase';
 import type { UserOverlaysResponse } from '$core/pocketbase/types';
-import { fetch } from '@tauri-apps/plugin-http';
+import { fetch } from '$core/http/fetch';
 import { unzip } from '$lib/utils/unzip';
 import { ClientResponseError } from 'pocketbase';
 
@@ -470,19 +470,34 @@ export abstract class Overlay {
 			'overlay.zip'
 		);
 
-		const response = (await pocketbase.send('/api/overlay/publish', {
-			method: 'POST',
-			body: formData,
-			fetch
-		})) as PublishResponse;
+		try {
+			const response = (await pocketbase.send('/api/overlay/publish', {
+				method: 'POST',
+				body: formData,
+				fetch
+			})) as PublishResponse;
 
-		const contentHash = await this.getLocalContentHash();
-		await this.savePublishState({
-			contentHash,
-			updatedAt: response.updatedAt ?? new Date().toISOString(),
-			version: response.version
-		});
+			const contentHash = await this.getLocalContentHash();
+			await this.savePublishState({
+				contentHash,
+				updatedAt: response.updatedAt ?? new Date().toISOString(),
+				version: response.version
+			});
 
-		return response;
+			return response;
+		} catch (error) {
+			if (error instanceof ClientResponseError) {
+				const detail =
+					(typeof error.response?.message === 'string' && error.response.message) ||
+					(error.originalError instanceof Error && error.originalError.message) ||
+					error.message;
+				throw new Error(
+					error.status === 0
+						? `Failed to reach the overlay publish API (${detail}). Check your connection and that PocketBase is running.`
+						: `Failed to publish overlay: ${detail}`
+				);
+			}
+			throw error;
+		}
 	}
 }

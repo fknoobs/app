@@ -265,9 +265,15 @@ body {
 	color: var(--ink-dim);
 }
 
+.unit__elo--elite {
+	font-weight: 700;
+	letter-spacing: 0.04em;
+}
+
 .unit__elo--na {
 	color: var(--ink-dim);
 	font-weight: 500;
+	text-shadow: none;
 }
 
 /* Secondary line */
@@ -326,10 +332,10 @@ body {
 }
 
 .unit__streak--up {
-	color: #c4925a;
+	color: #9dcfb0;
 }
 .unit__streak--down {
-	color: #6a8faa;
+	color: #d48a8a;
 }
 
 /* ── Player count scaling ────────────────────────────────── */

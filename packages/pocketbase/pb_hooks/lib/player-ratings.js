@@ -8,6 +8,7 @@ const MAX_INGEST_PLAYERS = 64;
 const LOBBY_FILL_LIMIT = 200;
 const LOBBY_FILL_BATCH_SIZE = 8;
 const MAX_ELO_SLOTS = 32;
+const ELO_HISTORY_LIMIT = 500;
 
 function isServiceRequest(e) {
 	const token = $os.getenv('SMURF_SERVICE_TOKEN') || '';
@@ -716,6 +717,147 @@ function handleFillFromLobbies(e) {
 	return e.json(200, runLobbyFillBatch());
 }
 
+function loadLobbyResultsForHistory(profileId, steamId) {
+	if (isValidSteamId(steamId) && hasLobbyIndexSteamId()) {
+		const bySteam = queryLobbyResultsBySteamId(steamId, ELO_HISTORY_LIMIT);
+		if (bySteam.length > 0) {
+			return bySteam;
+		}
+	}
+
+	const id = Number(profileId);
+	if (Number.isInteger(id) && id > 0) {
+		return queryLobbyResultsByProfileId(id, ELO_HISTORY_LIMIT);
+	}
+
+	return [];
+}
+
+function extractEloHistoryPoints(results, profileId, steamId) {
+	const profile = Number(profileId);
+	const hasProfile = Number.isInteger(profile) && profile > 0;
+	const hasSteam = isValidSteamId(steamId);
+	const byKey = {};
+	const earliestOld = {};
+
+	for (const raw of results) {
+		const match = parseJson(raw, null);
+		if (!match || !isStoredMatchType(match.matchtype_id)) {
+			continue;
+		}
+
+		const at = Number(match.completiontime ?? match.startgametime ?? 0);
+		const matchId = Number(match.id);
+		if (!Number.isFinite(at) || at < 0 || !Number.isFinite(matchId) || matchId <= 0) {
+			continue;
+		}
+
+		for (const player of asList(match.players)) {
+			const playerSteam =
+				player?.steamId ||
+				(typeof player?.name === 'string' ? player.name.replace('/steam/', '') : '');
+			const playerProfile = Number(player?.profile_id);
+			const matchesProfile = hasProfile && playerProfile === profile;
+			const matchesSteam = hasSteam && playerSteam === steamId;
+
+			if (!matchesProfile && !matchesSteam) {
+				continue;
+			}
+
+			const raceId = Number(player?.race_id);
+			if (!Number.isInteger(raceId) || raceId < 0 || raceId > 3) {
+				continue;
+			}
+
+			const rating = Number(player?.newrating);
+			if (!Number.isFinite(rating) || rating < 1) {
+				continue;
+			}
+
+			const key = `${matchId}:${raceId}`;
+			const point = {
+				at,
+				rating,
+				matchtypeId: Number(match.matchtype_id),
+				raceId,
+				matchId
+			};
+
+			const existing = byKey[key];
+			if (!existing || at >= existing.at) {
+				byKey[key] = point;
+			}
+
+			const oldrating = Number(player?.oldrating);
+			if (Number.isFinite(oldrating) && oldrating >= 1) {
+				const seriesKey = `${point.matchtypeId}:${raceId}`;
+				const current = earliestOld[seriesKey];
+				if (!current || at <= current.at) {
+					earliestOld[seriesKey] = { at, rating: oldrating, matchtypeId: point.matchtypeId, raceId, matchId };
+				}
+			}
+		}
+	}
+
+	const points = Object.values(byKey);
+	const seenSeries = {};
+
+	for (const point of points) {
+		const seriesKey = `${point.matchtypeId}:${point.raceId}`;
+		seenSeries[seriesKey] = true;
+	}
+
+	for (const [seriesKey, seed] of Object.entries(earliestOld)) {
+		if (!seenSeries[seriesKey]) {
+			continue;
+		}
+
+		const hasEarlierOrEqual = points.some(
+			(point) =>
+				point.matchtypeId === seed.matchtypeId &&
+				point.raceId === seed.raceId &&
+				point.at <= seed.at &&
+				point.rating === seed.rating
+		);
+
+		if (!hasEarlierOrEqual) {
+			points.push({
+				at: Math.max(0, seed.at - 1),
+				rating: seed.rating,
+				matchtypeId: seed.matchtypeId,
+				raceId: seed.raceId,
+				matchId: seed.matchId
+			});
+		}
+	}
+
+	points.sort((a, b) => a.at - b.at || a.matchId - b.matchId || a.raceId - b.raceId);
+	return points;
+}
+
+function handleEloHistory(e) {
+	const query = e.request.url.query();
+	const profileIdRaw = query.get('profileId') || '';
+	const steamId = String(query.get('steamId') || '').trim();
+	const profileId = Number(profileIdRaw);
+
+	if ((!Number.isInteger(profileId) || profileId <= 0) && !isValidSteamId(steamId)) {
+		return e.json(400, { message: 'profileId or steamId is required' });
+	}
+
+	try {
+		const results = loadLobbyResultsForHistory(
+			Number.isInteger(profileId) && profileId > 0 ? profileId : null,
+			steamId
+		);
+		const points = extractEloHistoryPoints(results, profileId, steamId);
+		return e.json(200, { points });
+	} catch (error) {
+		console.log('[player_ratings] elo history failed', String(error));
+		return e.json(500, { message: 'Failed to load elo history' });
+	}
+}
+
 function handleIngest(e) {
 	if (!e.auth?.id && !e.hasSuperuserAuth() && !isServiceRequest(e)) {
 		return e.json(401, { message: 'Unauthorized' });
@@ -777,5 +919,6 @@ module.exports = {
 	handleGetBySteamId,
 	handleFillFromLobbies,
 	handleIngest,
+	handleEloHistory,
 	serializeRecord
 };
