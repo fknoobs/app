@@ -1,5 +1,21 @@
 # @company-of-heroes/app
 
+## 0.54.1
+
+- enhance; align current game and live lobby pages with flush dashboard layout
+- enhance; split lobby player table into allies and axis columns like replay overview
+- fix; redirect to current-game from any page when a match starts
+- enhance; retint elo colors as blue (low), green (mid), and premium gold (pro) with a soft glow
+- enhance; give 2400+ elo an elite luminous gold treatment with stronger glow
+- enhance; expand faction and mode performance rows to show matching games
+- fix; show elo gained or lost next to ratings on match detail player rows
+- fix; keep match history on live lobbies so the stream overlay can show elo again
+- enhance; hide duplicate lobby players table on history when a replay is shown and show rank, elo, level, position, wins, losses, and streak on overview rows
+- enhance; restyle replay overview player rows with clearer hierarchy and softer cpm
+- enhance; link replay overview player names to their profile
+- fix; matches played today find lobbies by user steamIds in players/result when lobbyPlayers is empty
+- fix; stop wiping lobbyPlayers on lobby save when players fail to parse; repair empty lobbyPlayers rows
+
 ## 0.54.0
 
 - fix; batch steam profile lookups so match lists no longer flood the api with failing requests

@@ -1,5 +1,12 @@
 # @company-of-heroes/pocketbase
 
+## 0.3.1
+
+- enhance; expand faction and mode performance rows to show matching games
+- fix; keep match history on live lobbies so the stream overlay can show elo again
+- fix; matches played today find lobbies by user steamIds in players/result when lobbyPlayers is empty
+- fix; stop wiping lobbyPlayers on lobby save when players fail to parse; repair empty lobbyPlayers rows
+
 ## 0.3.0
 
 - fix; speed up local PocketBase startup
