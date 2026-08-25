@@ -168,10 +168,12 @@ function resolveProfileId(record) {
 }
 
 function selectPendingLobbies() {
+	// Prefer fewest attempts, then newest — Relic only keeps recent history,
+	// so oldest-first never fills and starves matches that are still available.
 	return $app.findRecordsByFilter(
 		COLLECTION,
 		'needsResult = true && hasFailed != true && (resultAttempts < {:max} || resultAttempts = null)',
-		'createdAt',
+		'resultAttempts, -createdAt',
 		BATCH_SIZE,
 		0,
 		{ max: MAX_ATTEMPTS }
