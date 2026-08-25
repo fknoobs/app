@@ -1,5 +1,26 @@
 # @company-of-heroes/app
 
+## 0.55.0
+
+- enhance; add current-game scouting stats in the existing match header and player table
+- feat; add player elo history endpoint from lobby results
+- feat; add elo history charts per game mode and faction on the performance tab
+- enhance; show country flags and ELO on leaderboards
+- feat; fill lobby results from Relic match history via cron
+- enhance; clarify oppbot overlay update popup wording and use update instead of overwrite
+- enhance; apply blue/green/gold elo tiers and elite glow on the oppbot overlay
+- fix; color oppbot overlay streaks green when positive and red when negative
+- fix; publish oppbot overlay via app fetch so FormData uploads reach PocketBase
+- enhance; show elo rating change on other players performance match lists
+- enhance; remove status column from match lists and use a compact details button
+- enhance; mute recent-match W/L badges until hover
+- enhance; show replay ID on the detail page
+- feat; rename replays in the .rec file and PocketBase title, and embed Steam IDs into lobby replays when results arrive
+- feat; edit, delete, and download replays from the replays list
+- enhance; add admin CLI to fully reparse all stored replays after analyzer updates
+- enhance; restyle toasts to match app surface panels
+- fix; use opaque toast backgrounds so content no longer shows through
+
 ## 0.54.1
 
 - enhance; align current game and live lobby pages with flush dashboard layout

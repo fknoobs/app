@@ -1,5 +1,11 @@
 # @company-of-heroes/pocketbase
 
+## 0.4.0
+
+- feat; add player elo history endpoint from lobby results
+- feat; add elo history charts per game mode and faction on the performance tab
+- feat; fill lobby results from Relic match history via cron
+
 ## 0.3.1
 
 - enhance; expand faction and mode performance rows to show matching games
