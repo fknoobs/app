@@ -397,7 +397,14 @@ export class AppContext extends Emittery<AppEvents> {
 			return;
 		}
 
-		if (!this.#claimLobbyPublish('started', lobby)) {
+		const isFirstPublish = this.#claimLobbyPublish('started', lobby);
+		const match = lobby.toJSON();
+
+		// Always refresh local lobby (covers post-start profile/history enrichment).
+		this.lobby = match;
+
+		if (!isFirstPublish) {
+			this.#upsertLiveLobby(match);
 			return;
 		}
 
@@ -405,13 +412,12 @@ export class AppContext extends Emittery<AppEvents> {
 		this.#liveLobbyGeneration += 1;
 		this.#stopLiveLobbyHeartbeat();
 
-		this.lobby = lobby.toJSON();
-		console.log('lobby started', lobby.toJSON());
+		console.log('lobby started', match);
 
-		this.emit('lobby.started', lobby.toJSON());
-		this.socket.publish('game.lobby.started', lobby.toJSON());
+		this.emit('lobby.started', match);
+		this.socket.publish('game.lobby.started', match);
 
-		this.#upsertLiveLobby(lobby.toJSON());
+		this.#upsertLiveLobby(match);
 		this.#startLiveLobbyHeartbeat();
 	}
 

@@ -6,20 +6,7 @@ const lobbyPlayers = require(`${__hooks}/lib/lobby-players.js`);
 const jobState = require(`${__hooks}/lib/job-state.js`);
 
 function parsePlayers(raw) {
-	if (Array.isArray(raw)) {
-		return raw;
-	}
-
-	if (typeof raw === 'string') {
-		try {
-			const parsed = JSON.parse(raw);
-			return Array.isArray(parsed) ? parsed : [];
-		} catch {
-			return [];
-		}
-	}
-
-	return [];
+	return lobbyPlayers.parsePlayers(raw);
 }
 
 function summarizeLobbyPlayers(players) {
@@ -184,6 +171,61 @@ function runBatch() {
 	return { processed: rows.length, updated, indexed, complete: false };
 }
 
+function repairEmptyLobbyPlayers(limit = 100) {
+	const rows = arrayOf(
+		new DynamicModel({
+			id: '',
+			players: '',
+			lobbyPlayers: '',
+			playerProfileIdsCsv: '',
+			replay: '',
+			result: '',
+			sessionId: 0,
+			map: '',
+			user: '',
+			needsResult: false,
+			title: ''
+		})
+	);
+
+	$app
+		.db()
+		.newQuery(
+			`SELECT
+				id,
+				COALESCE(players, '') AS players,
+				COALESCE(lobbyPlayers, '') AS lobbyPlayers,
+				COALESCE(playerProfileIdsCsv, '') AS playerProfileIdsCsv,
+				COALESCE(replay, '') AS replay,
+				COALESCE(result, '') AS result,
+				COALESCE(sessionId, 0) AS sessionId,
+				COALESCE(map, '') AS map,
+				COALESCE(user, '') AS user,
+				COALESCE(needsResult, 0) AS needsResult,
+				COALESCE(title, '') AS title
+			FROM lobbies
+			WHERE lobbyPlayers IS NULL
+				OR lobbyPlayers = ''
+				OR lobbyPlayers = '[]'
+				OR playerProfileIdsCsv IS NULL
+				OR playerProfileIdsCsv = ''
+			ORDER BY createdAt DESC
+			LIMIT {:limit}`
+		)
+		.bind({ limit })
+		.all(rows);
+
+	let updated = 0;
+	for (const row of rows) {
+		const result = backfillLobbyFromRow(row);
+		if (result.updated) {
+			updated += 1;
+		}
+	}
+
+	return { scanned: rows.length, updated };
+}
+
 function reset() {
 	jobState.reset(JOB_ID);
 }
@@ -195,6 +237,7 @@ function getPage() {
 module.exports = {
 	isComplete,
 	runBatch,
+	repairEmptyLobbyPlayers,
 	reset,
 	getPage
 };

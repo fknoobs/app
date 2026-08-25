@@ -28,6 +28,12 @@ $app.onServe().bindFunc((e) => {
 	cronAdd('lobby_players_backfill', '*/5 * * * *', () => {
 		const backfill = require(`${__hooks}/lib/lobby-players-backfill.js`);
 		if (backfill.isComplete()) {
+			const repaired = backfill.repairEmptyLobbyPlayers(100);
+			if (repaired.updated > 0) {
+				console.log(
+					`[lobby_players] repair updated=${repaired.updated} scanned=${repaired.scanned}`
+				);
+			}
 			return;
 		}
 

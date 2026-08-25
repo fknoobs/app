@@ -17,12 +17,7 @@
 	let { title, summary, icon: Icon, expanded = $bindable(false), children }: Props = $props();
 </script>
 
-<section
-	class={cn(
-		'border-secondary-800 border-b transition-colors last:border-b-0',
-		expanded && 'bg-secondary-950/50'
-	)}
->
+<section class="border-secondary-800 border-b last:border-b-0">
 	<button
 		type="button"
 		class={cn(
@@ -30,7 +25,7 @@
 			'flex w-full items-center justify-between gap-3 border-b px-4 py-3 text-left outline-none transition-colors',
 			'focus-visible:ring-primary/25 focus-visible:ring-2 focus-visible:ring-inset',
 			expanded ? 'border-secondary-800/80' : 'border-transparent',
-			!expanded && 'hover:bg-secondary-950/50'
+			'hover:bg-secondary-950/50'
 		)}
 		aria-expanded={expanded}
 		onclick={() => (expanded = !expanded)}

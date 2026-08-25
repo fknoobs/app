@@ -15,16 +15,15 @@
 </script>
 
 {#if change !== undefined}
-	<span class="flex items-center justify-center gap-1 text-sm tabular-nums">
+	<span class="inline-flex items-center gap-0.5 text-sm tabular-nums">
 		{#if change < 0}
-			<CaretDown class="text-destructive size-4" weight="duotone" />
+			<CaretDown class="text-destructive size-3.5 shrink-0" weight="duotone" />
 			<span class="text-red-200">{Math.abs(change)}</span>
 		{:else if change > 0}
-			<CaretUp class="text-success size-4" weight="duotone" />
+			<CaretUp class="text-success size-3.5 shrink-0" weight="duotone" />
 			<span class="text-green-200">{change}</span>
 		{:else}
-			<MinusIcon class="text-secondary-500 size-4" />
-			<span class="text-secondary-500">0</span>
+			<MinusIcon class="text-secondary-500 size-3.5 shrink-0" />
 		{/if}
 	</span>
 {/if}

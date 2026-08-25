@@ -20,33 +20,45 @@
 				<Skeleton class="h-5 w-7 shrink-0 rounded-xs" />
 				<Skeleton class="h-9 max-w-52 flex-1" />
 			</div>
-			<div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
-				<Skeleton class="h-4 w-16" />
-				<Skeleton class="h-4 w-24" />
-				<Skeleton class="h-4 w-14" />
-				<div class="flex items-center gap-2">
-					<Skeleton class="h-4 w-8" />
-					<Skeleton class="h-4 w-8" />
-					<Skeleton class="h-5 w-12 rounded-full" />
-				</div>
-				<Skeleton class="h-4 w-28" />
-				<div class="flex gap-1 overflow-hidden">
-					{#each Array(10) as _, index (index)}
-						<Skeleton class="size-6 shrink-0 rounded-full" />
-					{/each}
+			<div
+				class={cn(
+					widget ? 'flex flex-wrap items-start gap-x-10 gap-y-3' : 'contents'
+				)}
+			>
+				<div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
+					<Skeleton class="h-4 w-16" />
+					<Skeleton class="h-4 w-24" />
+					<Skeleton class="h-4 w-14" />
+					<div class="flex items-center gap-2">
+						<Skeleton class="h-4 w-8" />
+						<Skeleton class="h-4 w-8" />
+						<Skeleton class="h-5 w-12 rounded-full" />
+					</div>
+					<Skeleton class="h-4 w-28" />
+					<div class="flex gap-1 overflow-hidden">
+						{#each Array(10) as _, index (index)}
+							<Skeleton class="size-6 shrink-0 rounded-full" />
+						{/each}
+					</div>
+					{#if !widget}
+						<Skeleton class="h-4 w-20" />
+						<div class="flex flex-wrap items-center gap-2">
+							<Skeleton class="h-4 w-32" />
+							<Skeleton class="h-4 w-8" />
+							<Skeleton class="h-4 w-8" />
+							<Skeleton class="h-4 w-10" />
+						</div>
+					{:else}
+						<Skeleton class="h-4 w-20" />
+						<Skeleton class="h-4 w-40" />
+					{/if}
 				</div>
 				{#if widget}
-					<Skeleton class="h-4 w-20" />
-					<Skeleton class="h-4 w-36" />
-					<Skeleton class="h-4 w-16" />
-					<Skeleton class="h-4 w-28" />
-				{:else}
-					<Skeleton class="h-4 w-20" />
-					<div class="flex flex-wrap items-center gap-2">
-						<Skeleton class="h-4 w-32" />
-						<Skeleton class="h-4 w-8" />
-						<Skeleton class="h-4 w-8" />
-						<Skeleton class="h-4 w-10" />
+					<div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
+						<Skeleton class="h-4 w-16" />
+						<Skeleton class="h-4 w-36" />
+						<Skeleton class="h-4 w-14" />
+						<Skeleton class="h-4 w-28" />
 					</div>
 				{/if}
 			</div>

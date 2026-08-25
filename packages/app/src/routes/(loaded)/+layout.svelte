@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Nav from '$lib/components/ui/nav';
 	import { watch } from 'runed';
+	import { untrack } from 'svelte';
 	import { Label } from '$lib/components/ui/label';
 	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { app, createApp } from '$core/app/context';
@@ -8,6 +9,7 @@
 	import { ToastReplaysProgress } from '$lib/components/toasts';
 	import { Avatar } from '$lib/components/ui/avatar';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { Modal } from '$lib/components/ui/modal';
 	import { Toaster } from '$lib/components/ui/toasts';
 	import { Button, ButtonBack } from '$lib/components/ui/button';
@@ -61,6 +63,22 @@
 	createBreadcrumbs();
 
 	const showBack = $derived(page.url.pathname !== '/');
+
+	// Redirect on match start from any loaded route (not only the dashboard).
+	// untrack on the catch-up read so we don't force-navigate when the user
+	// leaves /current-game while a match is still active.
+	$effect(() => {
+		const redirectToCurrentGame = () => {
+			if (page.url.pathname === '/current-game') return;
+			void goto('/current-game');
+		};
+
+		untrack(() => {
+			if (app.lobby?.started) redirectToCurrentGame();
+		});
+
+		return app.on('lobby.started', redirectToCurrentGame);
+	});
 </script>
 
 <svelte:boundary>

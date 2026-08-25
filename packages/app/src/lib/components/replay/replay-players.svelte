@@ -1,7 +1,10 @@
 <script lang="ts">
 	import type { Player } from '@fknoobs/replay-parser';
+	import type { LobbyPlayer, MatchHistoryPlayer, TransformedMatch } from '@fknoobs/app';
+	import type { MatchExpanded } from '$core/app/database/matches';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { useReplay } from '.';
+	import * as PlayerUi from '$lib/components/player';
 	import DoctrineAir from '$lib/files/ct_branchbanner_top_allied_airborne.png?url';
 	import DoctrineArmored from '$lib/files/ct_branchbanner_top_allied_armor.png?url';
 	import DoctrineInfantry from '$lib/files/ct_branchbanner_top_allied_infantry.png?url';
@@ -17,18 +20,27 @@
 	import { cn, getFactionFlagFromRace } from '$lib/utils';
 	import { mePlayerText } from '$lib/components/ui/variants';
 	import { isMeReplayAlias } from '$lib/utils/player-me';
+	import { getLeaderboardStatsForPlayerByMatchType } from '$lib/utils/game';
+	import { getLiveLobbyMatchType, getPlayerAlias } from '$lib/components/widgets/dashboard-utils';
 
 	type Props = {} & HTMLAttributes<HTMLDivElement> & {
 		flush?: boolean;
+		match?: MatchExpanded | null;
 	};
 
-	let { flush = false, ...restProps }: Props = $props();
+	let { flush = false, match = null, ...restProps }: Props = $props();
 	let replay = $derived(useReplay());
 
 	const teams = $derived.by(() => ({
 		allies: replay.players.filter((player) => player.faction.startsWith('allies')),
 		axis: replay.players.filter((player) => player.faction.startsWith('axis'))
 	}));
+
+	const result = $derived((match?.result as TransformedMatch | null | undefined) ?? null);
+	const matchType = $derived(
+		result?.matchtype_id ?? getLiveLobbyMatchType(match?.players ?? [], match?.isRanked ?? false)
+	);
+	const showMatchStats = $derived(!!match);
 
 	const playerCpm = $derived.by(() => {
 		const durationMinutes = replay.duration / 60;
@@ -46,9 +58,6 @@
 
 		return cpm;
 	});
-
-	const playerRow =
-		'grid grid-cols-[3.5rem_minmax(0,1fr)_3.25rem] items-center gap-3 px-4 py-3';
 
 	function getDoctrineImage(player: Player): string {
 		if (player.faction.startsWith('allies')) {
@@ -93,55 +102,150 @@
 			player.faction as 'allies' | 'axis' | 'allies_commonwealth' | 'axis_panzer_elite'
 		);
 	}
+
+	function findLobbyPlayer(replayPlayer: Player): LobbyPlayer | undefined {
+		if (!match?.players?.length) return undefined;
+		const name = replayPlayer.name.trim().toLowerCase();
+		return match.players.find((player) => getPlayerAlias(player).trim().toLowerCase() === name);
+	}
+
+	function findResultPlayer(lobbyPlayer: LobbyPlayer | undefined): MatchHistoryPlayer | undefined {
+		if (!result || !lobbyPlayer) return undefined;
+		const profileId = lobbyPlayer.profile_id ?? lobbyPlayer.profile?.profile_id ?? lobbyPlayer.playerId;
+		if (profileId == null || profileId <= 0) return undefined;
+		return result.players.find((entry) => entry.profile_id === profileId);
+	}
 </script>
 
 {#snippet playerRowContent(player: Player)}
 	{@const doctrineImage = getDoctrineImage(player)}
 	{@const isMe = isMeReplayAlias(player.name)}
-	<div class={cn(playerRow, 'border-secondary-800 border-b last:border-b-0')}>
-		<span class="border-secondary-800 size-14 shrink-0 overflow-hidden rounded-lg border bg-secondary-950/80">
-			{#if doctrineImage}
-				<img
-					src={doctrineImage}
-					alt={player.doctrineName || 'Doctrine'}
-					class="h-full w-full object-cover"
-				/>
-			{:else}
-				<img src={factionFlag(player)} alt={player.faction} class="h-full w-full object-contain p-2" />
-			{/if}
-		</span>
+	{@const lobbyPlayer = findLobbyPlayer(player)}
+	{@const playerResult = findResultPlayer(lobbyPlayer)}
+	{@const outcome = playerResult?.outcome}
+	{@const stats = lobbyPlayer
+		? getLeaderboardStatsForPlayerByMatchType(result?.matchtype_id ?? matchType, lobbyPlayer)
+		: undefined}
+	{@const doctrineLabel = player.doctrineName || 'Unknown doctrine'}
+	<div
+		class={cn(
+			'border-secondary-800 relative overflow-hidden border-b last:border-b-0',
+			outcome === 1 && 'bg-success/5',
+			outcome === 0 && 'bg-destructive/5'
+		)}
+	>
+		{#if doctrineImage}
+			<img
+				src={doctrineImage}
+				alt=""
+				aria-hidden="true"
+				class="pointer-events-none absolute inset-0 h-full w-full object-cover object-left opacity-[0.16]"
+			/>
+			<div
+				class="pointer-events-none absolute inset-0 bg-linear-to-r from-secondary-950/25 via-secondary-950/60 to-secondary-950/92"
+			></div>
+		{/if}
 
-		<div class="min-w-0">
-			<div class="flex min-w-0 items-center gap-2">
-				<img src={factionFlag(player)} alt={player.faction} class="h-4 shrink-0" />
-				<span class={cn('truncate font-semibold', isMe ? mePlayerText : 'text-primary-50')}>
-					{player.name}
+		<div class="relative flex items-center gap-4 px-4 py-3.5">
+			{#if showMatchStats && lobbyPlayer}
+				<PlayerUi.Root
+					player={lobbyPlayer}
+					{playerResult}
+					{stats}
+					race={playerResult?.race_id ?? lobbyPlayer.race}
+				>
+					<div class="flex min-w-0 flex-1 items-center gap-3.5">
+						<div class="min-w-0 flex-1">
+							<span
+								class={cn(
+									'block truncate text-base font-semibold tracking-tight',
+									isMe ? mePlayerText : 'text-primary-50'
+								)}
+							>
+								{player.name}
+							</span>
+							<div
+								class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm tabular-nums"
+							>
+								<img
+									src={factionFlag(player)}
+									alt={player.faction}
+									class="ring-secondary-800 h-3.5 w-3.5 shrink-0 rounded-full object-cover ring-1"
+								/>
+								<span class="text-secondary-300 truncate">{doctrineLabel}</span>
+								<span class="text-secondary-700" aria-hidden="true">·</span>
+								<span class="text-secondary-300 inline-flex items-center gap-1">
+									<PlayerUi.Rank class="h-4 w-4" />
+									<span class="text-secondary-500">Lv</span>
+									<PlayerUi.Level class="text-secondary-200" />
+								</span>
+								<span class="text-secondary-700" aria-hidden="true">·</span>
+								<span class="text-secondary-300 inline-flex items-center gap-1">
+									<span class="text-secondary-500">#</span>
+									<PlayerUi.Position class="text-secondary-200" />
+								</span>
+								<span class="text-secondary-700" aria-hidden="true">·</span>
+								<span class="inline-flex items-center gap-1">
+									<PlayerUi.Wins class="text-sm" />
+									<span class="text-secondary-600">/</span>
+									<PlayerUi.Losses class="text-sm" />
+								</span>
+								<span class="text-secondary-700" aria-hidden="true">·</span>
+								<PlayerUi.Streak class="text-sm" />
+							</div>
+						</div>
+						<div class="flex shrink-0 items-center gap-2.5 tabular-nums">
+							<PlayerUi.RatingChange />
+							<PlayerUi.Rating
+								class="text-base font-semibold"
+								matchType={result?.matchtype_id ?? matchType}
+							/>
+						</div>
+					</div>
+				</PlayerUi.Root>
+			{:else}
+				<div class="min-w-0 flex-1">
+					<span
+						class={cn(
+							'block truncate text-base font-semibold tracking-tight',
+							isMe ? mePlayerText : 'text-primary-50'
+						)}
+					>
+						{player.name}
+					</span>
+					<div class="text-secondary-400 mt-1 flex min-w-0 items-center gap-1.5 text-sm">
+						<img
+							src={factionFlag(player)}
+							alt={player.faction}
+							class="ring-secondary-800 h-3.5 w-3.5 shrink-0 rounded-full object-cover ring-1"
+						/>
+						<span class="truncate">{doctrineLabel}</span>
+					</div>
+				</div>
+			{/if}
+
+			<div class="flex w-12 shrink-0 flex-col items-center justify-center gap-0.5">
+				<span class="text-secondary-500 text-[10px] font-semibold tracking-wider uppercase">
+					CPM
+				</span>
+				<span class="text-primary text-xl leading-none font-bold tabular-nums">
+					{playerCpm.get(player.id) ?? '0'}
 				</span>
 			</div>
-			<p class="text-secondary-400 mt-0.5 truncate text-sm">
-				{player.doctrineName || 'Unknown doctrine'}
-			</p>
 		</div>
-
-		<span
-			class="bg-primary/10 text-primary border-primary/25 ml-auto flex min-w-11 items-center justify-center rounded-md border px-2 py-1 text-lg font-bold tabular-nums"
-		>
-			{playerCpm.get(player.id) ?? '0'}
-		</span>
 	</div>
 {/snippet}
 
 {#snippet teamColumn(label: string, players: Player[])}
 	<div class="min-w-0">
 		<div
-			class={cn(
-				playerRow,
-				'bg-secondary-950/90 text-secondary-300 border-secondary-800 border-b py-2! text-xs font-semibold tracking-wide uppercase'
-			)}
+			class="bg-secondary-950/90 text-secondary-400 border-secondary-800 flex items-center gap-4 border-b px-4 py-2.5 text-xs font-semibold tracking-wide uppercase"
 		>
-			<span aria-hidden="true"></span>
-			<span>{label}</span>
-			<span class="text-primary text-right font-semibold">CPM</span>
+			<span class="min-w-0 flex-1">{label}</span>
+			{#if showMatchStats}
+				<span class="text-right">Rating</span>
+			{/if}
+			<span class="text-primary w-12 text-center font-semibold">CPM</span>
 		</div>
 		{#each players as player (player.id + '-' + player.name)}
 			{@render playerRowContent(player)}

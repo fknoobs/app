@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { MatchExpanded } from '$core/app/database/matches';
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { cn } from '$lib/utils';
 	import { interactive } from '$lib/components/ui/variants';
@@ -8,10 +9,11 @@
 
 	type Props = {
 		flush?: boolean;
+		match?: MatchExpanded | null;
 		class?: string;
 	};
 
-	let { flush = false, class: className }: Props = $props();
+	let { flush = false, match = null, class: className }: Props = $props();
 	let activeTab = $state('overview');
 
 	function tabClass(tab: string) {
@@ -38,7 +40,7 @@
 		</div>
 		<div>
 			{#if activeTab === 'overview'}
-				<ReplayPlayers flush class="p-0" />
+				<ReplayPlayers flush {match} class="p-0" />
 			{:else if activeTab === 'chat'}
 				<ReplayChat flush class="grow" />
 			{:else}
@@ -54,7 +56,7 @@
 			<Tabs.Trigger value="timeline">Timeline</Tabs.Trigger>
 		</Tabs.List>
 		<Tabs.Content value="overview" class="flex grow flex-col gap-4">
-			<ReplayPlayers />
+			<ReplayPlayers {match} />
 		</Tabs.Content>
 		<Tabs.Content value="chat" class="flex grow flex-col gap-4">
 			<ReplayChat class="grow" />

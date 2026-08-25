@@ -206,7 +206,7 @@
 						variant="secondary"
 						type="button"
 						onclick={startOAuthFlow}
-						class="bg-[#6441a5] shadow-none"
+						class="w-fit bg-[#6441a5] shadow-none"
 						loading={isStartingOAuth}
 					>
 						<TwitchIcon size="22" weight="bold" />

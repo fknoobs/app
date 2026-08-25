@@ -5,10 +5,30 @@ function parsePlayers(raw) {
 		return raw;
 	}
 
-	if (typeof raw === 'string') {
+	if (raw && typeof raw === 'object') {
 		try {
-			const parsed = JSON.parse(raw);
-			return Array.isArray(parsed) ? parsed : [];
+			const asArray = Array.from(raw);
+			if (asArray.length > 0 || (typeof raw.length === 'number' && raw.length === 0)) {
+				return asArray;
+			}
+		} catch {
+			// not iterable
+		}
+
+		const keys = Object.keys(raw);
+		if (keys.length > 0 && keys.every((key) => /^\d+$/.test(key))) {
+			return keys
+				.sort((a, b) => Number(a) - Number(b))
+				.map((key) => raw[key]);
+		}
+	}
+
+	if (typeof raw === 'string') {
+		if (!raw || raw === '[]' || raw === 'null') {
+			return [];
+		}
+		try {
+			return parsePlayers(JSON.parse(raw));
 		} catch {
 			return [];
 		}
@@ -266,8 +286,13 @@ function processLobbyRecord(e) {
 
 	const { summaries, csv, ids } = summarizeLobbyPlayers(slim.players);
 
-	e.record.set('lobbyPlayers', summaries);
-	e.record.set('playerProfileIdsCsv', csv);
+	// Never wipe populated filter fields when players failed to parse (e.g. multipart
+	// edge cases). Empty summaries would otherwise clear lobbyPlayers on every update.
+	if (summaries.length > 0) {
+		e.record.set('lobbyPlayers', summaries);
+		e.record.set('playerProfileIdsCsv', csv);
+	}
+
 	e.record.set('hasReplay', !!e.record.get('replay'));
 
 	if (
@@ -313,6 +338,7 @@ function isServiceRequest(e) {
 }
 
 module.exports = {
+	parsePlayers,
 	processLobbyRecord,
 	slimLobbyPlayers,
 	lobbyMeta,

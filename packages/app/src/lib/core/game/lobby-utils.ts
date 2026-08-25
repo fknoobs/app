@@ -20,11 +20,9 @@ export function liveLobbyToMatch(record: LiveLobbyRecord): Match {
 }
 
 /**
- * Strips the per-player payloads that are only needed while a lobby is live.
- * `matchHistory` embeds every opponent's recent matches, which made a stored
- * lobby row roughly 438 KB and turned any query over `lobbies` into a
- * multi-second table scan. Consumers re-fetch these from Relic / the ratings
- * API when they need them.
+ * Strips payloads that are only needed while a lobby is live.
+ * Use for saved `lobbies` rows only — not `lobbies_live`, which the stream
+ * overlay reads for ELO via `matchHistory` over realtime.
  */
 export function toPersistablePlayers(players: LobbyPlayer[]): LobbyPlayer[] {
 	return players.map(({ matchHistory, storedElo, ...player }) => player);

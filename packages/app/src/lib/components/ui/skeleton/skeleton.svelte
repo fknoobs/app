@@ -8,10 +8,7 @@
 </script>
 
 <div
-	class={cn('relative overflow-hidden rounded-lg bg-secondary-800/90', className)}
+	class={cn('skeleton-shimmer rounded-lg', className)}
+	aria-hidden="true"
 	{...restProps}
->
-	<div
-		class="absolute inset-0 -translate-x-full animate-shimmer bg-linear-to-r from-transparent via-secondary-600/35 to-transparent"
-	></div>
-</div>
+></div>

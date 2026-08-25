@@ -20,7 +20,7 @@
 		countTodayRecord,
 		isMatchFromLocalToday,
 		matchIncludesSteamIds,
-		todayStartFilterValue
+		todayPlayedMatchesFilter
 	} from './dashboard-utils';
 	import { getPlayerRating } from '$core/pocketbase/player-ratings';
 	import { eloMapForSteamId, mergeEloMaps } from '$lib/utils/player-elo';
@@ -49,14 +49,16 @@
 	const profile = $derived(app.game.profile ?? resolvedProfile.current ?? null);
 	const profileId = $derived(profile?.relic.profile_id ?? null);
 	const todaySteamIds = $derived(collectTodayMatchSteamIds(app.features.auth.user.steamIds));
-	const userId = $derived(app.features.auth.userId ?? null);
 
 	const todayMatches = resource(
-		() => [userId, todaySteamIds.join(',')] as const,
-		async ([id, steamIdsKey]) => {
-			if (!id) return [];
+		() => todaySteamIds.join(','),
+		async (steamIdsKey) => {
 			const ids = steamIdsKey ? steamIdsKey.split(',').filter(Boolean) : [];
-			const items = await app.database.matches.getTodayMatches(id, todayStartFilterValue());
+			if (ids.length === 0) return [];
+			const items = await app.database.matches.getList({
+				filter: todayPlayedMatchesFilter(ids),
+				sort: '-createdAt'
+			});
 			return items.filter(
 				(match) => isMatchFromLocalToday(match) && matchIncludesSteamIds(match, ids)
 			);

@@ -151,16 +151,18 @@
 			</div>
 		</div>
 
-		<div class="border-secondary-800 border-b">
-			<MatchLobbyPlayers match={match.current} />
-		</div>
+		{#if !hasReplay}
+			<div class="border-secondary-800 border-b">
+				<MatchLobbyPlayers match={match.current} />
+			</div>
+		{/if}
 
 		{#if hasReplay}
 			{#if replayFile.loading}
 				<Replay.TabsSkeleton flush showTitle={false} />
 			{:else if replayFile.current}
 				<Replay.Root file={replayFile.current}>
-					<Replay.Tabs flush />
+					<Replay.Tabs flush match={match.current} />
 				</Replay.Root>
 			{:else if replayFile.error}
 				<p class="text-secondary-400 px-4 py-3 text-sm">

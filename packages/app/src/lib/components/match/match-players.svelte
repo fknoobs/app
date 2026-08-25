@@ -52,7 +52,8 @@
 					{@attach tooltip(player.profile?.alias || 'Unknown')}
 					class={cn(
 						isMe || isHighlighted ? 'grayscale-0' : 'opacity-50 grayscale-80',
-						(isMe || isHighlighted) && 'ring-primary',
+						isMe && 'ring-primary',
+						!isMe && isHighlighted && 'ring-info',
 						'hover:opacity-100 hover:grayscale-0'
 					)}
 				/>

@@ -73,8 +73,6 @@
 
 {#key match}
 	{#if match}
-		<div class="px-5 py-4">
-			<CurrentGameView lobby={match} />
-		</div>
+		<CurrentGameView lobby={match} />
 	{/if}
 {/key}

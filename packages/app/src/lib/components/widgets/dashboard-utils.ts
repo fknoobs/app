@@ -230,9 +230,22 @@ export function matchIncludesSteamIds(match: MatchExpanded, steamIds: string[]):
 	}
 
 	const lobbyPlayersRaw = (match as MatchExpanded & { lobbyPlayers?: unknown }).lobbyPlayers;
-	if (typeof lobbyPlayersRaw === 'string' && lobbyPlayersRaw.length > 2) {
+	if (Array.isArray(lobbyPlayersRaw)) {
+		if (
+			lobbyPlayersRaw.some(
+				(player) =>
+					player &&
+					typeof player === 'object' &&
+					'steamId' in player &&
+					player.steamId &&
+					steamIds.includes(String(player.steamId))
+			)
+		) {
+			return true;
+		}
+	} else if (typeof lobbyPlayersRaw === 'string' && lobbyPlayersRaw.length > 2) {
 		for (const steamId of steamIds) {
-			if (lobbyPlayersRaw.includes(`"steamId":"${steamId}"`)) {
+			if (lobbyPlayersRaw.includes(steamId)) {
 				return true;
 			}
 		}
@@ -242,21 +255,23 @@ export function matchIncludesSteamIds(match: MatchExpanded, steamIds: string[]):
 }
 
 /**
- * Realtime subscription filter for matches played today.
- * Uses steam IDs from the logged-in user record; each id is matched anywhere in lobbyPlayers.
+ * Matches played today for the logged-in account.
+ * Uses steamIds from the user record. Prefer lobbyPlayers when populated;
+ * fall back to players/result because lobbyPlayers is still empty on many rows.
+ * Callers must client-filter with {@link matchIncludesSteamIds} so nested
+ * matchHistory hits in `players` are not counted as participation.
  */
 export function todayPlayedMatchesFilter(steamIds: string[] = []): string {
 	const who: string[] = [];
-	const uniqueSteamIds = uniq(steamIds.filter(isValidSteamId));
-
-	for (const steamId of uniqueSteamIds) {
+	for (const steamId of uniq(steamIds.filter(isValidSteamId))) {
 		who.push(`lobbyPlayers ~ "${steamId}"`);
+		who.push(`players ~ "${steamId}"`);
+		who.push(`result ~ "${steamId}"`);
 	}
 
 	if (who.length === 0) return 'id=""';
 	const clause = who.length === 1 ? who[0]! : `(${who.join(' || ')})`;
-	const todayStart = todayStartFilterValue();
-	return `createdAt >= "${todayStart}" && ${clause}`;
+	return `createdAt >= "${todayStartFilterValue()}" && ${clause}`;
 }
 
 /** Local-calendar "today" check for match timestamps. */

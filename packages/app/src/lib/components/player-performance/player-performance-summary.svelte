@@ -90,7 +90,7 @@
 	}
 </script>
 
-<div class={className}>
+<div class={cn(meta && 'flex flex-wrap items-start gap-x-10 gap-y-3', className)}>
 	{#if isLoading}
 		<div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
 			{#each Array(4) as _, index (index)}
@@ -149,7 +149,11 @@
 				<List.Title>Tracked:</List.Title>
 				<List.Value class="text-secondary-400 text-sm">{emptyMessage}</List.Value>
 			{/if}
-			{@render meta?.()}
+		</List.Root>
+	{/if}
+	{#if meta}
+		<List.Root class="gap-x-4">
+			{@render meta()}
 		</List.Root>
 	{/if}
 </div>

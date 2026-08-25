@@ -38,6 +38,7 @@ export type HistoryListQuery = {
 	playerIds?: string[];
 	maps?: string[];
 	races?: string[];
+	matchtypes?: number[];
 };
 
 const DEFAULT_EXPAND = 'user';
@@ -122,7 +123,8 @@ export class Matches {
 			ranked = false,
 			playerIds = [],
 			maps = [],
-			races = []
+			races = [],
+			matchtypes = []
 		}: HistoryListQuery,
 		options?: { signal?: AbortSignal }
 	): Promise<ListResult<MatchExpanded>> {
@@ -153,6 +155,10 @@ export class Matches {
 			query.races = races.join(',');
 		}
 
+		if (matchtypes.length > 0) {
+			query.matchtypes = matchtypes.join(',');
+		}
+
 		const response = await pocketbase.send<ListResult<MatchExpanded>>('/api/match-history', {
 			method: 'GET',
 			query,
@@ -164,17 +170,6 @@ export class Matches {
 			...response,
 			items: response.items.map(exp) as MatchExpanded[]
 		};
-	}
-
-	/** Retrieves matches played today for the logged-in account (by user.steamIds). */
-	async getTodayMatches(userId: string, todayStart: string): Promise<MatchExpanded[]> {
-		const response = await pocketbase.send<{ items: Match[] }>('/api/today-matches', {
-			method: 'GET',
-			query: { userId, todayStart },
-			fetch
-		});
-
-		return response.items.map(exp) as MatchExpanded[];
 	}
 
 	/** Retrieves a full list of matches. */

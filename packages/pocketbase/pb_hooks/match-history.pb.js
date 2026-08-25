@@ -45,6 +45,13 @@ routerAdd('GET', '/api/match-history', (e) => {
 		.map((value) => Number(value))
 		.filter((value) => !Number.isNaN(value) && value >= 0 && value <= 3);
 
+	const matchtypes = (query.get('matchtypes') || '')
+		.split(',')
+		.map((value) => value.trim())
+		.filter(Boolean)
+		.map((value) => Number(value))
+		.filter((value) => Number.isFinite(value));
+
 	const bindings = {};
 	const lobbyFilters = ["l.needsResult = 0", "l.title != 'Skirmish'"];
 
@@ -73,6 +80,20 @@ routerAdd('GET', '/api/match-history', (e) => {
 		}
 
 		lobbyFilters.push(`(${mapClauses.join(' OR ')})`);
+	}
+
+	if (matchtypes.length > 0) {
+		const matchtypeClauses = [];
+
+		for (let i = 0; i < matchtypes.length; i++) {
+			const key = `matchtype${i}`;
+			bindings[key] = matchtypes[i];
+			matchtypeClauses.push(`{:${key}}`);
+		}
+
+		lobbyFilters.push(
+			`CAST(json_extract(l.result, '$.matchtype_id') AS INTEGER) IN (${matchtypeClauses.join(', ')})`
+		);
 	}
 
 	const numericPlayerIds = [];
@@ -112,7 +133,9 @@ routerAdd('GET', '/api/match-history', (e) => {
 
 	const hasPlayerFilter = numericPlayerIds.length > 0;
 	const hasRaceFilter = !!raceClause;
-	const hasExtraFilters = hasPlayerFilter || maps.length > 0 || ranked || hasRaceFilter;
+	const hasMatchtypeFilter = matchtypes.length > 0;
+	const hasExtraFilters =
+		hasPlayerFilter || maps.length > 0 || ranked || hasRaceFilter || hasMatchtypeFilter;
 	const offset = (page - 1) * perPage;
 
 	bindings.limit = perPage;

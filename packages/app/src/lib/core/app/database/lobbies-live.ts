@@ -3,7 +3,6 @@ import type { LobbyPlayer } from '@fknoobs/app';
 import type { LobbiesLiveResponse, UsersResponse } from '$core/pocketbase/types';
 import { exp, pocketbase } from '$core/pocketbase';
 import { fetch } from '$core/http/fetch';
-import { toPersistablePlayers } from '$core/game/lobby-utils';
 import {
 	ClientResponseError,
 	type ListResult,
@@ -119,7 +118,8 @@ export class LobbiesLive {
 			isRanked: match.isRanked,
 			sessionId: match.sessionId,
 			map: match.map,
-			players: toPersistablePlayers(match.players)
+			// Keep matchHistory: the stream overlay reads ELO from it over realtime.
+			players: match.players
 		};
 
 		try {

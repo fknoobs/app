@@ -4,22 +4,38 @@
 	import type { PerformanceScope } from '$core/pocketbase/player-performance';
 	import { Button } from '$lib/components/ui/button';
 	import { MatchListTable } from '$lib/components/match';
-	import { normalizeMapName } from '$lib/utils';
 	import { watch } from 'runed';
 
 	type Props = {
-		mapKey: string;
 		profileId: number;
 		scope: PerformanceScope;
 		userId?: string | null;
 		totalGames?: number;
+		maps?: string[];
+		races?: number[];
+		matchtypes?: number[];
+		showMap?: boolean;
+		label: string;
+		emptyMessage?: string;
 	};
 
 	const PER_PAGE = 25;
 
-	let { mapKey, profileId, scope, userId = null, totalGames = 0 }: Props = $props();
+	let {
+		profileId,
+		scope,
+		userId = null,
+		totalGames = 0,
+		maps = [],
+		races = [],
+		matchtypes = [],
+		showMap = true,
+		label,
+		emptyMessage = 'No matches found.'
+	}: Props = $props();
 
 	const highlightedPlayers = $derived([String(profileId)]);
+	const hasFilter = $derived(maps.length > 0 || races.length > 0 || matchtypes.length > 0);
 
 	let page = $state(1);
 	let allMatches = $state<MatchExpanded[]>([]);
@@ -28,7 +44,7 @@
 	let loadingMore = $state(false);
 
 	async function fetchMatches(pageNum: number) {
-		if (!mapKey || !profileId) {
+		if (!profileId || !hasFilter) {
 			return { items: [], totalItems: 0 };
 		}
 		if (scope === 'user' && !userId) {
@@ -41,20 +57,35 @@
 			scope,
 			userId: userId ?? undefined,
 			profileId,
-			maps: [mapKey],
+			maps,
+			races: races.map(String),
+			matchtypes,
 			playerIds
 		});
 	}
 
 	watch(
-		() => [mapKey, profileId, scope, userId ?? null] as const,
-		async ([nextMapKey, nextProfileId, nextScope, nextUserId]) => {
+		() =>
+			[
+				profileId,
+				scope,
+				userId ?? null,
+				maps.join(','),
+				races.join(','),
+				matchtypes.join(',')
+			] as const,
+		async ([nextProfileId, nextScope, nextUserId, nextMaps, nextRaces, nextMatchtypes]) => {
 			page = 1;
 			allMatches = [];
 			totalItems = 0;
 			initialLoading = true;
 
-			if (!nextMapKey || !nextProfileId || (nextScope === 'user' && !nextUserId)) {
+			const ready =
+				nextProfileId &&
+				(nextMaps || nextRaces || nextMatchtypes) &&
+				!(nextScope === 'user' && !nextUserId);
+
+			if (!ready) {
 				initialLoading = false;
 				return;
 			}
@@ -64,7 +95,7 @@
 				allMatches = result.items;
 				totalItems = result.totalItems;
 			} catch (error) {
-				console.warn('[player-performance] map matches failed:', error);
+				console.warn('[player-performance] matches failed:', error);
 			} finally {
 				initialLoading = false;
 			}
@@ -98,7 +129,7 @@
 	{#if hasMore}
 		<div class="flex flex-col items-center gap-2 px-4 pt-2 pb-3">
 			<p class="text-secondary-500 text-xs">
-				Showing {allMatches.length} of {totalCount} matches on {normalizeMapName(mapKey)}
+				Showing {allMatches.length} of {totalCount} matches {label}
 			</p>
 			<Button variant="secondary" size="sm" loading={loadingMore} onclick={() => loadMore()}>
 				Load more
@@ -110,10 +141,10 @@
 <MatchListTable
 	matches={allMatches}
 	loading={initialLoading}
-	showMap={false}
+	{showMap}
 	showRating={scope === 'user'}
 	{highlightedPlayers}
-	emptyMessage="No matches found for this map."
-	class="bg-secondary-900/40"
+	{emptyMessage}
+	class="bg-gray-950/90"
 	footer={loadMoreFooter}
 />

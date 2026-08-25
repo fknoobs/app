@@ -14,20 +14,21 @@
 		collectTodayMatchSteamIds,
 		isMatchFromLocalToday,
 		matchIncludesSteamIds,
-		todayPlayedMatchesFilter,
-		todayStartFilterValue
+		todayPlayedMatchesFilter
 	} from './dashboard-utils';
 
 	let unsubscribe = $state<UnsubscribeFunc>();
 	let subscribeGeneration = 0;
 	const steamIds = $derived(collectTodayMatchSteamIds(app.features.auth.user.steamIds));
-	const userId = $derived(app.features.auth.userId ?? null);
 	let matches = resource(
-		() => [userId, steamIds.join(',')] as const,
-		async ([id, steamIdsKey]) => {
-			if (!id) return [];
+		() => steamIds.join(','),
+		async (steamIdsKey) => {
 			const ids = steamIdsKey ? steamIdsKey.split(',').filter(Boolean) : [];
-			const items = await app.database.matches.getTodayMatches(id, todayStartFilterValue());
+			if (ids.length === 0) return [];
+			const items = await app.database.matches.getList({
+				filter: todayPlayedMatchesFilter(ids),
+				sort: '-createdAt'
+			});
 			return items.filter(
 				(match) => isMatchFromLocalToday(match) && matchIncludesSteamIds(match, ids)
 			);
@@ -37,15 +38,15 @@
 	const matchCount = $derived(matches.current?.length ?? 0);
 
 	watch(
-		() => [userId, steamIds.join(',')] as const,
-		([id, steamIdsKey]) => {
+		() => steamIds.join(','),
+		(steamIdsKey) => {
 			const ids = steamIdsKey ? steamIdsKey.split(',').filter(Boolean) : [];
 			const generation = ++subscribeGeneration;
 			void (async () => {
 				await unsubscribe?.();
 				if (generation !== subscribeGeneration) return;
 				unsubscribe = undefined;
-				if (!id || ids.length === 0) return;
+				if (ids.length === 0) return;
 
 				const next = await app.pocketbase.collection('lobbies').subscribe<LobbyMatch>(
 					'*',

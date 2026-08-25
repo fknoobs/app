@@ -2,7 +2,7 @@
 	import type { MatchExpanded } from '$core/app/database/matches';
 	import MatchRoot from './match.svelte';
 	import MatchMapImage from './match-map-image.svelte';
-	import MatchTitle from './match-title.svelte';
+	import MatchMapName from './match-map-name.svelte';
 	import MatchPlayers from './match-players.svelte';
 	import MatchRating from './match-rating.svelte';
 	import MatchStatus from './match-status.svelte';
@@ -127,7 +127,7 @@
 	<MatchMapImage small class="w-10" />
 {/snippet}
 {#snippet cell_name({ row }: { row: MatchExpanded })}
-	<MatchTitle class="text-secondary-300" />
+	<MatchMapName class="text-secondary-300 font-medium" />
 {/snippet}
 {#snippet cell_type({ row }: { row: MatchExpanded })}
 	{getMatchModeLabel(row)}

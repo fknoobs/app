@@ -2,22 +2,6 @@
 
 'use strict';
 
-// Older clients still upload the full in-memory player objects; strip the heavy
-// per-player payloads server-side so the row stays small.
-function slimPlayers(e) {
-	const { slimLobbyPlayers } = require(`${__hooks}/lib/lobby-players.js`);
-	const raw = e.record.get('players');
-	const players = Array.isArray(raw) ? raw : [];
-	const slim = slimLobbyPlayers(players);
-	if (slim.changed) {
-		e.record.set('players', slim.players);
-	}
-	e.next();
-}
-
-onRecordCreate(slimPlayers, 'lobbies_live');
-onRecordUpdate(slimPlayers, 'lobbies_live');
-
 // Orphaned rows linger when clients Alt+F4 / Exit to Windows without APP -- Game Stop.
 // Heartbeats refresh updatedAt every ~2 minutes; anything older than STALE_MS is dead.
 // Note: cron callbacks run in an isolated scope — require constants inside the callback.

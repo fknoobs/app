@@ -175,10 +175,13 @@ export class LogSession extends Emittery<SessionEvents> {
 
 		const profileIds = this.lobby.getPlayerIds();
 
-		if (profileIds.length === 0) return;
-
 		this.lobby.sessionId = this.sessionId;
 		this.lobby.started = true;
+
+		// Emit immediately so the UI can redirect; enrich players afterwards.
+		await this.emitSerial('lobby.started', this.lobby);
+
+		if (profileIds.length === 0) return;
 
 		try {
 			const profiles = await this.#deps.getProfileByIds(profileIds);
@@ -193,6 +196,7 @@ export class LogSession extends Emittery<SessionEvents> {
 		}
 
 		await this.#attachMatchHistory();
+		// Second emit refreshes app.lobby with profiles/history (deduped at App).
 		await this.emitSerial('lobby.started', this.lobby);
 	}
 
