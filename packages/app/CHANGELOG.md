@@ -1,5 +1,33 @@
 # @company-of-heroes/app
 
+## 0.56.0
+
+- enhance; drop lobby scout details so ELO, level and position scan first
+- fix; stretch dashboard hero stats to the avatar square
+- enhance; redesign dashboard profile hero as ranked stat grid
+- fix; limit dashboard name link to the name itself
+- feat; add english i18n for all ui copy
+- enhance; flush the current-game map as a square block
+- enhance; flush the dashboard hero avatar as a square block
+- enhance; flush dashboard form as edge-to-edge blocks
+- enhance; flush the history match map as a square block
+- enhance; flush the player profile avatar as a square block
+- enhance; flush the replay detail map as a square block
+- enhance; flush map thumbnails in match list rows
+- fix; poll match status on the history detail page instead of a realtime subscription
+- feat; add a dedicated language dropdown for switching the app locale
+- fix; keep the language select as wide as its options instead of the full page
+- enhance; use a details button in live lobby rows instead of a text link
+- fix; open lobby and match details with client-side navigation
+- fix; keep the selected language when navigating away from settings
+- fix; download replays after rename using the updated PocketBase file reference
+- fix; add left padding to list map thumbnails
+- fix; keep list map thumbnails at row height
+- fix; make language select dropdown opaque and match the trigger width
+- fix; stop setup from showing a false missing-path error next to a valid file
+- feat; add spanish i18n for all ui copy
+- feat; add spanish locale and language picker
+
 ## 0.55.0
 
 - enhance; add current-game scouting stats in the existing match header and player table
