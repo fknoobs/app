@@ -7,7 +7,7 @@ const FETCH_SCRIPT = `${__hooks}/lib/fetch-insecure.py`;
 const COLLECTION = 'lobbies';
 const BATCH_SIZE = 40;
 const MAX_PROFILE_FETCHES = 5;
-const MAX_ATTEMPTS = 5;
+const MAX_ATTEMPTS = 60;
 
 function matchHistoryUrl(profileId) {
 	return (
@@ -96,9 +96,7 @@ function asPlayerList(raw) {
 
 		const keys = Object.keys(raw);
 		if (keys.length > 0 && keys.every((key) => /^\d+$/.test(key))) {
-			return keys
-				.sort((a, b) => Number(a) - Number(b))
-				.map((key) => raw[key]);
+			return keys.sort((a, b) => Number(a) - Number(b)).map((key) => raw[key]);
 		}
 	}
 
