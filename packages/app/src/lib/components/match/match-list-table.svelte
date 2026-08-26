@@ -13,6 +13,7 @@
 	import MatchLobbyPlayers from '$lib/components/widgets/match-lobby-players.svelte';
 	import { getMatchModeLabel } from '$lib/components/widgets/dashboard-utils';
 	import type { Snippet } from 'svelte';
+	import { goto } from '$app/navigation';
 	import { useI18n } from '$lib/i18n';
 
 	type Props = {
@@ -107,6 +108,13 @@
 		if (!expandable) return;
 		expandedId = expandedId === id ? null : id;
 	}
+
+	function openDetails(event: MouseEvent, href: string) {
+		event.stopPropagation();
+		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		event.preventDefault();
+		void goto(href);
+	}
 </script>
 
 {#snippet cell_map({ row }: { row: MatchExpanded })}
@@ -145,17 +153,15 @@
 	<MatchRating class="text-sm" profileId={highlightedPlayers[0]} />
 {/snippet}
 {#snippet cell_actions({ row }: { row: MatchExpanded })}
-	<div onpointerdown={(event) => event.stopPropagation()}>
-		<Button
-			href="/history/{row.id}"
-			size="sm"
-			variant="secondary"
-			class="h-7 px-2.5 text-xs"
-			onclick={(event) => event.stopPropagation()}
-		>
-			{t('Details')}
-		</Button>
-	</div>
+	<Button
+		href="/history/{row.id}"
+		size="sm"
+		variant="secondary"
+		class="h-7 px-2.5 text-xs"
+		onclick={(event) => openDetails(event, `/history/${row.id}`)}
+	>
+		{t('Details')}
+	</Button>
 {/snippet}
 {#snippet cell_expand({ row }: { row: MatchExpanded })}
 	<CaretDownIcon class={cn('size-4 transition-transform', expandedId === row.id && 'rotate-180')} />

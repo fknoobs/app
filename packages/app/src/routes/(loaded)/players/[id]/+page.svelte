@@ -100,20 +100,27 @@
 	<Player.ProfileSkeleton />
 {:else if profile.current}
 	<div class="border-secondary-900 overflow-clip border-b">
-		<div class="border-secondary-800 flex gap-4 border-b p-4">
-			<img
-				src={profile.current.steam.avatarfull}
-				alt={profile.current.relic.alias}
+		<div
+			class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]"
+		>
+			<div
 				class={cn(
-					'size-40 shrink-0 rounded-xl border-3 object-cover sm:size-44',
-					profile.current.steam.personastate > 0 && 'border-blue-400',
+					'border-secondary-800 aspect-square overflow-clip sm:aspect-auto sm:h-full sm:border-r',
 					profile.current.steam.gameextrainfo?.trim() === 'Company of Heroes'
 						? 'border-green-500'
-						: 'border-gray-400'
+						: profile.current.steam.personastate > 0
+							? 'border-blue-400'
+							: 'border-secondary-800'
 				)}
-			/>
+			>
+				<img
+					src={profile.current.steam.avatarfull}
+					alt={profile.current.relic.alias}
+					class="h-full w-full object-cover"
+				/>
+			</div>
 
-			<div class="min-w-0 grow py-1">
+			<div class="min-w-0 px-6 py-4">
 				<div class="mb-3 flex flex-wrap items-center gap-2.5">
 					{#if profile.current.relic.country}
 						<img

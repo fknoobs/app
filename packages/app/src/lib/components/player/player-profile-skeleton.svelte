@@ -14,36 +14,44 @@
 
 <div class={cn('border-secondary-900 overflow-clip border-b', className)}>
 	{#if widget}
-		<div class="border-secondary-800 flex items-center gap-3 border-b px-4 py-3">
-			<Skeleton class="size-16 shrink-0 rounded-lg" />
-			<Skeleton class="h-7 max-w-52 flex-1" />
-			<Skeleton class="h-4 w-16 shrink-0" />
-		</div>
-		<div class="border-secondary-800 border-b">
-			<div class="grid grid-cols-6">
-				{#each Array(6) as _, index (index)}
-					<div
-						class={cn(
-							'border-secondary-800 flex flex-col items-center gap-1.5 px-2 py-3',
-							index < 5 && 'border-r'
-						)}
-					>
-						<Skeleton class="h-3 w-10" />
-						<Skeleton class="h-4 w-12" />
-						<Skeleton class={index < 4 ? 'size-8' : 'h-4 w-16'} />
+		<div
+			class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(140px,180px)_minmax(0,1fr)]"
+		>
+			<Skeleton class="aspect-square h-full rounded-none" />
+			<div class="flex min-h-0 min-w-0 flex-col sm:h-full">
+				<div class="flex items-center gap-3 px-6 py-3">
+					<Skeleton class="h-7 max-w-52 flex-1" />
+					<Skeleton class="h-4 w-16 shrink-0" />
+				</div>
+				<div class="border-secondary-800 flex min-h-0 flex-1 flex-col border-t">
+					<div class="grid min-h-0 flex-1 grid-cols-6">
+						{#each Array(6) as _, index (index)}
+							<div
+								class={cn(
+									'border-secondary-800 flex h-full flex-col items-center gap-1.5 px-2 py-3',
+									index < 5 && 'border-r'
+								)}
+							>
+								<Skeleton class="h-3 w-10" />
+								<Skeleton class="h-4 w-12" />
+								<Skeleton class={index < 4 ? 'size-8' : 'h-4 w-16'} />
+							</div>
+						{/each}
 					</div>
-				{/each}
+				</div>
 			</div>
 		</div>
-		<div class="border-secondary-800 flex gap-1 overflow-hidden border-b px-4 py-2">
+		<div class="border-secondary-800 divide-secondary-800 grid grid-cols-10 divide-x overflow-clip border-b">
 			{#each Array(10) as _, index (index)}
-				<Skeleton class="size-6 shrink-0 rounded" />
+				<Skeleton class="h-8 rounded-none" />
 			{/each}
 		</div>
 	{:else}
-		<div class="border-secondary-800 flex gap-4 border-b p-4">
-			<Skeleton class="size-40 shrink-0 rounded-xl sm:size-44" />
-			<div class="min-w-0 grow py-1">
+		<div
+			class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]"
+		>
+			<Skeleton class="aspect-square rounded-none sm:aspect-auto sm:min-h-55" />
+			<div class="min-w-0 px-6 py-4">
 				<div class="mb-3 flex items-center gap-2.5">
 					<Skeleton class="h-5 w-7 shrink-0 rounded-xs" />
 					<Skeleton class="h-9 max-w-52 flex-1" />

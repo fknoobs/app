@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { LiveLobby } from '$core/app/database/lobbies-live';
+	import { goto } from '$app/navigation';
 	import MapImage from '$lib/components/ui/map-image.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -28,6 +29,19 @@
 
 	function toggleExpanded(id: string) {
 		expandedId = expandedId === id ? null : id;
+	}
+
+	function handleRowClick(event: MouseEvent, id: string) {
+		const target = event.target as HTMLElement;
+		if (target.closest('a, button')) return;
+		toggleExpanded(id);
+	}
+
+	function openDetails(event: MouseEvent, href: string) {
+		event.stopPropagation();
+		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+		event.preventDefault();
+		void goto(href);
 	}
 </script>
 
@@ -81,7 +95,7 @@
 						expanded && 'bg-secondary-950/60 text-primary'
 					)}
 					aria-expanded={expanded}
-					onclick={() => toggleExpanded(lobby.id)}
+					onclick={(event) => handleRowClick(event, lobby.id)}
 				>
 					<td class="h-11 overflow-clip py-0 pr-0 pl-4">
 						<MapImage small flush map={lobby.map} />
@@ -124,8 +138,7 @@
 							size="sm"
 							variant="secondary"
 							class="h-7 px-2.5 text-xs"
-							onpointerdown={(event) => event.stopPropagation()}
-							onclick={(event) => event.stopPropagation()}
+							onclick={(event) => openDetails(event, `/live/${lobby.id}`)}
 						>
 							{t('Details')}
 						</Button>
