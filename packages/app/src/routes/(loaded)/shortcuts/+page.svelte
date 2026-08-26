@@ -9,6 +9,9 @@
 	import { shortcuts, type FactionKey } from '$core/app/features/shortcuts';
 	import { Button } from '$lib/components/ui/button';
 	import { KeybindingRow } from '$lib/components/shortcuts';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	const factions: { label: string; value: FactionKey }[] = [
 		{ label: 'USA', value: 'allies' },
@@ -72,18 +75,17 @@
 	<div class="flex flex-wrap gap-1">
 		<Button variant="ghost" onclick={() => shortcuts.importSettings()}>
 			<ImportIcon />
-			Import
+			{t('Import')}
 		</Button>
 		<Button variant="ghost" onclick={() => shortcuts.exportSettings()}>
 			<ExportIcon />
-			Export
+			{t('Export')}
 		</Button>
 	</div>
 </div>
 
 <p class="text-secondary-400 border-secondary-800 border-b px-4 py-3 text-sm">
-	Hotkeys are per faction and only work during an active match while Company of Heroes is focused
-	(not in chat). Pick the tab that matches your army, then click a chord field to record keys.
+	{t('Hotkeys are per faction and only work during an active match while Company of Heroes is focused (not in chat). Pick the tab that matches your army, then click a chord field to record keys.')}
 </p>
 
 <table class="w-full table-fixed">
@@ -101,10 +103,10 @@
 				class="bg-secondary-950/90 text-secondary-300 border-secondary-800 border-b text-left text-xs font-semibold tracking-wide uppercase"
 			>
 				<th class="px-2 py-3" aria-hidden="true"></th>
-				<th class="px-4 py-3">Name</th>
-				<th class="px-4 py-3">When you press</th>
+				<th class="px-4 py-3">{t('Name')}</th>
+				<th class="px-4 py-3">{t('When you press')}</th>
 				<th class="px-2 py-3" aria-hidden="true"></th>
-				<th class="px-4 py-3">Game receives</th>
+				<th class="px-4 py-3">{t('Game receives')}</th>
 				<th class="px-2 py-3" aria-hidden="true"></th>
 			</tr>
 		</thead>
@@ -116,9 +118,9 @@
 					<div class="flex flex-col items-center gap-3 text-center">
 						<KeyboardIcon class="text-secondary-600 size-10" weight="duotone" />
 						<div>
-							<p class="text-secondary-300 font-medium">No keybindings for this faction</p>
+							<p class="text-secondary-300 font-medium">{t('No keybindings for this faction')}</p>
 							<p class="text-secondary-500 mt-1 text-sm">
-								Add a binding below, then record what you press and what the game should receive.
+								{t('Add a binding below, then record what you press and what the game should receive.')}
 							</p>
 						</div>
 					</div>
@@ -135,6 +137,6 @@
 <div class="border-secondary-800 border-t p-4">
 	<Button variant="secondary" class="w-fit" onclick={() => shortcuts.addBinding(faction)}>
 		<PlusIcon />
-		Add keybinding
+		{t('Add keybinding')}
 	</Button>
 </div>

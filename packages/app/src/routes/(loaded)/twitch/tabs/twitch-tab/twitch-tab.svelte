@@ -7,25 +7,27 @@
 	import { app } from '$core/app/context';
 	import { Avatar } from 'bits-ui';
 	import TwitchIcon from 'phosphor-svelte/lib/TwitchLogoIcon';
-	import ArrowSquareOut from 'phosphor-svelte/lib/ArrowSquareOutIcon';
-	import SignOut from 'phosphor-svelte/lib/SignOutIcon';
-	import EnvelopeSimple from 'phosphor-svelte/lib/EnvelopeSimpleIcon';
-	import CalendarBlank from 'phosphor-svelte/lib/CalendarBlankIcon';
-	import Clock from 'phosphor-svelte/lib/ClockIcon';
+	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
+	import SignOutIcon from 'phosphor-svelte/lib/SignOutIcon';
+	import EnvelopeSimpleIcon from 'phosphor-svelte/lib/EnvelopeSimpleIcon';
+	import CalendarBlankIcon from 'phosphor-svelte/lib/CalendarBlankIcon';
+	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
 	import { Checkbox } from '$lib/components/ui/input';
 	import { twitch } from '$features/twitch';
 	import dayjs from '$lib/dayjs';
 	import { cn } from '$lib/utils';
 	import { interactive } from '$lib/components/ui/variants';
 	import { tooltip } from '$lib/attachments';
+	import { useI18n } from '$lib/i18n';
 
 	let isStartingOAuth = $state(false);
+	const { t } = useI18n();
 
 	const broadcasterTypeLabel = $derived.by(() => {
 		const type = twitch.user?.broadcasterType;
 
-		if (type === 'partner') return 'Partner';
-		if (type === 'affiliate') return 'Affiliate';
+		if (type === 'partner') return t('Partner');
+		if (type === 'affiliate') return t('Affiliate');
 
 		return null;
 	});
@@ -64,11 +66,11 @@
 			const { access_token } = Object.fromEntries(params.entries());
 
 			if (!access_token) {
-				app.toast.error('Failed to get access token');
+				app.toast.error(t('Failed to get access token'));
 				return;
 			}
 
-			app.toast.success('Successfully connected to Twitch');
+			app.toast.success(t('Successfully connected to Twitch'));
 			twitch.settings.accessToken = access_token as string;
 
 			cancel(port);
@@ -76,14 +78,14 @@
 		});
 
 		onInvalidUrl(() => {
-			app.toast.error('Twitch OAuth flow was cancelled or failed');
+			app.toast.error(t('Twitch OAuth flow was cancelled or failed'));
 			isStartingOAuth = false;
 		});
 	};
 
 	const disconnect = () => {
 		twitch.settings.accessToken = null;
-		app.toast.success('Successfully disconnected from Twitch');
+		app.toast.success(t('Successfully disconnected from Twitch'));
 	};
 
 	const openTwitchProfile = () => {
@@ -98,8 +100,8 @@
 <Form.Root class="space-y-0">
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>Enable twitch integration</Form.Label>
-			<Checkbox bind:checked={twitch.settings.enabled} label="Enabled" />
+			<Form.Label>{t('Enable twitch integration')}</Form.Label>
+			<Checkbox bind:checked={twitch.settings.enabled} label={t('Enabled')} />
 		</Form.Group>
 	</div>
 	{#if twitch.settings.enabled}
@@ -111,12 +113,12 @@
 					onclick={disconnect}
 					type="button"
 					class="text-destructive/70 hover:text-destructive absolute top-4 right-4 cursor-pointer"
-					{@attach tooltip('Disconnect')}
+					{@attach tooltip(t('Disconnect'))}
 				>
-					<SignOut size="18" />
+					<SignOutIcon size="18" />
 				</Button>
 				<Form.Group class="mb-0 max-w-3xl">
-					<Form.Label>Connected account</Form.Label>
+					<Form.Label>{t('Connected account')}</Form.Label>
 					<div class="flex items-start gap-4 pt-1">
 						<div class="relative shrink-0">
 							<Avatar.Root
@@ -157,10 +159,10 @@
 									onclick={openTwitchProfile}
 								>
 									{twitch.user?.displayName ?? twitch.token.userName}
-									<ArrowSquareOut size="14" />
+									<ArrowSquareOutIcon size="14" />
 								</button>
 								<Badge variant={twitch.isLive ? 'success' : 'default'}>
-									{twitch.isLive ? 'Live' : 'Offline'}
+									{twitch.isLive ? t('Live') : t('Offline')}
 								</Badge>
 								{#if broadcasterTypeLabel}
 									<Badge variant="primary">{broadcasterTypeLabel}</Badge>
@@ -177,20 +179,20 @@
 							>
 								{#if twitch.user?.email}
 									<span class="flex items-center gap-1.5">
-										<EnvelopeSimple size="14" />
+										<EnvelopeSimpleIcon size="14" />
 										{twitch.user.email}
 									</span>
 								{/if}
 								{#if twitch.user?.creationDate}
 									<span class="flex items-center gap-1.5">
-										<CalendarBlank size="14" />
-										Joined {dayjs(twitch.user.creationDate).format('D MMM YYYY')}
+										<CalendarBlankIcon size="14" />
+										{t('Joined {date}', { date: dayjs(twitch.user.creationDate).format('D MMM YYYY') })}
 									</span>
 								{/if}
 								{#if twitch.token.expiryDate}
 									<span class="flex items-center gap-1.5">
-										<Clock size="14" />
-										Session expires {dayjs(twitch.token.expiryDate).format('D MMM YYYY HH:mm')}
+										<ClockIcon size="14" />
+										{t('Session expires {date}', { date: dayjs(twitch.token.expiryDate).format('D MMM YYYY HH:mm') })}
 									</span>
 								{/if}
 							</div>
@@ -201,7 +203,7 @@
 		{:else}
 			<div class="border-secondary-800 border-b p-4">
 				<Form.Group class="mb-0">
-					<Form.Label>Twitch Channel</Form.Label>
+					<Form.Label>{t('Twitch Channel')}</Form.Label>
 					<Button
 						variant="secondary"
 						type="button"
@@ -210,7 +212,7 @@
 						loading={isStartingOAuth}
 					>
 						<TwitchIcon size="22" weight="bold" />
-						Connect Twitch
+						{t('Connect Twitch')}
 					</Button>
 				</Form.Group>
 			</div>

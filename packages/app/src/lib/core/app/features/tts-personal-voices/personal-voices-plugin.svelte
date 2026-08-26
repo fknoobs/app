@@ -10,7 +10,9 @@
 	import { tts } from '$features/twitch';
 	import { ttsPersonalVoices } from '$features/tts-personal-voices';
 	import SelectVoices from '$lib/components/select/select-voices.svelte';
+	import { useI18n } from '$lib/i18n';
 
+	const { t } = useI18n();
 	const voiceOptions = $derived(
 		tts.provider.voices.map((voice) => ({
 			value: voice.voiceId!,
@@ -22,26 +24,29 @@
 
 <div class="border-secondary-800 border-b p-4">
 	<Form.Group class="mb-0">
-		<Form.Label>Use personal voices rewards</Form.Label>
+		<Form.Label>{t('Use personal voices rewards')}</Form.Label>
 		<Form.Description>
-			Enable this option to allow viewers to redeem a custom voice TTS reward using twitch channel
-			points.
+			{t(
+				'Enable this option to allow viewers to redeem a custom voice TTS reward using twitch channel points.'
+			)}
 		</Form.Description>
-		<Checkbox bind:checked={ttsPersonalVoices.settings.enabled} label="Enabled" />
+		<Checkbox bind:checked={ttsPersonalVoices.settings.enabled} label={t('Enabled')} />
 	</Form.Group>
 </div>
 
 {#if ttsPersonalVoices.enabled}
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>Voices</Form.Label>
+			<Form.Label>{t('Voices')}</Form.Label>
 			<Form.Description>
-				Select the voices that viewers can choose from when redeeming the personal voice TTS reward.
+				{t(
+					'Select the voices that viewers can choose from when redeeming the personal voice TTS reward.'
+				)}
 			</Form.Description>
 			<Selection
 				multiple
 				options={voiceOptions}
-				placeholder="Select voices..."
+				placeholder={t('Select voices...')}
 				bind:value={ttsPersonalVoices.settings.providers[tts.settings.provider].voices}
 			>
 				{#snippet icon()}
@@ -52,11 +57,11 @@
 	</div>
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>Reward Cost</Form.Label>
+			<Form.Label>{t('Reward Cost')}</Form.Label>
 			<Input
 				type="number"
 				bind:value={ttsPersonalVoices.settings.cost}
-				placeholder="Enter reward cost in channel points"
+				placeholder={t('Enter reward cost in channel points')}
 				class="max-w-xs"
 				step="100"
 				min="0"
@@ -65,11 +70,12 @@
 	</div>
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>Rewarded Voices</Form.Label>
+			<Form.Label>{t('Rewarded Voices')}</Form.Label>
 			{#if Object.keys(ttsPersonalVoices.rewardedVoices).length === 0}
 				<p class="text-secondary-400 mb-2 text-sm">
-					No rewarded voices added yet. Rewarded voices appear here automatically, or add a user
-					below.
+					{t(
+						'No rewarded voices added yet. Rewarded voices appear here automatically, or add a user below.'
+					)}
 				</p>
 			{:else}
 				<div class="divide-secondary-800 divide-y border-secondary-800 mb-2 border-y">
@@ -81,7 +87,7 @@
 								class="min-w-0 flex-1"
 								options={voiceOptions}
 								bind:value={ttsPersonalVoices.rewardedVoices[user]}
-								placeholder="Select voice..."
+								placeholder={t('Select voice...')}
 							/>
 							<Button
 								variant="secondary"
@@ -103,37 +109,40 @@
 				type="button"
 				onclick={() => {
 					dialog.open = true;
-					dialog.title = 'Add rewarded user';
+					dialog.title = t('Add rewarded user');
 					dialog.setComponent(AddRewardedVoiceUserForm);
 				}}
 			>
-				Add user
+				{t('Add user')}
 			</Button>
 		</Form.Group>
 	</div>
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>Enable free voices</Form.Label>
+			<Form.Label>{t('Enable free voices')}</Form.Label>
 			<Form.Description>
-				Enable this option to allow viewers to choose a free voice TTS. This will not use channel
-				points, but uses the !setvoice command to set the voice.
+				{t(
+					'Enable this option to allow viewers to choose a free voice TTS. This will not use channel points, but uses the !setvoice command to set the voice.'
+				)}
 			</Form.Description>
-			<Checkbox bind:checked={ttsPersonalVoices.settings.enableFreeVoices} label="Enabled" />
+			<Checkbox bind:checked={ttsPersonalVoices.settings.enableFreeVoices} label={t('Enabled')} />
 		</Form.Group>
 	</div>
 	{#if ttsPersonalVoices.settings.enableFreeVoices}
 		<div class="border-secondary-800 border-b p-4">
 			<Form.Group class="mb-0">
-				<Form.Label>Free voices</Form.Label>
+				<Form.Label>{t('Free voices')}</Form.Label>
 				<Form.Description>
-					Select the voices that viewers can choose from when redeeming the free voice TTS reward.
+					{t(
+						'Select the voices that viewers can choose from when redeeming the free voice TTS reward.'
+					)}
 				</Form.Description>
 				<SelectVoices
 					options={tts.provider.voices.map((voice) => {
 						return { value: voice.voiceId, label: voice.name };
 					})}
 					bind:value={ttsPersonalVoices.settings.providers[tts.settings.provider].freeVoices}
-					placeholder="Select voices..."
+					placeholder={t('Select voices...')}
 				>
 					{#snippet icon()}
 						<UserSoundIcon />
@@ -143,10 +152,12 @@
 		</div>
 		<div class="border-secondary-800 border-b p-4">
 			<Form.Group class="mb-0">
-				<Form.Label>Rewarded free voices</Form.Label>
+				<Form.Label>{t('Rewarded free voices')}</Form.Label>
 				{#if Object.keys(ttsPersonalVoices.rewardedFreeVoices).length === 0}
 					<p class="text-secondary-400 mb-2 text-sm">
-						No rewarded free voices added yet. They appear here automatically, or add a user below.
+						{t(
+							'No rewarded free voices added yet. They appear here automatically, or add a user below.'
+						)}
 					</p>
 				{:else}
 					<div class="divide-secondary-800 divide-y border-secondary-800 mb-2 border-y">
@@ -158,7 +169,7 @@
 									class="min-w-0 flex-1"
 									options={voiceOptions}
 									bind:value={ttsPersonalVoices.rewardedFreeVoices[user]}
-									placeholder="Select voice..."
+									placeholder={t('Select voice...')}
 								/>
 								<Button
 									variant="secondary"
@@ -180,11 +191,11 @@
 					type="button"
 					onclick={() => {
 						dialog.open = true;
-						dialog.title = 'Add rewarded free voice user';
+						dialog.title = t('Add rewarded free voice user');
 						dialog.setComponent(AddRewardedVoiceUserForm);
 					}}
 				>
-					Add user
+					{t('Add user')}
 				</Button>
 			</Form.Group>
 		</div>

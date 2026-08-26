@@ -6,9 +6,9 @@
 	import { getString } from '$lib/utils/game';
 	import { tooltip } from '$lib/attachments';
 	import { interactive } from '$lib/components/ui/variants';
-	import SortAscending from 'phosphor-svelte/lib/ArrowDownIcon';
-	import SortDescending from 'phosphor-svelte/lib/ArrowUpIcon';
-	import Sortable from 'phosphor-svelte/lib/ArrowsDownUpIcon';
+	import SortAscendingIcon from 'phosphor-svelte/lib/ArrowDownIcon';
+	import SortDescendingIcon from 'phosphor-svelte/lib/ArrowUpIcon';
+	import SortableIcon from 'phosphor-svelte/lib/ArrowsDownUpIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
@@ -20,12 +20,14 @@
 	import { resource } from 'runed';
 	import ReplayRenameModal from './replay-rename-modal.svelte';
 	import ReplayDeleteModal from './replay-delete-modal.svelte';
+	import { useI18n } from '$lib/i18n';
 
 	interface Props {
 		list: ReplayList;
 	}
 
 	let { list }: Props = $props();
+	const { t } = useI18n();
 
 	let downloadingIds = $state<Record<string, boolean>>({});
 	let confirmedLocalIds = $state<Record<string, true>>({});
@@ -49,12 +51,12 @@
 	});
 
 	const columns: ColumnDef<ReplaysExpanded>[] = [
-		{ id: 'title', header: 'Title', width: 'w-3/24', class: 'truncate', accessor: (item) => item.title },
-		{ id: 'allies', header: 'Allies', width: 'w-3/24', class: 'flex gap-2' },
-		{ id: 'axis', header: 'Axis', width: 'w-3/24', class: 'flex gap-2' },
+		{ id: 'title', header: t('Title'), width: 'w-3/24', class: 'truncate', accessor: (item) => item.title },
+		{ id: 'allies', header: t('Allies'), width: 'w-3/24', class: 'flex gap-2' },
+		{ id: 'axis', header: t('Axis'), width: 'w-3/24', class: 'flex gap-2' },
 		{
 			id: 'duration',
-			header: 'Duration',
+			header: t('Duration'),
 			width: 'w-3/24',
 			sortable: true,
 			onSort: toggleDurationSort,
@@ -62,16 +64,16 @@
 		},
 		{
 			id: 'players',
-			header: 'Players',
+			header: t('Players'),
 			width: 'w-2/24',
 			class: 'text-center',
 			headerClass: 'text-center',
 			accessor: (item) => item.players?.length
 		},
-		{ id: 'map', header: 'Map', width: 'w-4/24', class: 'flex items-center gap-4' },
+		{ id: 'map', header: t('Map'), width: 'w-4/24', class: 'flex items-center gap-4' },
 		{
 			id: 'date',
-			header: 'Date',
+			header: t('Date'),
 			width: 'w-3/24',
 			class: 'truncate',
 			sortable: true,
@@ -133,7 +135,7 @@
 
 	function openRename(row: ReplaysExpanded) {
 		app.modal.create({
-			title: 'Rename replay',
+			title: t('Rename replay'),
 			size: 'sm',
 			component: ReplayRenameModal,
 			props: {
@@ -142,12 +144,20 @@
 				onSave: async (name: string) => {
 					try {
 						const result = await app.database.replays.rename(row.id, name);
-						list.patch(row.id, { title: result.title });
+						list.patch(row.id, {
+							title: result.title,
+							file: result.file as ReplaysExpanded['file'],
+							filename: result.filename
+						});
 						markLocalPresent(row.id);
-						app.toast.success('Replay name updated.');
+						app.toast.success(t('Replay name updated.'));
 						app.modal.close();
 					} catch (error) {
-						app.toast.error('Failed to rename replay: ' + (error as Error).message);
+						app.toast.error(
+							t('Failed to rename replay: {message}', {
+								message: error instanceof Error ? error.message : String(error)
+							})
+						);
 					}
 				}
 			}
@@ -157,7 +167,7 @@
 
 	function openDelete(row: ReplaysExpanded) {
 		app.modal.create({
-			title: 'Delete replay',
+			title: t('Delete replay'),
 			size: 'md',
 			component: ReplayDeleteModal,
 			props: {
@@ -169,11 +179,11 @@
 						if (mode === 'local') {
 							const removed = await app.database.replays.deleteLocal(row.filename);
 							if (!removed) {
-								app.toast.error('Local replay file was not found.');
+								app.toast.error(t('Local replay file was not found.'));
 								return;
 							}
 							markLocalAbsent(row.id);
-							app.toast.success('Local replay file deleted.');
+							app.toast.success(t('Local replay file deleted.'));
 						} else {
 							try {
 								await app.database.replays.deleteLocal(row.filename);
@@ -183,11 +193,13 @@
 							await app.database.replays.delete(row.id);
 							list.remove(row.id);
 							markLocalAbsent(row.id);
-							app.toast.success('Replay deleted from library and disk.');
+							app.toast.success(t('Replay deleted from library and disk.'));
 						}
 						app.modal.close();
 					} catch (error) {
-						app.toast.error('Failed to delete replay: ' + (error as Error).message);
+						app.toast.error(
+							t('Failed to delete replay: {message}', { message: (error as Error).message })
+						);
 					}
 				}
 			}
@@ -199,11 +211,19 @@
 		if (downloadingIds[row.id] || localPresentIds[row.id]) return;
 		downloadingIds = { ...downloadingIds, [row.id]: true };
 		try {
-			await app.database.replays.download(row);
+			const result = await app.database.replays.download(row.id);
+			list.patch(row.id, {
+				file: result.file as ReplaysExpanded['file'],
+				filename: result.filename
+			});
 			markLocalPresent(row.id);
-			app.toast.success('Replay saved to the Company of Heroes playback folder.');
+			app.toast.success(t('Replay saved to the Company of Heroes playback folder.'));
 		} catch (error) {
-			app.toast.error('Failed to download replay: ' + (error as Error).message);
+			app.toast.error(
+				t('Failed to download replay: {message}', {
+					message: error instanceof Error ? error.message : String(error)
+				})
+			);
 		} finally {
 			downloadingIds = { ...downloadingIds, [row.id]: false };
 		}
@@ -212,25 +232,25 @@
 
 {#snippet header_duration()}
 	<span class="flex w-full items-center">
-		Duration
+		{t('Duration')}
 		{#if list.filters.sort.duration === 'durationInSeconds'}
-			<SortAscending class="ml-auto inline-block" weight="duotone" size="18" />
+			<SortAscendingIcon class="ml-auto inline-block" weight="duotone" size="18" />
 		{:else if list.filters.sort.duration === '-durationInSeconds'}
-			<SortDescending class="ml-auto inline-block" weight="duotone" size="18" />
+			<SortDescendingIcon class="ml-auto inline-block" weight="duotone" size="18" />
 		{:else}
-			<Sortable class="ml-auto inline-block" weight="duotone" />
+			<SortableIcon class="ml-auto inline-block" weight="duotone" />
 		{/if}
 	</span>
 {/snippet}
 {#snippet header_date()}
 	<span class="flex w-full items-center">
-		Date
+		{t('Date')}
 		{#if list.filters.sort.gameDate === 'gameDate'}
-			<SortAscending class="ml-auto inline-block" weight="duotone" size="18" />
+			<SortAscendingIcon class="ml-auto inline-block" weight="duotone" size="18" />
 		{:else if list.filters.sort.gameDate === '-gameDate'}
-			<SortDescending class="ml-auto inline-block" weight="duotone" size="18" />
+			<SortDescendingIcon class="ml-auto inline-block" weight="duotone" size="18" />
 		{:else}
-			<Sortable class="ml-auto inline-block" weight="duotone" />
+			<SortableIcon class="ml-auto inline-block" weight="duotone" />
 		{/if}
 	</span>
 {/snippet}
@@ -273,10 +293,10 @@
 {#snippet cell_duration({ row }: { row: ReplaysExpanded })}
 	{dayjs
 		.duration(row.durationInSeconds, 'seconds')
-		.format(row.durationInSeconds < 3600 ? 'm[min]' : 'H[hr] m[min]')}
+		.format(row.durationInSeconds < 3600 ? t('m[min]') : t('H[hr] m[min]'))}
 {/snippet}
 {#snippet cell_map({ row }: { row: ReplaysExpanded })}
-	<MapImage small map={row.mapFilename.split(/[/\\]/).pop()} />
+	<MapImage small flush map={row.mapFilename.split(/[/\\]/).pop()} />
 	<span class="truncate">{getString(row.mapName)}</span>
 {/snippet}
 {#snippet cell_date({ row }: { row: ReplaysExpanded })}
@@ -296,8 +316,8 @@
 		)}
 		loading={isDownloading}
 		disabled={isDownloading || isLocal}
-		aria-label={isLocal ? 'Replay available locally' : 'Download replay'}
-		{@attach tooltip(isLocal ? 'Available in playback folder' : 'Download to playback folder')}
+		aria-label={isLocal ? t('Replay available locally') : t('Download replay')}
+		{@attach tooltip(isLocal ? t('Available in playback folder') : t('Download to playback folder'))}
 		onclick={() => void downloadReplay(row)}
 	>
 		{#if isLocal && !isDownloading}
@@ -311,8 +331,8 @@
 		variant="ghost"
 		size="icon-sm"
 		class={cn(interactive, 'text-secondary-500 hover:text-secondary-200')}
-		aria-label="Rename replay"
-		{@attach tooltip('Rename')}
+		aria-label={t('Rename replay')}
+		{@attach tooltip(t('Rename'))}
 		onclick={() => openRename(row)}
 	>
 		<PencilSimpleIcon size={16} />
@@ -322,8 +342,8 @@
 		variant="ghost"
 		size="icon-sm"
 		class={cn(interactive, 'text-secondary-500 hover:text-destructive')}
-		aria-label="Delete replay"
-		{@attach tooltip('Delete')}
+		aria-label={t('Delete replay')}
+		{@attach tooltip(t('Delete'))}
 		onclick={() => openDelete(row)}
 	>
 		<TrashIcon size={16} />
@@ -333,12 +353,12 @@
 	{#if list.replays.length > 0 || !list.isLoading}
 		<div use:viewport class="text-secondary-400 text-sm">
 			{#if list.replays.length > 0}
-				Showing {list.replays.length} replays
+				{t('Showing {count} replays', { count: list.replays.length })}
 				{#if list.isLoading}
-					(loading...)
+					{t('(loading...)')}
 				{/if}
 			{:else}
-				No replays found.
+				{t('No replays found.')}
 			{/if}
 		</div>
 	{/if}

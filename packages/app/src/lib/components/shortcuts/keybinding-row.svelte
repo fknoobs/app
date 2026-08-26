@@ -8,6 +8,7 @@
 	import { shortcuts, type FactionKey, type Shortcut } from '$core/app/features/shortcuts';
 	import { Button } from '$lib/components/ui/button';
 	import KeybindingChord from './keybinding-chord.svelte';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		keybinding: Shortcut;
@@ -16,6 +17,7 @@
 	};
 
 	let { keybinding, faction, class: className }: Props = $props();
+	const { t } = useI18n();
 </script>
 
 <tr
@@ -31,7 +33,7 @@
 			variant="ghost"
 			size="icon-sm"
 			class="handle text-secondary-600 hover:text-secondary-300 cursor-grab opacity-40 group-hover:opacity-100"
-			aria-label="Reorder keybinding"
+			aria-label={t('Reorder keybinding')}
 		>
 			<HandleIcon size={18} weight="bold" />
 		</Button>
@@ -40,7 +42,7 @@
 	<td class="px-4 py-2">
 		<input
 			bind:value={keybinding.description}
-			placeholder="Description"
+			placeholder={t('Description')}
 			class="border-secondary-800 bg-secondary-950/50 focus:border-secondary-600 h-9 w-full rounded-sm border px-3 text-sm font-medium text-white placeholder:text-secondary-600 focus:outline-none"
 		/>
 	</td>
@@ -66,7 +68,7 @@
 				'hover:text-destructive text-secondary-600 opacity-0 group-hover:opacity-100'
 			)}
 			onclick={() => shortcuts.removeBinding(faction, keybinding.id)}
-			{@attach tooltip('Delete keybinding')}
+			{@attach tooltip(t('Delete keybinding'))}
 		>
 			<TrashIcon size={18} />
 		</Button>

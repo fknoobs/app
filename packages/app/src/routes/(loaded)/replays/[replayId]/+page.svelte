@@ -5,6 +5,9 @@
 	import { account } from '$core/account';
 	import { resource } from 'runed';
 	import type { ReplayDetail } from '$core/app/database/replays';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	let query = resource(
 		() => page.params.replayId!,
@@ -44,5 +47,5 @@
 		</Replay.Root>
 	{/key}
 {:else if query.error}
-	<p class="text-secondary-400 px-4 py-3 text-sm">Failed to load replay.</p>
+	<p class="text-secondary-400 px-4 py-3 text-sm">{t('Failed to load replay.')}</p>
 {/if}

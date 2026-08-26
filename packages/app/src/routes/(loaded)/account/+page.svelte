@@ -11,33 +11,32 @@
 	import ImageCropper from '$lib/components/modals/image-cropper.svelte';
 	import { readFile } from '@tauri-apps/plugin-fs';
 	import { dev } from '$app/environment';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 </script>
 
 <div class="px-5 py-4">
 	<p class="text-secondary-400 mb-4 max-w-4xl">
-		When you install the app, we automatically create a default account for you using a randomly
-		generated email address and password. You can use this account right away to sign in and access
-		your data. For better security and to be recognizable on leaderboards, we recommend creating
-		your own account and switching to it. This makes it easier for others to identify you and helps
-		keep your data protected.
+		{t('When you install the app, we automatically create a default account for you using a randomly generated email address and password. You can use this account right away to sign in and access your data. For better security and to be recognizable on leaderboards, we recommend creating your own account and switching to it. This makes it easier for others to identify you and helps keep your data protected.')}
 	</p>
 
-	<H level={3} class="mt-4 mb-4">Update Account Settings</H>
+	<H level={3} class="mt-4 mb-4">{t('Update Account Settings')}</H>
 	<Form.Root class="max-w-md">
 		<Form.Group class="max-w-3xs">
-			<Form.Label>Avatar</Form.Label>
+			<Form.Label>{t('Avatar')}</Form.Label>
 			<AspectRatio.Root ratio={1 / 1} class="group">
 				{#if app.features.auth.avatarUrl}
 					<img
 						src={app.features.auth.avatarUrl}
-						alt="User Avatar"
+						alt={t('User Avatar')}
 						class="h-full w-full rounded-md bg-gray-800 object-cover"
 					/>
 				{:else}
 					<div
 						class="bg-secondary-950 text-secondary-400 flex h-full w-full items-center justify-center rounded-md"
 					>
-						No Avatar
+						{t('No Avatar')}
 					</div>
 				{/if}
 				<Button
@@ -51,12 +50,12 @@
 						const path = await open({
 							filters: [
 								{
-									name: 'Image Files',
+									name: t('Image Files'),
 									extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp']
 								}
 							],
 							multiple: false,
-							title: 'Select an avatar image'
+							title: t('Select an avatar image')
 						});
 
 						if (!path) {
@@ -66,7 +65,7 @@
 						const file = await readFile(path);
 						const url = URL.createObjectURL(new Blob([file], { type: 'image/*' }));
 						app.modal.create({
-							title: 'Crop Image',
+							title: t('Crop Image'),
 							component: ImageCropper,
 							props: {
 								image: url,
@@ -89,24 +88,23 @@
 						app.modal.open();
 					}}
 				>
-					Select image
+					{t('Select image')}
 				</Button>
 			</AspectRatio.Root>
 		</Form.Group>
 		<Form.Group class="mt-4">
-			<Form.Label>Displayname</Form.Label>
+			<Form.Label>{t('Displayname')}</Form.Label>
 			<Input type="text" bind:value={app.features.auth.user.name} disabled={!dev} />
 		</Form.Group>
 		<Form.Group>
-			<Form.Label>Email (Emails are private and will not be shared!)</Form.Label>
+			<Form.Label>{t('Email (Emails are private and will not be shared!)')}</Form.Label>
 			<Input type="email" bind:value={app.account.settings.email} disabled={!dev} />
 			<Form.Description class="mt-1">
-				This email is used to sign in to your account. It is recommended to use a valid email
-				address so you can recover your account.
+				{t('This email is used to sign in to your account. It is recommended to use a valid email address so you can recover your account.')}
 			</Form.Description>
 		</Form.Group>
 		<Form.Group class="mt-4">
-			<Form.Label>Password</Form.Label>
+			<Form.Label>{t('Password')}</Form.Label>
 			<Input type="password" bind:value={app.account.settings.password} disabled={!dev} />
 		</Form.Group>
 	</Form.Root>

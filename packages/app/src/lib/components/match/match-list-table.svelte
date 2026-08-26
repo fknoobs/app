@@ -13,6 +13,7 @@
 	import MatchLobbyPlayers from '$lib/components/widgets/match-lobby-players.svelte';
 	import { getMatchModeLabel } from '$lib/components/widgets/dashboard-utils';
 	import type { Snippet } from 'svelte';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		matches: MatchExpanded[];
@@ -37,6 +38,7 @@
 		class: className,
 		footer
 	}: Props = $props();
+	const { t } = useI18n();
 
 	let expandedId = $state<string | null>(null);
 
@@ -45,17 +47,18 @@
 		if (showMap) {
 			cols.push({
 				id: 'map',
-				header: 'Map',
+				header: t('Map'),
 				width: 'w-2/24',
-				class: 'flex items-center'
+				class: 'flex h-full items-center',
+				cellClass: () => 'overflow-clip py-0 pr-0 pl-4'
 			});
 		}
 		cols.push(
-			{ id: 'name', header: 'Name', width: 'w-5/24', class: 'min-w-0 truncate font-medium' },
-			{ id: 'type', header: 'Type', width: 'w-2/24', class: 'text-secondary-400 truncate text-sm' },
+			{ id: 'name', header: t('Name'), width: 'w-5/24', class: 'min-w-0 truncate font-medium' },
+			{ id: 'type', header: t('Type'), width: 'w-2/24', class: 'text-secondary-400 truncate text-sm' },
 			{
 				id: 'allies',
-				header: 'Allies',
+				header: t('Allies'),
 				width: 'w-3/24',
 				class: 'flex h-full items-center overflow-visible',
 				cellClass: (row) =>
@@ -66,7 +69,7 @@
 			},
 			{
 				id: 'axis',
-				header: 'Axis',
+				header: t('Axis'),
 				width: 'w-3/24',
 				class: 'flex h-full items-center overflow-visible',
 				cellClass: (row) =>
@@ -77,13 +80,13 @@
 			},
 			{
 				id: 'duration',
-				header: 'Duration',
+				header: t('Duration'),
 				width: 'w-3/24',
 				class: 'text-secondary-400 truncate text-sm'
 			}
 		);
 		if (showRating) {
-			cols.push({ id: 'rating', header: 'Rating', width: 'w-3/24' });
+			cols.push({ id: 'rating', header: t('Rating'), width: 'w-3/24' });
 		}
 		cols.push({ id: 'actions', header: '', width: 'w-3/24', hideSkeleton: true });
 		if (expandable) {
@@ -107,7 +110,7 @@
 </script>
 
 {#snippet cell_map({ row }: { row: MatchExpanded })}
-	<MatchMapImage small class="w-10" />
+	<MatchMapImage small flush />
 {/snippet}
 {#snippet cell_name({ row }: { row: MatchExpanded })}
 	<MatchMapName class="text-secondary-300 font-medium" />
@@ -150,7 +153,7 @@
 			class="h-7 px-2.5 text-xs"
 			onclick={(event) => event.stopPropagation()}
 		>
-			Details
+			{t('Details')}
 		</Button>
 	</div>
 {/snippet}
@@ -173,7 +176,7 @@
 
 <div class={className}>
 	{#if !loading && matches.length === 0 && emptyMessage}
-		<p class="text-secondary-400 px-4 py-2 text-sm">{emptyMessage}</p>
+		<p class="text-secondary-400 px-4 py-2 text-sm">{t(emptyMessage)}</p>
 	{:else}
 		<DataTable
 			data={matches}
@@ -185,7 +188,7 @@
 			{loading}
 			skeletonRows={3}
 			striped={false}
-			empty={emptyMessage ?? 'No matches.'}
+			empty={emptyMessage ?? t('No matches.')}
 			cells={{
 				map: cell_map,
 				name: cell_name,

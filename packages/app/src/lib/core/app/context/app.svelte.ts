@@ -32,6 +32,7 @@ import { notifications as notificationsService } from '$core/notifications/notif
 import { startTray } from '$core/app/tray.svelte';
 import { LOBBY_4V4, RANKED_2V2 } from '$lib/dev';
 import GameStartedNotificationAudio from '$lib/files/game-started-stop-watch-effect.mp3?url';
+import { t } from '$lib/i18n';
 
 export type { AppSettings };
 
@@ -535,7 +536,7 @@ export class AppContext extends Emittery<AppEvents> {
 		try {
 			const path = await save({
 				defaultPath: await join(await this.paths.documentDir(), 'fknoobs-settings.json'),
-				title: 'Export Settings',
+				title: t('Export Settings'),
 				filters: [{ name: 'JSON', extensions: ['json'] }]
 			});
 
@@ -546,10 +547,10 @@ export class AppContext extends Emittery<AppEvents> {
 			const envelope = createEnvelope(settings.snapshot(), this.version);
 			await writeTextFile(path, serializeEnvelope(envelope));
 
-			this.toast.success('Settings exported successfully.');
+			this.toast.success(t('Settings exported successfully.'));
 		} catch (error) {
 			console.error('[APP]: Failed to export settings:', error);
-			this.toast.error('Failed to export settings. Please try again.');
+			this.toast.error(t('Failed to export settings. Please try again.'));
 		}
 	}
 
@@ -560,7 +561,7 @@ export class AppContext extends Emittery<AppEvents> {
 	async importSettings(): Promise<void> {
 		try {
 			const path = await open({
-				title: 'Import Settings',
+				title: t('Import Settings'),
 				multiple: false,
 				filters: [{ name: 'JSON', extensions: ['json'] }]
 			});
@@ -573,18 +574,18 @@ export class AppContext extends Emittery<AppEvents> {
 			const parsed = parseImportContent(content);
 
 			if (!parsed.success) {
-				this.toast.error(`Import rejected: ${parsed.error}`);
+				this.toast.error(t('Import rejected: {message}', { message: parsed.error }));
 				return;
 			}
 
 			const result = await settings.replace(parsed.data);
 
 			if (!result.success) {
-				this.toast.error(`Import rejected: ${result.error}`);
+				this.toast.error(t('Import rejected: {message}', { message: result.error }));
 				return;
 			}
 
-			this.toast.success('Settings imported and applied.');
+			this.toast.success(t('Settings imported and applied.'));
 
 			// Imported paths may be invalid on this machine: send the user
 			// through the setup wizard instead of failing silently.
@@ -593,7 +594,7 @@ export class AppContext extends Emittery<AppEvents> {
 			}
 		} catch (error) {
 			console.error('[APP]: Failed to import settings:', error);
-			this.toast.error('Failed to import settings. Please try again.');
+			this.toast.error(t('Failed to import settings. Please try again.'));
 		}
 	}
 }

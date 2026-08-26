@@ -16,6 +16,9 @@
 		matchIncludesSteamIds,
 		todayPlayedMatchesFilter
 	} from './dashboard-utils';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	let unsubscribe = $state<UnsubscribeFunc>();
 	let subscribeGeneration = 0;
@@ -99,19 +102,19 @@
 	)}
 >
 	<div class="border-secondary-800 flex items-center justify-between border-b px-4 py-3">
-		<H level="6" class="mb-0 font-semibold">Matches played today</H>
+		<H level="6" class="mb-0 font-semibold">{t('Matches played today')}</H>
 		<div class="flex items-center gap-4">
 			{#if !matches.loading}
-				<span class="text-secondary-400 text-sm tabular-nums">{matchCount} played</span>
+				<span class="text-secondary-400 text-sm tabular-nums">{t('{count} played', { count: matchCount })}</span>
 			{/if}
-			<Button href="/history" variant="link" size="sm" class="px-0">View all</Button>
+			<Button href="/history" variant="link" size="sm" class="px-0">{t('View all')}</Button>
 		</div>
 	</div>
 
 	{#if matches.loading}
 		<TodayMatchesTable matches={[]} loading />
 	{:else if !matches.current || matches.current.length === 0}
-		<p class="text-secondary-400 px-4 py-3 text-sm">You have not played any matches today.</p>
+		<p class="text-secondary-400 px-4 py-3 text-sm">{t('You have not played any matches today.')}</p>
 	{:else}
 		<TodayMatchesTable matches={matches.current} />
 	{/if}

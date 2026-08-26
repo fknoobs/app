@@ -1,5 +1,6 @@
 import { migrateToCurrent } from './migrations';
 import { SCHEMA_VERSION, type FeatureSlice, type Settings } from './schema';
+import { t } from '$lib/i18n';
 
 /**
  * Validated settings import/export.
@@ -71,14 +72,16 @@ export function parseImportContent(content: string): ParseResult<Settings> {
 	try {
 		value = JSON.parse(content);
 	} catch {
-		return { success: false, error: 'File is not valid JSON' };
+		return { success: false, error: t('File is not valid JSON') };
 	}
 
 	if (isEnvelope(value)) {
 		if (value.scope !== 'full') {
 			return {
 				success: false,
-				error: `This file is a "${value.scope}" export, not a full settings export`
+				error: t('This file is a "{scope}" export, not a full settings export', {
+					scope: value.scope
+				})
 			};
 		}
 
@@ -101,14 +104,17 @@ export function parseFeatureImportContent(
 	try {
 		value = JSON.parse(content);
 	} catch {
-		return { success: false, error: 'File is not valid JSON' };
+		return { success: false, error: t('File is not valid JSON') };
 	}
 
 	if (isEnvelope(value)) {
 		if (value.scope !== `feature:${featureId}`) {
 			return {
 				success: false,
-				error: `This file is a "${value.scope}" export and cannot be imported into "${featureId}"`
+				error: t('This file is a "{scope}" export and cannot be imported into "{featureId}"', {
+					scope: value.scope,
+					featureId
+				})
 			};
 		}
 
@@ -116,7 +122,7 @@ export function parseFeatureImportContent(
 	}
 
 	if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-		return { success: false, error: 'Settings must be a JSON object' };
+		return { success: false, error: t('Settings must be a JSON object') };
 	}
 
 	return { success: true, data: value as FeatureSlice };

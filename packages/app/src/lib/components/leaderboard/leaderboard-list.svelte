@@ -13,6 +13,7 @@
 		getSteamIdFromProfile,
 		isEliteElo
 	} from './leaderboard-utils';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		stats: LeaderboardStatWithProfile[];
@@ -31,6 +32,7 @@
 		class: className,
 		striped = false
 	}: Props = $props();
+	const { t } = useI18n();
 
 	const centeredHeader = 'flex w-full justify-center';
 	const centeredCell = 'flex w-full justify-center';
@@ -42,7 +44,7 @@
 		);
 	}
 
-	const columns: ColumnDef<LeaderboardStatWithProfile>[] = [
+	const columns: ColumnDef<LeaderboardStatWithProfile>[] = $derived([
 		{
 			id: 'rank',
 			header: '#',
@@ -53,57 +55,57 @@
 		},
 		{
 			id: 'ranklevel',
-			header: 'Rank',
+			header: t('Rank'),
 			width: 'w-[5.5rem]',
 			class: 'flex w-full items-center gap-2'
 		},
 		{
 			id: 'alias',
-			header: 'Alias',
+			header: t('Alias'),
 			class: 'flex w-full min-w-0 items-center gap-2 font-medium'
 		},
 		{
 			id: 'elo',
-			header: 'ELO',
+			header: t('ELO'),
 			width: 'w-[5rem]',
 			headerClass: centeredHeader,
 			class: `${centeredCell} tabular-nums`
 		},
 		{
 			id: 'wins',
-			header: 'Wins',
+			header: t('Wins'),
 			width: 'w-[4.5rem]',
 			headerClass: centeredHeader,
 			class: centeredCell
 		},
 		{
 			id: 'losses',
-			header: 'Losses',
+			header: t('Losses'),
 			width: 'w-[4.5rem]',
 			headerClass: centeredHeader,
 			class: centeredCell
 		},
 		{
 			id: 'streak',
-			header: 'Streak',
+			header: t('Streak'),
 			width: 'w-[4.5rem]',
 			headerClass: centeredHeader,
 			class: centeredCell
 		},
 		{
 			id: 'ratio',
-			header: 'Ratio',
+			header: t('Ratio'),
 			width: 'w-[4.5rem]',
 			headerClass: centeredHeader,
 			class: centeredCell
 		}
-	];
+	]);
 </script>
 
 {#snippet cell_ranklevel({ row }: { row: LeaderboardStatWithProfile })}
 	<img
 		src={getRankImageByLeaderboardId(row.leaderboard_id, row.ranklevel)}
-		alt={`Rank ${row.ranklevel}`}
+		alt={t('Rank {level}', { level: row.ranklevel })}
 		class="size-6 shrink-0"
 	/>
 	<span class="text-secondary-400 text-sm tabular-nums">{row.ranklevel}</span>
@@ -123,7 +125,7 @@
 {#snippet cell_elo({ row }: { row: LeaderboardStatWithProfile })}
 	{@const value = eloForRow(row)}
 	{#if value == null}
-		<span class="text-secondary-500 text-xs">N/A</span>
+		<span class="text-secondary-500 text-xs">{t('N/A')}</span>
 	{:else}
 		<span
 			class={cn('tabular-nums', isEliteElo(value) ? 'font-bold tracking-wide' : 'font-medium')}
@@ -152,7 +154,7 @@
 	data={stats}
 	{columns}
 	{loading}
-	{empty}
+	empty={t(empty)}
 	{striped}
 	rowKey={(stat) => stat.profile.profile_id}
 	rowHref={(stat) => `/players/${stat.profile.profile_id}`}

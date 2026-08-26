@@ -12,6 +12,7 @@
 	import LeaderboardStatPill from './leaderboard-stat-pill.svelte';
 	import { getEloColor, getEloTextShadow, isEliteElo } from './leaderboard-utils';
 	import { orderBy, sortBy } from 'lodash-es';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		stats: LeaderboardStat[];
@@ -30,6 +31,7 @@
 		empty = 'No stats found.',
 		class: className
 	}: Props = $props();
+	const { t } = useI18n();
 
 	let eloSort = $state<SortDirection>(null);
 
@@ -66,7 +68,7 @@
 	const columns: ColumnDef<LeaderboardStat>[] = $derived([
 		{
 			id: 'elo',
-			header: 'ELO',
+			header: t('ELO'),
 			width: 'w-[6.5rem]',
 			headerClass: leftHeader,
 			class: `${leftCell} tabular-nums`,
@@ -76,21 +78,21 @@
 		},
 		{
 			id: 'level',
-			header: 'Level',
+			header: t('Level'),
 			width: 'w-[5rem]',
 			headerClass: leftHeader,
 			class: `${leftCell} gap-2`
 		},
 		{
 			id: 'mode',
-			header: 'Type',
+			header: t('Type'),
 			width: 'w-[14rem]',
 			headerClass: leftHeader,
 			class: `${leftCell} gap-2`
 		},
 		{
 			id: 'position',
-			header: 'Position',
+			header: t('Position'),
 			width: 'w-[4.5rem]',
 			headerClass: leftHeader,
 			class: leftCell
@@ -104,21 +106,21 @@
 		},
 		{
 			id: 'wins',
-			header: 'Wins',
+			header: t('Wins'),
 			width: 'w-[4.5rem]',
 			headerClass: statHeader,
 			class: statCell
 		},
 		{
 			id: 'losses',
-			header: 'Losses',
+			header: t('Losses'),
 			width: 'w-[5.5rem]',
 			headerClass: statHeader,
 			class: statCell
 		},
 		{
 			id: 'streak',
-			header: 'Streak',
+			header: t('Streak'),
 			width: 'w-[5rem]',
 			headerClass: statHeader,
 			class: statCell
@@ -130,7 +132,7 @@
 	{#if isRanked(row.leaderboard_id)}
 		<img
 			src={getRankImage(getRaceFromLeaderboardId(row.leaderboard_id), row.ranklevel)}
-			alt="Rank"
+			alt={t('Rank')}
 			class="size-6 shrink-0"
 		/>
 		<span class="font-semibold tabular-nums">{row.ranklevel}</span>
@@ -141,7 +143,7 @@
 {#snippet cell_mode({ row }: { row: LeaderboardStat })}
 	<img
 		src={getFactionFlagFromLeaderboardId(row.leaderboard_id)}
-		alt="Faction"
+		alt={t('Faction')}
 		class="w-6 shrink-0 ring-2 ring-black"
 	/>
 	<span class="shrink-0 text-base whitespace-nowrap">{getLeaderboardType(row.leaderboard_id)}</span>
@@ -159,7 +161,7 @@
 {#snippet cell_elo({ row }: { row: LeaderboardStat })}
 	{@const value = getStoredEloForLeaderboard(elo, row.leaderboard_id)}
 	{#if value == null}
-		<span class="text-secondary-500 text-xs">N/A</span>
+		<span class="text-secondary-500 text-xs">{t('N/A')}</span>
 	{:else}
 		<span
 			class={cn('tabular-nums', isEliteElo(value) ? 'font-bold tracking-wide' : 'font-medium')}
@@ -187,7 +189,7 @@
 		{columns}
 		{loading}
 		{skeletonRows}
-		{empty}
+		empty={t(empty)}
 		tableLayout="fixed"
 		rowKey={(stat) => `${stat.statgroup_id}-${stat.leaderboard_id}`}
 		cells={{

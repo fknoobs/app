@@ -7,6 +7,7 @@
 	import { Race } from '$lib/utils/game';
 	import { isMePlayer } from '$lib/utils/player-me';
 	import { intersection } from 'lodash-es';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		team: 'allies' | 'axis';
@@ -15,6 +16,7 @@
 	} & HTMLAttributes<HTMLSpanElement>;
 
 	let { team, outcome = $bindable(), highlightedPlayers = [], ...restProps }: Props = $props();
+	const { t } = useI18n();
 	let match = useMatch();
 	let players = $derived(
 		team === 'allies'
@@ -49,7 +51,7 @@
 		<Player.Root {player}>
 			<a href={`/players/${player.steamId}`}>
 				<Player.Faction
-					{@attach tooltip(player.profile?.alias || 'Unknown')}
+					{@attach tooltip(player.profile?.alias || t('Unknown'))}
 					class={cn(
 						isMe || isHighlighted ? 'grayscale-0' : 'opacity-50 grayscale-80',
 						isMe && 'ring-primary',

@@ -1,22 +1,25 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
 	import { Button } from '$lib/components/ui/button';
-	import Trash from 'phosphor-svelte/lib/TrashIcon';
+	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import UserSoundIcon from 'phosphor-svelte/lib/UserSoundIcon';
 	import { Checkbox, Input, RadioGroup, Selection } from '$lib/components/ui/input';
 	import { tts } from '$features/twitch';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 </script>
 
 <Form.Root class="space-y-0">
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>Enable TTS</Form.Label>
-			<Checkbox bind:checked={tts.settings.enabled} label="Enabled" />
+			<Form.Label>{t('Enable TTS')}</Form.Label>
+			<Checkbox bind:checked={tts.settings.enabled} label={t('Enabled')} />
 		</Form.Group>
 	</div>
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>TTS Provider</Form.Label>
+			<Form.Label>{t('TTS Provider')}</Form.Label>
 			<div class="flex items-center gap-8">
 				<RadioGroup
 					name="provider"
@@ -32,9 +35,9 @@
 	</div>
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>Announce user</Form.Label>
+			<Form.Label>{t('Announce user')}</Form.Label>
 			<small class="text-secondary-400 -mt-2 mb-1 block">
-				When enabled, TTS will announce the username of the message sender before reading the message.
+				{t('When enabled, TTS will announce the username of the message sender before reading the message.')}
 				<pre>{`{username} says: {message}`}</pre>
 			</small>
 			<RadioGroup
@@ -42,11 +45,11 @@
 				items={[
 					{
 						value: 'always',
-						label: 'Always'
+						label: t('Always')
 					},
 					{
 						value: 'onlyOnce',
-						label: 'Only once'
+						label: t('Only once')
 					}
 				]}
 				direction="horizontal"
@@ -56,9 +59,9 @@
 	</div>
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>TTS message format</Form.Label>
+			<Form.Label>{t('TTS message format')}</Form.Label>
 			<small class="text-secondary-400 -mt-2 mb-1 block">
-				Available variables: <code>{`{username}`}</code>
+				{t('Available variables:')} <code>{`{username}`}</code>
 				<code>{`{message}`}</code>
 			</small>
 			<Input
@@ -71,17 +74,15 @@
 	</div>
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>Aliases</Form.Label>
+			<Form.Label>{t('Aliases')}</Form.Label>
 			<small class="text-secondary-400 -mt-2 mb-1 block">
-				Define username → spoken alias mappings. When TTS reads a message it will replace the Twitch
-				username with the alias (e.g. `sarah123 → Sarah`). Use aliases to correct pronunciations or
-				show full/display names.
+				{t('Define username → spoken alias mappings. When TTS reads a message it will replace the Twitch username with the alias (e.g. `sarah123 → Sarah`). Use aliases to correct pronunciations or show full/display names.')}
 			</small>
 			<div class="flex flex-col gap-2">
 				{#each tts.settings.aliases as alias, index (alias)}
 					<div class="flex w-fit gap-2">
-						<Input placeholder="Username" type="text" bind:value={alias.username} class="flex-1" />
-						<Input placeholder="Spoken alias" type="text" bind:value={alias.alias} class="flex-1" />
+						<Input placeholder={t('Username')} type="text" bind:value={alias.username} class="flex-1" />
+						<Input placeholder={t('Spoken alias')} type="text" bind:value={alias.alias} class="flex-1" />
 						<Button
 							variant="destructive"
 							class="w-fit px-3 text-white"
@@ -90,7 +91,7 @@
 								tts.settings.aliases.splice(index, 1);
 							}}
 						>
-							<Trash />
+							<TrashIcon />
 						</Button>
 					</div>
 				{/each}
@@ -103,13 +104,13 @@
 					tts.settings.aliases.push({ username: '', alias: '' });
 				}}
 			>
-				Add alias
+				{t('Add alias')}
 			</Button>
 		</Form.Group>
 	</div>
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label>Voice character</Form.Label>
+			<Form.Label>{t('Voice character')}</Form.Label>
 			<Selection
 				bind:value={tts.settings.voiceId}
 				options={tts.provider.voices?.map((voice) => {
@@ -119,7 +120,7 @@
 						disabled: false
 					};
 				})}
-				placeholder="Select voice"
+				placeholder={t('Select voice')}
 				name="voiceName"
 			>
 				{#snippet icon()}

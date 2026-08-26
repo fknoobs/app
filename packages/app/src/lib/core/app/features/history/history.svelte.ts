@@ -14,6 +14,7 @@ import { ingestPlayerRatings } from '$core/pocketbase/player-ratings';
 import { toPersistablePlayers } from '$core/game/lobby-utils';
 import { embedSteamIdsInReplay } from '$lib/utils/replay-steam-ids';
 import { getFile } from '$core/pocketbase';
+import { t } from '$lib/i18n';
 
 const POLL_INITIAL_MS = 10_000;
 const POLL_MAX_MS = 60_000;
@@ -284,10 +285,14 @@ export class History extends Feature {
 			const url = app.pocketbase.files.getURL(match, match.replay);
 
 			await download(url, path);
-			app.toast.success('Replay saved to the Company of Heroes playback folder.');
+			app.toast.success(t('Replay saved to the Company of Heroes playback folder.'));
 			return true;
 		} catch (error) {
-			app.toast.error('Failed to download replay: ' + (error as Error).message);
+			app.toast.error(
+				t('Failed to download replay: {message}', {
+					message: error instanceof Error ? error.message : String(error)
+				})
+			);
 			return false;
 		}
 	}

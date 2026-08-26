@@ -4,12 +4,15 @@
 	import * as Tabs from '$lib/components/ui/tabs';
 	import { app } from '$core/app/context';
 	import NotificationsTab from './tabs/notifications-tab.svelte';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	watch(
 		() => app.account.isStaff,
 		(isStaff) => {
 			if (!isStaff) {
-				app.toast.error('Je hebt geen toegang tot deze pagina.');
+				app.toast.error(t('You do not have access to this page.'));
 				void goto('/');
 			}
 		}
@@ -20,7 +23,7 @@
 	<div class="px-5 py-4">
 		<Tabs.Root value="notifications">
 			<Tabs.List>
-				<Tabs.Trigger value="notifications">Notifications</Tabs.Trigger>
+				<Tabs.Trigger value="notifications">{t('Notifications')}</Tabs.Trigger>
 			</Tabs.List>
 			<Tabs.Content value="notifications">
 				<NotificationsTab />

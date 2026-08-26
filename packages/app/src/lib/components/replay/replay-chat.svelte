@@ -11,12 +11,14 @@
 	import { isMeReplayAlias } from '$lib/utils/player-me';
 	import ArrowBendDownLeft from 'phosphor-svelte/lib/ArrowBendDownLeftIcon';
 	import ArrowBendUpRight from 'phosphor-svelte/lib/ArrowBendUpRightIcon';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {} & HTMLAttributes<HTMLDivElement> & {
 		flush?: boolean;
 	};
 
 	let { flush = false, ...restProps }: Props = $props();
+	const { t } = useI18n();
 	let replay = $derived(useReplay());
 	let targetLanguage = $state('en');
 	let translatedContents = $state<Map<string, string> | null>(null);
@@ -52,7 +54,7 @@
 
 			translatedContents = new Map(entries);
 		} catch {
-			app.toast.error('Translation failed');
+			app.toast.error(t('Translation failed'));
 		} finally {
 			translating = false;
 		}
@@ -119,7 +121,7 @@
 		<input
 			type="text"
 			placeholder="en"
-			aria-label="Target language"
+			aria-label={t('Target language')}
 			bind:value={targetLanguage}
 			disabled={translating}
 			class={cn(controlBase, 'h-9 w-16 shrink-0 px-2 text-center text-sm', controlDisabled)}
@@ -130,11 +132,11 @@
 			loading={translating}
 			disabled={translating || !targetLanguage.trim() || replay.messages.length === 0}
 		>
-			Translate
+			{t('Translate')}
 		</Button>
 		{#if translatedContents}
 			<Button size="sm" variant="secondary" onclick={showOriginal} disabled={translating}>
-				Original
+				{t('Original')}
 			</Button>
 		{/if}
 	</div>
@@ -148,7 +150,7 @@
 		)}
 	>
 		{#if replay.messages.length === 0}
-			<p class="text-secondary-400 px-4 py-3 text-sm">No messages</p>
+			<p class="text-secondary-400 px-4 py-3 text-sm">{t('No messages')}</p>
 		{/if}
 		{#each replay.messages as m, i (m.playerID + '-' + i)}
 			{@render message(m, i)}

@@ -28,6 +28,7 @@
 		groupEloHistoryByModeAndRace
 	} from '$core/pocketbase/player-ratings';
 	import type { PlayerEloHistoryPoint } from '$core/pocketbase/player-ratings';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		profileId: number | null | undefined;
@@ -38,6 +39,7 @@
 	};
 
 	let { profileId, scope, userId = null, empty = 'other', class: className }: Props = $props();
+	const { t } = useI18n();
 
 	const performance = resource(
 		[() => profileId ?? null, () => scope, () => userId ?? null],
@@ -56,8 +58,8 @@
 	const stats = $derived(performance.current ?? emptyPlayerPerformance());
 	const emptyMessage = $derived(
 		empty === 'self'
-			? 'Play with the companion running to build stats.'
-			: 'No tracked community matches for this player.'
+			? t('Play with the companion running to build stats.')
+			: t('No tracked community matches for this player.')
 	);
 
 	const byMode = $derived(stats.byMode.filter((mode) => mode.matchtypeId !== 14));
@@ -83,10 +85,13 @@
 	const eloModeCount = $derived(Object.keys(groupEloHistoryByModeAndRace(eloPoints)).length);
 	const eloSummary = $derived(
 		!eloExpanded
-			? 'Tracked lobby ratings'
+			? t('Tracked lobby ratings')
 			: eloHistory.loading && eloPoints.length === 0
-				? 'Loading…'
-				: `${eloPoints.length} rating points · ${eloModeCount} modes`
+				? t('Loading…')
+				: t('{points} rating points · {modes} modes', {
+						points: eloPoints.length,
+						modes: eloModeCount
+					})
 	);
 
 	const mapGames = $derived(
@@ -96,22 +101,24 @@
 		stats.byFaction.reduce((total, row) => total + row.wins + row.losses, 0)
 	);
 	const modeGames = $derived(byMode.reduce((total, row) => total + row.wins + row.losses, 0));
-	const mapSummary = $derived(`${stats.byMap.length} maps · ${mapGames} games`);
-	const factionSummary = $derived(`${stats.byFaction.length} factions · ${factionGames} games`);
-	const modeSummary = $derived(`${byMode.length} game modes · ${modeGames} games`);
+	const mapSummary = $derived(t('{maps} maps · {games} games', { maps: stats.byMap.length, games: mapGames }));
+	const factionSummary = $derived(
+		t('{factions} factions · {games} games', { factions: stats.byFaction.length, games: factionGames })
+	);
+	const modeSummary = $derived(t('{modes} game modes · {games} games', { modes: byMode.length, games: modeGames }));
 
 	const statHeader = 'flex w-full justify-center';
 	const statCell = 'flex w-full justify-center tabular-nums';
 	const statPad = { headerCellClass: 'px-2', cellClass: () => 'px-2' };
 	const sectionHeaderRow = 'text-secondary-400';
-	const gamesColumn = {
+	const gamesColumn = $derived({
 		id: 'games',
-		header: 'Games',
+		header: t('Games'),
 		width: 'w-[3.25rem]',
 		headerClass: statHeader,
 		class: statCell,
 		...statPad
-	} as const;
+	} as const);
 	const expandColumn = {
 		id: 'expand',
 		header: '',
@@ -122,12 +129,12 @@
 		hideSkeleton: true
 	} as const;
 
-	const mapColumns: ColumnDef<PerformanceMapRecord>[] = [
-		{ id: 'map', header: 'Map', class: 'flex min-w-0 items-center gap-3' },
+	const mapColumns: ColumnDef<PerformanceMapRecord>[] = $derived([
+		{ id: 'map', header: t('Map'), class: 'flex min-w-0 items-center gap-3' },
 		gamesColumn,
 		{
 			id: 'wins',
-			header: 'Wins',
+			header: t('Wins'),
 			width: 'w-[4.5rem]',
 			headerClass: statHeader,
 			class: statCell,
@@ -135,7 +142,7 @@
 		},
 		{
 			id: 'losses',
-			header: 'Losses',
+			header: t('Losses'),
 			width: 'w-[4.75rem]',
 			headerClass: statHeader,
 			class: statCell,
@@ -143,25 +150,25 @@
 		},
 		{
 			id: 'winrate',
-			header: 'Winrate',
+			header: t('Winrate'),
 			width: 'w-[4.5rem]',
 			headerClass: statHeader,
 			class: statCell,
 			...statPad
 		},
 		expandColumn
-	];
+	]);
 
-	const factionColumns: ColumnDef<PerformanceFactionRecord>[] = [
+	const factionColumns: ColumnDef<PerformanceFactionRecord>[] = $derived([
 		{
 			id: 'faction',
-			header: 'Faction',
+			header: t('Faction'),
 			class: 'flex min-w-0 items-center gap-2'
 		},
 		gamesColumn,
 		{
 			id: 'wins',
-			header: 'Wins',
+			header: t('Wins'),
 			width: 'w-[4.5rem]',
 			headerClass: statHeader,
 			class: statCell,
@@ -169,7 +176,7 @@
 		},
 		{
 			id: 'losses',
-			header: 'Losses',
+			header: t('Losses'),
 			width: 'w-[4.75rem]',
 			headerClass: statHeader,
 			class: statCell,
@@ -177,21 +184,21 @@
 		},
 		{
 			id: 'winrate',
-			header: 'Winrate',
+			header: t('Winrate'),
 			width: 'w-[4.5rem]',
 			headerClass: statHeader,
 			class: statCell,
 			...statPad
 		},
 		expandColumn
-	];
+	]);
 
-	const modeColumns: ColumnDef<PerformanceModeRecord>[] = [
-		{ id: 'mode', header: 'Mode', class: 'flex min-w-0 items-center' },
+	const modeColumns: ColumnDef<PerformanceModeRecord>[] = $derived([
+		{ id: 'mode', header: t('Mode'), class: 'flex min-w-0 items-center' },
 		gamesColumn,
 		{
 			id: 'wins',
-			header: 'Wins',
+			header: t('Wins'),
 			width: 'w-[4.5rem]',
 			headerClass: statHeader,
 			class: statCell,
@@ -199,7 +206,7 @@
 		},
 		{
 			id: 'losses',
-			header: 'Losses',
+			header: t('Losses'),
 			width: 'w-[4.75rem]',
 			headerClass: statHeader,
 			class: statCell,
@@ -207,14 +214,14 @@
 		},
 		{
 			id: 'winrate',
-			header: 'Winrate',
+			header: t('Winrate'),
 			width: 'w-[4.5rem]',
 			headerClass: statHeader,
 			class: statCell,
 			...statPad
 		},
 		expandColumn
-	];
+	]);
 
 	function winrate(row: { wins: number; losses: number }): string {
 		const total = row.wins + row.losses;
@@ -223,7 +230,7 @@
 	}
 
 	function modeLabel(matchtypeId: number): string {
-		return MATCH_TYPES[matchtypeId as keyof typeof MATCH_TYPES] ?? `Mode ${matchtypeId}`;
+		return MATCH_TYPES[matchtypeId as keyof typeof MATCH_TYPES] ?? t('Mode {id}', { id: matchtypeId });
 	}
 
 	function toggleMapRow(mapRecord: PerformanceMapRecord) {
@@ -295,8 +302,8 @@
 						{userId}
 						totalGames={row.wins + row.losses}
 						showMap={false}
-						label={`on ${normalizeMapName(row.map)}`}
-						emptyMessage="No matches found for this map."
+						label={t('on {map}', { map: normalizeMapName(row.map) })}
+						emptyMessage={t('No matches found for this map.')}
 					/>
 				{/if}
 			</td>
@@ -316,8 +323,8 @@
 						{scope}
 						{userId}
 						totalGames={row.wins + row.losses}
-						label={`as ${getRaceLabel(row.raceId)}`}
-						emptyMessage="No matches found for this faction."
+						label={t('as {faction}', { faction: getRaceLabel(row.raceId) })}
+						emptyMessage={t('No matches found for this faction.')}
 					/>
 				{/if}
 			</td>
@@ -337,8 +344,8 @@
 						{scope}
 						{userId}
 						totalGames={row.wins + row.losses}
-						label={`in ${modeLabel(row.matchtypeId)}`}
-						emptyMessage="No matches found for this mode."
+						label={t('in {mode}', { mode: modeLabel(row.matchtypeId) })}
+						emptyMessage={t('No matches found for this mode.')}
 					/>
 				{/if}
 			</td>
@@ -348,7 +355,7 @@
 
 <div class={cn(className)}>
 	<PlayerPerformanceSection
-		title="ELO history"
+		title={t('ELO history')}
 		summary={eloSummary}
 		icon={ChartLineIcon}
 		bind:expanded={eloExpanded}
@@ -362,7 +369,7 @@
 		<p class="text-secondary-400 px-4 py-3 text-sm">{emptyMessage}</p>
 	{:else}
 		<PlayerPerformanceSection
-			title="By map"
+			title={t('By map')}
 			summary={mapSummary}
 			icon={MapTrifoldIcon}
 			bind:expanded={mapsExpanded}
@@ -376,7 +383,7 @@
 				rowWrapper={mapRowWrapper}
 				loading={isLoading}
 				skeletonRows={4}
-				empty="No map stats yet."
+				empty={t('No map stats yet.')}
 				class="rounded-none border-0"
 				headerRowClass={sectionHeaderRow}
 				cells={{
@@ -391,7 +398,7 @@
 		</PlayerPerformanceSection>
 
 		<PlayerPerformanceSection
-			title="By faction"
+			title={t('By faction')}
 			summary={factionSummary}
 			icon={FlagIcon}
 			bind:expanded={factionExpanded}
@@ -405,7 +412,7 @@
 				rowWrapper={factionRowWrapper}
 				loading={isLoading}
 				skeletonRows={3}
-				empty="No faction stats yet."
+				empty={t('No faction stats yet.')}
 				class="rounded-none border-0"
 				headerRowClass={sectionHeaderRow}
 				cells={{
@@ -420,7 +427,7 @@
 		</PlayerPerformanceSection>
 
 		<PlayerPerformanceSection
-			title="By mode"
+			title={t('By mode')}
 			summary={modeSummary}
 			icon={UsersThreeIcon}
 			bind:expanded={modeExpanded}
@@ -434,7 +441,7 @@
 				rowWrapper={modeRowWrapper}
 				loading={isLoading}
 				skeletonRows={3}
-				empty="No mode stats yet."
+				empty={t('No mode stats yet.')}
 				class="rounded-none border-0"
 				headerRowClass={sectionHeaderRow}
 				cells={{

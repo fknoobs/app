@@ -2,6 +2,7 @@
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { cn } from '$lib/utils';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		flush?: boolean;
@@ -9,6 +10,7 @@
 	} & HTMLAttributes<HTMLDivElement>;
 
 	let { flush = false, showTitle = true, class: className, ...restProps }: Props = $props();
+	const { t } = useI18n();
 
 	const playerRow =
 		'grid grid-cols-[3.5rem_minmax(0,1fr)_3.25rem] items-center gap-3 px-4 py-3';
@@ -35,7 +37,7 @@
 		>
 			<span aria-hidden="true"></span>
 			<span>{label}</span>
-			<span class="text-right">CPM</span>
+			<span class="text-right">{t('CPM')}</span>
 		</div>
 		{#each Array(4) as _, index (index)}
 			{@render playerRowSkeleton()}
@@ -58,7 +60,7 @@
 	</div>
 
 	<div class={cn('grid grid-cols-1 md:grid-cols-2', flush ? 'divide-secondary-800 md:divide-x' : 'gap-4')}>
-		{@render teamColumn('Allies')}
-		{@render teamColumn('Axis')}
+		{@render teamColumn(t('Allies'))}
+		{@render teamColumn(t('Axis'))}
 	</div>
 </div>

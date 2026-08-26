@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Input, Selection, Checkbox } from '$lib/components/ui/input';
 	import type { ReplayList } from './replay-list.svelte';
+	import { useI18n } from '$lib/i18n';
 
 	interface Props {
 		list: ReplayList;
@@ -9,6 +10,7 @@
 	}
 
 	let { list = $bindable(), mapsList, playersList }: Props = $props();
+	const { t } = useI18n();
 </script>
 
 <div
@@ -17,40 +19,40 @@
 	<div class="flex flex-col flex-wrap gap-4">
 		<div class="flex h-11 flex-wrap items-center gap-4">
 			<Checkbox
-				label="Ranked only"
+				label={t('Ranked only')}
 				bind:checked={list.filters.ranked.value}
 				bind:indeterminate={list.filters.ranked.indeterminate}
 			/>
 			<Checkbox
-				label="Victory Points"
+				label={t('Victory Points')}
 				bind:checked={list.filters.vp.value}
 				bind:indeterminate={list.filters.vp.indeterminate}
 			/>
 			<Checkbox
-				label="High Resources"
+				label={t('High Resources')}
 				bind:checked={list.filters.highResources.value}
 				bind:indeterminate={list.filters.highResources.indeterminate}
 			/>
 		</div>
 		<div class="flex gap-4">
 			<div class="flex w-fit min-w-48 flex-col gap-1.5">
-				<span class="text-secondary-400 text-xs font-medium">Title</span>
-				<Input placeholder="Enter title" bind:value={list.filters.query} />
+				<span class="text-secondary-400 text-xs font-medium">{t('Title')}</span>
+				<Input placeholder={t('Enter title')} bind:value={list.filters.query} />
 			</div>
 			<div class="flex w-fit flex-col gap-1.5">
-				<span class="text-secondary-400 text-xs font-medium">Players</span>
+				<span class="text-secondary-400 text-xs font-medium">{t('Players')}</span>
 				<Selection
 					options={playersList}
-					placeholder="Select players"
+					placeholder={t('Select players')}
 					multiple
 					bind:value={list.filters.players}
 				/>
 			</div>
 			<div class="flex w-fit flex-col gap-1.5">
-				<span class="text-secondary-400 text-xs font-medium">Maps</span>
+				<span class="text-secondary-400 text-xs font-medium">{t('Maps')}</span>
 				<Selection
 					options={mapsList}
-					placeholder="Select maps"
+					placeholder={t('Select maps')}
 					multiple
 					bind:value={list.filters.maps}
 				/>

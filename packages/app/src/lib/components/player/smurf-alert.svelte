@@ -5,6 +5,7 @@
 	import { resolve } from '$app/paths';
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import BinocularsIcon from 'phosphor-svelte/lib/BinocularsIcon';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		smurf: SmurfAlertState;
@@ -12,6 +13,7 @@
 	};
 
 	let { smurf, compact = false }: Props = $props();
+	const { t } = useI18n();
 
 	const lenderId = $derived(
 		smurf.status === 'shared'
@@ -24,7 +26,7 @@
 			? smurf.lenderProfile.alias
 			: smurf.status === 'shared' && smurf.lenderSteam
 				? smurf.lenderSteam.personaname
-				: 'Original account'
+				: t('Original account')
 	);
 
 	const lenderAvatar = $derived(
@@ -40,15 +42,15 @@
 				interactive,
 				'text-destructive inline-flex shrink-0 items-center gap-0.5 text-[10px] font-bold tracking-wide uppercase hover:underline'
 			]}
-			{@attach tooltip(`Smurf · ${lenderLabel}`)}
+			{@attach tooltip(t('Smurf · {name}', { name: lenderLabel }))}
 		>
 			<BinocularsIcon class="shrink-0" size={12} weight="bold" />
-			Smurf
+			{t('Smurf')}
 		</a>
 	{:else}
 		<div class="text-destructive inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
 			<BinocularsIcon class="shrink-0" size={16} weight="bold" />
-			<span>Smurf account</span>
+			<span>{t('Smurf account')}</span>
 			<a
 				href={resolve('/(loaded)/players/[id]', { id: lenderId })}
 				class={[interactive, 'inline-flex items-center gap-1.5 hover:underline']}

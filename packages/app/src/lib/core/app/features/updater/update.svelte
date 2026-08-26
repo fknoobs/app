@@ -6,6 +6,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		currentVersion: string;
@@ -25,6 +26,8 @@
 		onPrepare,
 		...restProps
 	}: Props = $props();
+
+	const { t } = useI18n();
 
 	let loading = $state(false);
 	let error = $state<string | null>(null);
@@ -46,7 +49,7 @@
 			await openPath(filePath);
 			await exit(0);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to download update.';
+			error = err instanceof Error ? err.message : t('Failed to download update.');
 			loading = false;
 		}
 	}
@@ -59,12 +62,15 @@
 
 <div {...restProps} class={cn('space-y-4', restProps.class)}>
 	<p class="text-secondary-200">
-		New version <span class="font-semibold text-white">{latestVersion}</span> is available.
-		You are currently on <span class="font-semibold text-white">{currentVersion}</span>.
+		{t('New version {latestVersion} is available. You are currently on {currentVersion}.', {
+			latestVersion,
+			currentVersion
+		})}
 	</p>
 	<p class="text-secondary-400 text-sm">
-		The app will back up your settings, download the installer in the background, close itself,
-		and launch the installer when the download finishes.
+		{t(
+			'The app will back up your settings, download the installer in the background, close itself, and launch the installer when the download finishes.'
+		)}
 	</p>
 
 	{#if error}
@@ -73,11 +79,11 @@
 
 	<div class="flex flex-wrap gap-2">
 		<Button type="button" bind:loading onclick={onDownload} disabled={!downloadUrl}>
-			{loading ? 'Downloading update...' : 'Download and install'}
+			{loading ? t('Downloading update...') : t('Download and install')}
 		</Button>
 		{#if releaseUrl}
 			<Button type="button" variant="secondary" onclick={onOpenRelease} disabled={loading}>
-				View release notes
+				{t('View release notes')}
 			</Button>
 		{/if}
 	</div>

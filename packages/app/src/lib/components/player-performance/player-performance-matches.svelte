@@ -5,6 +5,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { MatchListTable } from '$lib/components/match';
 	import { watch } from 'runed';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		profileId: number;
@@ -33,6 +34,7 @@
 		label,
 		emptyMessage = 'No matches found.'
 	}: Props = $props();
+	const { t } = useI18n();
 
 	const highlightedPlayers = $derived([String(profileId)]);
 	const hasFilter = $derived(maps.length > 0 || races.length > 0 || matchtypes.length > 0);
@@ -129,10 +131,14 @@
 	{#if hasMore}
 		<div class="flex flex-col items-center gap-2 px-4 pt-2 pb-3">
 			<p class="text-secondary-500 text-xs">
-				Showing {allMatches.length} of {totalCount} matches {label}
+				{t('Showing {shown} of {total} matches {label}', {
+					shown: allMatches.length,
+					total: totalCount,
+					label
+				})}
 			</p>
 			<Button variant="secondary" size="sm" loading={loadingMore} onclick={() => loadMore()}>
-				Load more
+				{t('Load more')}
 			</Button>
 		</div>
 	{/if}
@@ -144,7 +150,7 @@
 	{showMap}
 	showRating
 	{highlightedPlayers}
-	{emptyMessage}
+	emptyMessage={t(emptyMessage)}
 	class="bg-gray-950/90"
 	footer={loadMoreFooter}
 />

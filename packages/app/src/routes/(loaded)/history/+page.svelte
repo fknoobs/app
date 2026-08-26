@@ -8,7 +8,9 @@
 	import { app } from '$core/app/context';
 	import type { MatchExpanded } from '$core/app/database/matches';
 	import { Race } from '$lib/utils/game';
+	import { useI18n } from '$lib/i18n';
 
+	const { t } = useI18n();
 	const matches = $derived(app.features.history?.matches);
 
 	const factionOptions = [
@@ -21,15 +23,16 @@
 	const columns: ColumnDef<MatchExpanded>[] = [
 		{
 			id: 'map',
-			header: 'Map',
+			header: t('Map'),
 			width: 'w-6/24',
-			class: 'flex items-center gap-4',
+			class: 'flex h-full min-w-0 items-center gap-0',
+			cellClass: () => 'overflow-clip py-0 pr-0 pl-4',
 			href: (match) => `/history/${match.id}`
 		},
-		{ id: 'name', header: 'Name', width: 'w-4/24' },
+		{ id: 'name', header: t('Name'), width: 'w-4/24' },
 		{
 			id: 'allies',
-			header: 'Allies',
+			header: t('Allies'),
 			width: 'w-3/24',
 			class: 'flex h-full items-center overflow-visible',
 			cellClass: (row) =>
@@ -40,7 +43,7 @@
 		},
 		{
 			id: 'axis',
-			header: 'Axis',
+			header: t('Axis'),
 			width: 'w-3/24',
 			class: 'flex h-full items-center overflow-visible',
 			cellClass: (row) =>
@@ -49,10 +52,10 @@
 					row.axisOutcome === 'loss' && 'bg-red-500/5'
 				)
 		},
-		{ id: 'duration', header: 'Duration', width: 'w-3/24' },
+		{ id: 'duration', header: t('Duration'), width: 'w-3/24' },
 		{
 			id: 'date',
-			header: 'Date',
+			header: t('Date'),
 			width: 'w-5/24',
 			class: 'flex items-center',
 			headerClass: 'text-end'
@@ -68,37 +71,37 @@
 			<ToggleGroup
 				bind:value={matches.scope}
 				items={[
-					{ label: 'My matches', value: 'user' },
-					{ label: 'Community matches', value: 'community' }
+					{ label: t('My matches'), value: 'user' },
+					{ label: t('Community matches'), value: 'community' }
 				]}
 				class="w-fit"
 			/>
 			<div class="flex h-11 items-center">
-				<Checkbox bind:checked={matches.filters.ranked} label="Ranked only" />
+				<Checkbox bind:checked={matches.filters.ranked} label={t('Ranked only')} />
 			</div>
 			<div class="flex gap-4">
 				<div class="flex w-fit flex-col gap-1.5">
-					<span class="text-secondary-400 text-xs font-medium">Players</span>
+					<span class="text-secondary-400 text-xs font-medium">{t('Players')}</span>
 					<Selection
-						placeholder="Select players"
+						placeholder={t('Select players')}
 						bind:value={matches.filters.playerIds}
 						options={matches.players}
 						multiple
 					/>
 				</div>
 				<div class="flex w-fit flex-col gap-1.5">
-					<span class="text-secondary-400 text-xs font-medium">Maps</span>
+					<span class="text-secondary-400 text-xs font-medium">{t('Maps')}</span>
 					<Selection
-						placeholder="Select maps"
+						placeholder={t('Select maps')}
 						bind:value={matches.filters.maps}
 						options={matches.maps}
 						multiple
 					/>
 				</div>
 				<div class="flex w-fit flex-col gap-1.5">
-					<span class="text-secondary-400 text-xs font-medium">Faction</span>
+					<span class="text-secondary-400 text-xs font-medium">{t('Faction')}</span>
 					<Selection
-						placeholder="Select factions"
+						placeholder={t('Select factions')}
 						bind:value={matches.filters.races}
 						options={factionOptions}
 						multiple
@@ -117,8 +120,8 @@
 	</div>
 
 	{#snippet cell_map({ row }: { row: MatchExpanded })}
-		<Match.MapImage small />
-		<Match.MapName />
+		<Match.MapImage small flush />
+		<Match.MapName class="min-w-0 truncate px-4" />
 	{/snippet}
 	{#snippet cell_name({ row }: { row: MatchExpanded })}
 		<Match.Title class="text-secondary-400" />

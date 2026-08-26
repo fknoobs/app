@@ -4,28 +4,31 @@
 	import * as Replay from '$lib/components/replay';
 	import MatchLobbyPlayers from '$lib/components/widgets/match-lobby-players.svelte';
 	import { scale } from 'svelte/transition';
-	import { onDestroy } from 'svelte';
 	import { page } from '$app/state';
 	import { app } from '$core/app/context';
 	import { Button } from '$lib/components/ui/button';
 	import { SetCrumbs } from '$lib/components/ui/breadcrumb';
 	import { cn, normalizeMapName } from '$lib/utils';
 	import { detailMetaGrid } from '$lib/components/ui/variants';
-	import { resource } from 'runed';
+	import { resource, watch } from 'runed';
 	import { tooltip } from '$lib/attachments';
 	import { bounceInOut } from 'svelte/easing';
 	import dayjs from '$lib/dayjs';
-	import HourGlass from 'phosphor-svelte/lib/HourglassIcon';
-	import Checks from 'phosphor-svelte/lib/ChecksIcon';
-	import Download from 'phosphor-svelte/lib/DownloadIcon';
-	import Check from 'phosphor-svelte/lib/CheckIcon';
+	import HourglassIcon from 'phosphor-svelte/lib/HourglassIcon';
+	import ChecksIcon from 'phosphor-svelte/lib/ChecksIcon';
+	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
+	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import { useI18n } from '$lib/i18n';
 
+	const { t } = useI18n();
 	const match = resource(
 		() => page.params.id,
 		() => app.database.matches.getById(page.params.id!)
 	);
 
+	const STATUS_POLL_MS = 10_000;
 	const hasReplay = $derived(!!(match.current?.hasReplay || match.current?.replay));
+	const pendingResult = $derived(!!match.current?.needsResult);
 
 	const replayFile = resource(
 		() => (hasReplay ? page.params.id : null),
@@ -39,17 +42,17 @@
 
 	const duration = $derived.by(() => {
 		if (!match.current?.result?.startgametime || !match.current?.result?.completiontime) {
-			return 'N/A';
+			return t('N/A');
 		}
 		const start = dayjs.unix(match.current.result.startgametime);
 		const end = dayjs.unix(match.current.result.completiontime);
 		const diff = dayjs.duration(end.diff(start));
 
 		if (diff.hours() > 0) {
-			return diff.format('H [hrs] m [mins] s [secs]');
+			return diff.format(t('H [hrs] m [mins] s [secs]'));
 		}
 
-		return diff.format('m [mins] s [secs]');
+		return diff.format(t('m [mins] s [secs]'));
 	});
 
 	const submittedBy = $derived(
@@ -58,44 +61,58 @@
 		)
 	);
 
-	const subscription = app.database.matches.subscribe(page.params.id!, (updatedMatch) => {
-		match.mutate(updatedMatch);
-	});
+	watch(
+		() => [page.params.id, pendingResult] as const,
+		([id, pending]) => {
+			if (!id || !pending) return;
 
-	onDestroy(() => {
-		subscription.then((unsubscribe) => unsubscribe()).catch(() => undefined);
-	});
+			const interval = setInterval(() => {
+				void app.database.matches
+					.getById(id)
+					.then((updatedMatch) => match.mutate(updatedMatch))
+					.catch((error) => {
+						console.warn('[HISTORY]: match status poll failed:', error);
+					});
+			}, STATUS_POLL_MS);
+
+			return () => clearInterval(interval);
+		}
+	);
 </script>
 
-<SetCrumbs items={[{ label: match.current ? normalizeMapName(match.current.map) : 'Match' }]} />
+<SetCrumbs items={[{ label: match.current ? normalizeMapName(match.current.map) : t('Match') }]} />
 
 {#if match.current}
 	<Match.Root match={match.current} class="border-secondary-900 overflow-clip border-b">
-		<div class="border-secondary-800 grid grid-cols-1 gap-4 border-b p-4 sm:grid-cols-[minmax(200px,280px)_minmax(0,1fr)] sm:gap-6">
-			<Match.MapImage alt={normalizeMapName(match.current.map)} />
+		<div
+			class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]"
+		>
+			<div class="border-secondary-800 aspect-square sm:aspect-auto sm:h-full sm:border-r">
+				<Match.MapImage flush alt={normalizeMapName(match.current.map)} />
+			</div>
 
-			<div class="min-w-0 py-1">
+			<div class="min-w-0 px-6 py-4">
 				<Match.MapName class="font-heading mb-3 block truncate text-3xl font-bold" />
 
 				<div class={detailMetaGrid}>
-					<List.Title>Status</List.Title>
+					<List.Title>{t('Status')}</List.Title>
 					<List.Value class="flex items-center">
 						{#if match.current.needsResult}
-							<HourGlass class="text-primary" {@attach tooltip('Result pending')} />
+							<HourglassIcon class="text-primary" {@attach tooltip(t('Result pending'))} />
 						{:else}
-							<Checks class="text-green-400" {@attach tooltip('Result saved')} />
+							<ChecksIcon class="text-green-400" {@attach tooltip(t('Result saved'))} />
 						{/if}
 					</List.Value>
-					<List.Title>Title</List.Title>
+					<List.Title>{t('Title')}</List.Title>
 					<List.Value><Match.Title /></List.Value>
 
-					<List.Title>Submitted at</List.Title>
+					<List.Title>{t('Submitted at')}</List.Title>
 					<List.Value>{dayjs(match.current.createdAt).format('DD MMM YYYY, HH:mm')}</List.Value>
-					<List.Title>Player count</List.Title>
+					<List.Title>{t('Player count')}</List.Title>
 					<List.Value>{match.current.players?.length}</List.Value>
 
 					{#if submittedBy}
-						<List.Title>Submitted by</List.Title>
+						<List.Title>{t('Submitted by')}</List.Title>
 						<List.Value>
 							<a
 								href={`/players/${submittedBy.profile_id}`}
@@ -104,15 +121,15 @@
 								{submittedBy.alias}
 							</a>
 						</List.Value>
-						<List.Title>Duration</List.Title>
+						<List.Title>{t('Duration')}</List.Title>
 						<List.Value>{duration}</List.Value>
 
-						<List.Title>Game mode</List.Title>
-						<List.Value>{match.current.isRanked ? 'Ranked' : 'Custom match'}</List.Value>
+						<List.Title>{t('Game mode')}</List.Title>
+						<List.Value>{match.current.isRanked ? t('Ranked') : t('Custom match')}</List.Value>
 					{:else}
-						<List.Title>Game mode</List.Title>
-						<List.Value>{match.current.isRanked ? 'Ranked' : 'Custom match'}</List.Value>
-						<List.Title>Duration</List.Title>
+						<List.Title>{t('Game mode')}</List.Title>
+						<List.Value>{match.current.isRanked ? t('Ranked') : t('Custom match')}</List.Value>
+						<List.Title>{t('Duration')}</List.Title>
 						<List.Value>{duration}</List.Value>
 					{/if}
 				</div>
@@ -138,14 +155,14 @@
 						loading={isDownloading}
 					>
 						{#if !isDownloading && !didDownload}
-							<Download class="mr-2" />
+							<DownloadIcon class="mr-2" />
 						{/if}
 						{#if didDownload}
 							<span in:scale={{ easing: bounceInOut, duration: 150 }}>
-								<Check size={22} class="mr-2" />
+								<CheckIcon size={22} class="mr-2" />
 							</span>
 						{/if}
-						Download replay
+						{t('Download replay')}
 					</Button>
 				{/if}
 			</div>
@@ -166,7 +183,7 @@
 				</Replay.Root>
 			{:else if replayFile.error}
 				<p class="text-secondary-400 px-4 py-3 text-sm">
-					Failed to load replay data.
+					{t('Failed to load replay data.')}
 				</p>
 			{/if}
 		{/if}

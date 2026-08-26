@@ -3,6 +3,7 @@ import { Feature } from '$features/feature.svelte';
 import { twitch } from '$features/twitch';
 import { watch } from 'runed';
 import { stripEmotes } from '$lib/utils';
+import { t } from '$lib/i18n';
 import { StreamElementsProvider } from './providers/streamelements.svelte.js';
 import { ElevenlabsProvider } from './providers/elevenlabs';
 import type { UnsubscribeFunction } from 'emittery';
@@ -98,21 +99,20 @@ export class TTS extends Feature<TTSSettings, TTSEvents> {
 		}
 
 		let format = this.settings.messageFormat || '{message}';
-
-		if (this.settings.announceUser === 'always') {
-			format = '{username} said: ' + format;
-		}
-
-		if (this.settings.announceUser === 'onlyOnce' && this.lastMessageUser !== data.user) {
-			format = '{username} said: ' + format;
-		}
-
 		const alias = this.getAliasedUser(data.user);
-		const message = format
+		let message = format
 			.replace(/\{(username|user)\}/g, alias)
 			.replace(/\{(message|msg)\}/g, data.message)
 			.replace(data.msg.userInfo.isSubscriber ? '' : /\[.*?\]/g, '')
 			.replace(/https?:\/\/\S+/g, '');
+
+		const shouldAnnounce =
+			this.settings.announceUser === 'always' ||
+			(this.settings.announceUser === 'onlyOnce' && this.lastMessageUser !== data.user);
+
+		if (shouldAnnounce) {
+			message = t('{username} said: {message}', { username: alias, message });
+		}
 
 		this.lastMessageUser = data.user;
 

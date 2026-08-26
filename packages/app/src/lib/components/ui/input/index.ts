@@ -4,6 +4,7 @@ import Input from './input.svelte';
 import Checkbox from './checkbox.svelte';
 import RadioGroup from './radio-group.svelte';
 import Select from './select.svelte';
+import SelectLocale from './select-locale.svelte';
 import Options from './options.svelte';
 import Editor from './editor.svelte';
 import Selection from './selection.svelte';
@@ -22,6 +23,7 @@ export {
 	Checkbox,
 	RadioGroup,
 	Select,
+	SelectLocale,
 	Options,
 	Editor,
 	Selection,

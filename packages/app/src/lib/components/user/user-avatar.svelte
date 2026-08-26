@@ -7,6 +7,9 @@
 	import { adventurerNeutral } from '@dicebear/collection';
 	import UserIcon from 'phosphor-svelte/lib/UserIcon';
 	import { goto } from '$app/navigation';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	let user = useUser();
 	let avatar = $derived.by(() => {
@@ -33,7 +36,7 @@
 			onclick={() => goto(`/players/${user.steamIds[0]}`)}
 		>
 			<UserIcon />
-			View Profile
+			{t('View Profile')}
 		</Dropdown.Item>
 	</Dropdown.Root>
 </Avatar.Root>

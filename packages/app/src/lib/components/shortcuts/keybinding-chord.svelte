@@ -9,6 +9,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import KeyCap from './key-cap.svelte';
 	import { formatKeyLabel } from './key-label';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		keybinding: Shortcut;
@@ -17,6 +18,7 @@
 	};
 
 	let { keybinding, type, class: className }: Props = $props();
+	const { t } = useI18n();
 
 	const recording = $derived(shortcuts.isRecording(keybinding, type));
 	const keys = $derived(type === 'trigger' ? keybinding.triggerKeys : keybinding.actionKeys);
@@ -33,7 +35,7 @@
 	{#if recording}
 		<div class="flex min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto">
 			{#if keys.length === 0}
-				<span class="text-destructive text-sm italic">Press keys…</span>
+				<span class="text-destructive text-sm italic">{t('Press keys…')}</span>
 			{:else}
 				{#each keys as key, keyIndex (key)}
 					{#if keyIndex > 0}
@@ -51,7 +53,7 @@
 				size="icon-sm"
 				class={interactive}
 				onclick={() => shortcuts.commitRecording(keybinding, type)}
-				{@attach tooltip('Save keys (Enter)')}
+				{@attach tooltip(t('Save keys (Enter)'))}
 			>
 				<CheckIcon weight="bold" />
 			</Button>
@@ -61,7 +63,7 @@
 				size="icon-sm"
 				class={cn(interactive, 'hover:text-destructive')}
 				onclick={() => shortcuts.cancelRecording(keybinding, type)}
-				{@attach tooltip('Cancel and restore (Esc)')}
+				{@attach tooltip(t('Cancel and restore (Esc)'))}
 			>
 				<XIcon weight="bold" />
 			</Button>
@@ -77,10 +79,10 @@
 					: 'border-secondary-800 bg-secondary-950/60 hover:border-secondary-600 hover:bg-secondary-900/50'
 			)}
 			onclick={() => shortcuts.record(keybinding, type)}
-			{@attach tooltip(type === 'trigger' ? 'Record trigger keys' : 'Record action keys')}
+			{@attach tooltip(type === 'trigger' ? t('Record trigger keys') : t('Record action keys'))}
 		>
 			{#if keys.length === 0}
-				<span class="text-sm italic">Click to record</span>
+				<span class="text-sm italic">{t('Click to record')}</span>
 			{:else}
 				{#each keys as key, keyIndex (key)}
 					{#if keyIndex > 0}

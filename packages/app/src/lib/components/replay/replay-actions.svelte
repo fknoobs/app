@@ -9,12 +9,14 @@
 	import { interactive, mePlayerText } from '../ui/variants';
 	import { isMeReplayAlias } from '$lib/utils/player-me';
 	import { H } from '../ui/h';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = HTMLAttributes<HTMLDivElement> & {
 		flush?: boolean;
 	};
 
 	let { flush = false, ...restProps }: Props = $props();
+	const { t } = useI18n();
 	const replay = $derived(useReplay());
 
 	let selectedPlayerValue = $state('');
@@ -148,9 +150,9 @@
 			)}
 		>
 			{#if flush}
-				<p class={sectionTitle}>CPM over time</p>
+				<p class={sectionTitle}>{t('CPM over time')}</p>
 			{:else}
-				<H level="5" class={sectionTitle}>CPM Over Time</H>
+				<H level="5" class={sectionTitle}>{t('CPM Over Time')}</H>
 			{/if}
 			<div class="flex flex-wrap gap-x-4 gap-y-2">
 				{#each replay.players as player (player.id)}
@@ -238,9 +240,9 @@
 	<section class="flex min-h-0 flex-col">
 		<div class={cn(flush ? 'border-secondary-800 border-b px-4 py-2.5' : 'mt-4')}>
 			{#if flush}
-				<p class={sectionTitle}>Actions over time</p>
+				<p class={sectionTitle}>{t('Actions over time')}</p>
 			{:else}
-				<H level="5" class={sectionTitle}>Actions Over Time</H>
+				<H level="5" class={sectionTitle}>{t('Actions Over Time')}</H>
 			{/if}
 		</div>
 
@@ -259,7 +261,7 @@
 						? 'border-secondary-800 divide-secondary-800 divide-y border-r'
 						: 'bg-secondary-800/30 h-fit gap-0.5 rounded-xl p-2'
 				)}
-				aria-label="Select player"
+				aria-label={t('Select player')}
 			>
 				{#each replay.players as player (player.id)}
 					{@const isSelected = selectedPlayerValue === String(player.id)}
@@ -303,12 +305,12 @@
 							: 'bg-secondary-800/30 overflow-auto rounded-xl'
 					)}
 				>
-					{@render group('Buildings', 'BUILDING', 'text-green-200')}
-					{@render group('Units', 'UNIT', 'text-green-400')}
-					{@render group('Unit commands', 'UNIT_COMMAND', 'text-blue-300')}
-					{@render group('Upgrades', 'UPGRADE', 'text-purple-300')}
-					{@render group('Special abilities', 'SPECIAL_ABILITY', 'text-yellow-200')}
-					{@render group('Doctrine', 'DOCTRINAL', 'text-primary-200')}
+					{@render group(t('Buildings'), 'BUILDING', 'text-green-200')}
+					{@render group(t('Units'), 'UNIT', 'text-green-400')}
+					{@render group(t('Unit commands'), 'UNIT_COMMAND', 'text-blue-300')}
+					{@render group(t('Upgrades'), 'UPGRADE', 'text-purple-300')}
+					{@render group(t('Special abilities'), 'SPECIAL_ABILITY', 'text-yellow-200')}
+					{@render group(t('Doctrine'), 'DOCTRINAL', 'text-primary-200')}
 				</div>
 
 				<div

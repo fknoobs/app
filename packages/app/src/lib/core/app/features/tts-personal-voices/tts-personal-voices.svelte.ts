@@ -8,6 +8,7 @@ import { app } from '$core/app/context';
 import { error } from '@tauri-apps/plugin-log';
 import { debounce } from 'lodash-es';
 import PersonalVoicesPlugin from './personal-voices-plugin.svelte';
+import { t } from '$lib/i18n';
 
 export type ProviderVoiceSettings = {
 	voices: string[];
@@ -77,7 +78,7 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 
 				// `!preview` must include a voice name; show usage if absent.
 				if (args.length === 0) {
-					return twitch.chatClient?.say(channel, `Usage: !preview <voice name>`);
+					return twitch.chatClient?.say(channel, t('Usage: !preview <voice name>'));
 				}
 
 				const voice = tts.provider.voices.find(
@@ -90,13 +91,18 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 				if (!voice) {
 					return twitch.chatClient?.say(
 						channel,
-						`Voice "${args.join(' ')}" not found. Use !voices to see the list of available voices.`
+						t('Voice "{name}" not found. Use !voices to see the list of available voices.', {
+							name: args.join(' ')
+						})
 					);
 				}
 
 				// Trigger a short preview via the TTS provider.
 				tts.speak({
-					message: `This is a preview of the ${voice.name} voice. Hello ${user}! How was your day? Anything interesting happened?`,
+					message: t(
+						'This is a preview of the {name} voice. Hello {user}! How was your day? Anything interesting happened?',
+						{ name: voice.name, user }
+					),
 					voiceId: voice.voiceId,
 					user
 				});
@@ -104,28 +110,41 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 
 			if (message.startsWith('!voices')) {
 				const voiceList = this.voices
-					.map((v) => `${v.name}${v.voiceId === tts.provider.defaultVoiceId ? ' (default)' : ''}`)
+					.map((v) =>
+						v.voiceId === tts.provider.defaultVoiceId
+							? t('{name} (default)', { name: v.name })
+							: v.name
+					)
 					.join(' | ');
 
-				twitch.chatClient?.say(channel, `Available voices: ${voiceList}`);
+				twitch.chatClient?.say(channel, t('Available voices: {voiceList}', { voiceList }));
 			}
 
 			if (message.startsWith('!freevoices')) {
 				if (!this.settings.enableFreeVoices) {
-					return twitch.chatClient?.say(channel, `@${user}, free voices are not enabled.`);
+					return twitch.chatClient?.say(
+						channel,
+						t('@{user}, free voices are not enabled.', { user })
+					);
 				}
 
 				const voiceList = this.freeVoices.map((v) => `${v.alias ?? v.name}`).join(' | ');
 
 				twitch.chatClient?.say(
 					channel,
-					`Available free voices: ${voiceList}. Use !setfreevoice <voice name> to set a free voice.`
+					t(
+						'Available free voices: {voiceList}. Use !setfreevoice <voice name> to set a free voice.',
+						{ voiceList }
+					)
 				);
 			}
 
 			if (message.startsWith('!setfreevoice')) {
 				if (!this.settings.enableFreeVoices) {
-					return twitch.chatClient?.say(channel, `@${user}, free voices are not enabled.`);
+					return twitch.chatClient?.say(
+						channel,
+						t('@{user}, free voices are not enabled.', { user })
+					);
 				}
 
 				const args = message.split(' ').slice(1);
@@ -138,7 +157,10 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 				if (!voice) {
 					return twitch.chatClient?.say(
 						channel,
-						`Voice "${args.join(' ')}" not found. Use !freevoices to see the list of available free voices.`
+						t(
+							'Voice "{name}" not found. Use !freevoices to see the list of available free voices.',
+							{ name: args.join(' ') }
+						)
 					);
 				}
 
@@ -157,7 +179,7 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 				if (!msg.userInfo.isSubscriber) {
 					return twitch.chatClient?.say(
 						channel,
-						`@${user}, only subscribers can use the !setvoice command.`
+						t('@{user}, only subscribers can use the !setvoice command.', { user })
 					);
 				}
 
@@ -165,7 +187,7 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 
 				// `!setvoice` must include a voice name; show usage if absent.
 				if (args.length === 0) {
-					return twitch.chatClient?.say(channel, `Usage: !setvoice <voice name>`);
+					return twitch.chatClient?.say(channel, t('Usage: !setvoice <voice name>'));
 				}
 
 				const voice = tts.provider.voices.find(
@@ -175,7 +197,9 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 				if (!voice) {
 					return twitch.chatClient?.say(
 						channel,
-						`Voice "${args.join(' ')}" not found. Use !voices to see the list of available voices.`
+						t('Voice "{name}" not found. Use !voices to see the list of available voices.', {
+							name: args.join(' ')
+						})
 					);
 				}
 
@@ -283,7 +307,7 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 				.createCustomReward(twitch.token!.userId, {
 					title: `[PERSONALITY] ${voice.name!.length > 25 ? voice.name!.substring(0, 25) + '...' : voice.name!}`,
 					cost: this.settings.cost,
-					prompt: `!preview ${voice.name} to hear a sample of this voice.`,
+					prompt: t('!preview {name} to hear a sample of this voice.', { name: voice.name }),
 					isEnabled: true,
 					backgroundColor: '#9146FF',
 					autoFulfill: false
@@ -291,7 +315,10 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 				.catch((err) => {
 					error(`Failed to create reward for personal voice ${voice.name}: ${JSON.stringify(err)}`);
 					app.toast.error(
-						`Failed to create reward for personal voice ${voice.name}. See logs for details. ${JSON.stringify(err)}`,
+						t(
+							'Failed to create reward for personal voice {name}. See logs for details. {details}',
+							{ name: voice.name, details: JSON.stringify(err) }
+						),
 						{ duration: 10000 }
 					);
 				});
@@ -314,7 +341,10 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 		if (notify) {
 			twitch.chatClient?.say(
 				twitch.token!.userName!,
-				`@${user}, you unlocked ${voice.alias ?? voice.name}. Your messages will now be spoken using this voice!`
+				t('@{user}, you unlocked {voice}. Your messages will now be spoken using this voice!', {
+					user,
+					voice: voice.alias ?? voice.name
+				})
 			);
 		}
 	}
@@ -325,7 +355,10 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 		if (notify) {
 			twitch.chatClient?.say(
 				twitch.token!.userName!,
-				`@${user}, you removed your free voice. Your messages will now be spoken using the default voice or the voice you unlocked with channel points.`
+				t(
+					'@{user}, you removed your free voice. Your messages will now be spoken using the default voice or the voice you unlocked with channel points.',
+					{ user }
+				)
 			);
 		}
 	}
@@ -339,7 +372,10 @@ export class TTSPersonalVoices extends Feature<TTSPersonalVoicesSettings> {
 		// the redeemer in chat and cancel (refund) the redemption via Twitch API.
 		twitch.chatClient?.say(
 			twitch.token!.userName!,
-			`@${event.userDisplayName}, the voice associated with this reward could not be found. Please contact the channel owner. Your channel points have been refunded.`
+			t(
+				'@{user}, the voice associated with this reward could not be found. Please contact the channel owner. Your channel points have been refunded.',
+				{ user: event.userDisplayName }
+			)
 		);
 
 		// Use the API to cancel (refund) the redemption so the user recovers

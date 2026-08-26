@@ -4,6 +4,9 @@
 	import SplashAnimated from './splash-animated.svelte';
 	import { SPLASH_INTRO_MS, removeBootSplash } from './splash';
 	import { onMount } from 'svelte';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	let introComplete = $state(false);
 
@@ -55,11 +58,11 @@
 >
 	{#if boot.phase === 'error'}
 		<SplashAnimated animate={false} />
-		<span class="text-2xl font-semibold text-red-400">Startup failed</span>
+		<span class="text-2xl font-semibold text-red-400">{t('Startup failed')}</span>
 		<p class="text-secondary-400 max-w-md text-center text-sm">
 			{boot.error}
 		</p>
-		<Button variant="secondary" onclick={() => boot.retry()}>Try again</Button>
+		<Button variant="secondary" onclick={() => boot.retry()}>{t('Try again')}</Button>
 	{:else}
 		{#key boot.splashSession}
 			<SplashAnimated />

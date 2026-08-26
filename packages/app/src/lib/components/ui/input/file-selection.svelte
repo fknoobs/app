@@ -8,6 +8,7 @@
 	import { exists } from '@tauri-apps/plugin-fs';
 	import { cn } from '$lib/utils';
 	import { controlBase } from '../variants';
+	import { useI18n } from '$lib/i18n';
 
 	let {
 		value = $bindable(),
@@ -16,6 +17,7 @@
 		onSelect,
 		filters,
 		defaultPath,
+		showStatus = true,
 		class: className,
 		..._restProps
 	}: InputProps & {
@@ -23,7 +25,9 @@
 		directory?: boolean;
 		onSelect?: (path: string) => void;
 		defaultPath?: string;
+		showStatus?: boolean;
 	} = $props();
+	const { t } = useI18n();
 	let fileExists = $state(false);
 
 	const selectDir = async () => {
@@ -45,14 +49,22 @@
 
 	watch(
 		() => value,
-		() => {
-			exists(value)
-				.then((exists) => {
-					fileExists = exists;
+		(path) => {
+			if (!path) {
+				fileExists = false;
+				return;
+			}
+			let cancelled = false;
+			exists(path)
+				.then((result) => {
+					if (!cancelled) fileExists = result;
 				})
 				.catch(() => {
-					fileExists = false;
+					if (!cancelled) fileExists = false;
 				});
+			return () => {
+				cancelled = true;
+			};
 		}
 	);
 </script>
@@ -67,20 +79,25 @@
 		)}
 		title={value}
 	>
-		{value || 'No path selected'}
+		{value || t('No path selected')}
 	</div>
 	<Button variant="secondary" type="button" onclick={selectDir} class="justify-center">
-		Select
+		{t('Select')}
 	</Button>
 </div>
-<div
-	class={cn('mt-1 flex items-center gap-1 text-sm', fileExists ? 'text-green-500' : 'text-red-500')}
->
-	{#if fileExists}
-		<CheckCircleIcon weight="duotone" size={18} />
-		Path exists
-	{:else}
-		<WarningCircleIcon weight="duotone" size={18} />
-		Path does not exist
-	{/if}
-</div>
+{#if showStatus && value}
+	<div
+		class={cn(
+			'mt-1 flex items-center gap-1 text-sm',
+			fileExists ? 'text-green-500' : 'text-red-500'
+		)}
+	>
+		{#if fileExists}
+			<CheckCircleIcon weight="duotone" size={18} />
+			{t('Path exists')}
+		{:else}
+			<WarningCircleIcon weight="duotone" size={18} />
+			{t('Path does not exist')}
+		{/if}
+	</div>
+{/if}

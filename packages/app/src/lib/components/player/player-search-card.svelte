@@ -8,12 +8,14 @@
 	import { upperCase } from 'lodash-es';
 	import { getPlayerRating } from '$core/pocketbase/player-ratings';
 	import { resource } from 'runed';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		player: Profile;
 	};
 
 	let { player }: Props = $props();
+	const { t } = useI18n();
 	let statsExpanded = $state(false);
 
 	const statsCount = $derived(player.relic.leaderboardStats?.length ?? 0);
@@ -50,9 +52,9 @@
 				<span class="font-heading truncate text-xl font-bold">{player.relic.alias}</span>
 			</a>
 			<List.Root class="gap-x-4">
-				<List.Title>Steam ID:</List.Title>
+				<List.Title>{t('Steam ID:')}</List.Title>
 				<List.Value>{player.steam.steamid}</List.Value>
-				<List.Title>Profile ID:</List.Title>
+				<List.Title>{t('Profile ID:')}</List.Title>
 				<List.Value>{player.relic.profile_id}</List.Value>
 			</List.Root>
 		</div>
@@ -67,7 +69,7 @@
 			aria-expanded={statsExpanded}
 			onclick={() => (statsExpanded = !statsExpanded)}
 		>
-			<span>Stats ({statsCount})</span>
+			<span>{t('Stats ({count})', { count: statsCount })}</span>
 			<CaretDown class={cn('size-4 transition-transform', statsExpanded && 'rotate-180')} />
 		</button>
 		{#if statsExpanded}
@@ -81,7 +83,7 @@
 		{/if}
 	{:else}
 		<div class="text-secondary-400 px-4 py-3 text-sm">
-			Level <span class="text-secondary-200 font-medium">{player.relic.level}</span>
+			{t('Level')} <span class="text-secondary-200 font-medium">{player.relic.level}</span>
 		</div>
 	{/if}
 </div>

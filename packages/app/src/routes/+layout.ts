@@ -16,6 +16,7 @@ import { history } from '$core/app/features/history';
 import { shortcuts } from '$core/app/features/shortcuts';
 import { updater } from '$core/app/features/updater';
 import { OppBotOverlay } from '$core/app/features/twitch-overlays/overlays/oppbot';
+import { initI18n } from '$lib/i18n';
 
 export const prerender = true;
 export const ssr = false;
@@ -26,8 +27,10 @@ let registered = false;
 const BOOT_UI_ROUTES = new Set(['/splashscreen', '/setup']);
 
 export const load = async ({ url }: LoadEvent) => {
+	const i18n = await initI18n();
+
 	if (!browser) {
-		return;
+		return { i18n };
 	}
 
 	configureCorsFetch();
@@ -52,8 +55,9 @@ export const load = async ({ url }: LoadEvent) => {
 	// and let boot.advance() update phase labels reactively in the background.
 	if (BOOT_UI_ROUTES.has(url.pathname)) {
 		void boot.advance(url.pathname);
-		return;
+		return { i18n };
 	}
 
 	await boot.advance(url.pathname);
+	return { i18n };
 };

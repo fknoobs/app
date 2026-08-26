@@ -8,9 +8,10 @@ import { isMePlayer } from '$lib/utils/player-me';
 import { isValidSteamId } from '$lib/utils/player-elo';
 import dayjs from '$lib/dayjs';
 import { sortBy, uniq } from 'lodash-es';
+import { t } from '$lib/i18n';
 
 export function formatMapDisplayName(map?: string): string {
-	if (!map) return 'Unknown Map';
+	if (!map) return t('Unknown Map');
 
 	const match = map.match(/^(\d+)p_(.+)$/);
 	if (!match) {
@@ -40,7 +41,7 @@ export function getLiveLobbyMatchType(players: LobbyPlayer[], isRanked?: boolean
 }
 
 export function getLiveLobbyModeLabel(players: LobbyPlayer[], isRanked?: boolean): string {
-	return MATCH_TYPES[getLiveLobbyMatchType(players, isRanked)] ?? 'Custom Game';
+	return t(MATCH_TYPES[getLiveLobbyMatchType(players, isRanked)] ?? 'Custom Game');
 }
 
 export function getMatchModeLabel(match: MatchExpanded): string {
@@ -61,10 +62,10 @@ export function getPlayerRowKey(player: LobbyPlayer, rowIndex = 0): string {
 
 export function getPlayerAlias(player: LobbyPlayer): string {
 	if (player.profile?.alias) return player.profile.alias;
-	if (player.index != null) return `Player ${player.index + 1}`;
+	if (player.index != null) return t('Player {n}', { n: player.index + 1 });
 	const profileId = getPlayerProfileId(player);
-	if (profileId != null) return `Player ${profileId}`;
-	return 'Unknown';
+	if (profileId != null) return t('Player {n}', { n: profileId });
+	return t('Unknown');
 }
 
 export function getLobbyPlayerTeamId(

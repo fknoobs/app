@@ -6,12 +6,14 @@
 	import { useLobby } from '.';
 	import { getLeaderboardStatsForPlayerByMatchType } from '$lib/utils/game';
 	import type { LobbyPlayer } from '@fknoobs/app';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = HTMLAttributes<HTMLDivElement> & {
 		embedded?: boolean;
 	};
 
 	const { embedded = false, ...restProps }: Props = $props();
+	const { t } = useI18n();
 	const lobby = useLobby();
 
 	const players = $derived(orderBy(lobby.players, 'team'));
@@ -23,7 +25,7 @@
 		return [
 			{
 				id: 'rank',
-				header: 'Rank',
+				header: t('Rank'),
 				width: 'w-2/24',
 				headerClass: 'flex justify-center',
 				headerCellClass: cellPad,
@@ -32,7 +34,7 @@
 			},
 			{
 				id: 'alias',
-				header: 'Alias',
+				header: t('Alias'),
 				width: 'w-10/24',
 				headerCellClass: cellPad,
 				cellClass: () => cellPad ?? '',
@@ -40,7 +42,7 @@
 			},
 			{
 				id: 'wins',
-				header: 'Wins',
+				header: t('Wins'),
 				width: 'w-4/24',
 				headerClass: 'flex justify-center',
 				headerCellClass: cellPad,
@@ -49,7 +51,7 @@
 			},
 			{
 				id: 'losses',
-				header: 'Losses',
+				header: t('Losses'),
 				width: 'w-4/24',
 				headerClass: 'flex justify-center',
 				headerCellClass: cellPad,
@@ -58,7 +60,7 @@
 			},
 			{
 				id: 'streak',
-				header: 'Streak',
+				header: t('Streak'),
 				width: 'w-4/24',
 				headerClass: 'flex justify-center',
 				headerCellClass: cellPad,

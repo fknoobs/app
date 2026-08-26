@@ -8,6 +8,9 @@
 	import { MatchHistory } from '../match-history';
 	import { relic } from '$lib/relic';
 	import { getPlayerRating } from '$core/pocketbase/player-ratings';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	let isLoadingRecentGames = $state(false);
 	let isLoadingStats = $state(false);
@@ -25,11 +28,11 @@
 				<Profile.Alias class="truncate text-3xl font-bold" />
 			</div>
 			<List.Root class="mt-2">
-				<List.Title>Steam ID:</List.Title>
+				<List.Title>{t('Steam ID:')}</List.Title>
 				<List.Value>
 					<Profile.Steamid />
 				</List.Value>
-				<List.Title>Created:</List.Title>
+				<List.Title>{t('Created:')}</List.Title>
 				<List.Value>
 					<Profile.Created />
 				</List.Value>
@@ -46,7 +49,7 @@
 							getPlayerRating(profile.steam.steamid)
 						]);
 						app.modal.create({
-							title: 'Profile Stats',
+							title: t('Profile Stats'),
 							component: Leaderboard,
 							size: 'full',
 							props: {
@@ -59,7 +62,7 @@
 					}}
 					loading={isLoadingStats}
 				>
-					View stats
+					{t('View stats')}
 				</Button>
 				<Button
 					variant="primary"
@@ -67,7 +70,7 @@
 					onclick={async () => {
 						isLoadingRecentGames = true;
 						app.modal.create({
-							title: 'Profile Stats',
+							title: t('Profile Stats'),
 							component: MatchHistory,
 							size: 'full',
 							props: {
@@ -82,10 +85,10 @@
 					}}
 					loading={isLoadingRecentGames}
 				>
-					Recent games
+					{t('Recent games')}
 				</Button>
 				{#if app.lobby}
-					<Button href="/current-game" variant="secondary">Current Game</Button>
+					<Button href="/current-game" variant="secondary">{t('Current Game')}</Button>
 				{/if}
 			</div>
 		</div>

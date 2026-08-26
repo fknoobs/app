@@ -6,8 +6,10 @@
 	import dayjs from '$lib/dayjs';
 	import { app } from '$core/app/context';
 	import type { NotificationItem } from '$core/notifications/notifications.svelte';
+	import { useI18n } from '$lib/i18n';
 
 	let open = $state(false);
+	const { t } = useI18n();
 
 	const onOpenChange = (next: boolean) => {
 		open = next;
@@ -37,7 +39,7 @@
 			variant="ghost"
 			size="icon-sm"
 			class="bg-secondary-800 text-secondary-400 hover:text-primary hover:bg-secondary-700 data-[state=open]:bg-secondary-700 data-[state=open]:text-primary relative"
-			aria-label="Notificaties"
+			aria-label={t('Notifications')}
 		>
 			<BellIcon size={18} weight="duotone" />
 			{#if app.notifications.unreadCount > 0}
@@ -56,21 +58,21 @@
 	{/snippet}
 	{#snippet children()}
 		<div class="border-secondary-700 flex items-baseline justify-between border-b px-4 py-3">
-			<h2 class="text-sm font-bold text-white">Notificaties</h2>
+			<h2 class="text-sm font-bold text-white">{t('Notifications')}</h2>
 			{#if app.notifications.unreadCount > 0}
 				<span class="text-primary text-xs font-semibold">
-					{app.notifications.unreadCount} ongelezen
+					{t('{count} unread', { count: app.notifications.unreadCount })}
 				</span>
 			{:else}
-				<span class="text-secondary-500 text-xs">Alles gelezen</span>
+				<span class="text-secondary-500 text-xs">{t('All read')}</span>
 			{/if}
 		</div>
 
 		<div class="max-h-[360px] overflow-y-auto">
 			{#if app.notifications.isLoading && app.notifications.items.length === 0}
-				<p class="text-secondary-400 px-4 py-8 text-center text-sm">Laden...</p>
+				<p class="text-secondary-400 px-4 py-8 text-center text-sm">{t('Loading...')}</p>
 			{:else if app.notifications.items.length === 0}
-				<p class="text-secondary-400 px-4 py-8 text-center text-sm">Geen notificaties</p>
+				<p class="text-secondary-400 px-4 py-8 text-center text-sm">{t('No notifications')}</p>
 			{:else}
 				<ul class="divide-secondary-800/80 divide-y">
 					{#each app.notifications.items as notification (notification.id)}

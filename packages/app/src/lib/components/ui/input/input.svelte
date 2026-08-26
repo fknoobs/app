@@ -19,6 +19,7 @@
 	import EyeSlashIcon from 'phosphor-svelte/lib/EyeSlashIcon';
 	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import MinusIcon from 'phosphor-svelte/lib/MinusIcon';
+	import { useI18n } from '$lib/i18n';
 
 	let {
 		value = $bindable(),
@@ -28,6 +29,7 @@
 		trailing,
 		...restProps
 	}: InputProps = $props();
+	const { t } = useI18n();
 	let showPasswordToggle = $state(untrack(() => type === 'password'));
 	let hasAdornments = $derived(leading != null || trailing != null);
 
@@ -84,7 +86,7 @@
 			<button
 				type="button"
 				class={stepperButton}
-				aria-label="Decrease value"
+				aria-label={t('Decrease value')}
 				onclick={() => stepValue(-1)}
 			>
 				<MinusIcon size={12} weight="bold" />
@@ -92,7 +94,7 @@
 			<button
 				type="button"
 				class={stepperButton}
-				aria-label="Increase value"
+				aria-label={t('Increase value')}
 				onclick={() => stepValue(1)}
 			>
 				<PlusIcon size={12} weight="bold" />

@@ -3,10 +3,12 @@
 	import { usePlayer } from '.';
 	import { cn } from '$lib/utils';
 	import { tooltip } from '$lib/attachments';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = HTMLAttributes<HTMLImageElement>;
 
 	let { class: className, ...restProps }: Props = $props();
+	const { t, getLocale } = useI18n();
 	const { player } = $derived(usePlayer());
 
 	const regionCode = $derived.by(() => {
@@ -24,14 +26,14 @@
 
 	const countryName = $derived.by(() => {
 		if (!regionCode) {
-			return 'Unknown';
+			return t('Unknown');
 		}
 
 		try {
-			const dn = new Intl.DisplayNames(['en'], { type: 'region' });
-			return dn.of(regionCode) || 'Unknown';
+			const dn = new Intl.DisplayNames([getLocale() || 'en'], { type: 'region' });
+			return dn.of(regionCode) || t('Unknown');
 		} catch {
-			return 'Unknown';
+			return t('Unknown');
 		}
 	});
 </script>

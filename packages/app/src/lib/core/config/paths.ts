@@ -1,6 +1,7 @@
 import { dev } from '$app/environment';
 import { basename, dirname, documentDir, join, appConfigDir } from '@tauri-apps/api/path';
 import { exists, readTextFile } from '@tauri-apps/plugin-fs';
+import { t } from '$lib/i18n';
 
 /**
  * Path resolution and validation for everything the app reads/writes on disk.
@@ -21,17 +22,17 @@ export type PathValidation = { valid: boolean; reason?: string };
 /** Validates a Company of Heroes `warnings.log` path. */
 export async function validateWarningsLog(path: string): Promise<PathValidation> {
 	if (!path || path.trim() === '') {
-		return { valid: false, reason: 'No warnings.log selected' };
+		return { valid: false, reason: t('No warnings.log selected') };
 	}
 
 	if (!(await exists(path))) {
-		return { valid: false, reason: 'File does not exist' };
+		return { valid: false, reason: t('File does not exist') };
 	}
 
 	const name = (await basename(path)).toLowerCase();
 
 	if (name !== 'warnings.log') {
-		return { valid: false, reason: 'Selected file is not warnings.log' };
+		return { valid: false, reason: t('Selected file is not warnings.log') };
 	}
 
 	return { valid: true };
@@ -40,15 +41,15 @@ export async function validateWarningsLog(path: string): Promise<PathValidation>
 /** Validates a Company of Heroes installation directory. */
 export async function validateGameDir(path: string): Promise<PathValidation> {
 	if (!path || path.trim() === '') {
-		return { valid: false, reason: 'No installation folder selected' };
+		return { valid: false, reason: t('No installation folder selected') };
 	}
 
 	if (!(await exists(path))) {
-		return { valid: false, reason: 'Folder does not exist' };
+		return { valid: false, reason: t('Folder does not exist') };
 	}
 
 	if (!(await exists(await join(path, 'RelicCOH.exe')))) {
-		return { valid: false, reason: 'RelicCOH.exe not found in this folder' };
+		return { valid: false, reason: t('RelicCOH.exe not found in this folder') };
 	}
 
 	return { valid: true };

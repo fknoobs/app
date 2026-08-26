@@ -3,7 +3,8 @@ import { watch } from 'runed';
 import { invoke } from '@tauri-apps/api/core';
 import { register, unregister, unregisterAll } from '@tauri-apps/plugin-global-shortcut';
 import { app } from '$core/app/context';
-import { t } from 'try';
+import { t as attempt } from 'try';
+import { t } from '$lib/i18n';
 
 const ACTION_MODIFIER_KEYS = new Set([
 	'CommandOrControl',
@@ -30,7 +31,7 @@ export type FactionKey = keyof ShortcutSettings['factions'];
 function createShortcut(partial?: Partial<Shortcut>): Shortcut {
 	return {
 		id: partial?.id ?? crypto.randomUUID(),
-		description: partial?.description ?? 'New Keybinding',
+		description: partial?.description ?? t('New Keybinding'),
 		triggerKeys: partial?.triggerKeys ?? [],
 		actionKeys: partial?.actionKeys ?? []
 	};
@@ -350,11 +351,11 @@ export class Shortcuts extends Feature<ShortcutSettings> {
 
 		await this.forceUnregisterTrigger(trigger);
 
-		let [, error] = t(await register(trigger, handler));
+		let [, error] = attempt(await register(trigger, handler));
 
 		if (error && isAlreadyRegisteredError(error)) {
 			await this.forceUnregisterTrigger(trigger);
-			[, error] = t(await register(trigger, handler));
+			[, error] = attempt(await register(trigger, handler));
 		}
 
 		if (error && isAlreadyRegisteredError(error)) {

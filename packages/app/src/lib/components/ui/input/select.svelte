@@ -1,20 +1,31 @@
 <script lang="ts">
 	import { Select, type WithoutChildren } from 'bits-ui';
 	import { cn } from '$lib/utils';
-	import { controlBase, surfacePanel, menuItem } from '../variants';
+	import { controlBase, menuItem } from '../variants';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import { isArray } from 'lodash-es';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	type Props = WithoutChildren<Select.RootProps> & {
 		placeholder?: string;
 		items: { value: string; label: string; disabled?: boolean }[];
 		contentProps?: WithoutChildren<Select.ContentProps>;
-		// any other specific component props if needed
+		class?: string;
 	};
 
-	let { value = $bindable(), items, contentProps, placeholder, ...restProps }: Props = $props();
+	let {
+		value = $bindable(),
+		items,
+		contentProps,
+		placeholder,
+		class: className,
+		type = 'single',
+		...restProps
+	}: Props = $props();
 	const selectedLabel = $derived(items.find((item) => item.value === value)?.label);
 </script>
 
@@ -23,16 +34,16 @@ TypeScript Discriminated Unions + destructing (required for "bindable") do not
 get along, so we shut typescript up by casting `value` to `never`, however,
 from the perspective of the consumer of this component, it will be typed appropriately.
 -->
-<Select.Root bind:value={value as never} {...restProps}>
+<Select.Root {...restProps} {type} bind:value={value as never}>
 	<Select.Trigger
 		class={cn(
 			controlBase,
-			'group min-w-28 cursor-pointer truncate px-4 text-left',
-			'flex max-w-3xs items-center justify-between'
+			'group flex w-full min-w-28 cursor-pointer items-center justify-between truncate px-4 text-left',
+			className
 		)}
 	>
 		{isArray(value) && value.length
-			? `${value.length} items`
+			? t('{count} items', { count: value.length })
 			: selectedLabel
 				? selectedLabel
 				: placeholder}
@@ -44,7 +55,10 @@ from the perspective of the consumer of this component, it will be typed appropr
 			side="bottom"
 			sideOffset={6}
 			{...contentProps}
-			class={cn(surfacePanel, 'max-h-64 max-w-3xs shadow-xs')}
+			class={cn(
+				'bg-secondary-950 border-secondary-800 z-50 max-h-64 min-w-[var(--bits-select-anchor-width)] w-[var(--bits-select-anchor-width)] rounded-md border shadow-md',
+				contentProps?.class
+			)}
 		>
 			<Select.ScrollUpButton class="flex items-center justify-center py-1">
 				<CaretUpIcon />
@@ -55,7 +69,7 @@ from the perspective of the consumer of this component, it will be typed appropr
 						{value}
 						{label}
 						{disabled}
-						class={cn(menuItem, 'flex min-w-32 items-center gap-4')}
+						class={cn(menuItem, 'flex w-full items-center gap-4')}
 					>
 						{#snippet children({ selected })}
 							{label}

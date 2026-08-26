@@ -15,7 +15,7 @@ import { account } from '$core/account';
 import { app } from '$core/app/context';
 import { join } from '@tauri-apps/api/path';
 import { exists, writeFile, remove } from '@tauri-apps/plugin-fs';
-import { download } from '@tauri-apps/plugin-upload';
+import { t } from '$lib/i18n';
 
 export type ReplaysExpanded = Expand<
 	ReplaysResponse<Message[], Player[], { createdBy: UsersResponse }>
@@ -97,7 +97,10 @@ export class Replays {
 	 * Rewrites `replayName` in the `.rec` binary, updates PocketBase title/file,
 	 * and replaces the local playback file (`filename`).
 	 */
-	async rename(id: string, replayName: string): Promise<{ bytes: Uint8Array; title: string }> {
+	async rename(
+		id: string,
+		replayName: string
+	): Promise<{ bytes: Uint8Array; title: string; file: string; filename: string }> {
 		const record = await pocketbase.collection('replays').getOne<ReplaysRecord>(id, { fetch });
 		const current = await getFile(record, record.file);
 		const title = replayName.trim() || '-';
@@ -105,7 +108,7 @@ export class Replays {
 		const localName = record.filename || record.file || 'replay.rec';
 		const file = new File([bytes], localName);
 
-		await this.update(id, { title, file });
+		const updated = await this.update(id, { title, file });
 
 		try {
 			const localPath = await join(await app.paths.cohPlaybackDir(), localName);
@@ -114,7 +117,12 @@ export class Replays {
 			console.warn('[REPLAYS]: failed to write renamed local replay', localName, error);
 		}
 
-		return { bytes, title };
+		return {
+			bytes,
+			title,
+			file: updated.file,
+			filename: updated.filename || localName
+		};
 	}
 
 	/** Local playback path for a stored replay filename. */
@@ -140,16 +148,20 @@ export class Replays {
 		return true;
 	}
 
-	/** Downloads the PocketBase replay file into the CoH playback folder. */
-	async download(record: Pick<ReplaysRecord, 'id' | 'file' | 'filename'> & Record<string, unknown>) {
+	/**
+	 * Downloads the PocketBase replay file into the CoH playback folder.
+	 * Always reloads the record so a stale list `file` after rename still works.
+	 */
+	async download(id: string) {
+		const record = await pocketbase.collection('replays').getOne<ReplaysRecord>(id, { fetch });
 		const localName = record.filename || record.file;
 		if (!localName || !record.file) {
-			throw new Error('Replay file is missing');
+			throw new Error(t('Replay file is missing'));
 		}
 
-		const path = await this.localPath(localName);
-		const url = pocketbase.files.getURL(record, record.file);
-		await download(url, path);
+		const bytes = await getFile(record, record.file);
+		await writeFile(await this.localPath(localName), bytes);
+		return { filename: localName, file: record.file };
 	}
 
 	/** Retrieves a single replay by its filename. */

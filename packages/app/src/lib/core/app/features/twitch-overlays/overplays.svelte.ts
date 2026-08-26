@@ -4,6 +4,7 @@ import { app } from '$core/app/context';
 import { Feature } from '../feature.svelte';
 import type { Overlay } from './overlays/overlay.svelte.ts';
 import OverlayOverwriteConfirm from './overlay-overwrite-confirm.svelte';
+import { t } from '$lib/i18n';
 
 /**
  * Registry for the Opponent Bot overlay. Installs local source for editing and
@@ -52,8 +53,8 @@ export class TwitchOverlays extends Feature {
 
 			app.modal.create({
 				component: OverlayOverwriteConfirm,
-				title: 'Opponent Bot overlay update',
-				description: 'A new version of the oppbot overlay is available.',
+				title: t('Opponent Bot overlay update'),
+				description: t('A new version of the oppbot overlay is available.'),
 				size: 'md',
 				props: {
 					version: overlay.version,
@@ -98,18 +99,20 @@ export class TwitchOverlays extends Feature {
 					const published = await this.#publishUpdatedOverlay(overlay);
 					app.toast.success(
 						published
-							? 'Opponent Bot overlay updated and published. Your previous version was backed up.'
-							: 'Opponent Bot overlay updated. Your previous version was backed up.'
+							? t(
+									'Opponent Bot overlay updated and published. Your previous version was backed up.'
+								)
+							: t('Opponent Bot overlay updated. Your previous version was backed up.')
 					);
 					if (!published && pocketbase.authStore.isValid) {
-						app.toast.error('Could not publish the updated overlay to the server.');
+						app.toast.error(t('Could not publish the updated overlay to the server.'));
 					}
 				} catch (error) {
 					console.error('[TWITCH-OVERLAYS]: update failed:', error);
 					const message =
 						error instanceof Error
 							? error.message
-							: 'Failed to update the Opponent Bot overlay. Check the logs.';
+							: t('Failed to update the Opponent Bot overlay. Check the logs.');
 					app.toast.error(message);
 				}
 			}

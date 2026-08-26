@@ -3,7 +3,9 @@
 	import { cn } from '$lib/utils';
 	import LiveLobbiesTable from './live-lobbies-table.svelte';
 	import { LiveLobbiesFeed } from './live-lobbies.svelte';
+	import { useI18n } from '$lib/i18n';
 
+	const { t } = useI18n();
 	const feed = new LiveLobbiesFeed();
 
 	$effect(() => {
@@ -21,9 +23,9 @@
 	)}
 >
 	<div class="border-secondary-800 flex items-center justify-between border-b px-4 py-3">
-		<H level="6" class="mb-0 font-semibold">Live lobbies</H>
+		<H level="6" class="mb-0 font-semibold">{t('Live lobbies')}</H>
 		{#if !feed.isLoading}
-			<span class="text-secondary-400 text-sm tabular-nums">{feed.totalItems} active</span>
+			<span class="text-secondary-400 text-sm tabular-nums">{t('{count} active', { count: feed.totalItems })}</span>
 		{/if}
 	</div>
 
@@ -31,7 +33,7 @@
 		<LiveLobbiesTable lobbies={[]} loading />
 	{:else if feed.items.length === 0}
 		<p class="text-secondary-400 px-4 py-3 text-sm">
-			No community members are in a match right now.
+			{t('No community members are in a match right now.')}
 		</p>
 	{:else}
 		<LiveLobbiesTable lobbies={feed.items} />

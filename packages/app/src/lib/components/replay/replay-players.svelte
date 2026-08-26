@@ -26,6 +26,7 @@
 		getPlayerAlias,
 		getPlayerProfileId
 	} from '$lib/components/widgets/dashboard-utils';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {} & HTMLAttributes<HTMLDivElement> & {
 		flush?: boolean;
@@ -33,6 +34,7 @@
 	};
 
 	let { flush = false, match = null, ...restProps }: Props = $props();
+	const { t } = useI18n();
 	let replay = $derived(useReplay());
 
 	const teams = $derived.by(() => ({
@@ -130,7 +132,7 @@
 	{@const stats = lobbyPlayer
 		? getLeaderboardStatsForPlayerByMatchType(result?.matchtype_id ?? matchType, lobbyPlayer)
 		: undefined}
-	{@const doctrineLabel = player.doctrineName || 'Unknown doctrine'}
+	{@const doctrineLabel = player.doctrineName || t('Unknown doctrine')}
 	{@const profileId = lobbyPlayer ? getPlayerProfileId(lobbyPlayer) : undefined}
 	{@const nameClass = cn(
 		'block truncate text-base font-semibold tracking-tight transition-colors',
@@ -183,7 +185,7 @@
 								<span class="text-secondary-700" aria-hidden="true">·</span>
 								<span class="text-secondary-300 inline-flex items-center gap-1">
 									<PlayerUi.Rank class="h-4 w-4" />
-									<span class="text-secondary-500">Lv</span>
+									<span class="text-secondary-500">{t('Lv')}</span>
 									<PlayerUi.Level class="text-secondary-200" />
 								</span>
 								<span class="text-secondary-700" aria-hidden="true">·</span>
@@ -230,7 +232,7 @@
 
 			<div class="flex w-12 shrink-0 flex-col items-center justify-center gap-0.5">
 				<span class="text-secondary-500 text-[10px] font-semibold tracking-wider uppercase">
-					CPM
+					{t('CPM')}
 				</span>
 				<span class="text-primary text-xl leading-none font-bold tabular-nums">
 					{playerCpm.get(player.id) ?? '0'}
@@ -247,9 +249,9 @@
 		>
 			<span class="min-w-0 flex-1">{label}</span>
 			{#if showMatchStats}
-				<span class="text-right">Rating</span>
+				<span class="text-right">{t('Rating')}</span>
 			{/if}
-			<span class="text-primary w-12 text-center font-semibold">CPM</span>
+			<span class="text-primary w-12 text-center font-semibold">{t('CPM')}</span>
 		</div>
 		{#each players as player (player.id + '-' + player.name)}
 			{@render playerRowContent(player)}
@@ -266,9 +268,9 @@
 	)}
 >
 	<div class={cn(!flush && 'border-secondary-800 overflow-clip rounded-lg border')}>
-		{@render teamColumn('Allies', teams.allies)}
+		{@render teamColumn(t('Allies'), teams.allies)}
 	</div>
 	<div class={cn(!flush && 'border-secondary-800 overflow-clip rounded-lg border')}>
-		{@render teamColumn('Axis', teams.axis)}
+		{@render teamColumn(t('Axis'), teams.axis)}
 	</div>
 </div>

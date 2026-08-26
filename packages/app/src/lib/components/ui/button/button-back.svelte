@@ -4,6 +4,7 @@
 	import { cn } from '$lib/utils';
 	import { interactive } from '$lib/components/ui/variants';
 	import ArrowLeft from 'phosphor-svelte/lib/ArrowLeftIcon';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		href?: string;
@@ -18,6 +19,7 @@
 		class: className,
 		...restProps
 	}: Props = $props();
+	const { t } = useI18n();
 
 	function handleClick(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }) {
 		if (onclick) {
@@ -49,7 +51,7 @@
 		{#if children}
 			{@render children()}
 		{:else}
-			Back to previous page
+			{t('Back to previous page')}
 		{/if}
 	{/if}
 </button>

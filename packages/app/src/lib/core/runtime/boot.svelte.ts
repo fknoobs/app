@@ -5,6 +5,7 @@ import { settings } from '$core/config/settings.svelte';
 import type { BackupCandidate } from '$core/config/backup';
 import { account } from '$core/account';
 import { game } from '$core/game/process.svelte';
+import { setLocale, t } from '$lib/i18n';
 
 export type BootPhase =
 	| 'idle'
@@ -74,7 +75,7 @@ export class Boot {
 	}
 
 	get phaseLabel(): string {
-		return PHASE_LABELS[this.phase];
+		return t(PHASE_LABELS[this.phase]);
 	}
 
 	/**
@@ -163,13 +164,16 @@ export class Boot {
 		try {
 			const result = await settings.load();
 			this.#settingsLoaded = true;
+			setLocale(app.settings.locale);
 
 			if (result.source === 'legacy') {
 				console.info('[BOOT]: migrated settings from the legacy store');
 			}
 		} catch (error) {
 			this.phase = 'error';
-			this.error = `Failed to load settings: ${error instanceof Error ? error.message : error}`;
+			this.error = t('Failed to load settings: {message}', {
+				message: error instanceof Error ? error.message : String(error)
+			});
 			throw error;
 		}
 	}
@@ -191,8 +195,10 @@ export class Boot {
 				this.phase = 'error';
 				this.error =
 					outcome.reason === 'declined'
-						? 'Account setup was cancelled. The app needs an account to function.'
-						: `Could not sign in: ${outcome.error ?? 'unknown error'}`;
+						? t('Account setup was cancelled. The app needs an account to function.')
+						: t('Could not sign in: {message}', {
+								message: outcome.error ?? t('unknown error')
+							});
 				this.#startPromise = null;
 				return false;
 			}
@@ -229,7 +235,9 @@ export class Boot {
 		} catch (error) {
 			console.error('[BOOT]: boot failed:', error);
 			this.phase = 'error';
-			this.error = error instanceof Error ? error.message : String(error);
+			this.error = t('Something went wrong: {message}', {
+				message: error instanceof Error ? error.message : String(error)
+			});
 			this.#startPromise = null;
 			return false;
 		}

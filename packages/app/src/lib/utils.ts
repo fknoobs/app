@@ -148,7 +148,7 @@ export function getRankImageByLeaderboardId(leaderboardId: number, rank?: number
 	return getRankImage(race, rank);
 }
 
-export function normalizeMapName(mapName: string): string {
+export function normalizeMapName(mapName: string, includePlayerCount = true): string {
 	const match = mapName.match(/^(\d+)[pP][ _](.+)$/);
 	if (!match) {
 		return mapName.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -160,6 +160,7 @@ export function normalizeMapName(mapName: string): string {
 		.toLowerCase()
 		.replace(/\b\w/g, (c) => c.toUpperCase());
 
+	if (!includePlayerCount) return formattedName;
 	return `${formattedName} (${playerCount})`;
 }
 

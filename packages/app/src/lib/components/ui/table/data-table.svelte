@@ -8,6 +8,7 @@
 	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
 	import ArrowsDownUpIcon from 'phosphor-svelte/lib/ArrowsDownUpIcon';
 	import type { ColumnDef, DataTableProps } from './table.types';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = DataTableProps<T>;
 
@@ -35,6 +36,7 @@
 		density = 'default',
 		striped = false
 	}: Props = $props();
+	const { t } = useI18n();
 
 	const isCompact = $derived(density === 'compact');
 	const cellPad = $derived(isCompact ? 'px-4 py-1.5' : 'px-4');
@@ -80,14 +82,14 @@
 	{#each columns as column (column.id)}
 		{@const cellSnippet = getCellSnippet(column)}
 		{@const cellHref = column.href?.(row)}
-		<td class={cn(cellPad, column.cellClass?.(row))}>
+		<td class={cn(cellPad, 'h-full', column.cellClass?.(row))}>
 			{#if cellSnippet}
 				{#if cellHref}
-					<a href={cellHref} class={cn('hover:text-primary flex min-w-0 items-center gap-4 transition-colors', column.class)}>
+					<a href={cellHref} class={cn('hover:text-primary flex h-full min-w-0 items-center gap-4 transition-colors', column.class)}>
 						{@render cellSnippet({ row })}
 					</a>
 				{:else}
-					<div class={cn('flex min-w-0 items-center', column.class)}>
+					<div class={cn('flex h-full min-w-0 items-center', column.class)}>
 						{@render cellSnippet({ row })}
 					</div>
 				{/if}
@@ -188,11 +190,11 @@
 										typeof header === 'string' && 'gap-1',
 										column.headerClass
 									)}
-									aria-label={typeof header === 'string' ? `Sort by ${header}` : undefined}
+									aria-label={typeof header === 'string' ? t('Sort by {header}', { header }) : undefined}
 									onclick={column.onSort}
 								>
 									{#if typeof header === 'string'}
-										{header}
+										{t(header)}
 										{#if column.sortDirection === 'desc'}
 											<ArrowDownIcon size={14} class="shrink-0" weight="duotone" />
 										{:else if column.sortDirection === 'asc'}
@@ -207,7 +209,7 @@
 							{:else}
 								<div class={cn('min-w-0', column.headerClass)}>
 									{#if typeof header === 'string'}
-										{header}
+										{t(header)}
 									{:else}
 										{@render header()}
 									{/if}
@@ -226,7 +228,7 @@
 			{:else if data.length === 0}
 				<tr>
 					<td colspan={columns.length} class={cn('text-secondary-400 text-sm', cellPad, isCompact ? '' : 'py-3')}>
-						{empty}
+						{t(empty)}
 					</td>
 				</tr>
 			{:else}

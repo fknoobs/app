@@ -8,8 +8,10 @@
 	import { basename, pictureDir } from '@tauri-apps/api/path';
 	import { useEditor } from '../context.svelte';
 	import { getFileUrl } from '$core/pocketbase';
+	import { useI18n } from '$lib/i18n';
 
 	const editor = useEditor();
+	const { t } = useI18n();
 </script>
 
 <Button
@@ -19,7 +21,7 @@
 			multiple: true,
 			filters: [
 				{
-					name: 'Images',
+					name: t('Images'),
 					extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'svg']
 				}
 			]

@@ -19,6 +19,9 @@
 	import { interactive } from '$lib/components/ui/variants';
 	import { upperCase } from 'lodash-es';
 	import type { Snapshot } from '@sveltejs/kit';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	let currentTab = $state('stats');
 
@@ -30,7 +33,7 @@
 				: await relic.getProfileById(parseInt(id!, 10));
 
 			if (!relicProfile) {
-				throw new Error('Profile not found');
+				throw new Error(t('Profile not found'));
 			}
 
 			const steamId = relicProfile.name.replace('/steam/', '');
@@ -42,7 +45,7 @@
 			]);
 
 			if (!steamProfile) {
-				throw new Error('Profile not found');
+				throw new Error(t('Profile not found'));
 			}
 
 			const smurf = await loadSmurfAlert(steamId, relicProfile.profile_id);
@@ -91,7 +94,7 @@
 	};
 </script>
 
-<SetCrumbs items={[{ label: profile.current?.relic.alias ?? 'Player' }]} />
+<SetCrumbs items={[{ label: profile.current?.relic.alias ?? t('Player') }]} />
 
 {#if profile.loading}
 	<Player.ProfileSkeleton />
@@ -135,21 +138,21 @@
 		<div class="border-secondary-800 border-b">
 			<div class="flex items-center gap-2 px-4 py-2.5">
 				<button type="button" class={tabClass('stats')} onclick={() => (currentTab = 'stats')}>
-					Stats
+					{t('Stats')}
 				</button>
 				<button
 					type="button"
 					class={tabClass('performance')}
 					onclick={() => (currentTab = 'performance')}
 				>
-					Performance
+					{t('Performance')}
 				</button>
 				<button
 					type="button"
 					class={tabClass('match-history')}
 					onclick={() => (currentTab = 'match-history')}
 				>
-					Match history
+					{t('Match history')}
 				</button>
 			</div>
 
@@ -177,20 +180,20 @@
 		<div class="text-secondary-400 bg-secondary-950/50 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm">
 			{#if profile.current.steam.lastlogoff}
 				<span>
-					<span class="text-secondary-500">Last seen</span>
+					<span class="text-secondary-500">{t('Last seen')}</span>
 					{dayjs.unix(profile.current.steam.lastlogoff).fromNow()}
 				</span>
 			{/if}
 			{#if profile.current.game?.playtime_forever}
 				<span>
-					<span class="text-secondary-500">Playtime</span>
-					{(profile.current.game.playtime_forever / 60).toFixed(0)} hours
+					<span class="text-secondary-500">{t('Playtime')}</span>
+					{t('{hours} hours', { hours: (profile.current.game.playtime_forever / 60).toFixed(0) })}
 				</span>
 			{/if}
 			{#if profile.current.game?.playtime_2weeks}
 				<span>
-					<span class="text-secondary-500">Past 2 weeks</span>
-					{(profile.current.game.playtime_2weeks / 60).toFixed(0)} hours
+					<span class="text-secondary-500">{t('Past 2 weeks')}</span>
+					{t('{hours} hours', { hours: (profile.current.game.playtime_2weeks / 60).toFixed(0) })}
 				</span>
 			{/if}
 		</div>

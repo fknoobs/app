@@ -1,5 +1,6 @@
 import type { LobbyPlayer } from '@fknoobs/app';
 import { groupBy } from 'lodash-es';
+import { t } from '$lib/i18n';
 
 export const MATCH_TYPES = {
 	0: 'Basic Match',
@@ -79,17 +80,17 @@ export class Lobby {
 	}
 
 	get outcomeFormatted(): string {
-		if (!this.outcome) return 'Unknown';
+		if (!this.outcome) return t('Unknown');
 
 		switch (this.outcome) {
 			case 'PS_WON':
-				return 'Won';
+				return t('Won');
 			case 'PS_LOST':
-				return 'Lost';
+				return t('Lost');
 			case 'PS_ABORTED':
-				return 'Aborted';
+				return t('Aborted');
 			default:
-				return 'Unknown';
+				return t('Unknown');
 		}
 	}
 
@@ -133,11 +134,11 @@ export class Lobby {
 	}
 
 	get type(): string {
-		return MATCH_TYPES[this.matchType] ?? 'Custom Game';
+		return t(MATCH_TYPES[this.matchType] ?? 'Custom Game');
 	}
 
 	get mapName(): string {
-		if (!this.map) return 'Unknown Map';
+		if (!this.map) return t('Unknown Map');
 
 		const match = this.map.match(/^(\d+)p_(.+)$/);
 		if (!match) {

@@ -9,6 +9,7 @@
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import { selectionPicker } from './selection-picker';
+	import { useI18n } from '$lib/i18n';
 
 	const PAGE_SIZE = 50;
 
@@ -36,6 +37,7 @@
 		getDisplayLabel,
 		onEditSelected
 	}: Props = $props();
+	const { t } = useI18n();
 
 	let search = $state('');
 	let displayedCount = $state(PAGE_SIZE);
@@ -64,16 +66,16 @@
 
 		if (multiple) {
 			const selected = selectedValues;
-			if (selected.length === 0) return placeholder;
+			if (selected.length === 0) return t(placeholder);
 			if (selected.length === 1) {
 				const option = options.find((opt) => opt.value === selected[0]);
-				return option ? labelFor(option) : placeholder;
+				return option ? labelFor(option) : t(placeholder);
 			}
-			return `${selected.length} selected`;
+			return t('{count} selected', { count: selected.length });
 		}
 
 		const option = value ? options.find((option) => option.value === value) : undefined;
-		return option ? labelFor(option) : placeholder;
+		return option ? labelFor(option) : t(placeholder);
 	});
 
 	$effect(() => {
@@ -156,7 +158,7 @@
 				value = multiple ? [] : '';
 			}}
 		>
-			Clear All
+			{t('Clear All')}
 		</button>
 
 		{#each selectedValues as selectedValue (selectedValue)}
@@ -176,7 +178,7 @@
 								interactive,
 								'text-secondary-400 hover:text-secondary-200 shrink-0 rounded p-0.5'
 							)}
-							aria-label="Edit alias"
+							aria-label={t('Edit alias')}
 							onpointerdown={(e) => {
 								e.preventDefault();
 								e.stopPropagation();
@@ -193,7 +195,7 @@
 							interactive,
 							'text-secondary-400 hover:text-destructive/80 shrink-0 rounded p-0.5'
 						)}
-						aria-label="Remove"
+						aria-label={t('Remove')}
 						onclick={(e) => removeValue(selectedValue, e)}
 					>
 						<X size={12} />
@@ -219,9 +221,9 @@
 				data-selection-picker
 				class="fixed top-24 left-1/2 z-9999 w-full max-w-lg -translate-x-1/2 px-4 outline-hidden"
 			>
-				<Dialog.Title class="sr-only">Select option</Dialog.Title>
+				<Dialog.Title class="sr-only">{t('Select option')}</Dialog.Title>
 				<Command.Root
-					label="Select option"
+					label={t('Select option')}
 					loop
 					shouldFilter={false}
 					class={cn(
@@ -236,7 +238,7 @@
 							'focus:border-secondary-800 rounded-none border-0 border-b bg-transparent px-4 text-sm focus:ring-0',
 							'placeholder:text-secondary-500'
 						)}
-						placeholder="Search..."
+						placeholder={t('Search...')}
 					/>
 					<Command.List class="max-h-60 overflow-x-hidden overflow-y-auto">
 						<Command.Viewport>
@@ -244,7 +246,7 @@
 								<Command.Empty
 									class="text-secondary-400 flex items-center justify-center py-6 text-sm"
 								>
-									No results found.
+									{t('No results found.')}
 								</Command.Empty>
 							{:else}
 								<Command.Group>

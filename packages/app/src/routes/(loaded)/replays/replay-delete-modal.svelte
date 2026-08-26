@@ -3,6 +3,7 @@
 	import { cn } from '$lib/utils';
 	import HardDrivesIcon from 'phosphor-svelte/lib/HardDrivesIcon';
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
+	import { useI18n } from '$lib/i18n';
 
 	export type ReplayDeleteMode = 'local' | 'everywhere';
 
@@ -14,6 +15,7 @@
 	};
 
 	let { title, hasLocal, onConfirm, onCancel }: Props = $props();
+	const { t } = useI18n();
 	let deleting = $state<ReplayDeleteMode | null>(null);
 
 	async function confirm(mode: ReplayDeleteMode) {
@@ -29,8 +31,8 @@
 
 <div class="flex flex-col gap-5">
 	<p class="text-secondary-300 text-sm leading-relaxed">
-		Choose what to remove for
-		<span class="text-secondary-100 font-medium">{title || 'this replay'}</span>.
+		{t('Choose what to remove for')}
+		<span class="text-secondary-100 font-medium">{title || t('this replay')}</span>.
 	</p>
 
 	<div class="flex flex-col gap-3">
@@ -56,13 +58,12 @@
 				{/if}
 			</span>
 			<span class="min-w-0">
-				<span class="text-secondary-100 block text-sm font-medium">Local file only</span>
+				<span class="text-secondary-100 block text-sm font-medium">{t('Local file only')}</span>
 				<span class="text-secondary-400 mt-1 block text-sm leading-relaxed">
 					{#if hasLocal}
-						Removes the `.rec` from your Company of Heroes playback folder. Keeps it in your
-						library so you can download it again later.
+						{t('Removes the `.rec` from your Company of Heroes playback folder. Keeps it in your library so you can download it again later.')}
 					{:else}
-						No local playback file found for this replay.
+						{t('No local playback file found for this replay.')}
 					{/if}
 				</span>
 			</span>
@@ -90,9 +91,9 @@
 				{/if}
 			</span>
 			<span class="min-w-0">
-				<span class="text-destructive block text-sm font-medium">Delete everywhere</span>
+				<span class="text-destructive block text-sm font-medium">{t('Delete everywhere')}</span>
 				<span class="text-secondary-400 mt-1 block text-sm leading-relaxed">
-					Removes it from your library and deletes the local playback file if it exists.
+					{t('Removes it from your library and deletes the local playback file if it exists.')}
 				</span>
 			</span>
 		</button>
@@ -100,7 +101,7 @@
 
 	<div class="flex justify-end">
 		<Button type="button" variant="secondary" disabled={!!deleting} onclick={onCancel}>
-			Cancel
+			{t('Cancel')}
 		</Button>
 	</div>
 </div>

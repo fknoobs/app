@@ -3,12 +3,14 @@
 	import { cn } from '$lib/utils';
 	import { interactive } from '$lib/components/ui/variants';
 	import { crumbsFromPath, useBreadcrumbs } from './crumbs.svelte';
+	import { useI18n } from '$lib/i18n';
 
+	const { t } = useI18n();
 	const breadcrumbs = useBreadcrumbs();
 	const crumbs = $derived(crumbsFromPath(page.url.pathname, breadcrumbs.extra));
 </script>
 
-<nav aria-label="Breadcrumb">
+<nav aria-label={t('Breadcrumb')}>
 	<ol class="font-heading flex items-center text-sm font-bold">
 		{#each crumbs as crumb, i (crumb.label + String(i))}
 			{#if i > 0}

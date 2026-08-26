@@ -5,6 +5,7 @@
 	import CaretLeft from 'phosphor-svelte/lib/CaretLeftIcon';
 	import CaretRight from 'phosphor-svelte/lib/CaretRightIcon';
 	import { controlBase, interactive } from '../variants';
+	import { useI18n } from '$lib/i18n';
 
 	let {
 		page = $bindable<number>(),
@@ -12,6 +13,7 @@
 		perPage = 1,
 		...restProps
 	}: PaginationRootProps = $props();
+	const { t } = useI18n();
 
 	let pageInput = $state('');
 	let totalPages = $derived(Math.max(1, Math.ceil(count / perPage)));
@@ -90,7 +92,7 @@
 				<input
 					type="text"
 					inputmode="numeric"
-					aria-label="Page number"
+					aria-label={t('Page number')}
 					bind:value={pageInput}
 					onkeydown={onPageInputKeydown}
 					onblur={commitPageInput}

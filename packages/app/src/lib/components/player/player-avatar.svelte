@@ -4,11 +4,13 @@
 	import { steam } from '$core/steam';
 	import type { HTMLAttributes } from 'svelte/elements';
 	import { cn } from '$lib/utils';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = HTMLAttributes<HTMLElement>;
 
 	let { player } = usePlayer();
 	let { ...restProps }: Props = $props();
+	const { t } = useI18n();
 	let imgSrc: string | null = $state(null);
 
 	onMount(() => {
@@ -25,7 +27,7 @@
 {#if imgSrc}
 	<img
 		src={imgSrc}
-		alt={player.profile?.alias || 'Player Avatar'}
+		alt={player.profile?.alias || t('Player Avatar')}
 		{...restProps}
 		class={cn('size-full object-cover', restProps.class)}
 	/>

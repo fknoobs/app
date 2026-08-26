@@ -1,4 +1,5 @@
 import { SCHEMA_VERSION, validateSettings, type Settings } from './schema';
+import { t } from '$lib/i18n';
 
 /**
  * Settings migrations.
@@ -89,7 +90,9 @@ export function migrateV1(store: Record<string, unknown>): Settings {
 	if (!result.success) {
 		// v1 content was malformed beyond repair; fall back to a tree that at
 		// least preserves the raw slices for manual recovery.
-		throw new Error(`Failed to migrate v1 settings: ${result.error}`);
+		throw new Error(
+			t('Failed to migrate v1 settings: {message}', { message: result.error })
+		);
 	}
 
 	return result.data;

@@ -4,10 +4,12 @@
 	import { cn } from '$lib/utils';
 	import { tooltip } from '$lib/attachments';
 	import Ranking from 'phosphor-svelte/lib/RankingIcon';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = HTMLAttributes<HTMLSpanElement>;
 
 	const { ...restProps }: Props = $props();
+	const { t } = useI18n();
 	const match = useMatch();
 	const title = $derived(
 		match.isRanked ? match.title : match.result ? (match.result as any).description : match.title
@@ -16,7 +18,7 @@
 
 <span {...restProps} class={cn('flex items-center gap-2 font-medium', restProps.class)}>
 	{#if match.isRanked}
-		<span {@attach tooltip('Ranked match')}>
+		<span {@attach tooltip(t('Ranked match'))}>
 			<Ranking class="text-primary-100" weight="duotone" />
 		</span>
 	{:else}

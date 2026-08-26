@@ -1,4 +1,5 @@
 import type { AccountSettings } from '$core/config/schema';
+import { t } from '$lib/i18n';
 
 /**
  * Account recovery decision tree (pure, fully testable).
@@ -116,7 +117,7 @@ async function createNewAccount(ports: RecoveryPorts): Promise<RecoveryOutcome> 
 		return {
 			action: 'failed',
 			reason: 'error',
-			error: 'Created account could not be authenticated'
+			error: t('Created account could not be authenticated')
 		};
 	}
 

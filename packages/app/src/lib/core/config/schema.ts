@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { t } from '$lib/i18n';
 
 /**
  * Versioned settings schema.
@@ -25,6 +26,7 @@ export const appSettingsSchema = z
 		autostart: z.boolean().default(true),
 		closeToTray: z.boolean().default(true),
 		isStreamer: z.boolean().default(false),
+		locale: z.string().default('en'),
 		companyOfHeroesConfigPath: z.string().default(''),
 		companyOfHeroesInstallationPath: z.string().default('')
 	})
@@ -79,7 +81,7 @@ export function validateSettings(
 	value: unknown
 ): { success: true; data: Settings } | { success: false; error: string } {
 	if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-		return { success: false, error: 'Settings must be a JSON object' };
+		return { success: false, error: t('Settings must be a JSON object') };
 	}
 
 	const result = settingsSchema.safeParse(value);

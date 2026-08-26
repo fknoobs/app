@@ -8,6 +8,7 @@
 	import * as List from '$lib/components/ui/list';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import MapImage from '$lib/components/ui/map-image.svelte';
 	import { cn, getFactionFlagFromRace, normalizeMapName } from '$lib/utils';
 	import { MATCH_TYPES } from '$core/game/lobby';
 	import {
@@ -20,6 +21,7 @@
 	import { tooltip } from '$lib/attachments';
 	import { resource } from 'runed';
 	import type { Snippet } from 'svelte';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		profileId: number | null | undefined;
@@ -31,6 +33,7 @@
 	};
 
 	let { profileId, scope, userId = null, empty = 'other', class: className, meta }: Props = $props();
+	const { t } = useI18n();
 
 	const performance = resource(
 		[() => profileId ?? null, () => scope, () => userId ?? null],
@@ -50,8 +53,8 @@
 	const isLoading = $derived(performance.loading && stats.matchCount === 0);
 	const emptyMessage = $derived(
 		empty === 'self'
-			? 'Play with the companion running to build stats.'
-			: 'No tracked community matches for this player.'
+			? t('Play with the companion running to build stats.')
+			: t('No tracked community matches for this player.')
 	);
 
 	const bestMap = $derived.by(() => {
@@ -80,50 +83,50 @@
 	}
 
 	function modeLabel(matchtypeId: number): string {
-		return MATCH_TYPES[matchtypeId as keyof typeof MATCH_TYPES] ?? `Mode ${matchtypeId}`;
+		return MATCH_TYPES[matchtypeId as keyof typeof MATCH_TYPES] ?? t('Mode {id}', { id: matchtypeId });
 	}
 
 	function recentMatchLabel(match: PerformanceRecentMatch): string {
-		const faction = match.raceId != null ? getRaceLabel(match.raceId) : 'Unknown';
-		const mode = match.matchtypeId != null ? modeLabel(match.matchtypeId) : 'Unknown';
+		const faction = match.raceId != null ? getRaceLabel(match.raceId) : t('Unknown');
+		const mode = match.matchtypeId != null ? modeLabel(match.matchtypeId) : t('Unknown');
 		return `${faction} · ${mode}`;
 	}
 
 	function recentMatchTooltip(match: PerformanceRecentMatch): string {
-		const mode = match.matchtypeId != null ? modeLabel(match.matchtypeId) : 'Unknown';
+		const mode = match.matchtypeId != null ? modeLabel(match.matchtypeId) : t('Unknown');
 		if (match.raceId == null) return mode;
 		return `<span class="inline-flex items-center gap-1.5 leading-none"><span class="inline-flex p-[3px]"><img src="${getFactionFlagFromRace(match.raceId)}" alt="" class="ring-secondary-800 h-5 w-5 shrink-0 rounded-full object-cover ring-3" /></span>${mode}</span>`;
 	}
 </script>
 
-<div class={cn(meta && 'flex flex-wrap items-start gap-x-10 gap-y-3', className)}>
+<div class={cn(meta && 'grid items-start gap-x-10 gap-y-4 sm:grid-cols-2', className)}>
 	{#if isLoading}
-		<div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-2">
+		<div class="grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2">
 			{#each Array(4) as _, index (index)}
 				<Skeleton class="h-4 w-20" />
 				<Skeleton class="h-4 w-36" />
 			{/each}
 		</div>
 	{:else}
-		<List.Root class="gap-x-4">
+		<List.Root class="grid-cols-[7rem_minmax(0,1fr)] gap-x-4">
 			{#if stats.matchCount > 0}
-				<List.Title>Tracked:</List.Title>
-				<List.Value>{stats.matchCount} matches</List.Value>
-				<List.Title>Record:</List.Title>
+				<List.Title>{t('Tracked:')}</List.Title>
+				<List.Value>{t('{count} matches', { count: stats.matchCount })}</List.Value>
+				<List.Title>{t('Record:')}</List.Title>
 				<List.Value class={valueRow}>
-					<span class={statWins}>{stats.wins}W</span>
+					<span class={statWins}>{t('{count}W', { count: stats.wins })}</span>
 					<span class="text-secondary-600">·</span>
-					<span class={statLosses}>{stats.losses}L</span>
+					<span class={statLosses}>{t('{count}L', { count: stats.losses })}</span>
 					<LeaderboardStatPill type="ratio" wins={stats.wins} losses={stats.losses} streak={0} />
 				</List.Value>
 				{#if recentMatches.length > 0}
-					<List.Title>Recent matches:</List.Title>
+					<List.Title>{t('Recent:')}</List.Title>
 					<List.Value class="inline-flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto">
 						{#each recentMatches as match (match.id || match.sessionId)}
 							<a
 								href="/history/{match.id}"
 								class={cn(interactive, 'group inline-flex shrink-0')}
-								aria-label="{match.outcome === 1 ? 'Win' : 'Loss'} — {recentMatchLabel(match)}"
+								aria-label="{match.outcome === 1 ? t('Win') : t('Loss')} — {recentMatchLabel(match)}"
 								{@attach tooltip(recentMatchTooltip(match))}
 							>
 								<Badge
@@ -133,33 +136,36 @@
 										match.outcome === 1 ? recentMatchWin : recentMatchLoss
 									)}
 								>
-									{match.outcome === 1 ? 'W' : 'L'}
+									{match.outcome === 1 ? t('W') : t('L')}
 								</Badge>
 							</a>
 						{/each}
 					</List.Value>
 				{/if}
 				{#if bestMap}
-					<List.Title>Best map:</List.Title>
+					<List.Title>{t('Best map:')}</List.Title>
 					<List.Value class={valueRow}>
-						<span class="text-secondary-300 max-w-56 truncate">{normalizeMapName(bestMap.map)}</span>
-						<span class={statWins}>{bestMap.wins}W</span>
+						<MapImage small map={bestMap.map} alt={normalizeMapName(bestMap.map, false)} />
+						<span class="text-secondary-300 max-w-44 truncate">
+							{normalizeMapName(bestMap.map, false)}
+						</span>
+						<span class={statWins}>{t('{count}W', { count: bestMap.wins })}</span>
 						<span class="text-secondary-600">·</span>
-						<span class={statLosses}>{bestMap.losses}L</span>
+						<span class={statLosses}>{t('{count}L', { count: bestMap.losses })}</span>
 						<span class="font-medium" style:color={getRatioColor(bestMap.wins, bestMap.losses)}>
 							{winrate(bestMap)}
 						</span>
 					</List.Value>
 				{/if}
 			{:else}
-				<List.Title>Tracked:</List.Title>
+				<List.Title>{t('Tracked:')}</List.Title>
 				<List.Value class="text-secondary-400 text-sm">{emptyMessage}</List.Value>
 			{/if}
 		</List.Root>
 	{/if}
 	{#if meta}
-		<List.Root class="gap-x-4">
+		<div class="min-w-0">
 			{@render meta()}
-		</List.Root>
+		</div>
 	{/if}
 </div>

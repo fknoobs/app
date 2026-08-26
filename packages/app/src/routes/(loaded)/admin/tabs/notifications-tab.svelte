@@ -12,18 +12,21 @@
 	import type { UsersResponse } from '$core/pocketbase/types';
 	import dayjs from '$lib/dayjs';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	const sentColumns: ColumnDef<NotificationRecord>[] = [
-		{ id: 'title', header: 'Titel', width: 'w-5/24', accessor: (notification) => notification.title, class: 'truncate font-medium' },
+		{ id: 'title', header: t('Title'), width: 'w-5/24', accessor: (notification) => notification.title, class: 'truncate font-medium' },
 		{
 			id: 'body',
-			header: 'Bericht',
+			header: t('Message'),
 			width: 'w-10/24',
 			accessor: (notification) => notification.body,
 			class: 'text-secondary-400 truncate text-sm'
 		},
-		{ id: 'recipients', header: 'Ontvangers', width: 'w-5/24', class: 'text-secondary-400 truncate text-sm' },
-		{ id: 'created', header: 'Verstuurd', width: 'w-4/24', class: 'text-secondary-500 text-sm whitespace-nowrap' }
+		{ id: 'recipients', header: t('Recipients'), width: 'w-5/24', class: 'text-secondary-400 truncate text-sm' },
+		{ id: 'created', header: t('Sent'), width: 'w-4/24', class: 'text-secondary-500 text-sm whitespace-nowrap' }
 	];
 
 	const searchColumns: ColumnDef<UsersResponse>[] = [
@@ -90,12 +93,12 @@
 
 	const submit = async () => {
 		if (!title.trim() || !body.trim()) {
-			app.toast.error('Vul een titel en bericht in.');
+			app.toast.error(t('Enter a title and message.'));
 			return;
 		}
 
 		if (!targetAll && selectedUsers.length === 0) {
-			app.toast.error('Selecteer minstens één ontvanger of kies "alle gebruikers".');
+			app.toast.error(t('Select at least one recipient or choose all users.'));
 			return;
 		}
 
@@ -109,7 +112,7 @@
 				recipients: targetAll ? [] : selectedUsers.map((user) => user.id)
 			});
 
-			app.toast.success('Notificatie verstuurd.');
+			app.toast.success(t('Notification sent.'));
 			title = '';
 			body = '';
 			targetAll = false;
@@ -119,7 +122,7 @@
 			await loadSent();
 		} catch (error) {
 			console.error('[NOTIFICATIONS]: create failed:', error);
-			app.toast.error('Kon notificatie niet versturen.');
+			app.toast.error(t('Could not send notification.'));
 		} finally {
 			isSubmitting = false;
 		}
@@ -128,29 +131,29 @@
 
 <Form.Root class="max-w-2xl">
 	<Form.Group>
-		<Form.Label>Titel</Form.Label>
-		<Form.Description>Korte titel die in de notificatielijst verschijnt.</Form.Description>
-		<Input bind:value={title} placeholder="Titel" maxlength={200} />
+		<Form.Label>{t('Title')}</Form.Label>
+		<Form.Description>{t('Short title that appears in the notification list.')}</Form.Description>
+		<Input bind:value={title} placeholder={t('Title')} maxlength={200} />
 	</Form.Group>
 
 	<Form.Group>
-		<Form.Label>Bericht</Form.Label>
-		<Form.Description>Volledige inhoud in de modal. Markdown wordt ondersteund (koppen, lijsten, links, vet, cursief).</Form.Description>
-		<Textarea bind:value={body} rows={6} maxlength={10000} placeholder="Schrijf je bericht..." />
+		<Form.Label>{t('Message')}</Form.Label>
+		<Form.Description>{t('Full content in the modal. Markdown is supported (headings, lists, links, bold, italic).')}</Form.Description>
+		<Textarea bind:value={body} rows={6} maxlength={10000} placeholder={t('Write your message...')} />
 	</Form.Group>
 
 	<Form.Group>
-		<Checkbox label="Verstuur naar alle gebruikers" bind:checked={targetAll} />
+		<Checkbox label={t('Send to all users')} bind:checked={targetAll} />
 	</Form.Group>
 
 	{#if !targetAll}
 		<Form.Group>
-			<Form.Label>Ontvangers</Form.Label>
-			<Form.Description>Zoek gebruikers op naam of e-mailadres en voeg ze toe.</Form.Description>
+			<Form.Label>{t('Recipients')}</Form.Label>
+			<Form.Description>{t('Search users by name or email and add them.')}</Form.Description>
 			<div class="flex gap-2">
 				<Input
 					bind:value={userQuery}
-					placeholder="Zoek op naam of e-mail..."
+					placeholder={t('Search by name or email...')}
 					onkeydown={(event) => {
 						if (event.key === 'Enter') {
 							event.preventDefault();
@@ -159,7 +162,7 @@
 					}}
 				/>
 				<Button type="button" variant="secondary" onclick={() => searchUsers()} loading={isSearching}>
-					Zoeken
+					{t('Search')}
 				</Button>
 			</div>
 
@@ -198,7 +201,7 @@
 								size="icon-sm"
 								class="text-secondary-400 hover:text-white"
 								onclick={() => removeUser(user.id)}
-								aria-label="Verwijder {userLabel(user)}"
+								aria-label={t('Remove {name}', { name: userLabel(user) })}
 							>
 								<XIcon size={14} />
 							</Button>
@@ -209,16 +212,16 @@
 		</Form.Group>
 	{/if}
 
-	<Button type="button" onclick={() => submit()} loading={isSubmitting}>Versturen</Button>
+	<Button type="button" onclick={() => submit()} loading={isSubmitting}>{t('Send')}</Button>
 </Form.Root>
 
 <section class="mt-12">
-	<H level="2">Verzonden notificaties</H>
+	<H level="2">{t('Sent notifications')}</H>
 	{#if sentNotifications.length === 0}
-		<p class="text-secondary-400 mt-4 text-sm">Nog geen notificaties verstuurd.</p>
+		<p class="text-secondary-400 mt-4 text-sm">{t('No notifications sent yet.')}</p>
 	{:else}
 		{#snippet cell_recipients({ row }: { row: NotificationRecord })}
-			{row.targetAll ? 'Alle gebruikers' : `${row.recipients?.length ?? 0} ontvanger(s)`}
+			{row.targetAll ? t('All users') : t('{count} recipient(s)', { count: row.recipients?.length ?? 0 })}
 		{/snippet}
 		{#snippet cell_created({ row }: { row: NotificationRecord })}
 			{dayjs(row.created).format('D MMM YYYY HH:mm')}

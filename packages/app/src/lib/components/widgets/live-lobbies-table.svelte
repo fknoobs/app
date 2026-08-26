@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { LiveLobby } from '$core/app/database/lobbies-live';
-	import { goto } from '$app/navigation';
 	import MapImage from '$lib/components/ui/map-image.svelte';
+	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { cn, getFactionFlagFromRace, normalizeMapName } from '$lib/utils';
 	import { interactive } from '$lib/components/ui/variants';
@@ -15,6 +15,7 @@
 		getLiveLobbyModeLabel,
 		getPlayerAlias
 	} from './dashboard-utils';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		lobbies: LiveLobby[];
@@ -22,16 +23,11 @@
 	};
 
 	let { lobbies, loading = false }: Props = $props();
+	const { t } = useI18n();
 	let expandedId = $state<string | null>(null);
 
 	function toggleExpanded(id: string) {
 		expandedId = expandedId === id ? null : id;
-	}
-
-	function openDetails(event: MouseEvent, href: string) {
-		event.preventDefault();
-		event.stopPropagation();
-		void goto(href);
 	}
 </script>
 
@@ -49,13 +45,13 @@
 	</colgroup>
 	<thead>
 		<tr class="bg-secondary-950/90 text-secondary-300 border-secondary-800 border-b text-left text-xs font-semibold tracking-wide uppercase">
-			<th class="px-4 py-3 font-semibold">Map</th>
-			<th class="px-4 py-3 font-semibold">Name</th>
-			<th class="px-4 py-3 font-semibold">Type</th>
-			<th class="px-4 py-3 font-semibold">Allies</th>
-			<th class="px-4 py-3 font-semibold">Axis</th>
-			<th class="px-4 py-3 font-semibold">Host</th>
-			<th class="px-4 py-3 font-semibold whitespace-nowrap">Started at</th>
+			<th class="px-4 py-3 font-semibold">{t('Map')}</th>
+			<th class="px-4 py-3 font-semibold">{t('Name')}</th>
+			<th class="px-4 py-3 font-semibold">{t('Type')}</th>
+			<th class="px-4 py-3 font-semibold">{t('Allies')}</th>
+			<th class="px-4 py-3 font-semibold">{t('Axis')}</th>
+			<th class="px-4 py-3 font-semibold">{t('Host')}</th>
+			<th class="px-4 py-3 font-semibold whitespace-nowrap">{t('Started at')}</th>
 			<th class="px-4 py-3"></th>
 			<th class="px-4 py-3"></th>
 		</tr>
@@ -76,7 +72,7 @@
 				{@const expanded = expandedId === lobby.id}
 				{@const allies = getAlliesPlayers(lobby.players)}
 				{@const axis = getAxisPlayers(lobby.players)}
-				{@const hostName = lobby.user?.name ?? lobby.user?.email ?? 'Unknown'}
+				{@const hostName = lobby.user?.name ?? lobby.user?.email ?? t('Unknown')}
 				<tr
 					class={cn(
 						interactive,
@@ -87,8 +83,8 @@
 					aria-expanded={expanded}
 					onclick={() => toggleExpanded(lobby.id)}
 				>
-					<td class="px-4">
-						<MapImage small map={lobby.map} class="w-10" />
+					<td class="h-11 overflow-clip py-0 pr-0 pl-4">
+						<MapImage small flush map={lobby.map} />
 					</td>
 					<td class="truncate px-4 font-medium">{normalizeMapName(lobby.map)}</td>
 					<td class="text-secondary-400 truncate px-4 text-sm">
@@ -123,13 +119,16 @@
 						{dayjs(lobby.createdAt).fromNow()}
 					</td>
 					<td class="px-4">
-						<a
+						<Button
 							href="/live/{lobby.id}"
-							class={cn(interactive, 'text-primary text-sm whitespace-nowrap hover:underline')}
-							onclick={(event) => openDetails(event, `/live/${lobby.id}`)}
+							size="sm"
+							variant="secondary"
+							class="h-7 px-2.5 text-xs"
+							onpointerdown={(event) => event.stopPropagation()}
+							onclick={(event) => event.stopPropagation()}
 						>
-							View details
-						</a>
+							{t('Details')}
+						</Button>
 					</td>
 					<td class="px-4">
 						<CaretDown class={cn('size-4 transition-transform', expanded && 'rotate-180')} />

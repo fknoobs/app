@@ -2,39 +2,28 @@
 	import type { LobbyPlayer } from '@fknoobs/app';
 	import type { Match } from '$core/game/lobby';
 	import * as List from '$lib/components/ui/list';
-	import * as Player from '$lib/components/player';
 	import MapImage from '$lib/components/ui/map-image.svelte';
 	import { SetCrumbs } from '$lib/components/ui/breadcrumb';
-	import { cn, normalizeMapName } from '$lib/utils';
+	import { normalizeMapName } from '$lib/utils';
 	import { detailMetaGrid } from '$lib/components/ui/variants';
-	import { tooltip } from '$lib/attachments';
-	import { getLeaderboardStatsForPlayerByMatchType } from '$lib/utils/game';
-	import { getPlayerPerformance, type PlayerPerformance } from '$core/pocketbase/player-performance';
 	import { getPlayerRatings } from '$core/pocketbase/player-ratings';
 	import { isValidSteamId } from '$lib/utils/player-elo';
-	import { getMeProfileId, isMePlayer } from '$lib/utils/player-me';
 	import { loadSmurfAlert, type SmurfAlertState } from '$lib/player/smurf';
 	import { getEloColor, getEloTextShadow } from '$lib/components/leaderboard/leaderboard-utils';
 	import { resource } from 'runed';
 	import LobbyPlayersGrid from './lobby-players-grid.svelte';
-	import { getAlliesPlayers, getAxisPlayers, getPlayerAlias, getPlayerProfileId } from './dashboard-utils';
-	import {
-		buildPlayerScout,
-		formatMatchupGap,
-		getMatchupStats,
-		type PlayerScoutStats
-	} from './lobby-scout';
+	import { getAlliesPlayers, getAxisPlayers, getPlayerProfileId } from './dashboard-utils';
+	import { formatMatchupGap, getMatchupStats } from './lobby-scout';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		lobby: Match;
 	};
 
-	type ScoutExtras = {
-		performances: Record<number, PlayerPerformance>;
-		smurfs: Record<number, SmurfAlertState>;
-	};
+	type SmurfMap = Record<number, SmurfAlertState>;
 
 	let { lobby }: Props = $props();
+	const { t } = useI18n();
 
 	const allies = $derived(getAlliesPlayers(lobby.players));
 	const axis = $derived(getAxisPlayers(lobby.players));
@@ -63,64 +52,40 @@
 		});
 	});
 	const humans = $derived(players.filter((player) => player.playerId !== -1));
-	const scoutKey = $derived(
+	const smurfKey = $derived(
 		humans
 			.map((player) => {
 				const profileId = getPlayerProfileId(player) ?? 0;
-				return `${profileId}:${player.steamId ?? ''}:${player.matchHistory?.length ?? 0}`;
+				return `${profileId}:${player.steamId ?? ''}`;
 			})
 			.join('|')
 	);
 
-	async function loadScoutExtras(source: LobbyPlayer[]): Promise<ScoutExtras> {
-		const performances: Record<number, PlayerPerformance> = {};
-		const smurfs: Record<number, SmurfAlertState> = {};
-		if (source.length === 0) return { performances, smurfs };
+	async function loadSmurfs(source: LobbyPlayer[]): Promise<SmurfMap> {
+		const next: SmurfMap = {};
+		if (source.length === 0) return next;
 
 		await Promise.all(
 			source.map(async (player) => {
 				const profileId = getPlayerProfileId(player);
 				const steamId = player.steamId;
-				const [performance, smurf] = await Promise.all([
-					profileId
-						? getPlayerPerformance({ profileId, scope: 'community' })
-						: Promise.resolve(null),
-					steamId && isValidSteamId(steamId)
-						? loadSmurfAlert(steamId, profileId, 'lobby_match')
-						: Promise.resolve(null)
-				]);
-
-				if (profileId != null && performance) {
-					performances[profileId] = performance;
-				}
+				if (!steamId || !isValidSteamId(steamId)) return;
+				const smurf = await loadSmurfAlert(steamId, profileId, 'lobby_match');
 				if (profileId != null && smurf) {
-					smurfs[profileId] = smurf;
+					next[profileId] = smurf;
 				}
 			})
 		);
 
-		return { performances, smurfs };
+		return next;
 	}
 
-	const scoutExtras = resource(() => scoutKey, () => loadScoutExtras(humans));
-	const scout = $derived.by((): Record<number, PlayerScoutStats> => {
-		const extras = scoutExtras.current;
-		const next: Record<number, PlayerScoutStats> = {};
+	const smurfAlerts = resource(
+		() => smurfKey,
+		() => loadSmurfs(humans)
+	);
+	const smurfs = $derived(smurfAlerts.current);
 
-		for (const player of humans) {
-			const profileId = getPlayerProfileId(player);
-			if (profileId == null) continue;
-			next[profileId] = buildPlayerScout({
-				player,
-				map: lobby.map,
-				meProfileId: getMeProfileId() ?? lobby.me?.playerId,
-				performance: extras?.performances[profileId],
-				smurf: extras?.smurfs[profileId] ?? null
-			});
-		}
-
-		return next;
-	});
 	const matchup = $derived(
 		getMatchupStats(getAlliesPlayers(players), getAxisPlayers(players), lobby.matchType)
 	);
@@ -156,74 +121,49 @@
 
 <div class="border-secondary-900 overflow-clip border-b">
 	<div
-		class="border-secondary-800 grid grid-cols-1 gap-4 border-b p-4 sm:grid-cols-[minmax(200px,280px)_minmax(0,1fr)] sm:gap-6"
+		class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]"
 	>
-		<MapImage map={lobby.map} alt={mapLabel} />
+		<div class="border-secondary-800 aspect-square sm:aspect-auto sm:h-full sm:border-r">
+			<MapImage map={lobby.map} alt={mapLabel} flush />
+		</div>
 
-		<div class="min-w-0 py-1">
+		<div class="min-w-0 px-6 py-4">
 			<span class="font-heading mb-3 block truncate text-3xl font-bold">{mapLabel}</span>
 
 			<div class={detailMetaGrid}>
-				<List.Title>Session</List.Title>
+				<List.Title>{t('Session')}</List.Title>
 				<List.Value class="tabular-nums">{lobby.sessionId}</List.Value>
-				<List.Title>Match type</List.Title>
-				<List.Value>{lobby.isRanked ? 'Ranked' : 'Custom'}</List.Value>
+				<List.Title>{t('Match type')}</List.Title>
+				<List.Value>{lobby.isRanked ? t('Ranked') : t('Custom')}</List.Value>
 
-				<List.Title>Game mode</List.Title>
+				<List.Title>{t('Game mode')}</List.Title>
 				<List.Value>{lobby.type}</List.Value>
-				<List.Title>Players</List.Title>
+				<List.Title>{t('Players')}</List.Title>
 				<List.Value>{humanPlayers} / {lobby.players.length}</List.Value>
 
-				<List.Title>Started</List.Title>
+				<List.Title>{t('Started')}</List.Title>
 				<List.Value class="tabular-nums">{startedAt}</List.Value>
-				<List.Title>Teams</List.Title>
-				<List.Value>{allies.length} vs {axis.length}</List.Value>
+				<List.Title>{t('Teams')}</List.Title>
+				<List.Value
+					>{t('{allies} vs {axis}', { allies: allies.length, axis: axis.length })}</List.Value
+				>
 
 				{#if humanPlayers > 0}
-					<List.Title>Allies ELO</List.Title>
+					<List.Title>{t('Allies ELO')}</List.Title>
 					<List.Value>
 						{@render eloValue(matchup.allies.avg)}
 					</List.Value>
-					<List.Title>Axis ELO</List.Title>
+					<List.Title>{t('Axis ELO')}</List.Title>
 					<List.Value>
 						{@render eloValue(matchup.axis.avg)}
 					</List.Value>
-					<List.Title>Gap</List.Title>
+					<List.Title>{t('Gap')}</List.Title>
 					<List.Value class="tabular-nums">{formatMatchupGap(matchup.gap)}</List.Value>
-					<List.Title>Highest</List.Title>
+					<List.Title>{t('Highest')}</List.Title>
 					<List.Value class="min-w-0 truncate">
 						{@render eloValue(highest.value, highest.alias)}
 					</List.Value>
 				{/if}
-			</div>
-
-			<div class="mt-4 flex flex-wrap gap-x-6 gap-y-3">
-				<div class="flex min-w-0 items-center gap-2">
-					<span class="text-secondary-500 text-xs font-semibold tracking-wide uppercase">Allies</span>
-					<div class="flex flex-wrap items-center gap-1.5">
-						{#each allies as player (player.index)}
-							{@const stats = getLeaderboardStatsForPlayerByMatchType(lobby.matchType, player)}
-							<Player.Root {player} {stats} race={player.race}>
-								<span {@attach tooltip(getPlayerAlias(player))}>
-									<Player.Faction class={cn(isMePlayer(player) && 'ring-primary')} />
-								</span>
-							</Player.Root>
-						{/each}
-					</div>
-				</div>
-				<div class="flex min-w-0 items-center gap-2">
-					<span class="text-secondary-500 text-xs font-semibold tracking-wide uppercase">Axis</span>
-					<div class="flex flex-wrap items-center gap-1.5">
-						{#each axis as player (player.index)}
-							{@const stats = getLeaderboardStatsForPlayerByMatchType(lobby.matchType, player)}
-							<Player.Root {player} {stats} race={player.race}>
-								<span {@attach tooltip(getPlayerAlias(player))}>
-									<Player.Faction class={cn(isMePlayer(player) && 'ring-primary')} />
-								</span>
-							</Player.Root>
-						{/each}
-					</div>
-				</div>
 			</div>
 		</div>
 	</div>
@@ -233,7 +173,7 @@
 			{players}
 			matchType={lobby.matchType}
 			highlightPlayerId={lobby.me?.playerId}
-			scout={humanPlayers > 0 ? scout : undefined}
+			smurfs={humanPlayers > 0 ? smurfs : undefined}
 		/>
 	</div>
 </div>

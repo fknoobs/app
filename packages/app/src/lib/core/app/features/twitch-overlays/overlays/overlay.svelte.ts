@@ -16,6 +16,7 @@ import type { UserOverlaysResponse } from '$core/pocketbase/types';
 import { fetch } from '$core/http/fetch';
 import { unzip } from '$lib/utils/unzip';
 import { ClientResponseError } from 'pocketbase';
+import { t } from '$lib/i18n';
 
 type PublishState = {
 	contentHash: string;
@@ -449,16 +450,16 @@ export abstract class Overlay {
 
 	async publish(options: { silent?: boolean } = {}) {
 		if (!pocketbase.authStore.isValid) {
-			throw new Error('You must be logged in to publish an overlay.');
+			throw new Error(t('You must be logged in to publish an overlay.'));
 		}
 
 		if (!(await this.hasDistBuild())) {
-			throw new Error('No build found. Run npm run build in the overlay folder first.');
+			throw new Error(t('No build found. Run npm run build in the overlay folder first.'));
 		}
 
 		if (await this.isDistStale()) {
 			throw new Error(
-				'Source files are newer than dist/. Run npm run build in the overlay folder first.'
+				t('Source files are newer than dist/. Run npm run build in the overlay folder first.')
 			);
 		}
 
@@ -493,8 +494,11 @@ export abstract class Overlay {
 					error.message;
 				throw new Error(
 					error.status === 0
-						? `Failed to reach the overlay publish API (${detail}). Check your connection and that PocketBase is running.`
-						: `Failed to publish overlay: ${detail}`
+						? t(
+								'Failed to reach the overlay publish API ({detail}). Check your connection and that PocketBase is running.',
+								{ detail }
+							)
+						: t('Failed to publish overlay: {detail}', { detail })
 				);
 			}
 			throw error;

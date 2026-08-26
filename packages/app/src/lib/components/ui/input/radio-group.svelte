@@ -34,7 +34,7 @@
 		restProps.class
 	)}
 >
-	{#each items as item}
+	{#each items as item (item.value)}
 		{@const id = useId()}
 		<div class="flex items-center gap-2">
 			<RadioGroup.Item
@@ -42,7 +42,7 @@
 				value={item.value}
 				disabled={item.disabled}
 				class={cn(
-					'border-secondary-900 flex size-5 shrink-0 items-center justify-center overflow-clip rounded-md border-2',
+					'border-secondary-900 flex size-5 shrink-0 cursor-pointer items-center justify-center overflow-clip rounded-md border-2',
 					item.disabled && 'cursor-not-allowed opacity-50',
 					value === item.value && 'border-secondary-100'
 				)}
@@ -55,7 +55,7 @@
 					{/if}
 				{/snippet}
 			</RadioGroup.Item>
-			<Label for={id}>{item.label}</Label>
+			<Label for={id} class="cursor-pointer">{item.label}</Label>
 		</div>
 	{/each}
 </RadioGroup.Root>

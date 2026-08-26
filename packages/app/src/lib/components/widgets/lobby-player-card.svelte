@@ -4,6 +4,7 @@
 	import * as Player from '$lib/components/player';
 	import { cn } from '$lib/utils';
 	import { getLeaderboardStatsForPlayerByMatchType } from '$lib/utils/game';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		player: LobbyPlayer;
@@ -12,6 +13,7 @@
 	};
 
 	let { player, matchType, isMe = false }: Props = $props();
+	const { t } = useI18n();
 
 	const stats = $derived(getLeaderboardStatsForPlayerByMatchType(matchType, player));
 	const isCpu = $derived(player.playerId === -1);
@@ -45,7 +47,7 @@
 				</div>
 			</div>
 			{#if isCpu}
-				<p class="text-secondary-400 text-sm">CPU opponent</p>
+				<p class="text-secondary-400 text-sm">{t('CPU opponent')}</p>
 			{/if}
 		</div>
 
@@ -56,38 +58,38 @@
 			{#if !isCpu}
 				<dl class="grid min-w-0 flex-1 grid-cols-6 px-1 py-3 text-center text-sm">
 					<div class="px-2">
-						<dt class="text-secondary-500 text-xs font-medium uppercase">ELO</dt>
+						<dt class="text-secondary-500 text-xs font-medium uppercase">{t('ELO')}</dt>
 						<dd class="mt-1 font-medium tabular-nums">
 							<Player.Rating {matchType} />
 						</dd>
 					</div>
 					<div class="px-2">
-						<dt class="text-secondary-500 text-xs font-medium uppercase">Level</dt>
+						<dt class="text-secondary-500 text-xs font-medium uppercase">{t('Level')}</dt>
 						<dd class="mt-1 flex items-center justify-center gap-2 font-medium tabular-nums">
 							<Player.Rank />
 							<Player.Level />
 						</dd>
 					</div>
 					<div class="px-2">
-						<dt class="text-secondary-500 text-xs font-medium uppercase">Rank</dt>
+						<dt class="text-secondary-500 text-xs font-medium uppercase">{t('Rank')}</dt>
 						<dd class="text-secondary-300 mt-1 tabular-nums">
 							<Player.Position />
 						</dd>
 					</div>
 					<div class="px-2">
-						<dt class="text-secondary-500 text-xs font-medium uppercase">Wins</dt>
+						<dt class="text-secondary-500 text-xs font-medium uppercase">{t('Wins')}</dt>
 						<dd class="mt-1">
 							<Player.Wins />
 						</dd>
 					</div>
 					<div class="px-2">
-						<dt class="text-secondary-500 text-xs font-medium uppercase">Losses</dt>
+						<dt class="text-secondary-500 text-xs font-medium uppercase">{t('Losses')}</dt>
 						<dd class="mt-1">
 							<Player.Losses />
 						</dd>
 					</div>
 					<div class="px-2">
-						<dt class="text-secondary-500 text-xs font-medium uppercase">Streak</dt>
+						<dt class="text-secondary-500 text-xs font-medium uppercase">{t('Streak')}</dt>
 						<dd class="mt-1">
 							<Player.Streak />
 						</dd>

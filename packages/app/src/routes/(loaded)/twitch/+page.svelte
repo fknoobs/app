@@ -6,8 +6,10 @@
 	import TwitchTab from './tabs/twitch-tab/twitch-tab.svelte';
 	import { OverlaysTab } from './tabs/overlays-tab';
 	import { BotTab } from './tabs/bot-tab';
+	import { useI18n } from '$lib/i18n';
 
 	let currentTab = $state('twitch');
+	const { t } = useI18n();
 
 	function tabClass(tab: string) {
 		const disabled = (tab === 'tts' || tab === 'bot') && !twitch.enabled;
@@ -33,16 +35,16 @@
 	<div class="border-secondary-800 border-b">
 		<div class="flex items-center gap-2 px-4 py-2">
 			<button type="button" class={tabClass('twitch')} onclick={() => selectTab('twitch')}>
-				Twitch
+				{t('Twitch')}
 			</button>
 			<button type="button" class={tabClass('tts')} onclick={() => selectTab('tts')} disabled={!twitch.enabled}>
-				TTS
+				{t('TTS')}
 			</button>
 			<button type="button" class={tabClass('bot')} onclick={() => selectTab('bot')} disabled={!twitch.enabled}>
-				Bot
+				{t('Bot')}
 			</button>
 			<button type="button" class={tabClass('overlays')} onclick={() => selectTab('overlays')}>
-				Overlays
+				{t('Overlays')}
 			</button>
 		</div>
 

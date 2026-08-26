@@ -7,6 +7,7 @@
 	import { Markdown } from '@tiptap/markdown';
 	import { Image } from '@tiptap/extension-image';
 	import StarterKit from '@tiptap/starter-kit';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		children: Snippet;
@@ -15,6 +16,7 @@
 	};
 
 	let { children, placeholder, editor = $bindable(createEditor()) }: Props = $props();
+	const { t } = useI18n();
 	let tiptap = $state<Readable<Editor>>();
 
 	onMount(() => {
@@ -22,7 +24,7 @@
 			extensions: [
 				StarterKit,
 				Markdown,
-				Placeholder.configure({ placeholder: placeholder || 'Start typing...' }),
+				Placeholder.configure({ placeholder: placeholder || t('Start typing...') }),
 				Image.configure({
 					resize: {
 						enabled: true,

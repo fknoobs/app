@@ -10,6 +10,7 @@
 	import { dialog } from '$lib/components/ui/dialog';
 	import { tts } from '$core/app/features/twitch/tts';
 	import VoiceAliasForm from './voice-alias-form.svelte';
+	import { useI18n } from '$lib/i18n';
 
 	let {
 		options,
@@ -17,6 +18,7 @@
 		placeholder,
 		icon
 	}: ComponentProps<typeof Selection> = $props();
+	const { t } = useI18n();
 
 	let previewLoadingVoiceId = $state<string | null>(null);
 	let editingVoiceId = $state<string | null>(null);
@@ -62,8 +64,8 @@
 		const voice = getVoice(voiceId);
 		if (!voice) return;
 
-		dialog.title = 'Edit voice alias';
-		dialog.description = `Set a custom display name for ${voice.name}.`;
+		dialog.title = t('Edit voice alias');
+		dialog.description = t('Set a custom display name for {name}.', { name: voice.name });
 		dialog.setComponent(VoiceAliasForm, {
 			alias: voice.alias ?? '',
 			label: voice.name,
@@ -134,7 +136,7 @@
 			<Button
 				variant="secondary"
 				size="icon-sm"
-				{@attach tooltip(isEditing ? 'Save alias' : 'Edit alias')}
+				{@attach tooltip(isEditing ? t('Save alias') : t('Edit alias'))}
 				onpointerdown={stopRowSelection}
 				onmousedown={stopRowSelection}
 				onclick={(e) => {
@@ -156,7 +158,7 @@
 			<Button
 				variant="secondary"
 				size="icon-sm"
-				{@attach tooltip('Play preview')}
+				{@attach tooltip(t('Play preview'))}
 				onpointerdown={stopRowSelection}
 				onmousedown={stopRowSelection}
 				onclick={(e) => {
@@ -166,7 +168,10 @@
 
 					tts
 						.speak({
-							message: `This is a preview of the ${label} voice. Hello friend! How are you doing today?`,
+							message: t(
+								'This is a preview of the {label} voice. Hello friend! How are you doing today?',
+								{ label }
+							),
 							voiceId: value
 						})
 						.finally(() => {

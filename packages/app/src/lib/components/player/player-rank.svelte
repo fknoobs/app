@@ -3,10 +3,12 @@
 	import { usePlayer } from '.';
 	import { cn, getRankImage, Race } from '$lib/utils';
 	import { isNumber } from 'lodash-es';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = HTMLAttributes<HTMLSpanElement>;
 
 	const { ...restProps }: Props = $props();
+	const { t } = useI18n();
 	const { playerResult, stats, race } = $derived(usePlayer());
 	const src = $derived.by(() => {
 		if (playerResult && stats) {
@@ -22,5 +24,5 @@
 </script>
 
 {#if src}
-	<img {src} alt="Rank" {...restProps} class={cn('h-6 w-6', restProps.class)} />
+	<img {src} alt={t('Rank')} {...restProps} class={cn('h-6 w-6', restProps.class)} />
 {/if}

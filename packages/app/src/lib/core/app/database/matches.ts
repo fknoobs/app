@@ -8,7 +8,7 @@ import {
 	type LobbyAggregationCommunityResponse,
 	Collections
 } from '$core/pocketbase/types';
-import type { ListResult, RecordFullListOptions, UnsubscribeFunc } from 'pocketbase';
+import type { ListResult, RecordFullListOptions } from 'pocketbase';
 import type { LobbyPlayer, Match as LobbyMatch } from '@fknoobs/app';
 import type { Expand } from '@fknoobs/app';
 import { exp, pocketbase } from '$core/pocketbase';
@@ -280,23 +280,6 @@ export class Matches {
 			.getFirstListItem(`sessionId=${sessionId}`, { fetch })
 			.then(() => true)
 			.catch(() => false);
-	}
-
-	/** Subscribes to realtime updates of a single match record. */
-	subscribe(id: string, callback: (match: MatchExpanded) => void): Promise<UnsubscribeFunc> {
-		return pocketbase.collection('lobbies').subscribe(
-			id,
-			(event) => {
-				if (event.action === 'update') {
-					this.getById(event.record.id)
-						.then(callback)
-						.catch((error) => {
-							console.error('[MATCHES]: failed to fetch updated match:', error);
-						});
-				}
-			},
-			{ fetch }
-		);
 	}
 
 	/** Retrieves match aggregation data (filters for the history page). */

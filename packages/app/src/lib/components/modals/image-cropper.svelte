@@ -3,6 +3,7 @@
 	import getCroppedImg from '$lib/utils/canvas';
 	import { Button } from '$lib/components/ui/button';
 	import { app } from '$core/app/context';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		image: string;
@@ -10,6 +11,7 @@
 	};
 
 	let { image, oncrop }: Props = $props();
+	const { t } = useI18n();
 
 	let crop = $state({ x: 0, y: 0 });
 	let zoom = $state(1);
@@ -41,9 +43,9 @@
 		<Cropper {image} bind:crop bind:zoom aspect={1} oncropcomplete={handleCropComplete} />
 	</div>
 	<div class="flex justify-end gap-2">
-		<Button variant="secondary" onclick={() => app.modal.close()}>Cancel</Button>
+		<Button variant="secondary" onclick={() => app.modal.close()}>{t('Cancel')}</Button>
 		<Button onclick={save} disabled={isSaving}>
-			{isSaving ? 'Saving...' : 'Save Avatar'}
+			{isSaving ? t('Saving...') : t('Save Avatar')}
 		</Button>
 	</div>
 </div>

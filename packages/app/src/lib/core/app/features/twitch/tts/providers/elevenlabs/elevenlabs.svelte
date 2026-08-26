@@ -9,15 +9,17 @@
 	import { tts } from '$features/twitch';
 	import { dialog } from '$lib/components/ui/dialog';
 	import { AddVoice, TuneVoice } from '.';
+	import { useI18n } from '$lib/i18n';
 
+	const { t } = useI18n();
 	const provider = $derived(tts.provider as ElevenlabsProvider);
 </script>
 
 <div class="border-secondary-800 border-b p-4">
 	<Form.Group class="mb-0">
-		<Form.Label>Elevenlabs API key</Form.Label>
+		<Form.Label>{t('Elevenlabs API key')}</Form.Label>
 		<Input
-			placeholder="Enter elevenlabs API key ..."
+			placeholder={t('Enter elevenlabs API key ...')}
 			name="elevenlabsApiKey"
 			type="password"
 			bind:value={app.settings.elevenlabsApiKey}
@@ -26,9 +28,9 @@
 </div>
 <div class="border-secondary-800 border-b p-4">
 	<Form.Group class="mb-0">
-		<Form.Label>Custom voices</Form.Label>
+		<Form.Label>{t('Custom voices')}</Form.Label>
 		<small class="text-secondary-400 -mt-2 mb-1 block">
-			Requires atleast 1 minute of audio playback of the voice for optimal result.
+			{t('Requires atleast 1 minute of audio playback of the voice for optimal result.')}
 		</small>
 		<div class="divide-secondary-800 divide-y border-secondary-800 border-y">
 			{#each provider.customVoices as voice (voice.voiceId)}
@@ -40,7 +42,7 @@
 							size="icon-sm"
 							onclick={() => {
 								dialog.open = true;
-								dialog.title = `Tune voice: ${voice.name}`;
+								dialog.title = t('Tune voice: {name}', { name: voice.name });
 								dialog.setComponent(TuneVoice, { voiceId: voice.voiceId });
 							}}
 						>
@@ -72,11 +74,11 @@
 			type="button"
 			onclick={() => {
 				dialog.open = true;
-				dialog.title = 'Add custom voice';
+				dialog.title = t('Add custom voice');
 				dialog.setComponent(AddVoice);
 			}}
 		>
-			Add voice
+			{t('Add voice')}
 		</Button>
 	</Form.Group>
 </div>

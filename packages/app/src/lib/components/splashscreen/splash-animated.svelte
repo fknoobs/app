@@ -1,10 +1,13 @@
 <script lang="ts">
+	import { useI18n } from '$lib/i18n';
+
 	type Props = {
 		size?: number | string;
 		animate?: boolean;
 	};
 
 	let { size = 48, animate = true }: Props = $props();
+	const { t } = useI18n();
 
 	const dimension = $derived(typeof size === 'number' ? `${size}px` : size);
 </script>
@@ -15,7 +18,7 @@
 	style:width={dimension}
 	style:height={dimension}
 	role="status"
-	aria-label="Loading"
+	aria-label={t('Loading')}
 ></div>
 
 <style>

@@ -28,6 +28,7 @@
 	import CommandIcon from 'phosphor-svelte/lib/CommandIcon';
 	import BriefcaseIcon from 'phosphor-svelte/lib/BriefcaseIcon';
 	import NotificationBell from '$lib/components/notifications/notification-bell.svelte';
+	import { useI18n } from '$lib/i18n';
 
 	import '$lib/fonts/TT Mussels/style.css';
 	import '@fontsource/nunito-sans/800.css';
@@ -35,6 +36,7 @@
 	import '../../app.css';
 
 	let { children } = $props();
+	const { t } = useI18n();
 
 	watch(
 		() => $state.snapshot(app.features['replay-analyzer'].progress),
@@ -53,7 +55,7 @@
 			if (!progress.isScanning && prevProgress?.isScanning) {
 				app.toast.dismiss('replay-analysis-progress');
 				if (progress.total > 0) {
-					app.toast.success('Replay analysis complete!');
+					app.toast.success(t('Replay analysis complete!'));
 				}
 			}
 		}
@@ -88,49 +90,49 @@
 			class="border-secondary-800 bg-secondary-950/90 flex min-w-[300px] flex-col gap-8 border-r text-white"
 		>
 			<div class="mt-6 flex items-center gap-4 px-4">
-				<img src={Logo} alt="Fknoobscoh - CoH app" class="size-10" />
-				<span class="font-medium">Company of Heroes</span>
+				<img src={Logo} alt={t('Fknoobscoh - CoH app')} class="size-10" />
+				<span class="font-medium">{t('Company of Heroes')}</span>
 			</div>
 			<Nav.Root class="grow">
-				<Label class="text-secondary-300 px-4 font-semibold">Menu</Label>
+				<Label class="text-secondary-300 px-4 font-semibold">{t('Menu')}</Label>
 				<Nav.Link href="/">
 					<DashboardIcon size={28} weight="duotone" />
-					Dashboard
+					{t('Dashboard')}
 				</Nav.Link>
 				<Nav.Link href="/replays">
 					<ReplaysIcons size={28} weight="duotone" />
-					Replays
+					{t('Replays')}
 				</Nav.Link>
 				<Nav.Link href="/history">
 					<HistoryIcon size={28} weight="duotone" />
-					History
+					{t('History')}
 				</Nav.Link>
 				<Nav.Link href="/shortcuts">
 					<CommandIcon size={28} weight="duotone" />
-					Keybindings
+					{t('Keybindings')}
 				</Nav.Link>
 				<Nav.Link href="/leaderboards">
 					<RankingIcon size={28} weight="duotone" />
-					Leaderboards
+					{t('Leaderboards')}
 				</Nav.Link>
 				<Nav.Link href="/players">
 					<UsersIcon size={28} weight="duotone" />
-					Players
+					{t('Players')}
 				</Nav.Link>
 				<Nav.Link href="/twitch">
 					<TwitchIcon size={28} weight="duotone" />
-					Twitch
+					{t('Twitch')}
 				</Nav.Link>
 				<Nav.Link href="/settings">
 					<SettingsIcon size={28} weight="duotone" />
-					Settings
+					{t('Settings')}
 				</Nav.Link>
 				<div class="mt-auto">
 					{#if app.account.isStaff}
-						<Label class="text-secondary-400 px-4 text-xs font-semibold">Management</Label>
+						<Label class="text-secondary-400 px-4 text-xs font-semibold">{t('Management')}</Label>
 						<Nav.Link href="/admin" class="gap-2 py-2 text-sm font-semibold">
 							<BriefcaseIcon size={20} weight="duotone" />
-							Management
+							{t('Management')}
 						</Nav.Link>
 					{/if}
 					<div class="mt-3 mb-4 flex items-center gap-2 px-4">
@@ -140,7 +142,7 @@
 							data-active={page.url.pathname === '/account'}
 						>
 							<Avatar />
-							<span class="truncate">{app.account.user?.name || 'My account'}</span>
+							<span class="truncate">{app.account.user?.name || t('My account')}</span>
 						</a>
 						{#if app.account.isAuthenticated}
 							<NotificationBell />
@@ -188,7 +190,7 @@
 		<main class="flex grow flex-col overflow-auto bg-gray-950/90 text-white">
 			<header class="border-secondary-800 flex items-center gap-3 border-b p-4">
 				{#if showBack}
-					<ButtonBack iconOnly aria-label="Go back to previous page" title="Go back" />
+					<ButtonBack iconOnly aria-label={t('Go back to previous page')} title={t('Go back')} />
 				{/if}
 				<Breadcrumb />
 			</header>

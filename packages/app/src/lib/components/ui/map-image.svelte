@@ -7,10 +7,18 @@
 	type Props = HTMLImgAttributes & {
 		map: string | undefined;
 		small?: boolean;
+		flush?: boolean;
 		alt?: string;
 	};
 
-	const { map, small = false, alt: altText, class: className, ...restProps }: Props = $props();
+	const {
+		map,
+		small = false,
+		flush = false,
+		alt: altText,
+		class: className,
+		...restProps
+	}: Props = $props();
 
 	const src = $derived(getMapImageFromName(map));
 	const alt = $derived(altText ?? map ?? '');
@@ -25,49 +33,42 @@
 	}
 </script>
 
-{#if small}
+{#snippet mapLayers()}
+	<img
+		{...restProps}
+		{src}
+		{alt}
+		onerror={handleImageError}
+		class={cn('absolute inset-0 z-5 h-full w-full scale-180 object-cover opacity-30', className)}
+	/>
+	<img
+		{...restProps}
+		{src}
+		{alt}
+		onerror={handleImageError}
+		class={cn('z-10 h-full w-full object-contain', className)}
+	/>
+{/snippet}
+
+{#if small && flush}
+	<div class="relative size-11 shrink-0 overflow-clip">
+		{@render mapLayers()}
+	</div>
+{:else if small}
 	<div class="w-10">
 		<AspectRatio.Root class="flex items-center justify-center overflow-clip rounded">
-			<img
-				{...restProps}
-				{src}
-				{alt}
-				onerror={handleImageError}
-				class={cn(
-					'absolute inset-0 z-5 h-full w-full scale-180 object-cover opacity-30',
-					className
-				)}
-			/>
-			<img
-				{...restProps}
-				{src}
-				{alt}
-				onerror={handleImageError}
-				class={cn('z-10 h-full w-full object-contain', className)}
-			/>
+			{@render mapLayers()}
 		</AspectRatio.Root>
+	</div>
+{:else if flush}
+	<div class="relative flex h-full min-h-[220px] w-full items-center justify-center overflow-clip">
+		{@render mapLayers()}
 	</div>
 {:else}
 	<AspectRatio.Root
 		ratio={1}
 		class="border-secondary-800 flex items-center justify-center overflow-clip rounded-lg border"
 	>
-		<img
-			{...restProps}
-			{src}
-			{alt}
-			onerror={handleImageError}
-			class={cn(
-				'absolute inset-0 z-5 h-full w-full scale-180 object-cover opacity-30',
-				className
-			)}
-		/>
-		<img
-			{...restProps}
-			{src}
-			{alt}
-			onerror={handleImageError}
-			class={cn('z-10 h-full w-full object-contain', className)}
-		/>
+		{@render mapLayers()}
 	</AspectRatio.Root>
 {/if}

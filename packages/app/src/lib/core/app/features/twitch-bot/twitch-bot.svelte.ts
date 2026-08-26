@@ -2,6 +2,7 @@ import { app } from '$core/app/context';
 import { watch } from 'runed';
 import { Feature } from '../feature.svelte';
 import { twitch } from '../twitch/twitch.svelte';
+import { t } from '$lib/i18n';
 
 export type TwitchBotSettings = {
 	enablePlayerStats: boolean;
@@ -62,7 +63,10 @@ export class TwitchBot extends Feature<TwitchBotSettings> {
 							return;
 						}
 
-						twitch.chatClient.say(twitch.token.userName!, `Player Stats: ${message}`);
+						twitch.chatClient.say(
+							twitch.token.userName!,
+							t('Player Stats: {message}', { message })
+						);
 					});
 				}
 			);

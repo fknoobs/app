@@ -6,6 +6,7 @@ import { tts } from '$features/twitch';
 import { defaultsDeep, isEmpty, isString, uniqBy } from 'lodash-es';
 import { ElevenLabsClient } from '@elevenlabs/elevenlabs-js';
 import { translateText } from '$lib/translate';
+import { t } from '$lib/i18n';
 
 export class ElevenlabsProvider extends TTSProvider {
 	name = 'elevenlabs';
@@ -23,7 +24,9 @@ export class ElevenlabsProvider extends TTSProvider {
 				([enabled, apiKey], [prevEnabled, prevApiKey]) => {
 					if (!apiKey) {
 						app.toast.error(
-							'Disabled TTS automatically, Elevenlabs API key is required when Elevenlabs provider is enabled.'
+							t(
+								'Disabled TTS automatically, Elevenlabs API key is required when Elevenlabs provider is enabled.'
+							)
 						);
 						tts.settings.enabled = false;
 						return;

@@ -11,8 +11,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Form from '$lib/components/ui/form';
+	import { useI18n } from '$lib/i18n';
 
 	const overlay = twitchOverlays.overlays[0];
+	const { t } = useI18n();
 	let copied = $state(false);
 	let publishing = $state(false);
 	let hasUnpublishedChanges = $state(false);
@@ -87,7 +89,7 @@
 		if (!overlayUrl) return;
 		navigator.clipboard.writeText(overlayUrl);
 		copied = true;
-		app.toast.success('Overlay URL copied to clipboard!');
+		app.toast.success(t('Overlay URL copied to clipboard!'));
 		setTimeout(() => {
 			copied = false;
 		}, 5000);
@@ -98,7 +100,7 @@
 			await openPath(await overlay.getPath());
 		} catch (error) {
 			console.error('Failed to open overlay folder:', error);
-			app.toast.error('Could not open overlay folder in your editor.');
+			app.toast.error(t('Could not open overlay folder in your editor.'));
 		}
 	}
 
@@ -108,11 +110,11 @@
 		try {
 			await overlay.publish();
 			await refreshChangeState();
-			app.toast.success('Overlay changes published to server.');
+			app.toast.success(t('Overlay changes published to server.'));
 		} catch (error) {
 			console.error('Failed to publish overlay:', error);
 			const message =
-				error instanceof Error ? error.message : 'Failed to publish overlay changes.';
+				error instanceof Error ? error.message : t('Failed to publish overlay changes.');
 			app.toast.error(message);
 		} finally {
 			publishing = false;
@@ -123,16 +125,16 @@
 <Form.Root class="space-y-0">
 	<div class="border-secondary-800 border-b p-4">
 		<Form.Group class="mb-0">
-			<Form.Label for="overlay-url">Overlay URL</Form.Label>
+			<Form.Label for="overlay-url">{t('Overlay URL')}</Form.Label>
 			<Form.Description>
-				Use this URL in your streaming software to add the Opponent Bot overlay to your stream.
+				{t('Use this URL in your streaming software to add the Opponent Bot overlay to your stream.')}
 			</Form.Description>
 			<div class="relative flex">
 				<Input
 					id="overlay-url"
 					readonly
 					value={overlayUrl}
-					placeholder="Log in to generate your overlay URL"
+					placeholder={t('Log in to generate your overlay URL')}
 					class={cn(copied && 'border-success bg-success/5')}
 				/>
 				<Button
@@ -145,7 +147,7 @@
 					)}
 					onclick={copyToClipboard}
 					disabled={!overlayUrl}
-					title="Copy Overlay URL"
+					title={t('Copy Overlay URL')}
 				>
 					{#if copied}
 						<CheckIcon size={20} />
@@ -161,46 +163,34 @@
 <div class="border-secondary-800 flex flex-wrap gap-2 border-b p-4">
 	<Button type="button" variant="secondary" onclick={openInEditor}>
 		<FolderOpenIcon size={18} />
-		Open in editor
+		{t('Open in editor')}
 	</Button>
 	<Button type="button" onclick={publishChanges} disabled={!canPublish}>
 		<CloudArrowUpIcon size={18} />
-		{publishing ? 'Publishing…' : 'Publish changes to server'}
+		{publishing ? t('Publishing…') : t('Publish changes to server')}
 	</Button>
 </div>
 
 <div class="text-secondary-400 max-w-2xl space-y-2 p-4 text-sm">
 	<p>
-		Your overlay is hosted at the URL above. To customize it, open the overlay folder, edit files in
-		<code class="text-secondary-300">src/</code>, then build and publish:
+		{t('Your overlay is hosted at the URL above. To customize it, open the overlay folder, edit files in src/, then build and publish:')}
 	</p>
 	<ol class="list-decimal space-y-1 pl-5">
+		<li>{t('Run npm install once (requires Node.js)')}</li>
 		<li>
-			Run <code class="text-secondary-300">npm install</code> once (requires
-			<a
-				class="text-secondary-300 underline"
-				href="https://nodejs.org/"
-				target="_blank"
-				rel="noreferrer">Node.js</a
-			>)
+			{t('Preview with test lobbies: npm run dev, then open http://localhost:5173 (1v1–4v4 buttons appear bottom-right)')}
 		</li>
+		<li>{t('Edit Svelte/CSS in src/')}</li>
 		<li>
-			Preview with test lobbies: <code class="text-secondary-300">npm run dev</code>, then open
-			<code class="text-secondary-300">http://localhost:5173</code> (1v1–4v4 buttons appear
-			bottom-right)
+			{t('Run npm run build in the overlay folder (via “Open in editor”) to update dist/')}
 		</li>
-		<li>Edit Svelte/CSS in <code class="text-secondary-300">src/</code></li>
-		<li>
-			Run <code class="text-secondary-300">npm run build</code> in the overlay folder (via “Open in editor”)
-			to update <code class="text-secondary-300">dist/</code>
-		</li>
-		<li>Click “Publish changes to server” to update the live overlay</li>
+		<li>{t('Click “Publish changes to server” to update the live overlay')}</li>
 	</ol>
 	{#if !hasDistBuild && app.features.auth.user}
-		<p class="text-warning">No build found. Run npm run build in the overlay folder before publishing.</p>
+		<p class="text-warning">{t('No build found. Run npm run build in the overlay folder before publishing.')}</p>
 	{:else if distStale}
 		<p class="text-warning">
-			Source files are newer than dist/. Run npm run build before publishing.
+			{t('Source files are newer than dist/. Run npm run build before publishing.')}
 		</p>
 	{/if}
 </div>

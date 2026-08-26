@@ -1,5 +1,6 @@
 import { getRaceFromLeaderboardId, Race } from '$lib/utils/game';
 import type { RelicProfile } from '@fknoobs/app';
+import { getI18n, t } from '$lib/i18n';
 
 export function getSteamIdFromProfile(profile: RelicProfile): string {
 	return profile.name.replace('/steam/', '');
@@ -12,7 +13,8 @@ export function getCountryDisplayName(country: string | null | undefined): strin
 	if (!/^[A-Z]{2}$/.test(region)) return null;
 
 	try {
-		return new Intl.DisplayNames(['en'], { type: 'region' }).of(region) || region;
+		const locale = getI18n().getLocale() || 'en';
+		return new Intl.DisplayNames([locale], { type: 'region' }).of(region) || region;
 	} catch {
 		return region;
 	}
@@ -26,7 +28,7 @@ const RACE_LABELS: Record<Race, string> = {
 };
 
 export function getRaceLabel(race: Race | number): string {
-	return RACE_LABELS[race as Race] ?? 'Unknown';
+	return t(RACE_LABELS[race as Race] ?? 'Unknown');
 }
 
 export function getRaceLabelFromLeaderboardId(leaderboardId: number): string {

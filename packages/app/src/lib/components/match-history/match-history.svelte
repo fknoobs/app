@@ -13,6 +13,7 @@
 	import { app } from '$core/app/context';
 	import { tooltip } from '$lib/attachments';
 	import { resource } from 'runed';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		matches: TransformedMatch[];
@@ -20,6 +21,7 @@
 	};
 
 	let { matches, showSessionId = false }: Props = $props();
+	const { t } = useI18n();
 
 	const orderedMatches = $derived(orderBy(matches, ['completiontime'], ['desc']));
 	const sessionIdsKey = $derived(orderedMatches.map((match) => match.id).join(','));
@@ -34,56 +36,56 @@
 		}
 	);
 
-	const columns: ColumnDef<MatchHistoryPlayer>[] = [
+	const columns: ColumnDef<MatchHistoryPlayer>[] = $derived([
 		{
 			id: 'change',
-			header: 'Change',
+			header: t('Change'),
 			width: 'w-3/24',
 			headerClass: 'text-center',
 			class: 'flex w-full justify-center'
 		},
 		{
 			id: 'team',
-			header: 'Team',
+			header: t('Team'),
 			width: 'w-2/24',
 			headerClass: 'text-center',
 			class: 'flex w-full justify-center'
 		},
 		{
 			id: 'elo',
-			header: 'ELO',
+			header: t('ELO'),
 			width: 'w-2/24',
 			headerClass: 'text-center',
 			class: 'flex w-full justify-center'
 		},
 		{
 			id: 'player',
-			header: 'Player',
+			header: t('Player'),
 			width: 'w-9/24',
 			class: 'flex min-w-0 items-center gap-2'
 		},
 		{
 			id: 'wins',
-			header: 'Wins',
+			header: t('Wins'),
 			width: 'w-2/24',
 			headerClass: 'text-center',
 			class: 'flex w-full justify-center'
 		},
 		{
 			id: 'losses',
-			header: 'Losses',
+			header: t('Losses'),
 			width: 'w-3/24',
 			headerClass: 'text-center',
 			class: 'flex w-full justify-center'
 		},
 		{
 			id: 'streak',
-			header: 'Streak',
+			header: t('Streak'),
 			width: 'w-3/24',
 			headerClass: 'text-center',
 			class: 'flex w-full justify-center'
 		}
-	];
+	]);
 
 	function matchDuration(match: TransformedMatch): string {
 		const seconds = dayjs
@@ -152,7 +154,7 @@
 {/snippet}
 
 {#if orderedMatches.length === 0}
-	<p class="text-secondary-400 px-4 py-3 text-sm">No recent matches found.</p>
+	<p class="text-secondary-400 px-4 py-3 text-sm">{t('No recent matches found.')}</p>
 {:else}
 	<div>
 		{#each orderedMatches as match (match.id)}
@@ -168,7 +170,7 @@
 						<p class="text-secondary-400 text-sm">
 							{dayjs.unix(match.startgametime).format('MMM D, YYYY · HH:mm')}
 							{#if showSessionId}
-								<span class="text-secondary-500 text-xs tabular-nums"> · ID: {match.id}</span>
+								<span class="text-secondary-500 text-xs tabular-nums"> · {t('ID: {id}', { id: match.id })}</span>
 							{/if}
 						</p>
 					</div>
@@ -181,8 +183,8 @@
 									'text-primary inline-flex items-center gap-1.5 text-sm whitespace-nowrap hover:underline'
 								)}
 							>
-								<Checks class="size-4 text-green-400" {@attach tooltip('Result saved')} />
-								View details
+								<Checks class="size-4 text-green-400" {@attach tooltip(t('Result saved'))} />
+								{t('View details')}
 							</a>
 						{/if}
 						<span class="text-secondary-300 flex items-center gap-2 text-sm font-medium">

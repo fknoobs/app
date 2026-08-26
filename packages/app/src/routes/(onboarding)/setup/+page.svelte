@@ -21,6 +21,9 @@
 	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircleIcon';
 	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
 	import dayjs from '$lib/dayjs';
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
 
 	let logValidation = $state<PathValidation>({ valid: false });
 	let dirValidation = $state<PathValidation>({ valid: false });
@@ -81,12 +84,12 @@
 			const result = await settings.replace(candidate.settings);
 
 			if (!result.success) {
-				toast.error(`Could not restore backup: ${result.error}`);
+				toast.error(t('Could not restore backup: {message}', { message: result.error }));
 				return;
 			}
 
 			didDismissRestore = true;
-			toast.success('Backup restored. Your account and settings are back.');
+			toast.success(t('Backup restored. Your account and settings are back.'));
 		} finally {
 			isRestoring = false;
 		}
@@ -106,11 +109,11 @@
 <div class="bg-secondary-950 flex min-h-screen w-screen justify-center overflow-auto font-sans">
 	<div class="flex w-full max-w-2xl flex-col gap-8 px-8 py-16 text-white">
 		<div class="flex items-center gap-4">
-			<img src={Logo} alt="Fknoobs - CoH app" class="size-12" />
+			<img src={Logo} alt={t('Fknoobs - CoH app')} class="size-12" />
 			<div>
-				<H level="1">Setup</H>
+				<H level="1">{t('Setup')}</H>
 				<p class="text-secondary-400 text-sm">
-					The app needs to know where Company of Heroes lives before it can track your games.
+					{t('The app needs to know where Company of Heroes lives before it can track your games.')}
 				</p>
 			</div>
 		</div>
@@ -119,21 +122,19 @@
 			<div class="border-primary/40 bg-primary/5 flex flex-col gap-3 rounded-lg border p-4">
 				<div class="flex items-center gap-2">
 					<ArchiveIcon size={22} weight="duotone" class="text-primary" />
-					<span class="font-semibold">Backup found</span>
+					<span class="font-semibold">{t('Backup found')}</span>
 				</div>
 				<p class="text-secondary-300 text-sm">
-					We found a backup of your previous configuration (account and settings)
 					{#if boot.restoreCandidate?.settings.updatedAt}
-						from {dayjs(boot.restoreCandidate.settings.updatedAt).format('DD MMM YYYY, HH:mm')}.
+						{t('We found a backup of your previous configuration (account and settings) from {date}. Restoring it keeps your existing account and match history linked.', { date: dayjs(boot.restoreCandidate.settings.updatedAt).format('DD MMM YYYY, HH:mm') })}
 					{:else}
-						.
+						{t('We found a backup of your previous configuration (account and settings). Restoring it keeps your existing account and match history linked.')}
 					{/if}
-					Restoring it keeps your existing account and match history linked.
 				</p>
 				<div class="flex gap-2">
-					<Button onclick={restoreBackup} loading={isRestoring}>Restore backup</Button>
+					<Button onclick={restoreBackup} loading={isRestoring}>{t('Restore backup')}</Button>
 					<Button variant="secondary" onclick={() => (didDismissRestore = true)}>
-						Start fresh
+						{t('Start fresh')}
 					</Button>
 				</div>
 			</div>
@@ -141,15 +142,16 @@
 
 		<Form.Root>
 			<Form.Group>
-				<Form.Label>Company of Heroes warnings.log</Form.Label>
+				<Form.Label>{t('Company of Heroes warnings.log')}</Form.Label>
 				<Form.Description>
-					The game writes everything the app needs to this log file. It usually lives in
+					{t('The game writes everything the app needs to this log file. It usually lives in')}
 					<code>Documents\My Games\Company of Heroes Relaunch\warnings.log</code>.
 				</Form.Description>
 				<FileSelection
 					name="pathToConfig"
 					bind:value={settings.tree.app.companyOfHeroesConfigPath}
 					filters={[{ name: 'warnings.log', extensions: ['log'] }]}
+					showStatus={false}
 				/>
 				<div
 					class="flex items-center gap-1 text-sm {logValidation.valid
@@ -158,24 +160,25 @@
 				>
 					{#if logValidation.valid}
 						<CheckCircleIcon weight="duotone" size={18} />
-						warnings.log found
+						{t('warnings.log found')}
 					{:else}
 						<WarningCircleIcon weight="duotone" size={18} />
-						{logValidation.reason ?? 'Select your warnings.log'}
+						{logValidation.reason ?? t('Select your warnings.log')}
 					{/if}
 				</div>
 			</Form.Group>
 
 			<Form.Group>
-				<Form.Label>Company of Heroes installation folder</Form.Label>
+				<Form.Label>{t('Company of Heroes installation folder')}</Form.Label>
 				<Form.Description>
-					The folder containing <code>RelicCOH.exe</code>, usually inside your Steam library under
+					{t('The folder containing')} <code>RelicCOH.exe</code>, {t('usually inside your Steam library under')}
 					<code>steamapps\common\Company of Heroes Relaunch</code>.
 				</Form.Description>
 				<FileSelection
 					name="pathToInstallation"
 					directory
 					bind:value={settings.tree.app.companyOfHeroesInstallationPath}
+					showStatus={false}
 				/>
 				<div
 					class="flex items-center gap-1 text-sm {dirValidation.valid
@@ -184,20 +187,20 @@
 				>
 					{#if dirValidation.valid}
 						<CheckCircleIcon weight="duotone" size={18} />
-						Installation found
+						{t('Installation found')}
 					{:else}
 						<WarningCircleIcon weight="duotone" size={18} />
-						{dirValidation.reason ?? 'Select your installation folder'}
+						{dirValidation.reason ?? t('Select your installation folder')}
 					{/if}
 				</div>
 			</Form.Group>
 		</Form.Root>
 
 		<div class="flex items-center gap-4">
-			<Button onclick={finish} disabled={!canFinish} loading={isFinishing}>Continue</Button>
+			<Button onclick={finish} disabled={!canFinish} loading={isFinishing}>{t('Continue')}</Button>
 			{#if !canFinish}
 				<span class="text-secondary-500 text-sm">
-					Both paths must be valid before you can continue.
+					{t('Both paths must be valid before you can continue.')}
 				</span>
 			{/if}
 		</div>

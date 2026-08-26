@@ -6,7 +6,9 @@
 	import { dialog } from '$lib/components/ui/dialog';
 	import { Input, Selection } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
+	import { useI18n } from '$lib/i18n';
 
+	const { t } = useI18n();
 	let userName = $state('');
 	let voiceId = $state('');
 	let voice = $derived(tts.provider.voices.find((v) => v.voiceId === voiceId));
@@ -17,12 +19,12 @@
 		e.preventDefault();
 
 		if (!userName) {
-			app.toast.error('Enter twitch username.');
+			app.toast.error(t('Enter twitch username.'));
 			return;
 		}
 
 		if (!voiceId || !voice) {
-			app.toast.error('Select a voice.');
+			app.toast.error(t('Select a voice.'));
 			return;
 		}
 
@@ -34,11 +36,11 @@
 	}}
 >
 	<Form.Group>
-		<Form.Label>User Name</Form.Label>
-		<Input type="text" bind:value={userName} placeholder="Enter the Twitch username" />
+		<Form.Label>{t('User Name')}</Form.Label>
+		<Input type="text" bind:value={userName} placeholder={t('Enter the Twitch username')} />
 	</Form.Group>
 	<Form.Group>
-		<Form.Label>Select voice</Form.Label>
+		<Form.Label>{t('Select voice')}</Form.Label>
 		<Selection
 			options={tts.provider.voices.map((voice) => {
 				return {
@@ -48,10 +50,10 @@
 				};
 			}) || []}
 			bind:value={voiceId}
-			placeholder="Select voice..."
+			placeholder={t('Select voice...')}
 		/>
 	</Form.Group>
 	<Form.Group class="flex items-end">
-		<Button variant="primary" class="w-fit">Add user</Button>
+		<Button variant="primary" class="w-fit">{t('Add user')}</Button>
 	</Form.Group>
 </Form.Root>

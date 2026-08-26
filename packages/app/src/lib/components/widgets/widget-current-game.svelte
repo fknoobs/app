@@ -3,14 +3,17 @@
 	import { H } from '../ui/h';
 	import { app } from '$core/app/context';
 	import { Alert } from '../ui/alert';
+	import { useI18n } from '$lib/i18n';
 
+	const { t } = useI18n();
 	const lobby = $derived(app.lobby);
 </script>
 
 {#if !lobby}
 	<Alert variant="warning">
-		You are currently not in a game lobby. When you are in a match, the details will be displayed
-		here.
+		{t(
+			'You are currently not in a game lobby. When you are in a match, the details will be displayed here.'
+		)}
 	</Alert>
 {:else}
 	<Lobby.Root {lobby}>

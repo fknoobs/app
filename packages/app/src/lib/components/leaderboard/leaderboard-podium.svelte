@@ -23,6 +23,7 @@
 	import CrownIcon from 'phosphor-svelte/lib/CrownIcon';
 	import { upperCase } from 'lodash-es';
 	import { tooltip } from '$lib/attachments';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		stats: LeaderboardStatWithProfile[];
@@ -37,6 +38,7 @@
 		loading = false,
 		class: className
 	}: Props = $props();
+	const { t } = useI18n();
 
 	const podiumOrder = $derived.by(() => {
 		const first = stats[0];
@@ -143,10 +145,10 @@
 				<div class="flex items-center gap-2">
 					<img
 						src={getRankImageByLeaderboardId(stat.leaderboard_id, stat.ranklevel)}
-						alt={`Rank ${stat.ranklevel}`}
+						alt={t('Rank {level}', { level: stat.ranklevel })}
 						class={cn('w-auto', stat.rank === 1 ? 'h-8' : 'h-7')}
 					/>
-					<span class="text-secondary-400 text-sm tabular-nums">Lvl {stat.ranklevel}</span>
+					<span class="text-secondary-400 text-sm tabular-nums">{t('Lvl {level}', { level: stat.ranklevel })}</span>
 				</div>
 
 				<div
@@ -168,7 +170,7 @@
 				</div>
 
 				{#if elo == null}
-					<span class="text-secondary-500 text-xs">N/A</span>
+					<span class="text-secondary-500 text-xs">{t('N/A')}</span>
 				{:else}
 					<span
 						class={cn(
@@ -184,11 +186,11 @@
 				{/if}
 
 				<div class="text-secondary-400 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm">
-					<span class={statWins}>{stat.wins}W</span>
+					<span class={statWins}>{t('{count}W', { count: stat.wins })}</span>
 					<span class="text-secondary-600">·</span>
-					<span class={statLosses}>{stat.losses}L</span>
+					<span class={statLosses}>{t('{count}L', { count: stat.losses })}</span>
 					<span class="text-secondary-600">·</span>
-					<span class={statStreakClass(stat.streak)}>{formatStreak(stat.streak)} streak</span>
+					<span class={statStreakClass(stat.streak)}>{t('{streak} streak', { streak: formatStreak(stat.streak) })}</span>
 				</div>
 			</button>
 		{/each}

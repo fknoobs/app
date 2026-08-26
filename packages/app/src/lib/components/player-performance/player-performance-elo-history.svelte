@@ -8,6 +8,7 @@
 	import { Axis, Circle, Highlight, Layer, LineChart, Spline, Text, Tooltip } from 'layerchart';
 	import { IsInViewport } from 'runed';
 	import dayjs from '$lib/dayjs';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		points: PlayerEloHistoryPoint[];
@@ -15,6 +16,7 @@
 	};
 
 	let { points, loading = false }: Props = $props();
+	const { t } = useI18n();
 
 	const grouped = $derived(groupEloHistoryByModeAndRace(points));
 	const modeIds = $derived(
@@ -67,13 +69,13 @@
 		return Object.values(byDay).sort((a, b) => a.at.getTime() - b.at.getTime());
 	});
 
-	const raceLabel = $derived(activeRace != null ? getRaceLabel(activeRace) : 'Faction');
+	const raceLabel = $derived(activeRace != null ? getRaceLabel(activeRace) : t('Faction'));
 
 	let target = $state<HTMLElement>();
 	const isInViewport = new IsInViewport(() => target);
 
 	function modeLabel(matchtypeId: number) {
-		return MATCH_TYPES[matchtypeId as keyof typeof MATCH_TYPES] ?? `Mode ${matchtypeId}`;
+		return MATCH_TYPES[matchtypeId as keyof typeof MATCH_TYPES] ?? t('Mode {id}', { id: matchtypeId });
 	}
 
 	function selectMode(matchtypeId: number) {
@@ -83,11 +85,12 @@
 </script>
 
 {#if loading && points.length === 0}
-	<p class="text-secondary-400 px-4 py-6 text-sm">Loading ELO history…</p>
+	<p class="text-secondary-400 px-4 py-6 text-sm">{t('Loading ELO history…')}</p>
 {:else if points.length === 0}
 	<p class="text-secondary-400 px-4 py-6 text-sm">
-		No tracked match ratings yet. Play with the companion running so lobby results can build this
-		history.
+		{t(
+			'No tracked match ratings yet. Play with the companion running so lobby results can build this history.'
+		)}
 	</p>
 {:else}
 	<div class="flex flex-col">
@@ -113,7 +116,7 @@
 			<div class="grid min-h-0 grid-cols-[minmax(0,13rem)_minmax(0,1fr)] items-stretch">
 				<nav
 					class="border-secondary-800 divide-secondary-800 flex h-full min-h-0 flex-col divide-y border-r"
-					aria-label="Select faction"
+					aria-label={t('Select faction')}
 				>
 					{#each raceIds as raceId (raceId)}
 						{@const isSelected = activeRace === raceId}
@@ -187,7 +190,7 @@
 										<Tooltip.List>
 											<Tooltip.Item
 												label={dayjs(context.tooltip.data?.at).format('DD MMM YYYY')}
-												value={`${context.tooltip.data?.rating ?? '—'} ELO`}
+												value={t('{rating} ELO', { rating: context.tooltip.data?.rating ?? '—' })}
 											/>
 										</Tooltip.List>
 									</Tooltip.Root>
@@ -198,7 +201,7 @@
 				</div>
 			</div>
 		{:else}
-			<p class="text-secondary-400 px-4 py-4 text-sm">No faction ratings for this mode yet.</p>
+			<p class="text-secondary-400 px-4 py-4 text-sm">{t('No faction ratings for this mode yet.')}</p>
 		{/if}
 	</div>
 {/if}

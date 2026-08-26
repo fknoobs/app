@@ -7,6 +7,7 @@
 	import Input from './input.svelte';
 	import { Button } from '../button';
 	import { findKey, isArray } from 'lodash-es';
+	import { useI18n } from '$lib/i18n';
 
 	type OptionsProps = {
 		value:
@@ -18,6 +19,7 @@
 	};
 
 	let { value = $bindable(), selected }: OptionsProps = $props();
+	const { t } = useI18n();
 
 	let isSubmitted = $state(false);
 	let newOptionKey = $state<string>();
@@ -33,20 +35,20 @@
 {#snippet dialogContent()}
 	<div class="flex flex-col gap-2">
 		{#if isArray(value)}
-			<Label>New option</Label>
+			<Label>{t('New option')}</Label>
 			<Input bind:value={newOptionValue} />
 			{#if (isSubmitted && !newOptionValue) || newOptionValue === ''}
-				<span class="mt-1 text-red-500">Enter a value</span>
+				<span class="mt-1 text-red-500">{t('Enter a value')}</span>
 			{/if}
 		{:else}
-			<Label>New option</Label>
+			<Label>{t('New option')}</Label>
 			<div class="grid grid-cols-[1fr_1em_1fr] items-center gap-2">
 				<Input bind:value={newOptionKey} />
 				<ArrowRightIcon weight="bold" class="text-secondary-500" />
 				<Input bind:value={newOptionValue} />
 			</div>
 			{#if (isSubmitted && !newOptionValue) || newOptionValue === ''}
-				<span class="mt-1 text-red-500">Enter a value</span>
+				<span class="mt-1 text-red-500">{t('Enter a value')}</span>
 			{/if}
 		{/if}
 	</div>
@@ -72,7 +74,7 @@
 				isSubmitted = false;
 			}}
 		>
-			Save
+			{t('Save')}
 		</Button>
 	</div>
 {/snippet}
@@ -115,8 +117,8 @@
 						onclick={() => {
 							dialog.open = true;
 							dialog.component = dialogContent;
-							dialog.title = 'Edit Option';
-							dialog.description = 'Edit the selected option';
+							dialog.title = t('Edit Option');
+							dialog.description = t('Edit the selected option');
 
 							newOptionKey = key;
 							newOptionValue = option;
@@ -135,11 +137,11 @@
 			onclick={() => {
 				dialog.open = true;
 				dialog.component = dialogContent;
-				dialog.title = 'Add Option';
-				dialog.description = 'Add a new option to the list';
+				dialog.title = t('Add Option');
+				dialog.description = t('Add a new option to the list');
 			}}
 		>
-			Add
+			{t('Add')}
 		</Button>
 	</div>
 </div>

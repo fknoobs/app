@@ -10,7 +10,9 @@
 	import { dialog } from '$lib/components/ui/dialog';
 	import { tts } from '$features/twitch';
 	import { ElevenlabsProvider } from '.';
+	import { useI18n } from '$lib/i18n';
 
+	const { t } = useI18n();
 	const provider = $derived(tts.provider as ElevenlabsProvider);
 
 	let isProcessing = $state(false);
@@ -24,7 +26,7 @@
 		e.preventDefault();
 
 		if (voiceFiles.length === 0) {
-			app.toast.error('Please select at least one audio file.');
+			app.toast.error(t('Please select at least one audio file.'));
 			return;
 		}
 
@@ -59,30 +61,32 @@
 			if (response && response.voice_id) {
 				if (response.requires_verification) {
 					app.toast.info(
-						'Voice added successfully, but it requires verification by ElevenLabs. Please check your email for further instructions.'
+						t(
+							'Voice added successfully, but it requires verification by ElevenLabs. Please check your email for further instructions.'
+						)
 					);
 				}
 
 				await provider.getVoices();
 
 				isProcessing = false;
-				app.toast.success(`${voiceName} added successfully.`);
+				app.toast.success(t('{voiceName} added successfully.', { voiceName }));
 				dialog.close();
 			} else {
-				app.toast.error('Failed to add voice. Please try again.');
+				app.toast.error(t('Failed to add voice. Please try again.'));
 				console.error(`ElevenLabs add voice: Invalid response ${JSON.stringify(response)}`);
 			}
 		} catch (err) {
-			app.toast.error('Failed to add voice. Please try again.');
+			app.toast.error(t('Failed to add voice. Please try again.'));
 			console.error(`ElevenLabs add voice: Invalid response ${JSON.stringify(err)}`);
 			isProcessing = false;
 		}
 	}}
 >
 	<Form.Group>
-		<Form.Label>Voice name</Form.Label>
+		<Form.Label>{t('Voice name')}</Form.Label>
 		<Input
-			placeholder="Enter voice name ..."
+			placeholder={t('Enter voice name ...')}
 			name="name"
 			type="text"
 			bind:value={voiceName}
@@ -90,9 +94,9 @@
 		/>
 	</Form.Group>
 	<Form.Group>
-		<Form.Label>Audio files</Form.Label>
+		<Form.Label>{t('Audio files')}</Form.Label>
 		<div class="grid gap-1">
-			{#each voiceFiles as file, index}
+			{#each voiceFiles as file, index (file.name)}
 				<span class="bg-secondary-800 grid grid-flow-col gap-4 rounded px-3 py-1">
 					<span class="truncate">{file.name}</span>
 					<Button
@@ -113,7 +117,7 @@
 			onclick={async () => {
 				files = await open({
 					multiple: true,
-					filters: [{ name: 'Audio Files', extensions: ['mp3', 'm4a', 'ogg', 'wav'] }]
+					filters: [{ name: t('Audio Files'), extensions: ['mp3', 'm4a', 'ogg', 'wav'] }]
 				});
 
 				if (!files) {
@@ -133,10 +137,12 @@
 			class="w-fit"
 			type="button"
 		>
-			{voiceFiles.length ? `Selected ${voiceFiles.length} file(s)` : 'Select audio file(s)'}
+			{voiceFiles.length
+				? t('Selected {count} file(s)', { count: voiceFiles.length })
+				: t('Select audio file(s)')}
 		</Button>
 	</Form.Group>
 	<Form.Group class="items-end">
-		<Button type="submit" class="w-fit" loading={isProcessing}>Add Voice</Button>
+		<Button type="submit" class="w-fit" loading={isProcessing}>{t('Add Voice')}</Button>
 	</Form.Group>
 </Form.Root>

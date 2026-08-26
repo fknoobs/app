@@ -10,6 +10,7 @@ import type { AccountSettings } from '$core/config/schema';
 import { generatePassword, generateUniqueId } from '$lib/utils/password';
 import { steam } from '$core/steam';
 import { ensureAccountFlow, type AuthResult, type RecoveryOutcome } from './recovery';
+import { t } from '$lib/i18n';
 
 export type User = UsersResponse<Record<string, any>, string[]>;
 
@@ -42,9 +43,10 @@ export class AccountService {
 			findBackupAccount: () => this.#findBackupAccount(),
 			confirmCreateNew: () =>
 				confirm(
-					'Your account could not be found and no working backup was detected.\n\n' +
-						'Do you want to create a new account? Your previous match history will no longer be linked.',
-					{ okLabel: 'Create new account', cancelLabel: 'Cancel', kind: 'warning' }
+					t(
+						'Your account could not be found and no working backup was detected.\n\nDo you want to create a new account? Your previous match history will no longer be linked.'
+					),
+					{ okLabel: t('Create new account'), cancelLabel: t('Cancel'), kind: 'warning' }
 				),
 			generateCredentials: () => ({
 				userId: generateUniqueId(),
@@ -57,8 +59,8 @@ export class AccountService {
 			this.status = 'error';
 			this.lastError =
 				outcome.reason === 'declined'
-					? 'Account setup cancelled'
-					: (outcome.error ?? 'Unknown account error');
+					? t('Account setup cancelled')
+					: (outcome.error ?? t('Unknown account error'));
 			console.error('[ACCOUNT]: ensureAccount failed:', outcome);
 			return outcome;
 		}

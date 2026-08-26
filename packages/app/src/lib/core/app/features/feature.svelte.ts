@@ -12,6 +12,7 @@ import {
 	parseFeatureImportContent,
 	serializeEnvelope
 } from '$core/config/import-export';
+import { t } from '$lib/i18n';
 
 export type FeatureStatus = 'disabled' | 'starting' | 'active' | 'error';
 
@@ -221,7 +222,7 @@ export abstract class Feature<
 			const parsed = parseFeatureImportContent(content, this.name);
 
 			if (!parsed.success) {
-				toast.error(`Import rejected: ${parsed.error}`);
+				toast.error(t('Import rejected: {message}', { message: parsed.error }));
 				return;
 			}
 
@@ -234,10 +235,14 @@ export abstract class Feature<
 			};
 			await this.#transition(this.enabled);
 
-			toast.success('Settings imported successfully!');
+			toast.success(t('Settings imported successfully!'));
 		} catch (error) {
 			console.error(`[FEATURE:${this.name}]: import failed:`, error);
-			toast.error('Failed to import settings: ' + (error instanceof Error ? error.message : error));
+			toast.error(
+				t('Failed to import settings: {message}', {
+					message: error instanceof Error ? error.message : String(error)
+				})
+			);
 		}
 	}
 
@@ -260,10 +265,14 @@ export abstract class Feature<
 			);
 
 			await writeTextFile(path, serializeEnvelope(envelope));
-			toast.success('Settings exported successfully!');
+			toast.success(t('Settings exported successfully!'));
 		} catch (error) {
 			console.error(`[FEATURE:${this.name}]: export failed:`, error);
-			toast.error('Failed to export settings: ' + (error instanceof Error ? error.message : error));
+			toast.error(
+				t('Failed to export settings: {message}', {
+					message: error instanceof Error ? error.message : String(error)
+				})
+			);
 		}
 	}
 

@@ -7,12 +7,14 @@
 	import CaretUp from 'phosphor-svelte/lib/CaretUpIcon';
 	import CaretDown from 'phosphor-svelte/lib/CaretDownIcon';
 	import MinusIcon from 'phosphor-svelte/lib/MinusIcon';
+	import { useI18n } from '$lib/i18n';
 
 	type Props = HTMLAttributes<HTMLSpanElement> & {
 		profileId?: number | string | null;
 	};
 
 	const { profileId = null, ...restProps }: Props = $props();
+	const { t } = useI18n();
 	const match = useMatch();
 	const steamIds = app.features.auth.user.steamIds;
 
@@ -44,7 +46,7 @@
 <span
 	{...restProps}
 	class={cn('inline-flex items-center gap-2', restProps.class)}
-	{@attach tooltip('Rating Change (elo)')}
+	{@attach tooltip(t('Rating Change (elo)'))}
 >
 	{#if change !== undefined}
 		{#if change < 0}

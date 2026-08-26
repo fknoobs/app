@@ -7,6 +7,7 @@ import Changelog from './changelog.svelte';
 import Update from './update.svelte';
 import { fetch } from '$core/http/fetch';
 import { settings } from '$core/config/settings.svelte';
+import { t } from '$lib/i18n';
 
 export type UpdaterSettings = {
 	enabled: boolean;
@@ -133,8 +134,8 @@ export class Updater extends Feature<UpdaterSettings> {
 	openChangelog() {
 		app.modal.create({
 			component: Changelog,
-			title: 'Changelog',
-			description: 'Here are the latest changes in this version:',
+			title: t('Changelog'),
+			description: t('Here are the latest changes in this version:'),
 			size: 'lg'
 		});
 		app.modal.open();
@@ -156,8 +157,14 @@ export class Updater extends Feature<UpdaterSettings> {
 
 		app.modal.create({
 			component: Update,
-			title: 'Update Available',
-			description: `A new version (${this.latestVersionFormatted}) is available. You are currently on version ${this.currentVersionFormatted}.`,
+			title: t('Update Available'),
+			description: t(
+				'A new version ({latestVersion}) is available. You are currently on version {currentVersion}.',
+				{
+					latestVersion: this.latestVersionFormatted,
+					currentVersion: this.currentVersionFormatted
+				}
+			),
 			props: {
 				currentVersion: this.currentVersion,
 				latestVersion: this.latestVersion,

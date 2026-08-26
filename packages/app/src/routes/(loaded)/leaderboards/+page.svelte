@@ -13,12 +13,14 @@
 	import { leaderboards } from '$lib/utils/game';
 	import Input from '$lib/components/ui/input/input.svelte';
 	import { isEmpty } from 'lodash-es';
-	import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlassIcon';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
+	import { useI18n } from '$lib/i18n';
 
 	let leaderboardId = $state(leaderboards[0].value);
 	let leaderboardFactionId = $state(leaderboards[0].leaderboardFationIds[0].value);
 	let searchInput = $state('');
 	let debouncedSearch = $state('');
+	const { t } = useI18n();
 
 	let leaderboardFactionsIds = $derived(
 		leaderboards.find((lb) => lb.value === leaderboardId)!.leaderboardFationIds!
@@ -108,13 +110,13 @@
 	</div>
 	<Input
 		type="text"
-		placeholder="Search player..."
+		placeholder={t('Search player...')}
 		class="w-full sm:w-58"
 		bind:value={searchInput}
 		oninput={() => searchPlayer()}
 	>
 		{#snippet leading()}
-			<MagnifyingGlass class="size-4" />
+			<MagnifyingGlassIcon class="size-4" />
 		{/snippet}
 	</Input>
 </div>
@@ -131,7 +133,7 @@
 	stats={listStats}
 	eloBySteamId={eloBySteamId.current}
 	loading={statsResource.loading}
-	empty={filteredStats.length === 0 ? 'No players found.' : 'No more players to show.'}
+	empty={filteredStats.length === 0 ? t('No players found.') : t('No more players to show.')}
 	class="rounded-none border-0"
 	striped={false}
 />
