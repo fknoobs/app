@@ -175,6 +175,7 @@
 		"global-shortcut:allow-register",
 		"global-shortcut:allow-unregister",
 		"global-shortcut:allow-unregister-all",
-		"process:default"
+		"process:default",
+		"updater:default"
 	]
 }

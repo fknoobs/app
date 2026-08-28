@@ -5,6 +5,8 @@
 	import { app } from '$core/app/context';
 	import NotificationsTab from './tabs/notifications-tab.svelte';
 	import UsersTab from './tabs/users-tab.svelte';
+	import FlaggedTab from './tabs/flagged-tab.svelte';
+	import DenylistTab from './tabs/denylist-tab.svelte';
 	import { useI18n } from '$lib/i18n';
 
 	const { t } = useI18n();
@@ -26,7 +28,7 @@
 {#if app.account.isStaff}
 	<div class="border-secondary-900 overflow-clip border-b">
 		<div class="border-secondary-800 border-b">
-			<div class="flex items-center gap-2 px-4 py-2">
+			<div class="flex flex-wrap items-center gap-2 px-4 py-2">
 				<button
 					type="button"
 					class={tabTrigger}
@@ -45,11 +47,31 @@
 						{t('Users')}
 					</button>
 				{/if}
+				<button
+					type="button"
+					class={tabTrigger}
+					data-state={tab === 'flagged' ? 'active' : undefined}
+					onclick={() => (tab = 'flagged')}
+				>
+					{t('Flagged')}
+				</button>
+				<button
+					type="button"
+					class={tabTrigger}
+					data-state={tab === 'denylist' ? 'active' : undefined}
+					onclick={() => (tab = 'denylist')}
+				>
+					{t('Denylist')}
+				</button>
 			</div>
 
 			<div class="border-secondary-800 border-t">
 				{#if tab === 'users' && app.account.isAdmin}
 					<UsersTab />
+				{:else if tab === 'flagged'}
+					<FlaggedTab />
+				{:else if tab === 'denylist'}
+					<DenylistTab />
 				{:else}
 					<NotificationsTab />
 				{/if}

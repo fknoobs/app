@@ -15,6 +15,7 @@ import { replayAnalyzer } from '$core/app/features/replay-analyzer';
 import { history } from '$core/app/features/history';
 import { shortcuts } from '$core/app/features/shortcuts';
 import { updater } from '$core/app/features/updater';
+import { antiCheat } from '$core/app/features/anti-cheat';
 import { OppBotOverlay } from '$core/app/features/twitch-overlays/overlays/oppbot';
 import { initI18n } from '$lib/i18n';
 
@@ -41,6 +42,7 @@ export const load = async ({ url }: LoadEvent) => {
 		app.register('updater', updater);
 		app.register('shortcuts', shortcuts);
 		app.register('history', history);
+		app.register('anti-cheat', antiCheat);
 		app.register('replay-analyzer', replayAnalyzer);
 		app.register('twitch', twitch);
 		app.register('text-to-speech', tts);

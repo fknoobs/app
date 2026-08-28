@@ -9,6 +9,7 @@ import type {
 import type { ListResult } from 'pocketbase';
 import type { AggregationPlayer, MatchExpanded } from '$core/app/database/matches';
 import { md5, normalizeMapName } from '$lib/utils';
+import { dev } from '$app/environment';
 
 const FILTER_DEBOUNCE_MS = 200;
 
@@ -150,7 +151,8 @@ export class Matches {
 			ranked: ranked ?? false,
 			playerIds: playerIds ?? [],
 			maps: maps ?? [],
-			races: races ?? []
+			races: races ?? [],
+			includeSkirmish: dev
 		};
 	});
 
@@ -226,7 +228,8 @@ export class Matches {
 			this.query.playerIds.length > 0 ||
 			this.query.maps.length > 0 ||
 			this.query.races.length > 0 ||
-			this.query.ranked;
+			this.query.ranked ||
+			!!this.query.includeSkirmish;
 		const cacheKey = `matches-${md5(JSON.stringify({ ...this.query, page: this.page }))}`;
 
 		return useQuery(cacheKey, {

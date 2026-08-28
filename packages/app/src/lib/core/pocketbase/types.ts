@@ -11,6 +11,11 @@ export const Collections = {
 	Mfas: "_mfas",
 	Otps: "_otps",
 	Superusers: "_superusers",
+	AntiCheatCaptures: "anti_cheat_captures",
+	AntiCheatCheaters: "anti_cheat_cheaters",
+	AntiCheatProcessDenylist: "anti_cheat_process_denylist",
+	AntiCheatProcessHits: "anti_cheat_process_hits",
+	AntiCheatReports: "anti_cheat_reports",
 	Attachments: "attachments",
 	Lobbies: "lobbies",
 	LobbiesLive: "lobbies_live",
@@ -107,6 +112,67 @@ export type SuperusersRecord = {
 	tokenKey: string
 	updated: IsoAutoDateString
 	verified?: boolean
+}
+
+export type AntiCheatCapturesRecord = {
+	captured_at?: IsoDateString
+	created: IsoAutoDateString
+	game_focused?: boolean
+	id: string
+	image: FileNameString
+	map?: string
+	session_id?: number
+	steam_id?: string
+	updated: IsoAutoDateString
+	user: RecordIdString
+}
+
+export const AntiCheatReportsStatusOptions = {
+	"pending": "pending",
+	"dismissed": "dismissed",
+	"confirmed": "confirmed",
+} as const
+export type AntiCheatReportsStatusOptions = typeof AntiCheatReportsStatusOptions[keyof typeof AntiCheatReportsStatusOptions]
+export type AntiCheatReportsRecord = {
+	accused: RecordIdString
+	accused_steam_id?: string
+	created: IsoAutoDateString
+	id: string
+	lobby?: RecordIdString
+	note?: string
+	reporter: RecordIdString
+	session_id: number
+	status: AntiCheatReportsStatusOptions
+	updated: IsoAutoDateString
+}
+
+export type AntiCheatCheatersRecord = {
+	created: IsoAutoDateString
+	id: string
+	labeled_by?: RecordIdString
+	steam_id: string
+	updated: IsoAutoDateString
+	user: RecordIdString
+}
+
+export type AntiCheatProcessDenylistRecord = {
+	created: IsoAutoDateString
+	enabled?: boolean
+	id: string
+	label?: string
+	name: string
+	updated: IsoAutoDateString
+}
+
+export type AntiCheatProcessHitsRecord = {
+	created: IsoAutoDateString
+	detected_at?: IsoDateString
+	id: string
+	pid?: number
+	process_name: string
+	session_id?: number
+	updated: IsoAutoDateString
+	user: RecordIdString
 }
 
 export type AttachmentsRecord = {
@@ -330,6 +396,11 @@ export type ExternalauthsResponse<Texpand = unknown> = Required<ExternalauthsRec
 export type MfasResponse<Texpand = unknown> = Required<MfasRecord> & BaseSystemFields<Texpand>
 export type OtpsResponse<Texpand = unknown> = Required<OtpsRecord> & BaseSystemFields<Texpand>
 export type SuperusersResponse<Texpand = unknown> = Required<SuperusersRecord> & AuthSystemFields<Texpand>
+export type AntiCheatCapturesResponse<Texpand = unknown> = Required<AntiCheatCapturesRecord> & BaseSystemFields<Texpand>
+export type AntiCheatCheatersResponse<Texpand = unknown> = Required<AntiCheatCheatersRecord> & BaseSystemFields<Texpand>
+export type AntiCheatProcessDenylistResponse<Texpand = unknown> = Required<AntiCheatProcessDenylistRecord> & BaseSystemFields<Texpand>
+export type AntiCheatProcessHitsResponse<Texpand = unknown> = Required<AntiCheatProcessHitsRecord> & BaseSystemFields<Texpand>
+export type AntiCheatReportsResponse<Texpand = unknown> = Required<AntiCheatReportsRecord> & BaseSystemFields<Texpand>
 export type AttachmentsResponse<Texpand = unknown> = Required<AttachmentsRecord> & BaseSystemFields<Texpand>
 export type LobbiesResponse<Tplayers = unknown, Tresult = unknown, Texpand = unknown> = Required<LobbiesRecord<Tplayers, Tresult>> & BaseSystemFields<Texpand>
 export type LobbiesLiveResponse<Tplayers = unknown, Texpand = unknown> = Required<LobbiesLiveRecord<Tplayers>> & BaseSystemFields<Texpand>
@@ -356,6 +427,11 @@ export type CollectionRecords = {
 	_mfas: MfasRecord
 	_otps: OtpsRecord
 	_superusers: SuperusersRecord
+	anti_cheat_captures: AntiCheatCapturesRecord
+	anti_cheat_cheaters: AntiCheatCheatersRecord
+	anti_cheat_process_denylist: AntiCheatProcessDenylistRecord
+	anti_cheat_process_hits: AntiCheatProcessHitsRecord
+	anti_cheat_reports: AntiCheatReportsRecord
 	attachments: AttachmentsRecord
 	lobbies: LobbiesRecord
 	lobbies_live: LobbiesLiveRecord
@@ -381,6 +457,11 @@ export type CollectionResponses = {
 	_mfas: MfasResponse
 	_otps: OtpsResponse
 	_superusers: SuperusersResponse
+	anti_cheat_captures: AntiCheatCapturesResponse
+	anti_cheat_cheaters: AntiCheatCheatersResponse
+	anti_cheat_process_denylist: AntiCheatProcessDenylistResponse
+	anti_cheat_process_hits: AntiCheatProcessHitsResponse
+	anti_cheat_reports: AntiCheatReportsResponse
 	attachments: AttachmentsResponse
 	lobbies: LobbiesResponse
 	lobbies_live: LobbiesLiveResponse

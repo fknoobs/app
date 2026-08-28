@@ -14,6 +14,7 @@ import MatchLikeButton from './match-like-button.svelte';
 import MatchComments from './match-comments.svelte';
 import MatchSocialCounts from './match-social-counts.svelte';
 import MatchProBadge from './match-pro-badge.svelte';
+import MatchScreenshots from './match-screenshots.svelte';
 
 export {
 	createMatch,
@@ -33,5 +34,6 @@ export {
 	MatchLikeButton as LikeButton,
 	MatchComments as Comments,
 	MatchSocialCounts as SocialCounts,
-	MatchProBadge as ProBadge
+	MatchProBadge as ProBadge,
+	MatchScreenshots as Screenshots
 };

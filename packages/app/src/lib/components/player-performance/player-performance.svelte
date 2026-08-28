@@ -29,6 +29,7 @@
 	} from '$core/pocketbase/player-ratings';
 	import type { PlayerEloHistoryPoint } from '$core/pocketbase/player-ratings';
 	import { useI18n } from '$lib/i18n';
+	import { dev } from '$app/environment';
 
 	type Props = {
 		profileId: number | null | undefined;
@@ -62,7 +63,7 @@
 			: t('No tracked community matches for this player.')
 	);
 
-	const byMode = $derived(stats.byMode.filter((mode) => mode.matchtypeId !== 14));
+	const byMode = $derived(stats.byMode.filter((mode) => dev || mode.matchtypeId !== 14));
 	const isLoading = $derived(performance.loading && stats.matchCount === 0);
 	let expandedMap = $state<string | null>(null);
 	let expandedFaction = $state<number | null>(null);

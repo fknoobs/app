@@ -2,8 +2,9 @@
 	import { cn } from '$lib/utils';
 	import { Popover } from '$lib/components/ui/popover';
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { interactive, menuItem } from '$lib/components/ui/variants';
+	import { interactive } from '$lib/components/ui/variants';
 	import BellIcon from 'phosphor-svelte/lib/BellIcon';
 	import dayjs from '$lib/dayjs';
 	import { app } from '$core/app/context';
@@ -33,7 +34,7 @@
 	side="right"
 	align="center"
 	sideOffset={12}
-	contentClass="bg-secondary-950 w-[320px] overflow-hidden p-0"
+	contentClass="bg-secondary-950 w-[360px] overflow-hidden p-0"
 >
 	{#snippet trigger({ props })}
 		<Button
@@ -58,24 +59,25 @@
 			{/if}
 		</Button>
 	{/snippet}
-	<div class="border-secondary-800 flex items-baseline justify-between border-b px-3 py-2.5">
-		<h2 class="font-heading text-sm font-bold">{t('Notifications')}</h2>
+	<div class="border-secondary-800 flex items-center justify-between border-b px-4 py-3">
+		<h2 class="text-secondary-300 text-xs font-semibold tracking-wide uppercase">
+			{t('Notifications')}
+		</h2>
 		{#if app.notifications.unreadCount > 0}
-			<span class="text-primary text-xs font-semibold">
+			<Badge variant="primary" class="px-2 py-0.5">
 				{t('{count} unread', { count: app.notifications.unreadCount })}
-			</span>
+			</Badge>
 		{:else}
 			<span class="text-secondary-500 text-xs">{t('All read')}</span>
 		{/if}
 	</div>
 
-		<div class="max-h-90 overflow-y-auto p-1">
+	<div class="max-h-90 overflow-y-auto">
 		{#if app.notifications.isLoading && app.notifications.items.length === 0}
-			<div class="flex flex-col">
+			<div class="divide-secondary-800 divide-y">
 				{#each skeletonRows as row (row)}
-					<div class="flex items-start gap-2.5 px-3 py-2">
-						<Skeleton class="mt-1.5 size-1.5 shrink-0 rounded-full" />
-						<div class="flex min-w-0 flex-1 flex-col gap-1.5">
+					<div class="border-l-2 border-transparent px-4 py-2.5">
+						<div class="flex min-w-0 flex-col gap-1.5">
 							<Skeleton class="h-3.5 w-4/5" />
 							<Skeleton class="h-3 w-16" />
 						</div>
@@ -88,37 +90,34 @@
 				<p>{t('No notifications')}</p>
 			</div>
 		{:else}
-			<ul>
+			<ul class="divide-secondary-800 divide-y">
 				{#each app.notifications.items as notification (notification.id)}
 					<li>
 						<button
 							type="button"
-							class={cn(interactive, menuItem, 'flex w-full items-start gap-2.5 text-left')}
+							class={cn(
+								interactive,
+								'flex w-full flex-col border-l-2 px-4 py-2.5 text-left transition-colors hover:bg-secondary-950/50',
+								notification.read
+									? 'border-transparent'
+									: 'bg-secondary-950/80 border-primary'
+							)}
 							onclick={() => openNotification(notification)}
 						>
 							<span
 								class={cn(
-									'mt-1.5 size-1.5 shrink-0 rounded-full',
-									notification.read ? 'bg-transparent' : 'bg-primary'
+									'line-clamp-2 text-sm',
+									notification.read ? 'text-secondary-300' : 'font-medium text-white'
 								)}
-								aria-hidden="true"
-							></span>
-							<span class="min-w-0 flex-1">
-								<span
-									class={cn(
-										'line-clamp-2 text-sm font-medium',
-										notification.read ? 'text-secondary-300' : 'text-white'
-									)}
-								>
-									{notification.title}
-								</span>
-								<time
-									class="text-secondary-500 mt-0.5 block text-xs"
-									datetime={notification.created}
-								>
-									{dayjs(notification.created).fromNow()}
-								</time>
+							>
+								{notification.title}
 							</span>
+							<time
+								class="text-secondary-500 mt-0.5 text-xs tabular-nums"
+								datetime={notification.created}
+							>
+								{dayjs(notification.created).fromNow()}
+							</time>
 						</button>
 					</li>
 				{/each}

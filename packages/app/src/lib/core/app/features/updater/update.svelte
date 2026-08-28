@@ -1,8 +1,5 @@
 <script lang="ts">
-	import { downloadDir, join } from '@tauri-apps/api/path';
-	import { openPath, openUrl } from '@tauri-apps/plugin-opener';
-	import { exit } from '@tauri-apps/plugin-process';
-	import { download } from '@tauri-apps/plugin-upload';
+	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { Button } from '$lib/components/ui/button';
 	import { cn } from '$lib/utils';
 	import type { HTMLAttributes } from 'svelte/elements';
@@ -11,19 +8,17 @@
 	type Props = {
 		currentVersion: string;
 		latestVersion: string;
-		downloadUrl?: string;
-		downloadFileName?: string;
+		notes?: string;
 		releaseUrl?: string;
-		onPrepare?: () => Promise<void>;
+		onInstall?: () => Promise<void>;
 	} & HTMLAttributes<HTMLDivElement>;
 
 	let {
 		currentVersion,
 		latestVersion,
-		downloadUrl,
-		downloadFileName,
+		notes,
 		releaseUrl,
-		onPrepare,
+		onInstall,
 		...restProps
 	}: Props = $props();
 
@@ -32,24 +27,13 @@
 	let loading = $state(false);
 	let error = $state<string | null>(null);
 
-	async function onDownload() {
-		if (!downloadUrl) return;
-
+	async function onRestart() {
 		loading = true;
 		error = null;
-
 		try {
-			await onPrepare?.();
-
-			const fileName =
-				downloadFileName ?? `coh-companion-${latestVersion}-setup.exe`;
-			const filePath = await join(await downloadDir(), fileName);
-
-			await download(downloadUrl, filePath);
-			await openPath(filePath);
-			await exit(0);
+			await onInstall?.();
 		} catch (err) {
-			error = err instanceof Error ? err.message : t('Failed to download update.');
+			error = err instanceof Error ? err.message : t('Failed to install update.');
 			loading = false;
 		}
 	}
@@ -68,18 +52,19 @@
 		})}
 	</p>
 	<p class="text-secondary-400 text-sm">
-		{t(
-			'The app will back up your settings, download the installer in the background, close itself, and launch the installer when the download finishes.'
-		)}
+		{t('The app will back up your settings, install the update, and restart.')}
 	</p>
+	{#if notes}
+		<p class="text-secondary-300 max-h-40 overflow-y-auto text-sm whitespace-pre-wrap">{notes}</p>
+	{/if}
 
 	{#if error}
 		<p class="text-destructive text-sm">{error}</p>
 	{/if}
 
 	<div class="flex flex-wrap gap-2">
-		<Button type="button" bind:loading onclick={onDownload} disabled={!downloadUrl}>
-			{loading ? t('Downloading update...') : t('Download and install')}
+		<Button type="button" bind:loading onclick={onRestart}>
+			{loading ? t('Installing update...') : t('Restart and install')}
 		</Button>
 		{#if releaseUrl}
 			<Button type="button" variant="secondary" onclick={onOpenRelease} disabled={loading}>

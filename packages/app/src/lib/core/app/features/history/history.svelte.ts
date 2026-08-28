@@ -146,7 +146,7 @@ export class History extends Feature {
 				title: lobby.type,
 				map: lobby.map || 'Unknown',
 				sessionId: lobby.sessionId,
-				needsResult: true,
+				needsResult: !lobby.isSkirmish,
 				players: toPersistablePlayers(lobby.players),
 				replay: replayFile ?? undefined
 			});

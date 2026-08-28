@@ -27,16 +27,17 @@ export async function loadLatestDownload(): Promise<void> {
 			assets?: Array<{ name?: string; browser_download_url?: string }>;
 		};
 
-		const msi = release.assets?.find(
-			(asset) => /\.msi$/i.test(asset.name ?? '') && asset.browser_download_url
-		);
+		const assets = release.assets ?? [];
+		const pick = (pattern: RegExp) =>
+			assets.find((asset) => pattern.test(asset.name ?? '') && asset.browser_download_url);
+		const asset = pick(/setup\.exe$/i) ?? pick(/\.exe$/i) ?? pick(/\.msi$/i);
 
-		if (msi?.browser_download_url) {
-			latestDownload.url = msi.browser_download_url;
-			latestDownload.fileName = msi.name;
+		if (asset?.browser_download_url) {
+			latestDownload.url = asset.browser_download_url;
+			latestDownload.fileName = asset.name;
 		}
 	} catch (error) {
-		console.warn('[landing] failed to resolve latest MSI download:', error);
+		console.warn('[landing] failed to resolve latest Windows download:', error);
 	} finally {
 		latestDownload.loading = false;
 	}

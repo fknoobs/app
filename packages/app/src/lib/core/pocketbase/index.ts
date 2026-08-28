@@ -62,14 +62,37 @@ export function exp<T extends Record<string, any>>(obj: T): Expand<T> {
 	return resultObj as Expand<T>;
 }
 
+let fileTokenCache: { token: string; fetchedAt: number } | null = null;
+const FILE_TOKEN_TTL_MS = 90 * 60 * 1000;
+
+export async function getFileAccessToken() {
+	const now = Date.now();
+	if (fileTokenCache && now - fileTokenCache.fetchedAt < FILE_TOKEN_TTL_MS) {
+		return fileTokenCache.token;
+	}
+	const token = await pocketbase.files.getToken({ fetch: appFetch });
+	fileTokenCache = { token, fetchedAt: now };
+	return token;
+}
+
 export const getFile = async (
 	record: Record<string, unknown>,
 	filename: string,
 	queryParams?: FileOptions
 ) => {
-	return appFetch(pocketbase.files.getURL(record, filename, queryParams))
-		.then((res) => res.arrayBuffer())
-		.then((buffer) => new Uint8Array(buffer));
+	const params: FileOptions = { ...queryParams };
+	if (!params.token) {
+		try {
+			params.token = await getFileAccessToken();
+		} catch {
+			// public files still work without a file token
+		}
+	}
+	const response = await appFetch(pocketbase.files.getURL(record, filename, params));
+	if (!response.ok) {
+		throw new Error(`Failed to download file (${response.status})`);
+	}
+	return new Uint8Array(await response.arrayBuffer());
 };
 
 export const getFileUrl = (

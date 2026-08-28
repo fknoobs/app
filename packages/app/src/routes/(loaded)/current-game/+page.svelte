@@ -8,7 +8,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 
-	let match = $derived(dev ? CURRENT_GAME_TEST : app.lobby);
+	let match = $derived(app.lobby ?? (dev ? CURRENT_GAME_TEST : null));
 	let replay = $state<{
 		file: File;
 		replay: ReplayData;

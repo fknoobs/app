@@ -6,6 +6,7 @@
 	import { MatchListTable } from '$lib/components/match';
 	import { watch } from 'runed';
 	import { useI18n } from '$lib/i18n';
+	import { dev } from '$app/environment';
 
 	type Props = {
 		profileId: number;
@@ -62,7 +63,8 @@
 			maps,
 			races: races.map(String),
 			matchtypes,
-			playerIds
+			playerIds,
+			includeSkirmish: dev
 		});
 	}
 

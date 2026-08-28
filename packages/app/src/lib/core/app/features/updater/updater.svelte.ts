@@ -1,13 +1,17 @@
 import { Feature } from '../feature.svelte';
 import { getVersion } from '@tauri-apps/api/app';
+import { check, Update as TauriUpdate } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { app } from '$core/app/context';
 import { padEnd } from 'lodash-es';
 import { coerce, gt, valid } from 'semver';
 import Changelog from './changelog.svelte';
 import Update from './update.svelte';
-import { fetch } from '$core/http/fetch';
 import { settings } from '$core/config/settings.svelte';
 import { t } from '$lib/i18n';
+import { dev } from '$app/environment';
+
+const RELEASE_URL = 'https://github.com/fknoobs/app/releases/latest';
 
 export type UpdaterSettings = {
 	enabled: boolean;
@@ -28,8 +32,8 @@ function normalizeVersion(version: string): string | null {
 }
 
 /**
- * Checks GitHub for new releases, downloads the installer in the background,
- * and shows the changelog after an update.
+ * Checks GitHub for signed updates, downloads them in the background,
+ * and installs + relaunches after the user confirms.
  */
 export class Updater extends Feature<UpdaterSettings> {
 	name = 'updater';
@@ -37,9 +41,9 @@ export class Updater extends Feature<UpdaterSettings> {
 	hasUpdate = $state<boolean>(false);
 	currentVersion = $state<string>('');
 	latestVersion = $state<string>('');
-	downloadUrl = $state<string | undefined>(undefined);
-	downloadFileName = $state<string | undefined>(undefined);
-	releaseUrl = $state<string | undefined>(undefined);
+	releaseNotes = $state<string | undefined>(undefined);
+	pendingUpdate = $state.raw<TauriUpdate | null>(null);
+	#stopWaitingForModal: (() => void) | null = null;
 
 	get currentVersionFormatted() {
 		return padEnd(this.currentVersion.toString(), 6, '.0');
@@ -51,63 +55,42 @@ export class Updater extends Feature<UpdaterSettings> {
 
 	async enable() {
 		this.currentVersion = await getVersion();
-
-		void this.#checkForUpdate().then(() => this.#maybeShowChangelog());
+		this.#maybeShowChangelog();
+		if (dev) return;
+		void this.#checkForUpdate();
 	}
 
 	disable() {
+		this.#stopWaitingForModal?.();
 		this.hasUpdate = false;
-		this.downloadUrl = undefined;
-		this.downloadFileName = undefined;
-		this.releaseUrl = undefined;
+		this.latestVersion = '';
+		this.releaseNotes = undefined;
+		void this.pendingUpdate?.close();
+		this.pendingUpdate = null;
 	}
 
 	async #checkForUpdate(): Promise<void> {
 		try {
-			const response = await fetch(
-				'https://api.github.com/repos/company-of-heroes/app/releases/latest',
-				{
-					method: 'GET',
-					headers: {
-						Accept: 'application/vnd.github+json'
-					}
-				}
-			);
-
-			const release = (await response.json()) as {
-				tag_name?: string;
-				html_url?: string;
-				assets?: Array<{ browser_download_url?: string; name?: string }>;
-			};
-
-			const latestRaw = (release.tag_name ?? '').replace(/^v/i, '').trim();
-			this.latestVersion = latestRaw || this.currentVersion;
-			this.releaseUrl = release.html_url;
-
-			const latest = normalizeVersion(this.latestVersion);
-			const current = normalizeVersion(this.currentVersion);
-
-			const isNewer =
-				(latest && current && gt(latest, current)) ||
-				(!latest || !current ? this.latestVersion !== this.currentVersion : false);
-
-			if (isNewer) {
-				const assets = release.assets ?? [];
-				const pick = (pattern: RegExp) =>
-					assets.find((a) => pattern.test(a.name ?? '') && a.browser_download_url);
-
-				const asset =
-					pick(/setup\.exe$/i) ?? pick(/\.exe$/i) ?? pick(/\.msi$/i) ?? assets[0];
-
-				this.downloadUrl = asset?.browser_download_url;
-				this.downloadFileName = asset?.name;
-
-				this.hasUpdate = true;
-				this.openDialog();
+			const update = await check();
+			if (!update) {
+				this.latestVersion = this.currentVersion;
+				return;
 			}
+
+			this.pendingUpdate = update;
+			this.latestVersion = update.version;
+			this.releaseNotes = update.body;
+			this.hasUpdate = true;
+			app.toast.info(t('Downloading update...'));
+			await update.download();
+			this.openDialog();
 		} catch (error) {
 			console.warn('[UPDATER]: update check failed:', error);
 			this.latestVersion = this.currentVersion;
+			if (this.hasUpdate) {
+				app.toast.error(t('Failed to download update.'));
+			}
+			this.hasUpdate = false;
 		}
 	}
 
@@ -124,8 +107,7 @@ export class Updater extends Feature<UpdaterSettings> {
 
 		if (shouldShow) {
 			this.openChangelog();
-
-			app.modal.on('close', () => {
+			void app.modal.once('close').then(() => {
 				this.settings.version = current ?? this.currentVersion;
 			});
 		}
@@ -142,39 +124,64 @@ export class Updater extends Feature<UpdaterSettings> {
 	}
 
 	/**
-	 * Called by the update dialog right before downloading/launching the installer:
-	 * snapshots the settings (incl. account) to the external backup location.
+	 * Snapshots settings (incl. account) before the installer replaces the app.
 	 */
 	async prepareForUpdate(): Promise<void> {
 		await settings.flush();
 		await settings.backup.backupNow('pre-update');
 	}
 
-	openDialog() {
-		if (!this.downloadUrl && !this.releaseUrl) {
-			return;
-		}
+	async installAndRelaunch(): Promise<void> {
+		if (!this.pendingUpdate) return;
+		await this.prepareForUpdate();
+		await this.pendingUpdate.install();
+		await relaunch();
+	}
 
-		app.modal.create({
-			component: Update,
-			title: t('Update Available'),
-			description: t(
-				'A new version ({latestVersion}) is available. You are currently on version {currentVersion}.',
-				{
-					latestVersion: this.latestVersionFormatted,
-					currentVersion: this.currentVersionFormatted
+	openDialog() {
+		if (!this.pendingUpdate) return;
+
+		this.#whenModalIdle(() => {
+			if (!this.pendingUpdate) return;
+			app.modal.create({
+				component: Update,
+				title: t('Update Available'),
+				description: t(
+					'A new version ({latestVersion}) is available. You are currently on version {currentVersion}.',
+					{
+						latestVersion: this.latestVersionFormatted,
+						currentVersion: this.currentVersionFormatted
+					}
+				),
+				props: {
+					currentVersion: this.currentVersion,
+					latestVersion: this.latestVersion,
+					notes: this.releaseNotes,
+					releaseUrl: RELEASE_URL,
+					onInstall: async () => this.installAndRelaunch()
 				}
-			),
-			props: {
-				currentVersion: this.currentVersion,
-				latestVersion: this.latestVersion,
-				downloadUrl: this.downloadUrl,
-				downloadFileName: this.downloadFileName,
-				releaseUrl: this.releaseUrl,
-				onPrepare: async () => this.prepareForUpdate()
-			}
+			});
+			app.modal.open();
 		});
-		app.modal.open();
+	}
+
+	#whenModalIdle(run: () => void): void {
+		this.#stopWaitingForModal?.();
+		let done = false;
+		const finish = () => {
+			if (done || app.modal.isOpen) return;
+			done = true;
+			unsubscribe();
+			this.#stopWaitingForModal = null;
+			run();
+		};
+		const unsubscribe = app.modal.on('close', finish);
+		this.#stopWaitingForModal = () => {
+			done = true;
+			unsubscribe();
+			this.#stopWaitingForModal = null;
+		};
+		finish();
 	}
 
 	async defaultSettings(): Promise<UpdaterSettings> {

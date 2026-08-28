@@ -9,6 +9,7 @@
 	import { getPlayerRatings } from '$core/pocketbase/player-ratings';
 	import { isValidSteamId } from '$lib/utils/player-elo';
 	import { loadSmurfAlert, type SmurfAlertState } from '$lib/player/smurf';
+	import { loadCheaterSteamIds } from '$core/pocketbase/anti-cheat';
 	import { getEloColor, getEloTextShadow } from '$lib/components/leaderboard/leaderboard-utils';
 	import { resource } from 'runed';
 	import LobbyPlayersGrid from './lobby-players-grid.svelte';
@@ -85,6 +86,10 @@
 		() => loadSmurfs(humans)
 	);
 	const smurfs = $derived(smurfAlerts.current);
+	const cheaters = resource(
+		() => ratingsKey,
+		(key) => loadCheaterSteamIds(key ? key.split(',') : [])
+	);
 
 	const matchup = $derived(
 		getMatchupStats(getAlliesPlayers(players), getAxisPlayers(players), lobby.matchType)
@@ -174,6 +179,7 @@
 			matchType={lobby.matchType}
 			highlightPlayerId={lobby.me?.playerId}
 			smurfs={humanPlayers > 0 ? smurfs : undefined}
+			cheaters={cheaters.current ?? undefined}
 		/>
 	</div>
 </div>

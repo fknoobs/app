@@ -13,9 +13,16 @@
 		match?: MatchExpanded | null;
 		class?: string;
 		overviewExtra?: Snippet;
+		screenshots?: Snippet;
 	};
 
-	let { flush = false, match = null, class: className, overviewExtra }: Props = $props();
+	let {
+		flush = false,
+		match = null,
+		class: className,
+		overviewExtra,
+		screenshots
+	}: Props = $props();
 	const { t } = useI18n();
 	let activeTab = $state('overview');
 </script>
@@ -47,6 +54,14 @@
 			>
 				{t('Timeline')}
 			</button>
+			<button
+				type="button"
+				class={tabTrigger}
+				data-state={activeTab === 'screenshots' ? 'active' : undefined}
+				onclick={() => (activeTab = 'screenshots')}
+			>
+				{t('Screenshots')}
+			</button>
 		</div>
 		<div>
 			{#if activeTab === 'overview'}
@@ -54,27 +69,35 @@
 				{@render overviewExtra?.()}
 			{:else if activeTab === 'chat'}
 				<ReplayChat flush class="grow" />
-			{:else}
+			{:else if activeTab === 'timeline'}
 				<ReplayActions flush class="grow" />
+			{:else}
+				{@render screenshots?.()}
 			{/if}
 		</div>
 	</div>
 {:else}
-	<Tabs.Root value="overview" class={className}>
-		<Tabs.List>
-			<Tabs.Trigger value="overview">{t('Overview')}</Tabs.Trigger>
-			<Tabs.Trigger value="chat">{t('Chat')}</Tabs.Trigger>
-			<Tabs.Trigger value="timeline">{t('Timeline')}</Tabs.Trigger>
-		</Tabs.List>
-		<Tabs.Content value="overview" class="flex grow flex-col gap-4">
-			<ReplayPlayers {match} />
-			{@render overviewExtra?.()}
-		</Tabs.Content>
-		<Tabs.Content value="chat" class="flex grow flex-col gap-4">
-			<ReplayChat class="grow" />
-		</Tabs.Content>
-		<Tabs.Content value="timeline" class="flex grow flex-col gap-4">
-			<ReplayActions />
-		</Tabs.Content>
-	</Tabs.Root>
+	<div class={className}>
+		<Tabs.Root value="overview">
+			<Tabs.List>
+				<Tabs.Trigger value="overview">{t('Overview')}</Tabs.Trigger>
+				<Tabs.Trigger value="chat">{t('Chat')}</Tabs.Trigger>
+				<Tabs.Trigger value="timeline">{t('Timeline')}</Tabs.Trigger>
+				<Tabs.Trigger value="screenshots">{t('Screenshots')}</Tabs.Trigger>
+			</Tabs.List>
+			<Tabs.Content value="overview" class="flex grow flex-col gap-4">
+				<ReplayPlayers {match} />
+				{@render overviewExtra?.()}
+			</Tabs.Content>
+			<Tabs.Content value="chat" class="flex grow flex-col gap-4">
+				<ReplayChat class="grow" />
+			</Tabs.Content>
+			<Tabs.Content value="timeline" class="flex grow flex-col gap-4">
+				<ReplayActions />
+			</Tabs.Content>
+			<Tabs.Content value="screenshots" class="flex grow flex-col gap-4">
+				{@render screenshots?.()}
+			</Tabs.Content>
+		</Tabs.Root>
+	</div>
 {/if}

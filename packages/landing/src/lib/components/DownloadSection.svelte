@@ -9,7 +9,7 @@
 	<div class="mx-auto max-w-3xl px-6 py-20 text-center">
 		<h2 class="mb-4 text-3xl text-white sm:text-4xl">Ready to play smarter?</h2>
 		<p class="text-secondary-300 mb-8 text-lg">
-			Download the latest Windows MSI installer from GitHub releases. The app auto-updates with a
+			Download the latest Windows installer from GitHub releases. The app auto-updates with a
 			changelog when new versions ship.
 		</p>
 		<Button href={latestDownload.url} download={latestDownload.fileName} class="text-base">

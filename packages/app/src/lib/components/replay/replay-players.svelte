@@ -26,6 +26,8 @@
 		getPlayerAlias,
 		getPlayerProfileId
 	} from '$lib/components/widgets/dashboard-utils';
+	import { loadCheaterSteamIds } from '$core/pocketbase/anti-cheat';
+	import { resource } from 'runed';
 	import { useI18n } from '$lib/i18n';
 
 	type Props = {} & HTMLAttributes<HTMLDivElement> & {
@@ -47,6 +49,10 @@
 		result?.matchtype_id ?? getLiveLobbyMatchType(match?.players ?? [], match?.isRanked ?? false)
 	);
 	const showMatchStats = $derived(!!match);
+	const cheaters = resource(
+		() => (match?.players ?? []).map((player) => player.steamId).filter(Boolean).join(','),
+		(key) => loadCheaterSteamIds(key ? key.split(',') : [])
+	);
 
 	const playerCpm = $derived.by(() => {
 		const durationMinutes = replay.duration / 60;
@@ -168,6 +174,9 @@
 						<a href="/players/{profileId}" class={nameClass}>{player.name}</a>
 					{:else}
 						<span class={nameClass}>{player.name}</span>
+					{/if}
+					{#if lobbyPlayer?.steamId && cheaters.current?.has(lobbyPlayer.steamId)}
+						<PlayerUi.CheaterAlert compact />
 					{/if}
 				</div>
 			{/snippet}

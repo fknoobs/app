@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { ButtonProps } from '.';
 	import { cn } from '$lib/utils';
-	import { semanticVariant } from '../variants';
 	import LoadingIcon from 'phosphor-svelte/lib/SpinnerIcon';
 
 	let {
@@ -33,14 +32,11 @@
 		variant === 'secondary' &&
 			'border-secondary-800 bg-secondary-800/30 hover:border-secondary-500 hover:bg-secondary-800/80 text-white hover:opacity-100',
 		variant === 'destructive' &&
-			cn(
-				semanticVariant('destructive'),
-				'hover:border-destructive/40 hover:bg-destructive/10'
-			),
+			'bg-destructive/5 border-destructive/20 hover:border-destructive/80 hover:bg-destructive/20 text-white',
 		variant === 'success' &&
-			cn(semanticVariant('success'), 'hover:border-success hover:bg-success/20'),
+			'bg-success/5 border-success/20 hover:border-success/80 hover:bg-success/20 text-white',
 		variant === 'warning' &&
-			cn(semanticVariant('warning'), 'hover:border-warning hover:bg-warning/20'),
+			'bg-warning/5 border-warning/20 hover:border-warning/80 hover:bg-warning/20 text-white',
 		variant === 'ghost' && 'active:bg-secondary-950/40 hover:opacity-100',
 		variant === 'link' &&
 			'text-primary hover:text-primary-600 bg-transparent font-medium hover:opacity-100',

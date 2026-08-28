@@ -21,9 +21,10 @@
 		highlightPlayerId?: number;
 		result?: TransformedMatch | null;
 		smurfs?: Record<number, SmurfAlertState>;
+		cheaters?: Set<string>;
 	};
 
-	let { players, matchType, highlightPlayerId, result = null, smurfs }: Props = $props();
+	let { players, matchType, highlightPlayerId, result = null, smurfs, cheaters }: Props = $props();
 	const { t } = useI18n();
 
 	const orderedPlayers = $derived(orderLobbyPlayersByTeam(players, result));
@@ -87,6 +88,9 @@
 				<Player.Alias class="min-w-0 flex-1 truncate text-sm" />
 				{#if smurf?.status === 'shared'}
 					<Player.SmurfAlert {smurf} compact />
+				{/if}
+				{#if player.steamId && cheaters?.has(player.steamId)}
+					<Player.CheaterAlert compact />
 				{/if}
 			</div>
 			<div class="flex items-center justify-center gap-2.5 tabular-nums">

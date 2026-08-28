@@ -11,7 +11,10 @@
 	import { MatchHistory } from '$lib/components/match-history';
 	import { PlayerPerformance, PlayerPerformanceSummary } from '$lib/components/player-performance';
 	import SmurfAlert from '$lib/components/player/smurf-alert.svelte';
+	import CheaterAlert from '$lib/components/player/cheater-alert.svelte';
+	import PlayerScreenshots from '$lib/components/player/player-screenshots.svelte';
 	import { loadSmurfAlert } from '$lib/player/smurf';
+	import { findCheaterBySteamId } from '$core/pocketbase/anti-cheat';
 	import { account } from '$core/account';
 	import { app } from '$core/app/context';
 	import { getPlayerRating } from '$core/pocketbase/player-ratings';
@@ -37,11 +40,12 @@
 			}
 
 			const steamId = relicProfile.name.replace('/steam/', '');
-			const [steamProfile, gamePlayTime, matchHistory, playerRating] = await Promise.all([
+			const [steamProfile, gamePlayTime, matchHistory, playerRating, cheater] = await Promise.all([
 				steam.getUserProfile(steamId),
 				steam.getRecentlyPlayedGameByAppId(steamId, 228200),
 				relic.getRecentMatchHistoryForProfile(relicProfile.profile_id),
-				getPlayerRating(steamId)
+				getPlayerRating(steamId),
+				findCheaterBySteamId(steamId)
 			]);
 
 			if (!steamProfile) {
@@ -53,10 +57,12 @@
 			return {
 				relic: relicProfile,
 				steam: steamProfile,
+				steamId,
 				game: gamePlayTime,
 				matchHistory,
 				smurf,
-				playerRating
+				playerRating,
+				cheater: !!cheater
 			};
 		}
 	);
@@ -121,8 +127,12 @@
 							alt={profile.current.relic.country}
 						/>
 					{/if}
-					<span class="font-heading truncate text-3xl font-bold">{profile.current.relic.alias}</span>
+					<span class="font-heading truncate text-3xl font-bold">{profile.current.relic.alias}</span
+					>
 					<SmurfAlert smurf={profile.current.smurf} />
+					{#if profile.current.cheater}
+						<CheaterAlert />
+					{/if}
 				</div>
 
 				<PlayerPerformanceSummary
@@ -161,6 +171,14 @@
 				>
 					{t('Match history')}
 				</button>
+				<button
+					type="button"
+					class={tabTrigger}
+					data-state={currentTab === 'screenshots' ? 'active' : undefined}
+					onclick={() => (currentTab = 'screenshots')}
+				>
+					{t('Screenshots')}
+				</button>
 			</div>
 
 			<div class="border-secondary-800 border-t">
@@ -178,13 +196,20 @@
 						empty={isSelf ? 'self' : 'other'}
 						class="rounded-none border-0"
 					/>
-				{:else}
+				{:else if currentTab === 'match-history'}
 					<MatchHistory matches={profile.current.matchHistory} showSessionId />
+				{:else}
+					<PlayerScreenshots
+						steamId={profile.current.steamId}
+						userId={isSelf ? account.userId : undefined}
+					/>
 				{/if}
 			</div>
 		</div>
 
-		<div class="text-secondary-400 bg-secondary-950/50 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm">
+		<div
+			class="text-secondary-400 bg-secondary-950/50 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm"
+		>
 			{#if profile.current.steam.lastlogoff}
 				<span>
 					<span class="text-secondary-500">{t('Last seen')}</span>

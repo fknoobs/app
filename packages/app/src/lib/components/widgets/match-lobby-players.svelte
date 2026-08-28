@@ -10,9 +10,10 @@
 
 	type Props = {
 		match: MatchExpanded;
+		cheaters?: Set<string>;
 	};
 
-	let { match }: Props = $props();
+	let { match, cheaters }: Props = $props();
 
 	const matchType = $derived(getLiveLobbyMatchType(match.players ?? [], match.isRanked));
 	const result = $derived(match.result as TransformedMatch | null | undefined);
@@ -40,9 +41,4 @@
 	});
 </script>
 
-<LobbyPlayersGrid
-	{players}
-	{matchType}
-	{highlightPlayerId}
-	{result}
-/>
+<LobbyPlayersGrid {players} {matchType} {highlightPlayerId} {result} {cheaters} />

@@ -52,8 +52,12 @@ routerAdd('GET', '/api/match-history', (e) => {
 		.map((value) => Number(value))
 		.filter((value) => Number.isFinite(value));
 
+	const includeSkirmish = query.get('includeSkirmish') === 'true';
+
 	const bindings = {};
-	const lobbyFilters = ["l.needsResult = 0", "l.title != 'Skirmish'"];
+	const lobbyFilters = includeSkirmish
+		? ["(l.needsResult = 0 OR l.title = 'Skirmish')"]
+		: ["l.needsResult = 0", "l.title != 'Skirmish'"];
 
 	if (scope === 'community') {
 		lobbyFilters.push("(l.hasReplay = 1 OR (l.replay IS NOT NULL AND l.replay != ''))");

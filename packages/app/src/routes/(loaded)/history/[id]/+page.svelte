@@ -19,6 +19,8 @@
 	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import { useI18n } from '$lib/i18n';
+	import { tabTrigger } from '$lib/components/ui/variants';
+	import { loadCheaterSteamIds } from '$core/pocketbase/anti-cheat';
 
 	const { t } = useI18n();
 	const match = resource(
@@ -62,6 +64,26 @@
 	);
 	const downloadCount = $derived(match.current?.downloadCount ?? 0);
 	const matchId = $derived(match.current?.id ?? page.params.id!);
+	const sessionId = $derived(match.current?.sessionId ?? 0);
+	let matchTab = $state('overview');
+
+	const cheaterSteamIds = $derived.by(() => {
+		const ids = new Set<string>();
+		for (const player of match.current?.players ?? []) {
+			if (player.steamId) ids.add(player.steamId);
+		}
+		for (const player of match.current?.result?.players ?? []) {
+			if (player.steamId) ids.add(player.steamId);
+			if (typeof player.name === 'string' && player.name.startsWith('/steam/')) {
+				ids.add(player.name.slice('/steam/'.length));
+			}
+		}
+		return [...ids];
+	});
+	const cheaters = resource(
+		() => cheaterSteamIds.join(','),
+		(key) => loadCheaterSteamIds(key ? key.split(',') : [])
+	);
 
 	function setLikeCount(count: number) {
 		if (!match.current) return;
@@ -202,8 +224,36 @@
 
 		{#if !hasReplay}
 			<div class="border-secondary-800 border-b">
-				<MatchLobbyPlayers match={match.current} />
-				<Match.Comments lobbyId={matchId} />
+				<div class="border-secondary-800 flex items-center gap-2 border-b px-4 py-2.5">
+					<button
+						type="button"
+						class={tabTrigger}
+						data-state={matchTab === 'overview' ? 'active' : undefined}
+						onclick={() => (matchTab = 'overview')}
+					>
+						{t('Overview')}
+					</button>
+					<button
+						type="button"
+						class={tabTrigger}
+						data-state={matchTab === 'screenshots' ? 'active' : undefined}
+						onclick={() => (matchTab = 'screenshots')}
+					>
+						{t('Screenshots')}
+					</button>
+				</div>
+				{#if matchTab === 'overview'}
+					<MatchLobbyPlayers match={match.current} cheaters={cheaters.current ?? new Set()} />
+					<Match.Comments lobbyId={matchId} />
+				{:else}
+					<Match.Screenshots
+						{sessionId}
+						lobbyId={matchId}
+						players={match.current.players ?? []}
+						resultPlayers={match.current.result?.players ?? []}
+						cheaters={cheaters.current ?? new Set()}
+					/>
+				{/if}
 			</div>
 		{/if}
 
@@ -215,6 +265,15 @@
 					<Replay.Tabs flush match={match.current}>
 						{#snippet overviewExtra()}
 							<Match.Comments lobbyId={matchId} />
+						{/snippet}
+						{#snippet screenshots()}
+							<Match.Screenshots
+								{sessionId}
+								lobbyId={matchId}
+								players={match.current?.players ?? []}
+								resultPlayers={match.current?.result?.players ?? []}
+								cheaters={cheaters.current ?? new Set()}
+							/>
 						{/snippet}
 					</Replay.Tabs>
 				</Replay.Root>

@@ -39,6 +39,7 @@ export type HistoryListQuery = {
 	maps?: string[];
 	races?: string[];
 	matchtypes?: number[];
+	includeSkirmish?: boolean;
 };
 
 const DEFAULT_EXPAND = 'user';
@@ -124,7 +125,8 @@ export class Matches {
 			playerIds = [],
 			maps = [],
 			races = [],
-			matchtypes = []
+			matchtypes = [],
+			includeSkirmish = false
 		}: HistoryListQuery,
 		options?: { signal?: AbortSignal }
 	): Promise<ListResult<MatchExpanded>> {
@@ -157,6 +159,10 @@ export class Matches {
 
 		if (matchtypes.length > 0) {
 			query.matchtypes = matchtypes.join(',');
+		}
+
+		if (includeSkirmish) {
+			query.includeSkirmish = 'true';
 		}
 
 		const response = await pocketbase.send<ListResult<MatchExpanded>>('/api/match-history', {

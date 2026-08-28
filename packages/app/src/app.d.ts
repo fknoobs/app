@@ -8,6 +8,7 @@ declare module '@fknoobs/app' {
 	import type { History } from '$features/history';
 	import type { ReplayAnalyzer } from '$features/replay-analyzer';
 	import type { TwitchOverlays } from '$core/app/features/twitch-overlays';
+	import type { AntiCheat } from '$features/anti-cheat';
 
 	interface Features {
 		auth: AccountService;
@@ -20,6 +21,7 @@ declare module '@fknoobs/app' {
 		'text-to-speech': TTS;
 		'twitch-bot': TwitchBot;
 		'text-to-speech-custom-characters': TTSPersonalVoices;
+		'anti-cheat': AntiCheat;
 	}
 
 	type RelicProfile = {
