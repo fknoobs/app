@@ -8,7 +8,7 @@
 	import { relic } from '$lib/relic';
 	import { steam } from '$core/steam';
 	import { cn, getFactionFlagFromRace } from '$lib/utils';
-	import { interactive, statLosses, statWins } from '$lib/components/ui/variants';
+	import { interactive, statLosses, statWins, tabTrigger } from '$lib/components/ui/variants';
 	import { resource } from 'runed';
 	import { upperCase } from 'lodash-es';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
@@ -122,15 +122,6 @@
 		panelExpanded = true;
 	}
 
-	function tabClass(tab: string) {
-		const selected = panelExpanded && activeTab === tab;
-		return cn(
-			interactive,
-			'rounded-md px-4 py-1.5 font-bold transition-colors',
-			selected ? 'bg-primary text-secondary-950' : 'text-white hover:bg-secondary-950/50'
-		);
-	}
-
 	function modeLabel(matchtypeId: number): string {
 		return (
 			MATCH_TYPES[matchtypeId as keyof typeof MATCH_TYPES] ?? t('Mode {id}', { id: matchtypeId })
@@ -159,11 +150,11 @@
 			)}
 		>
 			<div
-				class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(140px,180px)_minmax(0,1fr)]"
+				class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(170px,220px)_minmax(0,1fr)]"
 			>
 				<div
 					class={cn(
-						'relative aspect-square h-full overflow-clip sm:border-r',
+						'relative aspect-square h-full min-h-0 overflow-clip sm:aspect-auto sm:border-r',
 						app.lobby ? 'border-green-500' : 'border-secondary-800'
 					)}
 				>
@@ -256,47 +247,54 @@
 							</div>
 						</dl>
 					</div>
+
+					{#if formMatches.length > 0}
+						<div
+							class="border-secondary-800 divide-secondary-800 mt-auto grid divide-x overflow-clip border-t"
+							style:grid-template-columns="repeat({formMatches.length}, minmax(0, 1fr))"
+						>
+							{#each formMatches as match (match.id || match.sessionId)}
+								<a
+									href="/history/{match.id}"
+									class={cn(
+										interactive,
+										recentMatchBase,
+										match.outcome === 1 ? recentMatchWin : recentMatchLoss
+									)}
+									aria-label="{match.outcome === 1 ? t('Win') : t('Loss')} — {recentMatchLabel(match)}"
+									{@attach tooltip(recentMatchTooltip(match))}
+								>
+									{match.outcome === 1 ? t('W') : t('L')}
+								</a>
+							{/each}
+						</div>
+					{/if}
 				</div>
 			</div>
-
-			{#if formMatches.length > 0}
-				<div
-					class="border-secondary-800 divide-secondary-800 grid divide-x overflow-clip border-b"
-					style:grid-template-columns="repeat({formMatches.length}, minmax(0, 1fr))"
-				>
-					{#each formMatches as match (match.id || match.sessionId)}
-						<a
-							href="/history/{match.id}"
-							class={cn(
-								interactive,
-								recentMatchBase,
-								match.outcome === 1 ? recentMatchWin : recentMatchLoss
-							)}
-							aria-label="{match.outcome === 1 ? t('Win') : t('Loss')} — {recentMatchLabel(match)}"
-							{@attach tooltip(recentMatchTooltip(match))}
-						>
-							{match.outcome === 1 ? t('W') : t('L')}
-						</a>
-					{/each}
-				</div>
-			{/if}
 
 			<div>
 				<div class="flex items-center justify-between px-4 py-2.5">
 					<div class="flex items-center gap-2">
-						<button type="button" class={tabClass('stats')} onclick={() => openTab('stats')}>
+						<button
+							type="button"
+							class={tabTrigger}
+							data-state={panelExpanded && activeTab === 'stats' ? 'active' : undefined}
+							onclick={() => openTab('stats')}
+						>
 							{t('Stats')}
 						</button>
 						<button
 							type="button"
-							class={tabClass('performance')}
+							class={tabTrigger}
+							data-state={panelExpanded && activeTab === 'performance' ? 'active' : undefined}
 							onclick={() => openTab('performance')}
 						>
 							{t('Performance')}
 						</button>
 						<button
 							type="button"
-							class={tabClass('recent-games')}
+							class={tabTrigger}
+							data-state={panelExpanded && activeTab === 'recent-games' ? 'active' : undefined}
 							onclick={() => openTab('recent-games')}
 						>
 							{t('Recent games')}

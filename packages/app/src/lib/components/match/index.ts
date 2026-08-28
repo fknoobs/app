@@ -10,6 +10,10 @@ import MatchTime from './match-time.svelte';
 import MatchStatus from './match-status.svelte';
 import MatchDuration from './match-duration.svelte';
 import MatchListTable from './match-list-table.svelte';
+import MatchLikeButton from './match-like-button.svelte';
+import MatchComments from './match-comments.svelte';
+import MatchSocialCounts from './match-social-counts.svelte';
+import MatchProBadge from './match-pro-badge.svelte';
 
 export {
 	createMatch,
@@ -25,5 +29,9 @@ export {
 	MatchStatus as Status,
 	MatchDuration as Duration,
 	MatchListTable as ListTable,
-	MatchListTable
+	MatchListTable,
+	MatchLikeButton as LikeButton,
+	MatchComments as Comments,
+	MatchSocialCounts as SocialCounts,
+	MatchProBadge as ProBadge
 };

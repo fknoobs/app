@@ -4,7 +4,7 @@
 	import { MATCH_TYPES } from '$core/game/lobby';
 	import { getRaceLabel } from '$lib/components/leaderboard/leaderboard-utils';
 	import { cn, getFactionFlagFromRace } from '$lib/utils';
-	import { interactive } from '$lib/components/ui/variants';
+	import { interactive, tabTrigger } from '$lib/components/ui/variants';
 	import { Axis, Circle, Highlight, Layer, LineChart, Spline, Text, Tooltip } from 'layerchart';
 	import { IsInViewport } from 'runed';
 	import dayjs from '$lib/dayjs';
@@ -98,13 +98,8 @@
 			{#each modeIds as matchtypeId (matchtypeId)}
 				<button
 					type="button"
-					class={cn(
-						interactive,
-						'rounded-md px-4 py-1.5 text-xs font-bold tracking-wide uppercase transition-colors',
-						activeMode === matchtypeId
-							? 'bg-primary text-secondary-950'
-							: 'text-white hover:bg-secondary-950/50'
-					)}
+					class={cn(tabTrigger, 'text-xs tracking-wide uppercase')}
+					data-state={activeMode === matchtypeId ? 'active' : undefined}
 					onclick={() => selectMode(matchtypeId)}
 				>
 					{modeLabel(matchtypeId)}

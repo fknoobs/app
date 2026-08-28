@@ -13,6 +13,7 @@
 	import { Modal } from '$lib/components/ui/modal';
 	import { Toaster } from '$lib/components/ui/toasts';
 	import { Button, ButtonBack } from '$lib/components/ui/button';
+	import { Alert } from '$lib/components/ui/alert';
 	import { Dialog } from '$lib/components/ui/dialog';
 	import DashboardIcon from 'phosphor-svelte/lib/SquaresFourIcon';
 	import RankingIcon from 'phosphor-svelte/lib/RankingIcon';
@@ -65,6 +66,23 @@
 	createBreadcrumbs();
 
 	const showBack = $derived(page.url.pathname !== '/');
+	let returning = $state(false);
+	const impersonatedName = $derived(
+		app.account.user?.name || app.account.user?.email || app.account.userId
+	);
+
+	const returnToAccount = async () => {
+		returning = true;
+		try {
+			await app.account.stopImpersonating();
+			app.toast.success(t('Returned to your account.'));
+		} catch (error) {
+			console.error('[ACCOUNT]: stopImpersonating failed:', error);
+			app.toast.error(t('Could not restore your account'));
+		} finally {
+			returning = false;
+		}
+	};
 
 	// Redirect on match start from any loaded route (not only the dashboard).
 	// untrack on the catch-up read so we don't force-navigate when the user
@@ -188,6 +206,22 @@
 			</Nav.Root>
 		</div>
 		<main class="flex grow flex-col overflow-auto bg-gray-950/90 text-white">
+			{#if app.account.isImpersonating}
+				<Alert
+					variant="warning"
+					class="flex items-center justify-between gap-4 rounded-none border-x-0 border-t-0"
+				>
+					<span>{t('Signed in as {name}.', { name: impersonatedName })}</span>
+					<Button
+						variant="secondary"
+						size="sm"
+						loading={returning}
+						onclick={() => returnToAccount()}
+					>
+						{t('Return to your account')}
+					</Button>
+				</Alert>
+			{/if}
 			<header class="border-secondary-800 flex items-center gap-3 border-b p-4">
 				{#if showBack}
 					<ButtonBack iconOnly aria-label={t('Go back to previous page')} title={t('Go back')} />

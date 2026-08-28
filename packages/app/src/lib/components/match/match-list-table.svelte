@@ -3,6 +3,7 @@
 	import MatchRoot from './match.svelte';
 	import MatchMapImage from './match-map-image.svelte';
 	import MatchMapName from './match-map-name.svelte';
+	import MatchProBadge from './match-pro-badge.svelte';
 	import MatchPlayers from './match-players.svelte';
 	import MatchRating from './match-rating.svelte';
 	import MatchDuration from './match-duration.svelte';
@@ -56,7 +57,12 @@
 		}
 		cols.push(
 			{ id: 'name', header: t('Name'), width: 'w-5/24', class: 'min-w-0 truncate font-medium' },
-			{ id: 'type', header: t('Type'), width: 'w-2/24', class: 'text-secondary-400 truncate text-sm' },
+			{
+				id: 'type',
+				header: t('Type'),
+				width: 'w-2/24',
+				class: 'text-secondary-400 truncate text-sm'
+			},
 			{
 				id: 'allies',
 				header: t('Allies'),
@@ -121,7 +127,10 @@
 	<MatchMapImage small flush />
 {/snippet}
 {#snippet cell_name({ row }: { row: MatchExpanded })}
-	<MatchMapName class="text-secondary-300 font-medium" />
+	<span class="flex min-w-0 items-center gap-2">
+		<MatchMapName class="text-secondary-300 min-w-0 truncate font-medium" />
+		<MatchProBadge />
+	</span>
 {/snippet}
 {#snippet cell_type({ row }: { row: MatchExpanded })}
 	{getMatchModeLabel(row)}

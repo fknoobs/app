@@ -190,16 +190,59 @@ export class AccountService {
 	}
 
 	async refreshUser(): Promise<User> {
-		const user = await pocketbase
-			.collection('users')
-			.getOne<User>(settings.tree.account.userId, { fetch });
+		const id = this.#user?.id ?? settings.tree.account.userId;
+		const user = await pocketbase.collection('users').getOne<User>(id, { fetch });
 
 		this.#user = user;
 		return user;
 	}
 
+	/**
+	 * Signs in as another user for the current session. Local credentials stay
+	 * the admin account so {@link stopImpersonating} (and app restart) restore it.
+	 */
+	async impersonate(userId: string): Promise<User> {
+		if (!this.isAdmin) {
+			throw new Error(t('Only admins can impersonate users'));
+		}
+
+		if (!userId || userId === this.#user?.id) {
+			throw new Error(t('You are already signed in as this user'));
+		}
+
+		const auth = (await pocketbase.send('/api/impersonate/' + userId, {
+			method: 'POST',
+			fetch
+		})) as { token?: string; record?: User };
+
+		if (!auth?.token || !auth.record) {
+			throw new Error(t('Could not sign in as this user'));
+		}
+
+		pocketbase.authStore.save(auth.token, auth.record);
+		this.#user = auth.record;
+		return this.user;
+	}
+
+	/** Restores the stored admin credentials into the current session. */
+	async stopImpersonating(): Promise<void> {
+		if (!this.isImpersonating) {
+			return;
+		}
+
+		const result = await this.#authenticate($state.snapshot(settings.tree.account));
+
+		if (result !== 'ok') {
+			throw new Error(t('Could not restore your account'));
+		}
+	}
+
 	/** Links a Steam ID to the account (idempotent). */
 	async attachSteamId(steamId: string): Promise<User> {
+		if (this.isImpersonating) {
+			return this.user;
+		}
+
 		const user = this.#user;
 
 		if (!user) {
@@ -241,8 +284,16 @@ export class AccountService {
 		return role === UsersRoleOptions.admin || role === UsersRoleOptions.moderator;
 	}
 
+	get isAdmin(): boolean {
+		return this.#user?.role === UsersRoleOptions.admin;
+	}
+
+	get isImpersonating(): boolean {
+		return this.#user !== null && this.#user.id !== settings.tree.account.userId;
+	}
+
 	get userId(): string {
-		return settings.tree.account.userId;
+		return this.#user?.id ?? settings.tree.account.userId;
 	}
 
 	get email(): string {

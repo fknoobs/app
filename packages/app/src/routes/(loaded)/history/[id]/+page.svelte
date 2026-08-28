@@ -60,6 +60,13 @@
 			match.current?.user.steamIds?.includes(p.steamId || '')
 		)
 	);
+	const downloadCount = $derived(match.current?.downloadCount ?? 0);
+	const matchId = $derived(match.current?.id ?? page.params.id!);
+
+	function setLikeCount(count: number) {
+		if (!match.current) return;
+		match.mutate({ ...match.current, likeCount: count });
+	}
 
 	watch(
 		() => [page.params.id, pendingResult] as const,
@@ -92,7 +99,10 @@
 			</div>
 
 			<div class="min-w-0 px-6 py-4">
-				<Match.MapName class="font-heading mb-3 block truncate text-3xl font-bold" />
+				<div class="mb-3 flex min-w-0 items-center gap-3">
+					<Match.MapName class="font-heading min-w-0 truncate text-3xl font-bold" />
+					<Match.ProBadge />
+				</div>
 
 				<div class={detailMetaGrid}>
 					<List.Title>{t('Status')}</List.Title>
@@ -114,10 +124,7 @@
 					{#if submittedBy}
 						<List.Title>{t('Submitted by')}</List.Title>
 						<List.Value>
-							<a
-								href={`/players/${submittedBy.profile_id}`}
-								class="hover:text-primary underline"
-							>
+							<a href={`/players/${submittedBy.profile_id}`} class="hover:text-primary underline">
 								{submittedBy.alias}
 							</a>
 						</List.Value>
@@ -134,43 +141,69 @@
 					{/if}
 				</div>
 
-				{#if hasReplay}
-					<Button
-						onclick={() => {
-							isDownloading = true;
-							app.features.history
-								.downloadReplay(match.current!)
-								.then(() => {
-									isDownloading = false;
-									didDownload = true;
-								})
-								.catch(() => {
-									didDownload = false;
-								})
-								.finally(() => {
-									isDownloading = false;
-								});
-						}}
-						class={cn('mt-4', didDownload && 'pointer-events-none cursor-not-allowed opacity-50')}
-						loading={isDownloading}
-					>
-						{#if !isDownloading && !didDownload}
-							<DownloadIcon class="mr-2" />
-						{/if}
-						{#if didDownload}
-							<span in:scale={{ easing: bounceInOut, duration: 150 }}>
-								<CheckIcon size={22} class="mr-2" />
-							</span>
-						{/if}
-						{t('Download replay')}
-					</Button>
-				{/if}
+				<div class="mt-4 flex flex-wrap items-center gap-2">
+					{#if hasReplay}
+						<Button
+							onclick={() => {
+								isDownloading = true;
+								app.features.history
+									.downloadReplay(match.current!)
+									.then((result) => {
+										if (result.ok) {
+											didDownload = true;
+											if (result.downloadCount != null && match.current) {
+												match.mutate({
+													...match.current,
+													downloadCount: result.downloadCount
+												});
+											}
+										} else {
+											didDownload = false;
+										}
+									})
+									.catch(() => {
+										didDownload = false;
+									})
+									.finally(() => {
+										isDownloading = false;
+									});
+							}}
+							class={cn(didDownload && 'pointer-events-none cursor-not-allowed opacity-50')}
+							loading={isDownloading}
+						>
+							{#if !isDownloading && !didDownload}
+								<DownloadIcon class="mr-2" />
+							{/if}
+							{#if didDownload}
+								<span in:scale={{ easing: bounceInOut, duration: 150 }}>
+									<CheckIcon size={22} class="mr-2" />
+								</span>
+							{/if}
+							{t('Download replay')}
+						</Button>
+					{/if}
+					<Match.LikeButton
+						lobbyId={matchId}
+						likeCount={match.current.likeCount ?? 0}
+						onCountChange={setLikeCount}
+					/>
+					{#if hasReplay}
+						<span
+							class="text-secondary-400 inline-flex h-11 items-center gap-1.5 px-2 text-sm tabular-nums"
+							title={t('Downloads')}
+						>
+							<DownloadIcon size={16} weight="duotone" />
+							{downloadCount}
+						</span>
+					{/if}
+				</div>
 			</div>
 		</div>
 
 		{#if !hasReplay}
 			<div class="border-secondary-800 border-b">
 				<MatchLobbyPlayers match={match.current} />
+				<Match.Comments lobbyId={matchId} />
 			</div>
 		{/if}
 
@@ -179,12 +212,17 @@
 				<Replay.TabsSkeleton flush showTitle={false} />
 			{:else if replayFile.current}
 				<Replay.Root file={replayFile.current}>
-					<Replay.Tabs flush match={match.current} />
+					<Replay.Tabs flush match={match.current}>
+						{#snippet overviewExtra()}
+							<Match.Comments lobbyId={matchId} />
+						{/snippet}
+					</Replay.Tabs>
 				</Replay.Root>
 			{:else if replayFile.error}
 				<p class="text-secondary-400 px-4 py-3 text-sm">
 					{t('Failed to load replay data.')}
 				</p>
+				<Match.Comments lobbyId={matchId} />
 			{/if}
 		{/if}
 	</Match.Root>

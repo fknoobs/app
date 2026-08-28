@@ -279,21 +279,27 @@ export class History extends Feature {
 		};
 	}
 
-	async downloadReplay(match: MatchExpanded) {
+	async downloadReplay(match: MatchExpanded): Promise<{ ok: boolean; downloadCount?: number }> {
 		try {
 			const path = await join(await app.paths.cohPlaybackDir(), match.replay);
 			const url = app.pocketbase.files.getURL(match, match.replay);
 
 			await download(url, path);
+			let downloadCount: number | undefined;
+			try {
+				downloadCount = await app.database.matchSocial.recordDownload(match.id);
+			} catch (error) {
+				console.warn('[HISTORY]: failed to record replay download:', error);
+			}
 			app.toast.success(t('Replay saved to the Company of Heroes playback folder.'));
-			return true;
+			return { ok: true, downloadCount };
 		} catch (error) {
 			app.toast.error(
 				t('Failed to download replay: {message}', {
 					message: error instanceof Error ? error.message : String(error)
 				})
 			);
-			return false;
+			return { ok: false };
 		}
 	}
 

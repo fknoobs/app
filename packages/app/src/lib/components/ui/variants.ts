@@ -39,6 +39,12 @@ export const menuItem =
 
 export const interactive = 'cursor-pointer disabled:cursor-not-allowed';
 
+export const tabTrigger =
+	`${interactive} text-white rounded-md border border-transparent px-4 py-1.5 font-bold transition-colors duration-150 ` +
+	'not-disabled:hover:bg-secondary-950/50 ' +
+	'not-disabled:data-[state=active]:border-primary/20 not-disabled:data-[state=active]:bg-primary/5 not-disabled:data-[state=active]:text-primary ' +
+	'disabled:text-secondary-500';
+
 export const mePlayerText = 'text-primary font-semibold';
 
 export const detailMetaGrid =

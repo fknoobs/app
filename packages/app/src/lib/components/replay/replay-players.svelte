@@ -135,7 +135,7 @@
 	{@const doctrineLabel = player.doctrineName || t('Unknown doctrine')}
 	{@const profileId = lobbyPlayer ? getPlayerProfileId(lobbyPlayer) : undefined}
 	{@const nameClass = cn(
-		'block truncate text-base font-semibold tracking-tight transition-colors',
+		'min-w-0 truncate text-base font-semibold tracking-tight transition-colors',
 		isMe ? mePlayerText : 'text-primary-50',
 		profileId && cn(interactive, 'hover:text-primary')
 	)}
@@ -159,6 +159,18 @@
 		{/if}
 
 		<div class="relative flex items-center gap-4 px-4 py-3.5">
+			{#snippet playerHeading(showCountry: boolean)}
+				<div class="flex min-w-0 items-center gap-2">
+					{#if showCountry}
+						<PlayerUi.Country variant="flag" />
+					{/if}
+					{#if profileId}
+						<a href="/players/{profileId}" class={nameClass}>{player.name}</a>
+					{:else}
+						<span class={nameClass}>{player.name}</span>
+					{/if}
+				</div>
+			{/snippet}
 			{#if showMatchStats && lobbyPlayer}
 				<PlayerUi.Root
 					player={lobbyPlayer}
@@ -168,39 +180,35 @@
 				>
 					<div class="flex min-w-0 flex-1 items-center gap-3.5">
 						<div class="min-w-0 flex-1">
-							{#if profileId}
-								<a href="/players/{profileId}" class={nameClass}>{player.name}</a>
-							{:else}
-								<span class={nameClass}>{player.name}</span>
-							{/if}
+							{@render playerHeading(true)}
 							<div
-								class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm tabular-nums"
+								class="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base tabular-nums"
 							>
 								<img
 									src={factionFlag(player)}
 									alt={player.faction}
-									class="ring-secondary-800 h-3.5 w-3.5 shrink-0 rounded-full object-cover ring-1"
+									class="ring-secondary-800 h-4 w-4 shrink-0 rounded-full object-cover ring-1"
 								/>
-								<span class="text-secondary-300 truncate">{doctrineLabel}</span>
-								<span class="text-secondary-700" aria-hidden="true">·</span>
-								<span class="text-secondary-300 inline-flex items-center gap-1">
-									<PlayerUi.Rank class="h-4 w-4" />
-									<span class="text-secondary-500">{t('Lv')}</span>
-									<PlayerUi.Level class="text-secondary-200" />
+								<span class="text-secondary-200 truncate">{doctrineLabel}</span>
+								<span class="text-secondary-600" aria-hidden="true">·</span>
+								<span class="text-secondary-200 inline-flex items-center gap-1">
+									<PlayerUi.Rank class="h-5 w-5" />
+									<span class="text-secondary-400">{t('Lv')}</span>
+									<PlayerUi.Level class="text-secondary-100" />
 								</span>
-								<span class="text-secondary-700" aria-hidden="true">·</span>
-								<span class="text-secondary-300 inline-flex items-center gap-1">
-									<span class="text-secondary-500">#</span>
-									<PlayerUi.Position class="text-secondary-200" />
+								<span class="text-secondary-600" aria-hidden="true">·</span>
+								<span class="text-secondary-200 inline-flex items-center gap-1">
+									<span class="text-secondary-400">#</span>
+									<PlayerUi.Position class="text-secondary-100" />
 								</span>
-								<span class="text-secondary-700" aria-hidden="true">·</span>
+								<span class="text-secondary-600" aria-hidden="true">·</span>
 								<span class="inline-flex items-center gap-1">
-									<PlayerUi.Wins class="text-sm" />
-									<span class="text-secondary-600">/</span>
-									<PlayerUi.Losses class="text-sm" />
+									<PlayerUi.Wins />
+									<span class="text-secondary-500">/</span>
+									<PlayerUi.Losses />
 								</span>
-								<span class="text-secondary-700" aria-hidden="true">·</span>
-								<PlayerUi.Streak class="text-sm" />
+								<span class="text-secondary-600" aria-hidden="true">·</span>
+								<PlayerUi.Streak />
 							</div>
 						</div>
 						<div class="flex shrink-0 items-center gap-2.5 tabular-nums">
@@ -212,18 +220,33 @@
 						</div>
 					</div>
 				</PlayerUi.Root>
+			{:else if lobbyPlayer}
+				<PlayerUi.Root
+					player={lobbyPlayer}
+					{playerResult}
+					{stats}
+					race={playerResult?.race_id ?? lobbyPlayer.race}
+				>
+					<div class="min-w-0 flex-1">
+						{@render playerHeading(true)}
+						<div class="text-secondary-300 mt-1 flex min-w-0 items-center gap-1.5 text-base">
+							<img
+								src={factionFlag(player)}
+								alt={player.faction}
+								class="ring-secondary-800 h-4 w-4 shrink-0 rounded-full object-cover ring-1"
+							/>
+							<span class="truncate">{doctrineLabel}</span>
+						</div>
+					</div>
+				</PlayerUi.Root>
 			{:else}
 				<div class="min-w-0 flex-1">
-					{#if profileId}
-						<a href="/players/{profileId}" class={nameClass}>{player.name}</a>
-					{:else}
-						<span class={nameClass}>{player.name}</span>
-					{/if}
-					<div class="text-secondary-400 mt-1 flex min-w-0 items-center gap-1.5 text-sm">
+					{@render playerHeading(false)}
+					<div class="text-secondary-300 mt-1 flex min-w-0 items-center gap-1.5 text-base">
 						<img
 							src={factionFlag(player)}
 							alt={player.faction}
-							class="ring-secondary-800 h-3.5 w-3.5 shrink-0 rounded-full object-cover ring-1"
+							class="ring-secondary-800 h-4 w-4 shrink-0 rounded-full object-cover ring-1"
 						/>
 						<span class="truncate">{doctrineLabel}</span>
 					</div>
@@ -231,7 +254,7 @@
 			{/if}
 
 			<div class="flex w-12 shrink-0 flex-col items-center justify-center gap-0.5">
-				<span class="text-secondary-500 text-[10px] font-semibold tracking-wider uppercase">
+				<span class="text-secondary-400 text-xs font-semibold tracking-wider uppercase">
 					{t('CPM')}
 				</span>
 				<span class="text-primary text-xl leading-none font-bold tabular-nums">
@@ -245,7 +268,7 @@
 {#snippet teamColumn(label: string, players: Player[])}
 	<div class="min-w-0">
 		<div
-			class="bg-secondary-950/90 text-secondary-400 border-secondary-800 flex items-center gap-4 border-b px-4 py-2.5 text-xs font-semibold tracking-wide uppercase"
+			class="bg-secondary-950/90 text-secondary-300 border-secondary-800 flex items-center gap-4 border-b px-4 py-2.5 text-sm font-semibold tracking-wide uppercase"
 		>
 			<span class="min-w-0 flex-1">{label}</span>
 			{#if showMatchStats}

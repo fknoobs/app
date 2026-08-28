@@ -1,3 +1,5 @@
+import { goto } from '$app/navigation';
+import { resolve } from '$app/paths';
 import type { NotificationRecord } from '$core/app/database/notifications';
 import { database } from '$core/app/database';
 import { account } from '$core/account';
@@ -87,6 +89,12 @@ export class NotificationsService {
 			this.#markLocalRead(notification.id);
 		}
 
+		const matchId = lobbyId(notification);
+		if (matchId) {
+			await goto(resolve('/(loaded)/history/[id]', { id: matchId }));
+			return;
+		}
+
 		modal.create({
 			component: NotificationDetail,
 			title: notification.title,
@@ -141,6 +149,15 @@ export class NotificationsService {
 			this.unreadCount -= 1;
 		}
 	}
+}
+
+function lobbyId(notification: NotificationItem): string {
+	const lobby = notification.lobby as unknown;
+	if (!lobby) return '';
+	if (typeof lobby === 'object' && lobby !== null && 'id' in lobby) {
+		return String((lobby as { id: string }).id || '');
+	}
+	return String(lobby);
 }
 
 export const notifications = new NotificationsService();

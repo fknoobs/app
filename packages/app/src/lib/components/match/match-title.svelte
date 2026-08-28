@@ -4,6 +4,7 @@
 	import { cn } from '$lib/utils';
 	import { tooltip } from '$lib/attachments';
 	import Ranking from 'phosphor-svelte/lib/RankingIcon';
+	import MatchProBadge from './match-pro-badge.svelte';
 	import { useI18n } from '$lib/i18n';
 
 	type Props = HTMLAttributes<HTMLSpanElement>;
@@ -24,4 +25,5 @@
 	{:else}
 		<span class="truncate">{title}</span>
 	{/if}
+	<MatchProBadge />
 </span>

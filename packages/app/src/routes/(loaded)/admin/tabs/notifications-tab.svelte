@@ -4,7 +4,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Checkbox, Input, Textarea } from '$lib/components/ui/input';
-	import { H } from '$lib/components/ui/h';
 	import { app } from '$core/app/context';
 	import { pocketbase } from '$core/pocketbase';
 	import { fetch } from '$core/http/fetch';
@@ -12,12 +11,20 @@
 	import type { UsersResponse } from '$core/pocketbase/types';
 	import dayjs from '$lib/dayjs';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
+	import { cn } from '$lib/utils';
+	import { interactive } from '$lib/components/ui/variants';
 	import { useI18n } from '$lib/i18n';
 
 	const { t } = useI18n();
 
 	const sentColumns: ColumnDef<NotificationRecord>[] = [
-		{ id: 'title', header: t('Title'), width: 'w-5/24', accessor: (notification) => notification.title, class: 'truncate font-medium' },
+		{
+			id: 'title',
+			header: t('Title'),
+			width: 'w-5/24',
+			accessor: (notification) => notification.title,
+			class: 'truncate font-medium'
+		},
 		{
 			id: 'body',
 			header: t('Message'),
@@ -25,12 +32,18 @@
 			accessor: (notification) => notification.body,
 			class: 'text-secondary-400 truncate text-sm'
 		},
-		{ id: 'recipients', header: t('Recipients'), width: 'w-5/24', class: 'text-secondary-400 truncate text-sm' },
-		{ id: 'created', header: t('Sent'), width: 'w-4/24', class: 'text-secondary-500 text-sm whitespace-nowrap' }
-	];
-
-	const searchColumns: ColumnDef<UsersResponse>[] = [
-		{ id: 'user', header: '', width: 'w-24/24' }
+		{
+			id: 'recipients',
+			header: t('Recipients'),
+			width: 'w-5/24',
+			class: 'text-secondary-400 truncate text-sm'
+		},
+		{
+			id: 'created',
+			header: t('Sent'),
+			width: 'w-4/24',
+			class: 'text-secondary-500 text-sm whitespace-nowrap'
+		}
 	];
 
 	let title = $state('');
@@ -129,96 +142,109 @@
 	};
 </script>
 
-<Form.Root class="max-w-2xl">
-	<Form.Group>
-		<Form.Label>{t('Title')}</Form.Label>
-		<Form.Description>{t('Short title that appears in the notification list.')}</Form.Description>
-		<Input bind:value={title} placeholder={t('Title')} maxlength={200} />
-	</Form.Group>
-
-	<Form.Group>
-		<Form.Label>{t('Message')}</Form.Label>
-		<Form.Description>{t('Full content in the modal. Markdown is supported (headings, lists, links, bold, italic).')}</Form.Description>
-		<Textarea bind:value={body} rows={6} maxlength={10000} placeholder={t('Write your message...')} />
-	</Form.Group>
-
-	<Form.Group>
-		<Checkbox label={t('Send to all users')} bind:checked={targetAll} />
-	</Form.Group>
-
-	{#if !targetAll}
-		<Form.Group>
-			<Form.Label>{t('Recipients')}</Form.Label>
-			<Form.Description>{t('Search users by name or email and add them.')}</Form.Description>
-			<div class="flex gap-2">
-				<Input
-					bind:value={userQuery}
-					placeholder={t('Search by name or email...')}
-					onkeydown={(event) => {
-						if (event.key === 'Enter') {
-							event.preventDefault();
-							void searchUsers();
-						}
-					}}
-				/>
-				<Button type="button" variant="secondary" onclick={() => searchUsers()} loading={isSearching}>
-					{t('Search')}
-				</Button>
-			</div>
-
-			{#if searchResults.length > 0}
-				{#snippet cell_user({ row }: { row: UsersResponse })}
-					<Button
-						type="button"
-						variant="ghost"
-						size="sm"
-						class="h-auto w-full justify-start px-0 py-0 text-left text-sm"
-						onclick={() => addUser(row)}
-					>
-						<span class="block">{userLabel(row)}</span>
-						{#if row.name && row.email}
-							<span class="text-secondary-400 text-xs">{row.email}</span>
-						{/if}
-					</Button>
-				{/snippet}
-				<DataTable
-					data={searchResults}
-					columns={searchColumns}
-					rowKey={(user) => user.id}
-					showHeader={false}
-					cells={{ user: cell_user }}
-				/>
-			{/if}
-
-			{#if selectedUsers.length > 0}
-				<div class="mt-3 flex flex-wrap gap-2">
-					{#each selectedUsers as user (user.id)}
-						<Badge class="inline-flex items-center gap-2">
-							{userLabel(user)}
-							<Button
-								type="button"
-								variant="ghost"
-								size="icon-sm"
-								class="text-secondary-400 hover:text-white"
-								onclick={() => removeUser(user.id)}
-								aria-label={t('Remove {name}', { name: userLabel(user) })}
-							>
-								<XIcon size={14} />
-							</Button>
-						</Badge>
-					{/each}
-				</div>
-			{/if}
+<Form.Root class="space-y-0">
+	<div class="border-secondary-800 grid gap-4 border-b p-4 lg:grid-cols-2">
+		<Form.Group class="mb-0">
+			<Form.Label>{t('Title')}</Form.Label>
+			<Form.Description>{t('Short title that appears in the notification list.')}</Form.Description>
+			<Input bind:value={title} placeholder={t('Title')} maxlength={200} />
 		</Form.Group>
-	{/if}
 
-	<Button type="button" onclick={() => submit()} loading={isSubmitting}>{t('Send')}</Button>
+		<Form.Group class="mb-0 lg:col-span-2">
+			<Form.Label>{t('Message')}</Form.Label>
+			<Form.Description>
+				{t('Full content in the modal. Markdown is supported (headings, lists, links, bold, italic).')}
+			</Form.Description>
+			<Textarea bind:value={body} rows={5} maxlength={10000} placeholder={t('Write your message...')} />
+		</Form.Group>
+	</div>
+
+	<div class="border-secondary-800 border-b p-4">
+		<Form.Group class="mb-0">
+			<Checkbox label={t('Send to all users')} bind:checked={targetAll} />
+		</Form.Group>
+
+		{#if !targetAll}
+			<Form.Group class="mb-0 mt-4">
+				<Form.Label>{t('Recipients')}</Form.Label>
+				<Form.Description>{t('Search users by name or email and add them.')}</Form.Description>
+				<div class="flex gap-2">
+					<Input
+						bind:value={userQuery}
+						placeholder={t('Search by name or email...')}
+						onkeydown={(event) => {
+							if (event.key === 'Enter') {
+								event.preventDefault();
+								void searchUsers();
+							}
+						}}
+					/>
+					<Button type="button" variant="secondary" onclick={() => searchUsers()} loading={isSearching}>
+						{t('Search')}
+					</Button>
+				</div>
+
+				{#if searchResults.length > 0}
+					<div
+						class="border-secondary-800 divide-secondary-800 mt-3 divide-y overflow-hidden rounded-md border"
+					>
+						{#each searchResults as user (user.id)}
+							<button
+								type="button"
+								class={cn(
+									interactive,
+									'hover:bg-secondary-950/50 flex w-full flex-col px-4 py-2.5 text-left text-sm transition-colors'
+								)}
+								onclick={() => addUser(user)}
+							>
+								<span class="font-medium">{userLabel(user)}</span>
+								{#if user.name && user.email}
+									<span class="text-secondary-400 text-xs">{user.email}</span>
+								{/if}
+							</button>
+						{/each}
+					</div>
+				{/if}
+
+				{#if selectedUsers.length > 0}
+					<div class="mt-3 flex flex-wrap gap-2">
+						{#each selectedUsers as user (user.id)}
+							<Badge class="inline-flex items-center gap-2">
+								{userLabel(user)}
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon-sm"
+									class="text-secondary-400 hover:text-white"
+									onclick={() => removeUser(user.id)}
+									aria-label={t('Remove {name}', { name: userLabel(user) })}
+								>
+									<XIcon size={14} />
+								</Button>
+							</Badge>
+						{/each}
+					</div>
+				{/if}
+			</Form.Group>
+		{/if}
+	</div>
+
+	<div class="border-secondary-800 border-b p-4">
+		<Button type="button" class="w-fit" onclick={() => submit()} loading={isSubmitting}>
+			{t('Send')}
+		</Button>
+	</div>
 </Form.Root>
 
-<section class="mt-12">
-	<H level="2">{t('Sent notifications')}</H>
+<section>
+	<div class="border-secondary-800 border-b px-4 py-3">
+		<p class="text-secondary-300 text-xs font-semibold tracking-wide uppercase">
+			{t('Sent notifications')}
+		</p>
+	</div>
+
 	{#if sentNotifications.length === 0}
-		<p class="text-secondary-400 mt-4 text-sm">{t('No notifications sent yet.')}</p>
+		<p class="text-secondary-400 px-4 py-6 text-sm">{t('No notifications sent yet.')}</p>
 	{:else}
 		{#snippet cell_recipients({ row }: { row: NotificationRecord })}
 			{row.targetAll ? t('All users') : t('{count} recipient(s)', { count: row.recipients?.length ?? 0 })}
@@ -227,10 +253,10 @@
 			{dayjs(row.created).format('D MMM YYYY HH:mm')}
 		{/snippet}
 		<DataTable
-			class="mt-4"
 			data={sentNotifications}
 			columns={sentColumns}
 			rowKey={(notification) => notification.id}
+			class="rounded-none border-0"
 			cells={{ recipients: cell_recipients, created: cell_created }}
 		/>
 	{/if}

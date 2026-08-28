@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { MatchExpanded } from '$core/app/database/matches';
+	import type { Snippet } from 'svelte';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { cn } from '$lib/utils';
-	import { interactive } from '$lib/components/ui/variants';
+	import { tabTrigger } from '$lib/components/ui/variants';
 	import ReplayPlayers from './replay-players.svelte';
 	import ReplayChat from './replay-chat.svelte';
 	import ReplayActions from './replay-actions.svelte';
@@ -12,37 +12,46 @@
 		flush?: boolean;
 		match?: MatchExpanded | null;
 		class?: string;
+		overviewExtra?: Snippet;
 	};
 
-	let { flush = false, match = null, class: className }: Props = $props();
+	let { flush = false, match = null, class: className, overviewExtra }: Props = $props();
 	const { t } = useI18n();
 	let activeTab = $state('overview');
-
-	function tabClass(tab: string) {
-		return cn(
-			interactive,
-			'rounded-md px-4 py-1.5 font-bold transition-colors',
-			activeTab === tab ? 'bg-primary text-secondary-950' : 'text-white hover:bg-secondary-950/50'
-		);
-	}
 </script>
 
 {#if flush}
 	<div class={className}>
 		<div class="border-secondary-800 flex items-center gap-2 border-b px-4 py-2.5">
-			<button type="button" class={tabClass('overview')} onclick={() => (activeTab = 'overview')}>
+			<button
+				type="button"
+				class={tabTrigger}
+				data-state={activeTab === 'overview' ? 'active' : undefined}
+				onclick={() => (activeTab = 'overview')}
+			>
 				{t('Overview')}
 			</button>
-			<button type="button" class={tabClass('chat')} onclick={() => (activeTab = 'chat')}>
+			<button
+				type="button"
+				class={tabTrigger}
+				data-state={activeTab === 'chat' ? 'active' : undefined}
+				onclick={() => (activeTab = 'chat')}
+			>
 				{t('Chat')}
 			</button>
-			<button type="button" class={tabClass('timeline')} onclick={() => (activeTab = 'timeline')}>
+			<button
+				type="button"
+				class={tabTrigger}
+				data-state={activeTab === 'timeline' ? 'active' : undefined}
+				onclick={() => (activeTab = 'timeline')}
+			>
 				{t('Timeline')}
 			</button>
 		</div>
 		<div>
 			{#if activeTab === 'overview'}
 				<ReplayPlayers flush {match} class="p-0" />
+				{@render overviewExtra?.()}
 			{:else if activeTab === 'chat'}
 				<ReplayChat flush class="grow" />
 			{:else}
@@ -59,6 +68,7 @@
 		</Tabs.List>
 		<Tabs.Content value="overview" class="flex grow flex-col gap-4">
 			<ReplayPlayers {match} />
+			{@render overviewExtra?.()}
 		</Tabs.Content>
 		<Tabs.Content value="chat" class="flex grow flex-col gap-4">
 			<ReplayChat class="grow" />

@@ -18,6 +18,10 @@ export const Collections = {
 	LobbyAggregationCommunity: "lobby_aggregation_community",
 	NotificationReads: "notification_reads",
 	Notifications: "notifications",
+	LobbyComments: "lobby_comments",
+	LobbyCommentLikes: "lobby_comment_likes",
+	LobbyDownloads: "lobby_downloads",
+	LobbyLikes: "lobby_likes",
 	PlayerRatings: "player_ratings",
 	ReplayAggregation: "replay_aggregation",
 	Replays: "replays",
@@ -127,6 +131,9 @@ export type LobbiesRecord<Tplayers = unknown, Tresult = unknown> = {
 	replay?: FileNameString
 	result?: null | Tresult
 	resultAttempts?: number
+	commentCount?: number
+	downloadCount?: number
+	likeCount?: number
 	sessionId: number
 	title: string
 	updatedAt: IsoAutoDateString
@@ -170,10 +177,46 @@ export type NotificationsRecord = {
 	created: IsoAutoDateString
 	createdBy?: RecordIdString
 	id: string
+	lobby?: RecordIdString
 	recipients?: RecordIdString[]
 	targetAll?: boolean
 	title: string
 	updated: IsoAutoDateString
+}
+
+export type LobbyCommentsRecord = {
+	created: IsoAutoDateString
+	id: string
+	likeCount?: number
+	lobby: RecordIdString
+	parent?: RecordIdString
+	text: string
+	updated: IsoAutoDateString
+	user: RecordIdString
+}
+
+export type LobbyCommentLikesRecord = {
+	comment: RecordIdString
+	created: IsoAutoDateString
+	id: string
+	updated: IsoAutoDateString
+	user: RecordIdString
+}
+
+export type LobbyDownloadsRecord = {
+	created: IsoAutoDateString
+	id: string
+	lobby: RecordIdString
+	updated: IsoAutoDateString
+	user: RecordIdString
+}
+
+export type LobbyLikesRecord = {
+	created: IsoAutoDateString
+	id: string
+	lobby: RecordIdString
+	updated: IsoAutoDateString
+	user: RecordIdString
 }
 
 export type ReplayAggregationRecord<Tmaps = unknown, Tplayers = unknown, Tuser = unknown> = {
@@ -294,6 +337,10 @@ export type LobbyAggregationResponse<TUSER = unknown, Tmaps = unknown, Tplayers 
 export type LobbyAggregationCommunityResponse<Tmaps = unknown, Tplayers = unknown, Tusers = unknown, Texpand = unknown> = Required<LobbyAggregationCommunityRecord<Tmaps, Tplayers, Tusers>> & BaseSystemFields<Texpand>
 export type NotificationReadsResponse<Texpand = unknown> = Required<NotificationReadsRecord> & BaseSystemFields<Texpand>
 export type NotificationsResponse<Texpand = unknown> = Required<NotificationsRecord> & BaseSystemFields<Texpand>
+export type LobbyCommentsResponse<Texpand = unknown> = Required<LobbyCommentsRecord> & BaseSystemFields<Texpand>
+export type LobbyCommentLikesResponse<Texpand = unknown> = Required<LobbyCommentLikesRecord> & BaseSystemFields<Texpand>
+export type LobbyDownloadsResponse<Texpand = unknown> = Required<LobbyDownloadsRecord> & BaseSystemFields<Texpand>
+export type LobbyLikesResponse<Texpand = unknown> = Required<LobbyLikesRecord> & BaseSystemFields<Texpand>
 export type PlayerRatingsResponse<Telo = unknown, Texpand = unknown> = Required<PlayerRatingsRecord<Telo>> & BaseSystemFields<Texpand>
 export type ReplayAggregationResponse<Tmaps = unknown, Tplayers = unknown, Tuser = unknown, Texpand = unknown> = Required<ReplayAggregationRecord<Tmaps, Tplayers, Tuser>> & BaseSystemFields<Texpand>
 export type ReplaysResponse<Tmessages = unknown, Tplayers = unknown, Texpand = unknown> = Required<ReplaysRecord<Tmessages, Tplayers>> & BaseSystemFields<Texpand>
@@ -316,6 +363,10 @@ export type CollectionRecords = {
 	lobby_aggregation_community: LobbyAggregationCommunityRecord
 	notification_reads: NotificationReadsRecord
 	notifications: NotificationsRecord
+	lobby_comments: LobbyCommentsRecord
+	lobby_comment_likes: LobbyCommentLikesRecord
+	lobby_downloads: LobbyDownloadsRecord
+	lobby_likes: LobbyLikesRecord
 	player_ratings: PlayerRatingsRecord
 	replay_aggregation: ReplayAggregationRecord
 	replays: ReplaysRecord
@@ -337,6 +388,10 @@ export type CollectionResponses = {
 	lobby_aggregation_community: LobbyAggregationCommunityResponse
 	notification_reads: NotificationReadsResponse
 	notifications: NotificationsResponse
+	lobby_comments: LobbyCommentsResponse
+	lobby_comment_likes: LobbyCommentLikesResponse
+	lobby_downloads: LobbyDownloadsResponse
+	lobby_likes: LobbyLikesResponse
 	player_ratings: PlayerRatingsResponse
 	replay_aggregation: ReplayAggregationResponse
 	replays: ReplaysResponse

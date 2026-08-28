@@ -178,6 +178,9 @@ routerAdd('GET', '/api/match-history', (e) => {
 				isRanked: false,
 				sessionId: 0,
 				needsResult: false,
+				hasReplay: false,
+				likeCount: 0,
+				downloadCount: 0,
 				lobbyPlayers: '',
 				playerProfileIdsCsv: '',
 				totalCount: 0
@@ -196,6 +199,9 @@ routerAdd('GET', '/api/match-history', (e) => {
            l.isRanked,
            l.sessionId,
            l.needsResult,
+           COALESCE(l.hasReplay, 0) AS hasReplay,
+           COALESCE(l.likeCount, 0) AS likeCount,
+           COALESCE(l.downloadCount, 0) AS downloadCount,
            COALESCE(l.lobbyPlayers, '[]') AS lobbyPlayers,
            COALESCE(l.playerProfileIdsCsv, '') AS playerProfileIdsCsv${useInlineCount ? ', COUNT(*) OVER() AS totalCount' : ''}
          FROM lobby_player_index i
@@ -214,6 +220,9 @@ routerAdd('GET', '/api/match-history', (e) => {
            l.isRanked,
            l.sessionId,
            l.needsResult,
+           COALESCE(l.hasReplay, 0) AS hasReplay,
+           COALESCE(l.likeCount, 0) AS likeCount,
+           COALESCE(l.downloadCount, 0) AS downloadCount,
            COALESCE(l.lobbyPlayers, '[]') AS lobbyPlayers,
            COALESCE(l.playerProfileIdsCsv, '') AS playerProfileIdsCsv${useInlineCount ? ', COUNT(*) OVER() AS totalCount' : ''}
          FROM lobbies l
@@ -267,6 +276,9 @@ routerAdd('GET', '/api/match-history', (e) => {
 				isRanked: !!row.isRanked,
 				sessionId: row.sessionId,
 				needsResult: !!row.needsResult,
+				hasReplay: !!row.hasReplay,
+				likeCount: Number(row.likeCount) || 0,
+				downloadCount: Number(row.downloadCount) || 0,
 				players
 			});
 		}

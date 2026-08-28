@@ -2,6 +2,7 @@
 	import type { HTMLAnchorAttributes } from 'svelte/elements';
 	import { useProfile } from '.';
 	import { cn } from '$lib/utils';
+	import { interactive } from '$lib/components/ui/variants';
 
 	type Props = HTMLAnchorAttributes;
 
@@ -14,7 +15,7 @@
 	href={`https://steamcommunity.com/profiles/${profile.steam.steamid}`}
 	target="_blank"
 	rel="noopener noreferrer"
-	class={cn('hover:text-primary transition-colors', restProps.class)}
+	class={cn(interactive, 'hover:text-primary transition-colors', restProps.class)}
 >
 	{profile.steam.steamid}
 </a>

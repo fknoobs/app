@@ -30,9 +30,18 @@
 		empty?: 'self' | 'other';
 		class?: string;
 		meta?: Snippet;
+		steamId?: string | null;
 	};
 
-	let { profileId, scope, userId = null, empty = 'other', class: className, meta }: Props = $props();
+	let {
+		profileId,
+		scope,
+		userId = null,
+		empty = 'other',
+		class: className,
+		meta,
+		steamId = null
+	}: Props = $props();
 	const { t } = useI18n();
 
 	const performance = resource(
@@ -100,69 +109,78 @@
 </script>
 
 <div class={cn(meta && 'grid items-start gap-x-10 gap-y-4 sm:grid-cols-2', className)}>
-	{#if isLoading}
-		<div class="grid grid-cols-[7rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2">
+	<List.Root class="grid-cols-[7rem_minmax(0,1fr)] gap-x-4">
+		{#if steamId}
+			<List.Title>{t('Steam ID:')}</List.Title>
+			<List.Value>
+				<a
+					href="https://steamcommunity.com/profiles/{steamId}"
+					target="_blank"
+					rel="noopener noreferrer"
+					class={cn(interactive, 'hover:text-primary tabular-nums transition-colors')}
+				>
+					{steamId}
+				</a>
+			</List.Value>
+		{/if}
+		{#if isLoading}
 			{#each Array(4) as _, index (index)}
 				<Skeleton class="h-4 w-20" />
 				<Skeleton class="h-4 w-36" />
 			{/each}
-		</div>
-	{:else}
-		<List.Root class="grid-cols-[7rem_minmax(0,1fr)] gap-x-4">
-			{#if stats.matchCount > 0}
-				<List.Title>{t('Tracked:')}</List.Title>
-				<List.Value>{t('{count} matches', { count: stats.matchCount })}</List.Value>
-				<List.Title>{t('Record:')}</List.Title>
-				<List.Value class={valueRow}>
-					<span class={statWins}>{t('{count}W', { count: stats.wins })}</span>
-					<span class="text-secondary-600">·</span>
-					<span class={statLosses}>{t('{count}L', { count: stats.losses })}</span>
-					<LeaderboardStatPill type="ratio" wins={stats.wins} losses={stats.losses} streak={0} />
-				</List.Value>
-				{#if recentMatches.length > 0}
-					<List.Title>{t('Recent:')}</List.Title>
-					<List.Value class="inline-flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto">
-						{#each recentMatches as match (match.id || match.sessionId)}
-							<a
-								href="/history/{match.id}"
-								class={cn(interactive, 'group inline-flex shrink-0')}
-								aria-label="{match.outcome === 1 ? t('Win') : t('Loss')} — {recentMatchLabel(match)}"
-								{@attach tooltip(recentMatchTooltip(match))}
+		{:else if stats.matchCount > 0}
+			<List.Title>{t('Tracked:')}</List.Title>
+			<List.Value>{t('{count} matches', { count: stats.matchCount })}</List.Value>
+			<List.Title>{t('Record:')}</List.Title>
+			<List.Value class={valueRow}>
+				<span class={statWins}>{t('{count}W', { count: stats.wins })}</span>
+				<span class="text-secondary-600">·</span>
+				<span class={statLosses}>{t('{count}L', { count: stats.losses })}</span>
+				<LeaderboardStatPill type="ratio" wins={stats.wins} losses={stats.losses} streak={0} />
+			</List.Value>
+			{#if recentMatches.length > 0}
+				<List.Title>{t('Recent:')}</List.Title>
+				<List.Value class="inline-flex min-w-0 flex-nowrap items-center gap-1 overflow-x-auto">
+					{#each recentMatches as match (match.id || match.sessionId)}
+						<a
+							href="/history/{match.id}"
+							class={cn(interactive, 'group inline-flex shrink-0')}
+							aria-label="{match.outcome === 1 ? t('Win') : t('Loss')} — {recentMatchLabel(match)}"
+							{@attach tooltip(recentMatchTooltip(match))}
+						>
+							<Badge
+								variant={match.outcome === 1 ? 'success' : 'destructive'}
+								class={cn(
+									recentMatchBase,
+									match.outcome === 1 ? recentMatchWin : recentMatchLoss
+								)}
 							>
-								<Badge
-									variant={match.outcome === 1 ? 'success' : 'destructive'}
-									class={cn(
-										recentMatchBase,
-										match.outcome === 1 ? recentMatchWin : recentMatchLoss
-									)}
-								>
-									{match.outcome === 1 ? t('W') : t('L')}
-								</Badge>
-							</a>
-						{/each}
-					</List.Value>
-				{/if}
-				{#if bestMap}
-					<List.Title>{t('Best map:')}</List.Title>
-					<List.Value class={valueRow}>
-						<MapImage small map={bestMap.map} alt={normalizeMapName(bestMap.map, false)} />
-						<span class="text-secondary-300 max-w-44 truncate">
-							{normalizeMapName(bestMap.map, false)}
-						</span>
-						<span class={statWins}>{t('{count}W', { count: bestMap.wins })}</span>
-						<span class="text-secondary-600">·</span>
-						<span class={statLosses}>{t('{count}L', { count: bestMap.losses })}</span>
-						<span class="font-medium" style:color={getRatioColor(bestMap.wins, bestMap.losses)}>
-							{winrate(bestMap)}
-						</span>
-					</List.Value>
-				{/if}
-			{:else}
-				<List.Title>{t('Tracked:')}</List.Title>
-				<List.Value class="text-secondary-400 text-sm">{emptyMessage}</List.Value>
+								{match.outcome === 1 ? t('W') : t('L')}
+							</Badge>
+						</a>
+					{/each}
+				</List.Value>
 			{/if}
-		</List.Root>
-	{/if}
+			{#if bestMap}
+				<List.Title>{t('Best map:')}</List.Title>
+				<List.Value class={valueRow}>
+					<MapImage small map={bestMap.map} alt={normalizeMapName(bestMap.map, false)} />
+					<span class="text-secondary-300 max-w-44 truncate">
+						{normalizeMapName(bestMap.map, false)}
+					</span>
+					<span class={statWins}>{t('{count}W', { count: bestMap.wins })}</span>
+					<span class="text-secondary-600">·</span>
+					<span class={statLosses}>{t('{count}L', { count: bestMap.losses })}</span>
+					<span class="font-medium" style:color={getRatioColor(bestMap.wins, bestMap.losses)}>
+						{winrate(bestMap)}
+					</span>
+				</List.Value>
+			{/if}
+		{:else}
+			<List.Title>{t('Tracked:')}</List.Title>
+			<List.Value class="text-secondary-400 text-sm">{emptyMessage}</List.Value>
+		{/if}
+	</List.Root>
 	{#if meta}
 		<div class="min-w-0">
 			{@render meta()}

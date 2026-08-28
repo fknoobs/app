@@ -16,7 +16,7 @@
 	import { app } from '$core/app/context';
 	import { getPlayerRating } from '$core/pocketbase/player-ratings';
 	import { eloMapForSteamId, mergeEloMaps } from '$lib/utils/player-elo';
-	import { interactive } from '$lib/components/ui/variants';
+	import { tabTrigger } from '$lib/components/ui/variants';
 	import { upperCase } from 'lodash-es';
 	import type { Snapshot } from '@sveltejs/kit';
 	import { useI18n } from '$lib/i18n';
@@ -80,14 +80,6 @@
 		);
 	});
 
-	function tabClass(tab: string) {
-		return cn(
-			interactive,
-			'rounded-md px-4 py-1.5 font-bold transition-colors',
-			currentTab === tab ? 'bg-primary text-secondary-950' : 'text-white hover:bg-secondary-950/50'
-		);
-	}
-
 	export const snapshot: Snapshot<string> = {
 		capture: () => currentTab,
 		restore: (tab) => (currentTab = tab)
@@ -135,6 +127,7 @@
 
 				<PlayerPerformanceSummary
 					profileId={profile.current.relic.profile_id}
+					steamId={profile.current.steam.steamid}
 					scope={isSelf ? 'user' : 'community'}
 					userId={isSelf ? account.userId : undefined}
 					empty={isSelf ? 'self' : 'other'}
@@ -144,19 +137,26 @@
 
 		<div class="border-secondary-800 border-b">
 			<div class="flex items-center gap-2 px-4 py-2.5">
-				<button type="button" class={tabClass('stats')} onclick={() => (currentTab = 'stats')}>
+				<button
+					type="button"
+					class={tabTrigger}
+					data-state={currentTab === 'stats' ? 'active' : undefined}
+					onclick={() => (currentTab = 'stats')}
+				>
 					{t('Stats')}
 				</button>
 				<button
 					type="button"
-					class={tabClass('performance')}
+					class={tabTrigger}
+					data-state={currentTab === 'performance' ? 'active' : undefined}
 					onclick={() => (currentTab = 'performance')}
 				>
 					{t('Performance')}
 				</button>
 				<button
 					type="button"
-					class={tabClass('match-history')}
+					class={tabTrigger}
+					data-state={currentTab === 'match-history' ? 'active' : undefined}
 					onclick={() => (currentTab = 'match-history')}
 				>
 					{t('Match history')}

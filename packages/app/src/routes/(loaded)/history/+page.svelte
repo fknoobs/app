@@ -24,7 +24,7 @@
 		{
 			id: 'map',
 			header: t('Map'),
-			width: 'w-6/24',
+			width: 'w-5/24',
 			class: 'flex h-full min-w-0 items-center gap-0',
 			cellClass: () => 'overflow-clip py-0 pr-0 pl-4',
 			href: (match) => `/history/${match.id}`
@@ -54,9 +54,16 @@
 		},
 		{ id: 'duration', header: t('Duration'), width: 'w-3/24' },
 		{
+			id: 'stats',
+			header: t('Activity'),
+			width: 'w-2/24',
+			class: 'flex items-center justify-end',
+			headerClass: 'text-end'
+		},
+		{
 			id: 'date',
 			header: t('Date'),
-			width: 'w-5/24',
+			width: 'w-4/24',
 			class: 'flex items-center',
 			headerClass: 'text-end'
 		}
@@ -143,6 +150,9 @@
 	{#snippet cell_duration({ row }: { row: MatchExpanded })}
 		<Match.Duration class="text-secondary-400 text-sm" />
 	{/snippet}
+	{#snippet cell_stats({ row }: { row: MatchExpanded })}
+		<Match.SocialCounts />
+	{/snippet}
 	{#snippet cell_date({ row }: { row: MatchExpanded })}
 		{#if matches.scope === 'user'}
 			<Match.Rating />
@@ -182,6 +192,7 @@
 					allies: cell_allies,
 					axis: cell_axis,
 					duration: cell_duration,
+					stats: cell_stats,
 					date: cell_date
 				}}
 			/>
