@@ -1,5 +1,21 @@
 # @company-of-heroes/pocketbase
 
+## 0.5.0
+
+- feat; take random in-game screenshots and report known cheat processes during matches
+- feat; show match screenshots for community review and label confirmed cheaters
+- fix; show existing match screenshots on player profiles and in the admin captures tab
+- enhance; open player and match captures in a larger preview modal
+- feat; allow admins to impersonate users from management
+- feat; filter history by mode, lobby position, ELO, and duration, and sort by likes, downloads, and comments
+- fix; history ELO filter uses match ratings when player index elo is empty
+- fix; don't block pocketbase startup on history catalog sql backfill
+- feat; like, download, and comment on match history
+- feat; notify match players when someone comments
+- feat; like, reply to, and edit match comments in nested threads
+- enhance; write multiline comments with a markdown toolbar
+- enhance; show comment counts before the map name
+
 ## 0.4.0
 
 - feat; add player elo history endpoint from lobby results
