@@ -347,6 +347,56 @@ function loadCommunityPerformance(profileId) {
 	}
 }
 
+function loadSmurf(steamId) {
+	try {
+		const { findSmurfWatchBySteamId } = require(`${__hooks}/lib/smurf-watch.js`);
+		const record = findSmurfWatchBySteamId(steamId);
+		if (!record || record.get('status') !== 'resolved') {
+			return null;
+		}
+
+		const lenderSteamId = String(record.get('lender_steam_id') || '');
+		if (!isSteamId(lenderSteamId)) {
+			return null;
+		}
+
+		let lenderProfile = null;
+		try {
+			lenderProfile = fetchRelicProfileBySteamId(lenderSteamId);
+		} catch (error) {
+			logWarn('Smurf lender Relic lookup failed', {
+				steamId,
+				lenderSteamId,
+				error: error instanceof Error ? error.message : String(error)
+			});
+		}
+
+		let lenderSteam = null;
+		try {
+			lenderSteam = fetchSteamProfile(lenderSteamId);
+		} catch (error) {
+			logWarn('Smurf lender Steam lookup failed', {
+				steamId,
+				lenderSteamId,
+				error: error instanceof Error ? error.message : String(error)
+			});
+		}
+
+		return {
+			lenderSteamId,
+			lenderProfileId: lenderProfile?.profile_id ?? null,
+			lenderAlias: lenderProfile?.alias || lenderSteam?.personaname || 'Original account',
+			lenderAvatarUrl: lenderSteam?.avatarfull || lenderSteam?.avatarmedium || null
+		};
+	} catch (error) {
+		logWarn('Smurf lookup failed', {
+			steamId,
+			error: error instanceof Error ? error.message : String(error)
+		});
+		return null;
+	}
+}
+
 function selectCardStats(stats) {
 	const sorted = [...(stats ?? [])].sort((a, b) => {
 		const aRanked = isRankedLeaderboard(a.leaderboard_id) ? 0 : 1;
@@ -409,6 +459,7 @@ function loadPlayerPage(id, options) {
 	const elo = extras ? loadElo(relicProfile.profile_id) : {};
 	const performance = extras ? loadCommunityPerformance(relicProfile.profile_id) : emptyPerformance();
 	const matches = extras ? fetchMatchHistory(relicProfile.profile_id) : [];
+	const smurf = extras ? loadSmurf(steamId) : null;
 
 	return {
 		steamId,
@@ -425,7 +476,8 @@ function loadPlayerPage(id, options) {
 		leaderboardStats: relicProfile.leaderboardStats ?? [],
 		elo,
 		performance,
-		matchHistory: matches
+		matchHistory: matches,
+		smurf
 	};
 }
 

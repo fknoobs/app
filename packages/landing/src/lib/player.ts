@@ -58,6 +58,13 @@ export type TransformedMatch = {
 	outcome: number;
 };
 
+export type PlayerSmurf = {
+	lenderSteamId: string;
+	lenderProfileId: number | null;
+	lenderAlias: string;
+	lenderAvatarUrl: string | null;
+};
+
 export type PlayerPageData = {
 	steamId: string;
 	profileId: number;
@@ -74,4 +81,5 @@ export type PlayerPageData = {
 	elo: PlayerEloMap;
 	performance: PlayerPerformance;
 	matchHistory: TransformedMatch[];
+	smurf?: PlayerSmurf | null;
 };

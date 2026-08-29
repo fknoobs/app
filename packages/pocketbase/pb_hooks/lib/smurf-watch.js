@@ -550,6 +550,7 @@ function handleCoplay(e) {
 
 module.exports = {
 	isServiceRequest,
+	findSmurfWatchBySteamId,
 	enqueueLobbyMatchRecord,
 	enqueueLobbyLiveRecord,
 	handleEnqueue,

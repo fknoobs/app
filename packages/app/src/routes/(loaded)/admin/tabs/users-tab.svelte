@@ -24,6 +24,7 @@
 	import { ClientResponseError } from 'pocketbase';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import { useI18n } from '$lib/i18n';
+	import { watch } from 'runed';
 
 	const { t } = useI18n();
 
@@ -42,11 +43,12 @@
 	let searched = $state(false);
 	const labelsByUser = $derived(labelsByUserId(assignments));
 
-	$effect(() => {
-		if (app.account.isAdmin) {
-			void loadCatalog();
+	watch(
+		() => app.account.isAdmin,
+		(isAdmin) => {
+			if (isAdmin) void loadCatalog();
 		}
-	});
+	);
 
 	const userLabel = (user: UsersResponse) => user.name || user.email || user.id;
 
@@ -62,14 +64,14 @@
 		return String(value);
 	};
 
-	const loadCatalog = async () => {
+	async function loadCatalog() {
 		try {
 			catalog = await listUserLabels();
 		} catch (error) {
 			console.error('[ADMIN]: user labels catalog failed:', error);
 			app.toast.error(t('Could not load labels.'));
 		}
-	};
+	}
 
 	const loadAssignments = async (userIds: string[]) => {
 		try {

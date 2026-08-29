@@ -10,6 +10,7 @@
 	import { flagImageUrl, proxiedImageUrl } from '$lib/proxy-image';
 	import { cn } from '$lib/cn';
 	import { interactive, statLosses, statWins } from '$lib/variants';
+	import SmurfAlert from '$lib/components/SmurfAlert.svelte';
 
 	type Props = {
 		player: PlayerPageData;
@@ -57,6 +58,9 @@
 				/>
 			{/if}
 			<h1 class="font-heading truncate text-3xl font-bold text-white">{player.alias}</h1>
+			{#if player.smurf}
+				<SmurfAlert smurf={player.smurf} />
+			{/if}
 			<span class="text-secondary-500 text-sm">Level {player.level}</span>
 		</div>
 		<dl class="grid grid-cols-[7.5rem_minmax(0,1fr)] items-center gap-x-4 gap-y-2 text-sm">

@@ -16,6 +16,7 @@
 	} from '$core/pocketbase/user-labels';
 	import type { Create, Update, UserLabelsColorOptions } from '$core/pocketbase/types';
 	import { useI18n } from '$lib/i18n';
+	import { watch } from 'runed';
 
 	const { t } = useI18n();
 
@@ -35,17 +36,18 @@
 
 	let name = $state('');
 	let color = $state<UserLabelsColorOptions>('primary');
-	let sort = $state(0);
+	let sort = $state('0');
 	let labels = $state.raw<UserLabel[]>([]);
 	let isSaving = $state(false);
 	let deletingId = $state<string | null>(null);
 	let editingId = $state<string | null>(null);
 
-	$effect(() => {
-		if (app.account.isAdmin) {
-			void loadLabels();
+	watch(
+		() => app.account.isAdmin,
+		(isAdmin) => {
+			if (isAdmin) void loadLabels();
 		}
-	});
+	);
 
 	function colorLabel(value: UserLabelsColorOptions) {
 		if (value === 'primary') return t('Primary');
@@ -59,24 +61,24 @@
 	function resetForm() {
 		name = '';
 		color = 'primary';
-		sort = 0;
+		sort = '0';
 		editingId = null;
 	}
 
-	const loadLabels = async () => {
+	async function loadLabels() {
 		try {
 			labels = await listUserLabels();
 		} catch (error) {
 			console.error('[ADMIN]: user labels load failed:', error);
 			app.toast.error(t('Could not load labels.'));
 		}
-	};
+	}
 
 	const startEdit = (label: UserLabel) => {
 		editingId = label.id;
 		name = label.name;
 		color = label.color;
-		sort = label.sort ?? 0;
+		sort = String(label.sort ?? 0);
 	};
 
 	const saveLabel = async () => {
