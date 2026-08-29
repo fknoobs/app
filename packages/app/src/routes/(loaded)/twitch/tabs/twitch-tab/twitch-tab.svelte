@@ -19,6 +19,7 @@
 	import { interactive } from '$lib/components/ui/variants';
 	import { tooltip } from '$lib/attachments';
 	import { useI18n } from '$lib/i18n';
+	import LiveStreams from './live-streams.svelte';
 
 	let isStartingOAuth = $state(false);
 	const { t } = useI18n();
@@ -219,3 +220,4 @@
 		{/if}
 	{/if}
 </Form.Root>
+<LiveStreams />

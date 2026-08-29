@@ -66,8 +66,16 @@
 	);
 	const downloadCount = $derived(match.current?.downloadCount ?? 0);
 	const matchId = $derived(match.current?.id ?? page.params.id!);
+	const highlightCommentId = $derived(page.url.searchParams.get('comment') || undefined);
 	const sessionId = $derived(match.current?.sessionId ?? 0);
 	let matchTab = $state('overview');
+
+	watch(
+		() => highlightCommentId,
+		(id) => {
+			if (id) matchTab = 'overview';
+		}
+	);
 
 	const cheaterSteamIds = $derived.by(() => {
 		const ids = new Set<string>();
@@ -246,7 +254,7 @@
 				</div>
 				{#if matchTab === 'overview'}
 					<MatchLobbyPlayers match={match.current} cheaters={cheaters.current ?? new Set()} />
-					<Match.Comments lobbyId={matchId} />
+					<Match.Comments lobbyId={matchId} {highlightCommentId} />
 				{:else}
 					<Match.Screenshots
 						{sessionId}
@@ -266,7 +274,7 @@
 				<Replay.Root file={replayFile.current}>
 					<Replay.Tabs flush match={match.current}>
 						{#snippet overviewExtra()}
-							<Match.Comments lobbyId={matchId} />
+							<Match.Comments lobbyId={matchId} {highlightCommentId} />
 						{/snippet}
 						{#snippet screenshots()}
 							<Match.Screenshots
@@ -283,7 +291,7 @@
 				<p class="text-secondary-400 px-4 py-3 text-sm">
 					{t('Failed to load replay data.')}
 				</p>
-				<Match.Comments lobbyId={matchId} />
+				<Match.Comments lobbyId={matchId} {highlightCommentId} />
 			{/if}
 		{/if}
 	</Match.Root>

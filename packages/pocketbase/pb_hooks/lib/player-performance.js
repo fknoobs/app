@@ -508,19 +508,21 @@ function loadRecentMatches(profileId, scope, userId, steamIds) {
 	);
 }
 
-function loadPlayerPerformance(profileId, scope, userId, timings) {
+function loadPlayerPerformance(profileId, scope, userId, timings, skipCache) {
 	const key = cacheKey(scope, userId, profileId);
-	const cached = getCachedPerformance(key);
+	if (!skipCache) {
+		const cached = getCachedPerformance(key);
 
-	if (cached) {
-		if (timings) {
-			timings.cache = 'hit';
+		if (cached) {
+			if (timings) {
+				timings.cache = 'hit';
+			}
+			return cached;
 		}
-		return cached;
 	}
 
 	if (timings) {
-		timings.cache = 'miss';
+		timings.cache = skipCache ? 'skip' : 'miss';
 	}
 
 	const steamIds = scope === 'user' ? loadSteamIds(userId) : [];

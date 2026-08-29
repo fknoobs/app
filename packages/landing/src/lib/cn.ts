@@ -5,4 +5,4 @@ export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
 }
 
-export const interactive = 'cursor-pointer disabled:cursor-not-allowed';
+export { interactive } from './variants';

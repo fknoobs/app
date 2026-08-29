@@ -43,7 +43,7 @@ export type HistoryListQuery = {
 	maps?: string[];
 	races?: string[];
 	matchtypes?: number[];
-	/** 1-based lobby positions (UI: Position). */
+	/** 1-based team-interleaved lobby slots (allies 1/3/5/7, axis 2/4/6/8). */
 	slots?: number[];
 	includeSkirmish?: boolean;
 	eloOp?: FilterOperator;

@@ -13,6 +13,8 @@ services:
       - PB_ADMIN_EMAIL=${PB_ADMIN_EMAIL}
       - PB_ADMIN_PASSWORD=${PB_ADMIN_PASSWORD}
       - SMURF_SERVICE_TOKEN=${SMURF_SERVICE_TOKEN}
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
     env_file:
       - path: ./.env
         required: false

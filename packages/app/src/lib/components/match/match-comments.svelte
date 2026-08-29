@@ -7,7 +7,12 @@
 	import { cn } from '$lib/utils';
 	import { renderMarkdown } from '$lib/utils/markdown';
 	import { mePlayerText } from '$lib/components/ui/variants';
-	import { resource } from 'runed';
+	import { resource, watch } from 'runed';
+	import * as User from '$lib/components/user';
+	import { loadLabelsByUserId } from '$core/pocketbase/user-labels';
+	import type { UserLabelsResponse } from '$core/pocketbase/types';
+	import { replaceState } from '$app/navigation';
+	import { page } from '$app/state';
 	import dayjs from '$lib/dayjs';
 	import ArrowBendUpLeftIcon from 'phosphor-svelte/lib/ArrowBendUpLeftIcon';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
@@ -17,6 +22,7 @@
 
 	type Props = {
 		lobbyId: string;
+		highlightCommentId?: string;
 		class?: string;
 	};
 
@@ -31,7 +37,7 @@
 		ontoggle: () => void;
 	};
 
-	let { lobbyId, class: className }: Props = $props();
+	let { lobbyId, highlightCommentId, class: className }: Props = $props();
 	const { t } = useI18n();
 	const comments = resource(
 		() => lobbyId,
@@ -50,9 +56,25 @@
 	let replyDraft = $state('');
 	let replyPosting = $state(false);
 	let threadCollapsed = $state<Record<string, boolean>>({});
+	let activeHighlightId = $state<string | null>(null);
+	let focusedHighlightId = $state<string | null>(null);
 	const items = $derived(comments.current ?? []);
 	const tree = $derived(buildTree(items));
 	const myName = $derived(app.account.user?.name || t('Player'));
+	const authorLabelKey = $derived(
+		[...new Set(items.map((item) => authorId(item)).filter(Boolean))].sort().join(',')
+	);
+	const authorLabels = resource(
+		() => authorLabelKey,
+		async (key): Promise<Record<string, UserLabelsResponse[]>> => {
+			if (!key) return {};
+			try {
+				return await loadLabelsByUserId(key.split(','));
+			} catch {
+				return {};
+			}
+		}
+	);
 
 	const markdownClass = cn(
 		'prose prose-sm max-w-none min-w-0 break-words text-secondary-200',
@@ -162,6 +184,57 @@
 	function toggleThread(id: string, childDepth: number) {
 		threadCollapsed[id] = threadOpen(id, childDepth);
 	}
+
+	function expandAncestors(targetId: string) {
+		const all = comments.current ?? [];
+		const next = { ...threadCollapsed };
+		let current = targetId;
+		while (current) {
+			const item = all.find((comment) => comment.id === current);
+			if (!item) break;
+			const parent = parentId(item);
+			if (!parent) break;
+			next[parent] = false;
+			current = parent;
+		}
+		threadCollapsed = next;
+	}
+
+	function clearCommentQuery() {
+		if (!page.url.searchParams.has('comment')) return;
+		const url = new URL(page.url.href);
+		url.searchParams.delete('comment');
+		replaceState(`${url.pathname}${url.search}${url.hash}`, page.state);
+	}
+
+	watch(
+		() => ({
+			target: highlightCommentId,
+			list: items,
+			loading: comments.loading
+		}),
+		({ target, list, loading }) => {
+			if (!target || loading) return;
+			if (!list.some((comment) => comment.id === target)) return;
+			if (focusedHighlightId === target) return;
+			focusedHighlightId = target;
+			expandAncestors(target);
+			activeHighlightId = target;
+			const scrollTimeout = window.setTimeout(() => {
+				document
+					.getElementById(`comment-${target}`)
+					?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			}, 50);
+			clearCommentQuery();
+			const timeout = window.setTimeout(() => {
+				if (activeHighlightId === target) activeHighlightId = null;
+			}, 3000);
+			return () => {
+				clearTimeout(scrollTimeout);
+				clearTimeout(timeout);
+			};
+		}
+	);
 
 	async function submit() {
 		const text = draft.trim();
@@ -351,12 +424,19 @@
 {#snippet commentRow(comment: LobbyComment, nested: boolean, replies?: RepliesToggle)}
 	{@const mine = authorId(comment) === app.account.userId}
 	{@const editing = editingId === comment.id}
-	<div>
+	<div
+		id={`comment-${comment.id}`}
+		class={cn(
+			'scroll-mt-24 transition-colors duration-500',
+			activeHighlightId === comment.id && 'bg-primary/15'
+		)}
+	>
 		<div class={cn(nested ? 'px-3 pt-2.5 pb-1.5' : 'px-4 pt-3.5 pb-2')}>
-			<div class="flex items-center gap-2">
+			<div class="flex min-w-0 flex-wrap items-center gap-2">
 				<span class={cn('shrink-0 font-semibold', mine ? mePlayerText : 'text-white')}>
 					{authorName(comment)}
 				</span>
+				<User.Labels labels={authorLabels.current?.[authorId(comment)] ?? []} />
 				<time
 					class="text-secondary-500 text-xs whitespace-nowrap tabular-nums"
 					datetime={comment.created}

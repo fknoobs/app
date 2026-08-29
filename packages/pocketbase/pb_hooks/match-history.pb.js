@@ -12,6 +12,7 @@ routerAdd('GET', '/api/match-history', (e) => {
 		resolvePlayersForRow,
 		parseResultField,
 		countFilteredMatches,
+		isPreferredLobbyClause,
 		buildIndexPlayerConditions,
 		buildProFilterClause,
 		buildSortClause,
@@ -281,10 +282,10 @@ routerAdd('GET', '/api/match-history', (e) => {
 			}
 		}
 
-		const useInlineCount = totalItems === null && !hasExtraFilters;
 		const whereClause = lobbyFilters.join(' AND ');
+		const selectWhere = `${whereClause} AND ${isPreferredLobbyClause('l')}`;
 
-		if (totalItems === null && hasExtraFilters) {
+		if (totalItems === null) {
 			totalItems = countFilteredMatches(
 				hasPlayerFilter,
 				numericPlayerIds,
@@ -292,6 +293,16 @@ routerAdd('GET', '/api/match-history', (e) => {
 				bindings,
 				joinExtra
 			);
+
+			if (canUseCommunityCountCache) {
+				try {
+					const snapshot = $app.findRecordById('match_filter_snapshots', 'community');
+					snapshot.set('matchCount', totalItems);
+					$app.save(snapshot);
+				} catch {
+					// cache write failed
+				}
+			}
 		}
 
 		const aliasMap = loadPlayerAliasMap(scope, userId);
@@ -311,8 +322,7 @@ routerAdd('GET', '/api/match-history', (e) => {
 				downloadCount: 0,
 				commentCount: 0,
 				lobbyPlayers: '',
-				playerProfileIdsCsv: '',
-				totalCount: 0
+				playerProfileIdsCsv: ''
 			})
 		);
 
@@ -320,19 +330,19 @@ routerAdd('GET', '/api/match-history', (e) => {
 
 		if (hasPlayerFilter) {
 			selectSql = `SELECT DISTINCT
-           ${selectColumns}${useInlineCount ? ', COUNT(*) OVER() AS totalCount' : ''}
+           ${selectColumns}
          FROM lobby_player_index i
          INNER JOIN lobbies l ON l.id = i.lobby
          WHERE i.profile_id IN (${numericPlayerIds.join(', ')})
            ${joinExtra}
-           AND ${whereClause}
+           AND ${selectWhere}
          ORDER BY ${orderBy}
          LIMIT {:limit} OFFSET {:offset}`;
 		} else {
 			selectSql = `SELECT
-           ${selectColumns}${useInlineCount ? ', COUNT(*) OVER() AS totalCount' : ''}
+           ${selectColumns}
          FROM lobbies l
-         WHERE ${whereClause}
+         WHERE ${selectWhere}
          ORDER BY ${orderBy}
          LIMIT {:limit} OFFSET {:offset}`;
 		}
@@ -340,20 +350,6 @@ routerAdd('GET', '/api/match-history', (e) => {
 		$app.db().newQuery(selectSql).bind(bindings).all(itemRows);
 
 		const pageRows = itemRows;
-
-		if (useInlineCount) {
-			totalItems = pageRows.length > 0 ? Number(pageRows[0].totalCount) || 0 : 0;
-
-			if (canUseCommunityCountCache) {
-				try {
-					const snapshot = $app.findRecordById('match_filter_snapshots', 'community');
-					snapshot.set('matchCount', totalItems);
-					$app.save(snapshot);
-				} catch {
-					// cache write failed
-				}
-			}
-		}
 
 		const unresolvedLobbyIds = [];
 

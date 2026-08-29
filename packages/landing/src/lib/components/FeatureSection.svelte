@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Feature } from '$lib/features';
+	import { cn } from '$lib/cn';
 
 	type Props = {
 		feature: Feature;
@@ -11,32 +12,29 @@
 	const Icon = $derived(feature.icon);
 </script>
 
-<article
-	id={feature.id}
-	class="grid items-center gap-10 lg:grid-cols-2 lg:gap-16 {reversed
-		? 'lg:[&>div:first-child]:order-2'
-		: ''}"
->
-	<div class="flex flex-col gap-4">
-		<div class="text-primary flex items-center gap-3">
-			<div class="border-primary/20 bg-primary/10 flex size-11 items-center justify-center rounded-lg border">
-				<Icon size={24} weight="duotone" />
+<article id={feature.id} class="border-secondary-800 border-b">
+	<div class="grid lg:grid-cols-2">
+		<div class={cn('flex min-w-0 flex-col justify-center px-6 py-6', reversed && 'lg:order-2')}>
+			<div class="mb-2 flex items-center gap-2.5">
+				<Icon class="text-primary size-5 shrink-0" weight="duotone" />
+				<h2 class="font-heading text-xl font-bold text-white">{feature.title}</h2>
 			</div>
-			<h2 class="text-3xl text-white">{feature.title}</h2>
+			<p class="text-secondary-400 text-sm leading-relaxed">{feature.description}</p>
 		</div>
-		<p class="text-secondary-300 text-lg leading-relaxed">{feature.description}</p>
-	</div>
-
-	<div
-		class="border-secondary-800 bg-secondary-900/40 shadow-xl overflow-hidden rounded-xl border"
-	>
-		<img
-			src={feature.image}
-			alt={feature.imageAlt}
-			class="block w-full"
-			width="1280"
-			height="800"
-			loading="lazy"
-		/>
+		<div
+			class={cn(
+				'border-secondary-800 relative aspect-[16/10] overflow-clip border-t lg:aspect-auto lg:min-h-72 lg:border-t-0',
+				reversed ? 'lg:border-r' : 'lg:border-l'
+			)}
+		>
+			<img
+				src={feature.image}
+				alt={feature.imageAlt}
+				class="absolute inset-0 size-full object-cover"
+				width="1280"
+				height="800"
+				loading="lazy"
+			/>
+		</div>
 	</div>
 </article>

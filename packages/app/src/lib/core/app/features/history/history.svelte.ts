@@ -3,7 +3,7 @@ import type { Match } from '$core/game/lobby';
 import { app } from '$core/app/context';
 import { account } from '$core/account';
 import { Feature } from '../feature.svelte';
-import { relic } from '$lib/relic';
+import { relic, relicLeaderboardFingerprint } from '$lib/relic';
 import { join } from '@tauri-apps/api/path';
 import { exists, readFile } from '@tauri-apps/plugin-fs';
 import { parseReplay } from '@fknoobs/replay-parser';
@@ -18,6 +18,7 @@ import { t } from '$lib/i18n';
 
 const POLL_INITIAL_MS = 10_000;
 const POLL_MAX_MS = 60_000;
+const PROFILE_REFRESH_DELAYS_MS = [15_000, 30_000, 45_000, 60_000, 90_000, 120_000];
 
 /**
  * Saves finished matches (with replay) and fills in their results from the
@@ -34,6 +35,8 @@ export class History extends Feature {
 
 	#pollTimer: ReturnType<typeof setTimeout> | null = null;
 	#pollDelay = POLL_INITIAL_MS;
+	#profileRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+	#profileRefreshDelays: number[] = [];
 	#unsubscribers: (() => void)[] = [];
 	#disposeMatches: (() => void) | null = null;
 
@@ -66,6 +69,7 @@ export class History extends Feature {
 		this.#unsubscribers.push(
 			app.on('lobby.destroyed', ({ match, replay }) => {
 				void this.saveLobbyResult(match, replay?.file ?? null);
+				this.#scheduleProfileRefresh(PROFILE_REFRESH_DELAYS_MS);
 			}),
 			app.on('lobby.started', (match) => {
 				void this.#harvestPlayerRatings(match);
@@ -81,6 +85,7 @@ export class History extends Feature {
 
 	disable() {
 		this.#stopPolling();
+		this.#stopProfileRefresh();
 
 		for (const unsubscribe of this.#unsubscribers) {
 			unsubscribe();
@@ -177,6 +182,52 @@ export class History extends Feature {
 		this.#pollDelay = POLL_INITIAL_MS;
 	}
 
+	#stopProfileRefresh(): void {
+		if (this.#profileRefreshTimer) {
+			clearTimeout(this.#profileRefreshTimer);
+			this.#profileRefreshTimer = null;
+		}
+
+		this.#profileRefreshDelays = [];
+	}
+
+	#scheduleProfileRefresh(delays: number[]): void {
+		this.#stopProfileRefresh();
+		this.#profileRefreshDelays = [...delays];
+		this.#queueNextProfileRefresh();
+	}
+
+	#queueNextProfileRefresh(): void {
+		const delay = this.#profileRefreshDelays.shift();
+		if (delay == null) return;
+		this.#profileRefreshTimer = setTimeout(() => void this.#runProfileRefresh(), delay);
+	}
+
+	async #runProfileRefresh(): Promise<void> {
+		this.#profileRefreshTimer = null;
+		await this.#refreshRelicProfile();
+		this.#queueNextProfileRefresh();
+	}
+
+	async #refreshRelicProfile(): Promise<void> {
+		const existing = app.game.profile;
+		const steamId = existing?.steam.steamid ?? app.game.steamId;
+		if (!existing || !steamId) return;
+
+		try {
+			const relicProfile = await relic.getProfileBySteamId(steamId);
+			if (!relicProfile) return;
+
+			const previous = relicLeaderboardFingerprint(existing.relic.leaderboardStats);
+			const next = relicLeaderboardFingerprint(relicProfile.leaderboardStats);
+			if (previous === next) return;
+
+			app.game.profile = { relic: relicProfile, steam: existing.steam };
+		} catch (error) {
+			console.warn('[HISTORY]: relic profile refresh failed:', error);
+		}
+	}
+
 	async #poll(): Promise<void> {
 		this.#pollTimer = null;
 
@@ -251,7 +302,9 @@ export class History extends Feature {
 					}
 				}
 
-				await app.database.matches.update(item.id, update);
+				const updated = await app.database.matches.update(item.id, update);
+				app.emit('match.result', updated);
+				void this.#refreshRelicProfile();
 
 				pending--;
 			} catch (error) {

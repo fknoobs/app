@@ -52,15 +52,32 @@ function performanceCacheKey(options: {
 	return `${CACHE_VERSION}:${options.scope}:${options.userId ?? ''}:${options.profileId}`;
 }
 
+export function invalidatePlayerPerformanceCache(profileId?: number) {
+	if (profileId == null) {
+		performanceCache.clear();
+		return;
+	}
+
+	const suffix = `:${profileId}`;
+	for (const key of performanceCache.keys()) {
+		if (key.endsWith(suffix)) {
+			performanceCache.delete(key);
+		}
+	}
+}
+
 export async function getPlayerPerformance(options: {
 	profileId: number;
 	scope: PerformanceScope;
 	userId?: string | null;
+	fresh?: boolean;
 }): Promise<PlayerPerformance> {
 	const key = performanceCacheKey(options);
-	const hit = performanceCache.get(key);
-	if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
-		return hit.value;
+	if (!options.fresh) {
+		const hit = performanceCache.get(key);
+		if (hit && Date.now() - hit.at < CACHE_TTL_MS) {
+			return hit.value;
+		}
 	}
 
 	const query: Record<string, string> = {
@@ -70,6 +87,9 @@ export async function getPlayerPerformance(options: {
 
 	if (options.scope === 'user' && options.userId) {
 		query.userId = options.userId;
+	}
+	if (options.fresh) {
+		query.fresh = '1';
 	}
 
 	try {

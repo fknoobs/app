@@ -37,20 +37,29 @@
 		userId?: string | null;
 		empty?: 'self' | 'other';
 		class?: string;
+		refreshKey?: number;
 	};
 
-	let { profileId, scope, userId = null, empty = 'other', class: className }: Props = $props();
+	let {
+		profileId,
+		scope,
+		userId = null,
+		empty = 'other',
+		class: className,
+		refreshKey = 0
+	}: Props = $props();
 	const { t } = useI18n();
 
 	const performance = resource(
-		[() => profileId ?? null, () => scope, () => userId ?? null],
-		async ([id, nextScope, nextUserId]) => {
+		[() => profileId ?? null, () => scope, () => userId ?? null, () => refreshKey],
+		async ([id, nextScope, nextUserId, generation]) => {
 			if (!id) return emptyPlayerPerformance();
 			if (nextScope === 'user' && !nextUserId) return emptyPlayerPerformance();
 			return getPlayerPerformance({
 				profileId: id,
 				scope: nextScope,
-				userId: nextUserId
+				userId: nextUserId,
+				fresh: generation > 0
 			});
 		},
 		{ initialValue: emptyPlayerPerformance() }

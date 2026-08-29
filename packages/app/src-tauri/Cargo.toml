@@ -18,11 +18,6 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-windows = { version = "0.52", features = [
-    "Win32_Foundation",
-    "Win32_UI_WindowsAndMessaging",
-    "Win32_UI_Input_KeyboardAndMouse",
-] }
 tauri = { version = "2", features = ["protocol-asset", "devtools", "tray-icon"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
@@ -54,6 +49,11 @@ sysinfo = "0.30"
 tauri-plugin-process = "2"
 
 [target.'cfg(windows)'.dependencies]
+windows = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+] }
 xcap = "0.5"
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 base64 = "0.22"

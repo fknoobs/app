@@ -5,6 +5,7 @@
 	import { app } from '$core/app/context';
 	import NotificationsTab from './tabs/notifications-tab.svelte';
 	import UsersTab from './tabs/users-tab.svelte';
+	import LabelsTab from './tabs/labels-tab.svelte';
 	import FlaggedTab from './tabs/flagged-tab.svelte';
 	import DenylistTab from './tabs/denylist-tab.svelte';
 	import { useI18n } from '$lib/i18n';
@@ -46,6 +47,14 @@
 					>
 						{t('Users')}
 					</button>
+					<button
+						type="button"
+						class={tabTrigger}
+						data-state={tab === 'labels' ? 'active' : undefined}
+						onclick={() => (tab = 'labels')}
+					>
+						{t('Labels')}
+					</button>
 				{/if}
 				<button
 					type="button"
@@ -68,6 +77,8 @@
 			<div class="border-secondary-800 border-t">
 				{#if tab === 'users' && app.account.isAdmin}
 					<UsersTab />
+				{:else if tab === 'labels' && app.account.isAdmin}
+					<LabelsTab />
 				{:else if tab === 'flagged'}
 					<FlaggedTab />
 				{:else if tab === 'denylist'}

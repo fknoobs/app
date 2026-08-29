@@ -91,7 +91,11 @@ export class NotificationsService {
 
 		const matchId = lobbyId(notification);
 		if (matchId) {
-			await goto(resolve('/(loaded)/history/[id]', { id: matchId }));
+			const targetComment = commentId(notification);
+			const path = resolve('/(loaded)/history/[id]', { id: matchId });
+			await goto(
+				targetComment ? `${path}?comment=${encodeURIComponent(targetComment)}` : path
+			);
 			return;
 		}
 
@@ -151,13 +155,20 @@ export class NotificationsService {
 	}
 }
 
-function lobbyId(notification: NotificationItem): string {
-	const lobby = notification.lobby as unknown;
-	if (!lobby) return '';
-	if (typeof lobby === 'object' && lobby !== null && 'id' in lobby) {
-		return String((lobby as { id: string }).id || '');
+function relationId(value: unknown): string {
+	if (!value) return '';
+	if (typeof value === 'object' && value !== null && 'id' in value) {
+		return String((value as { id: string }).id || '');
 	}
-	return String(lobby);
+	return String(value);
+}
+
+function lobbyId(notification: NotificationItem): string {
+	return relationId(notification.lobby as unknown);
+}
+
+function commentId(notification: NotificationItem): string {
+	return relationId(notification.comment as unknown);
 }
 
 export const notifications = new NotificationsService();

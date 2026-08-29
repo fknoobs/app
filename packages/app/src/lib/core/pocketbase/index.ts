@@ -62,17 +62,60 @@ export function exp<T extends Record<string, any>>(obj: T): Expand<T> {
 	return resultObj as Expand<T>;
 }
 
-let fileTokenCache: { token: string; fetchedAt: number } | null = null;
-const FILE_TOKEN_TTL_MS = 90 * 60 * 1000;
+let fileTokenCache: { token: string; expiresAt: number } | null = null;
+let fileTokenInflight: Promise<string> | null = null;
+const FILE_TOKEN_REFRESH_MARGIN_MS = 30_000;
+const FILE_DOWNLOAD_CONCURRENCY = 4;
+let fileDownloadsActive = 0;
+const fileDownloadWaiters: Array<() => void> = [];
+
+function sleep(ms: number) {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function tokenExpiresAt(token: string): number {
+	try {
+		const part = token.split('.')[1];
+		if (!part) return Date.now() + 120_000;
+		const padded =
+			part.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (part.length % 4)) % 4);
+		const payload = JSON.parse(atob(padded)) as { exp?: number };
+		if (typeof payload.exp === 'number') return payload.exp * 1000;
+	} catch {
+		// ignore malformed tokens
+	}
+	return Date.now() + 120_000;
+}
+
+async function withFileDownloadSlot<T>(run: () => Promise<T>): Promise<T> {
+	if (fileDownloadsActive >= FILE_DOWNLOAD_CONCURRENCY) {
+		await new Promise<void>((resolve) => fileDownloadWaiters.push(resolve));
+	}
+	fileDownloadsActive++;
+	try {
+		return await run();
+	} finally {
+		fileDownloadsActive--;
+		fileDownloadWaiters.shift()?.();
+	}
+}
 
 export async function getFileAccessToken() {
 	const now = Date.now();
-	if (fileTokenCache && now - fileTokenCache.fetchedAt < FILE_TOKEN_TTL_MS) {
+	if (fileTokenCache && now < fileTokenCache.expiresAt - FILE_TOKEN_REFRESH_MARGIN_MS) {
 		return fileTokenCache.token;
 	}
-	const token = await pocketbase.files.getToken({ fetch: appFetch });
-	fileTokenCache = { token, fetchedAt: now };
-	return token;
+	if (fileTokenInflight) return fileTokenInflight;
+	fileTokenInflight = pocketbase.files
+		.getToken({ fetch: appFetch })
+		.then((token) => {
+			fileTokenCache = { token, expiresAt: tokenExpiresAt(token) };
+			return token;
+		})
+		.finally(() => {
+			fileTokenInflight = null;
+		});
+	return fileTokenInflight;
 }
 
 export const getFile = async (
@@ -80,19 +123,42 @@ export const getFile = async (
 	filename: string,
 	queryParams?: FileOptions
 ) => {
-	const params: FileOptions = { ...queryParams };
-	if (!params.token) {
-		try {
-			params.token = await getFileAccessToken();
-		} catch {
-			// public files still work without a file token
+	return withFileDownloadSlot(async () => {
+		let token = queryParams?.token;
+		let lastError: Error | null = null;
+		for (let attempt = 0; attempt < 3; attempt++) {
+			if (!token) {
+				try {
+					token = await getFileAccessToken();
+				} catch (error) {
+					lastError = error instanceof Error ? error : new Error('Failed to get file token');
+					if (attempt < 2) {
+						await sleep(200 * (attempt + 1));
+						continue;
+					}
+				}
+			}
+			const params: FileOptions = { ...queryParams };
+			if (token) params.token = token;
+			const response = await appFetch(pocketbase.files.getURL(record, filename, params));
+			if (response.ok) {
+				return new Uint8Array(await response.arrayBuffer());
+			}
+			lastError = new Error(`Failed to download file (${response.status})`);
+			if (response.status === 401 || response.status === 403) {
+				token = undefined;
+				fileTokenCache = null;
+				await sleep(150 * (attempt + 1));
+				continue;
+			}
+			if (response.status >= 500 || response.status === 429) {
+				await sleep(300 * (attempt + 1));
+				continue;
+			}
+			throw lastError;
 		}
-	}
-	const response = await appFetch(pocketbase.files.getURL(record, filename, params));
-	if (!response.ok) {
-		throw new Error(`Failed to download file (${response.status})`);
-	}
-	return new Uint8Array(await response.arrayBuffer());
+		throw lastError ?? new Error('Failed to download file');
+	});
 };
 
 export const getFileUrl = (

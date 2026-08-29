@@ -12,6 +12,18 @@ import { transformMatchHistory } from './transform-match-history';
 
 export const RELIC_API_BASE = 'https://coh1-lobby.reliclink.com';
 
+/** Compact Relic ladder snapshot so the dashboard can detect when ranks/wins change. */
+export function relicLeaderboardFingerprint(stats?: LeaderboardStat[] | null): string {
+	if (!stats?.length) return '';
+	return stats
+		.map(
+			(stat) =>
+				`${stat.leaderboard_id}:${stat.wins}:${stat.losses}:${stat.ranklevel}:${stat.lastmatchdate}`
+		)
+		.sort()
+		.join('|');
+}
+
 export class RelicClient {
 	private readonly baseUrl: string;
 	private readonly defaultFetchOptions: RequestInit;

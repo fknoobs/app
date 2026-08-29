@@ -16,6 +16,10 @@ export type User = UsersResponse<Record<string, any>, string[]>;
 
 export type AccountStatus = 'idle' | 'authenticating' | 'authenticated' | 'error';
 
+function metaWithVersion(meta: Record<string, any> | null | undefined, version: string) {
+	return { ...(meta && typeof meta === 'object' ? meta : {}), version };
+}
+
 /**
  * Manages the app's PocketBase account (replaces the old `auth` feature).
  *
@@ -137,11 +141,12 @@ export class AccountService {
 		}
 
 		try {
+			const version = await getVersion();
 			await pocketbase.collection('users').update(
 				user.id,
 				{
 					lastLogin: new Date(),
-					meta: { version: await getVersion() }
+					meta: metaWithVersion(user.meta, version)
 				},
 				{ fetch }
 			);
@@ -253,9 +258,15 @@ export class AccountService {
 			return this.user;
 		}
 
-		this.#user = (await pocketbase
-			.collection('users')
-			.update(user.id, { steamIds: uniq([...(user.steamIds || []), steamId]) }, { fetch })) as User;
+		const version = await getVersion();
+		this.#user = (await pocketbase.collection('users').update(
+			user.id,
+			{
+				steamIds: uniq([...(user.steamIds || []), steamId]),
+				meta: metaWithVersion(user.meta, version)
+			},
+			{ fetch }
+		)) as User;
 
 		void this.#enrichFromSteam();
 

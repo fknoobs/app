@@ -1,5 +1,7 @@
 'use strict';
 
+const { SESSION_PARTITION_SQL, isPreferredLobbyClause } = require(`${__hooks}/lib/lobbies-dedupe.js`);
+
 function parseLobbyPlayersField(raw) {
 	if (Array.isArray(raw)) {
 		return raw;
@@ -241,14 +243,14 @@ function countFilteredMatches(hasPlayerFilter, numericPlayerIds, whereClause, bi
 	const extra = joinExtra ? ` ${joinExtra}` : '';
 
 	if (hasPlayerFilter) {
-		countSql = `SELECT COUNT(DISTINCT l.id) AS total
+		countSql = `SELECT COUNT(DISTINCT ${SESSION_PARTITION_SQL}) AS total
        FROM lobby_player_index i
        INNER JOIN lobbies l ON l.id = i.lobby
        WHERE i.profile_id IN (${numericPlayerIds.join(', ')})
          ${extra}
          AND ${whereClause}`;
 	} else {
-		countSql = `SELECT COUNT(*) AS total FROM lobbies l WHERE ${whereClause}`;
+		countSql = `SELECT COUNT(DISTINCT ${SESSION_PARTITION_SQL}) AS total FROM lobbies l WHERE ${whereClause}`;
 	}
 
 	const countRow = new DynamicModel({ total: 0 });
@@ -728,6 +730,7 @@ module.exports = {
 	loadPlayersByLobbyIds,
 	resolvePlayersForRow,
 	countFilteredMatches,
+	isPreferredLobbyClause,
 	buildRaceFilterClause,
 	buildIndexPlayerConditions,
 	buildProFilterClause,

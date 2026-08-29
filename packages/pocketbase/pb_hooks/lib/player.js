@@ -1,0 +1,533 @@
+// Public player page API for coh1stats.com. Requires STEAM_API_KEY.
+'use strict';
+
+const ratings = require(`${__hooks}/lib/player-ratings.js`);
+const matchHistory = require(`${__hooks}/lib/match-history.js`);
+const { emptyPerformance, loadPlayerPerformance } = require(`${__hooks}/lib/player-performance.js`);
+
+const RELIC_API_BASE = 'https://coh1-lobby.reliclink.com';
+const STEAM_ID_REGEX = /^7656119\d{10}$/;
+const COH_APP_ID = 228200;
+const RANKED_LEADERBOARD_MIN = 4;
+const RANKED_LEADERBOARD_MAX = 19;
+
+const ALLOWED_ORIGINS = [
+	'https://coh1stats.com',
+	'https://www.coh1stats.com',
+	'http://localhost:5174',
+	'http://127.0.0.1:5174'
+];
+
+const LEADERBOARD_MODE_LABELS = {
+	4: '1v1',
+	5: '1v1',
+	6: '1v1',
+	7: '1v1',
+	8: '2v2',
+	9: '2v2',
+	10: '2v2',
+	11: '2v2',
+	12: '3v3',
+	13: '3v3',
+	14: '3v3',
+	15: '3v3',
+	16: '4v4',
+	17: '4v4',
+	18: '4v4',
+	19: '4v4',
+	0: 'Basic Match',
+	1: 'Basic Match',
+	2: 'Basic Match',
+	3: 'Basic Match',
+	42: 'Skirmish',
+	43: 'Skirmish',
+	44: 'Skirmish',
+	45: 'Skirmish',
+	46: 'Operation Assault',
+	47: 'Operation Assault',
+	50: 'Operation Panzerkrieg',
+	51: 'Operation Panzerkrieg',
+	54: 'Operation Stonewall',
+	55: 'Operation Stonewall'
+};
+
+const LEADERBOARD_FACTION_LABELS = {
+	4: 'US',
+	8: 'US',
+	12: 'US',
+	16: 'US',
+	0: 'US',
+	42: 'US',
+	46: 'US',
+	50: 'US',
+	54: 'US',
+	5: 'Wehrmacht',
+	9: 'Wehrmacht',
+	13: 'Wehrmacht',
+	17: 'Wehrmacht',
+	1: 'Wehrmacht',
+	43: 'Wehrmacht',
+	47: 'Wehrmacht',
+	51: 'Wehrmacht',
+	55: 'Wehrmacht',
+	6: 'Brits',
+	10: 'Brits',
+	14: 'Brits',
+	18: 'Brits',
+	2: 'Brits',
+	44: 'Brits',
+	7: 'Panzer Elite',
+	11: 'Panzer Elite',
+	15: 'Panzer Elite',
+	19: 'Panzer Elite',
+	3: 'Panzer Elite',
+	45: 'Panzer Elite'
+};
+
+function isSteamId(value) {
+	return typeof value === 'string' && STEAM_ID_REGEX.test(value);
+}
+
+function isProfileId(value) {
+	const id = Number(value);
+	return Number.isInteger(id) && id > 0 && !isSteamId(String(value));
+}
+
+function isRankedLeaderboard(leaderboardId) {
+	return leaderboardId >= RANKED_LEADERBOARD_MIN && leaderboardId <= RANKED_LEADERBOARD_MAX;
+}
+
+function steamIdFromName(name) {
+	if (typeof name !== 'string') {
+		return '';
+	}
+	return name.replace('/steam/', '');
+}
+
+function logInfo(message, attrs) {
+	const pairs = ['source', 'player'];
+	appendLogAttrs(pairs, attrs);
+	$app.logger().info(message, ...pairs);
+}
+
+function logWarn(message, attrs) {
+	const pairs = ['source', 'player'];
+	appendLogAttrs(pairs, attrs);
+	$app.logger().warn(message, ...pairs);
+}
+
+function logError(message, attrs) {
+	const pairs = ['source', 'player'];
+	appendLogAttrs(pairs, attrs);
+	$app.logger().error(message, ...pairs);
+}
+
+function appendLogAttrs(pairs, attrs) {
+	if (!attrs) {
+		return;
+	}
+
+	for (const key in attrs) {
+		if (!Object.prototype.hasOwnProperty.call(attrs, key)) {
+			continue;
+		}
+
+		const value = attrs[key];
+		if (value == null) {
+			continue;
+		}
+
+		pairs.push(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+	}
+}
+
+function applyCors(e) {
+	const origin = e.request.header.get('Origin');
+	if (origin && ALLOWED_ORIGINS.includes(origin)) {
+		e.response.header().set('Access-Control-Allow-Origin', origin);
+		e.response.header().set('Vary', 'Origin');
+	}
+	e.response.header().set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+	e.response.header().set('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function jsonWithCors(e, status, body) {
+	applyCors(e);
+	return e.json(status, body);
+}
+
+function parseHttpJson(response, context) {
+	if (!response) {
+		throw new Error('Empty HTTP response');
+	}
+
+	if (response.statusCode < 200 || response.statusCode >= 300) {
+		logWarn('Player upstream HTTP error', {
+			...context,
+			statusCode: response.statusCode,
+			rawPreview: (response.raw || '').slice(0, 200)
+		});
+		throw new Error(`Upstream HTTP ${response.statusCode}`);
+	}
+
+	if (response.json != null) {
+		return response.json;
+	}
+
+	const raw = response.raw || '';
+	if (!raw) {
+		logWarn('Player upstream returned empty body', context);
+		throw new Error('Empty HTTP body');
+	}
+
+	try {
+		return JSON.parse(raw);
+	} catch (error) {
+		logError('Player failed to parse upstream JSON', {
+			...context,
+			error: error instanceof Error ? error.message : String(error),
+			rawPreview: raw.slice(0, 200)
+		});
+		throw error;
+	}
+}
+
+function fetchRelicJsonInsecure(url, context) {
+	try {
+		const raw = toString($os.cmd('python3', `${__hooks}/lib/fetch-insecure.py`, url).output());
+		if (!raw) {
+			throw new Error('Empty HTTP body');
+		}
+		return JSON.parse(raw);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		logError('Player Relic fetch failed', {
+			upstream: 'relic',
+			...context,
+			error: message
+		});
+		throw new Error(`Relic fetch failed: ${message}`);
+	}
+}
+
+function memberFromPersonalStat(data, steamId, profileId) {
+	const members = data?.statGroups?.[0]?.members ?? [];
+	const member = steamId
+		? members.find((entry) => entry?.name === `/steam/${steamId}`)
+		: members.find((entry) => Number(entry?.profile_id) === Number(profileId));
+
+	if (!member) {
+		return null;
+	}
+
+	const leaderboardStats = (data?.leaderboardStats ?? []).filter(
+		(stat) => stat?.statgroup_id === member.personal_statgroup_id
+	);
+
+	return {
+		profile_id: member.profile_id,
+		alias: member.alias,
+		country: member.country,
+		level: member.level,
+		name: member.name,
+		personal_statgroup_id: member.personal_statgroup_id,
+		leaderboardStats
+	};
+}
+
+function fetchRelicProfileBySteamId(steamId) {
+	const url =
+		`${RELIC_API_BASE}/community/leaderboard/getpersonalstat?title=coh1&profile_names=` +
+		encodeURIComponent(JSON.stringify([`/steam/${steamId}`]));
+
+	const data = fetchRelicJsonInsecure(url, { steamId });
+	return memberFromPersonalStat(data, steamId, null);
+}
+
+function fetchRelicProfileById(profileId) {
+	const url =
+		`${RELIC_API_BASE}/community/leaderboard/getpersonalstat?title=coh1&profile_ids=` +
+		encodeURIComponent(JSON.stringify([Number(profileId)]));
+
+	const data = fetchRelicJsonInsecure(url, { profileId });
+	return memberFromPersonalStat(data, null, profileId);
+}
+
+function fetchSteamProfile(steamId) {
+	const apiKey = $os.getenv('STEAM_API_KEY') || $os.getenv('PUBLIC_STEAM_API_KEY');
+	if (!apiKey) {
+		logError('STEAM_API_KEY is not configured', { steamId });
+		throw new Error('STEAM_API_KEY is not configured');
+	}
+
+	const url =
+		'https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?' +
+		`key=${encodeURIComponent(apiKey)}&steamids=${encodeURIComponent(steamId)}`;
+
+	const response = $http.send({
+		url,
+		method: 'GET',
+		timeout: 15
+	});
+
+	const data = parseHttpJson(response, { upstream: 'steam', steamId });
+	return data?.response?.players?.[0] ?? null;
+}
+
+function fetchSteamPlaytime(steamId) {
+	const apiKey = $os.getenv('STEAM_API_KEY') || $os.getenv('PUBLIC_STEAM_API_KEY');
+	if (!apiKey || !isSteamId(steamId)) {
+		return null;
+	}
+
+	try {
+		const url =
+			'https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/?' +
+			`key=${encodeURIComponent(apiKey)}&steamid=${encodeURIComponent(steamId)}`;
+
+		const response = $http.send({
+			url,
+			method: 'GET',
+			timeout: 15
+		});
+
+		const data = parseHttpJson(response, { upstream: 'steam-playtime', steamId });
+		const games = data?.response?.games ?? [];
+		return games.find((game) => Number(game?.appid) === COH_APP_ID) ?? null;
+	} catch (error) {
+		logWarn('Player Steam playtime lookup failed', {
+			steamId,
+			error: error instanceof Error ? error.message : String(error)
+		});
+		return null;
+	}
+}
+
+function fetchMatchHistory(profileId) {
+	try {
+		const url =
+			`${RELIC_API_BASE}/community/leaderboard/getrecentmatchhistorybyprofileid` +
+			`?title=coh1&profile_id=${encodeURIComponent(String(profileId))}`;
+		const data = fetchRelicJsonInsecure(url, { profileId, upstream: 'match-history' });
+		return matchHistory.transformMatchHistory(data, profileId);
+	} catch (error) {
+		logWarn('Player match history lookup failed', {
+			profileId,
+			error: error instanceof Error ? error.message : String(error)
+		});
+		return [];
+	}
+}
+
+function loadElo(profileId) {
+	try {
+		const record = ratings.findByProfileId(profileId);
+		if (!record) {
+			return {};
+		}
+		return ratings.serializeRecord(record)?.elo ?? {};
+	} catch (error) {
+		logWarn('Player ratings lookup failed', {
+			profileId,
+			error: error instanceof Error ? error.message : String(error)
+		});
+		return {};
+	}
+}
+
+function loadCommunityPerformance(profileId) {
+	try {
+		return loadPlayerPerformance(profileId, 'community', '', {});
+	} catch (error) {
+		logWarn('Player performance lookup failed', {
+			profileId,
+			error: error instanceof Error ? error.message : String(error)
+		});
+		return emptyPerformance();
+	}
+}
+
+function selectCardStats(stats) {
+	const sorted = [...(stats ?? [])].sort((a, b) => {
+		const aRanked = isRankedLeaderboard(a.leaderboard_id) ? 0 : 1;
+		const bRanked = isRankedLeaderboard(b.leaderboard_id) ? 0 : 1;
+		if (aRanked !== bRanked) {
+			return aRanked - bRanked;
+		}
+		return (b.ranklevel ?? 0) - (a.ranklevel ?? 0);
+	});
+
+	return sorted.map((stat) => ({
+		leaderboardId: stat.leaderboard_id,
+		modeLabel: LEADERBOARD_MODE_LABELS[stat.leaderboard_id] || 'Unknown',
+		factionLabel: LEADERBOARD_FACTION_LABELS[stat.leaderboard_id] || 'Unknown',
+		ranked: isRankedLeaderboard(stat.leaderboard_id),
+		ranklevel: stat.ranklevel ?? 0,
+		rank: stat.rank ?? 0,
+		wins: stat.wins ?? 0,
+		losses: stat.losses ?? 0,
+		streak: stat.streak ?? 0
+	}));
+}
+
+function loadPlayerPage(id, options) {
+	const extras = options?.extras !== false;
+	const steamLookup = isSteamId(String(id));
+	const profileLookup = isProfileId(String(id));
+
+	if (!steamLookup && !profileLookup) {
+		const error = new Error('Invalid player id');
+		error.status = 400;
+		throw error;
+	}
+
+	const relicProfile = steamLookup
+		? fetchRelicProfileBySteamId(String(id))
+		: fetchRelicProfileById(Number(id));
+
+	if (!relicProfile) {
+		const error = new Error('Player not found');
+		error.status = 404;
+		throw error;
+	}
+
+	const steamId = steamIdFromName(relicProfile.name) || (steamLookup ? String(id) : '');
+	if (!isSteamId(steamId)) {
+		const error = new Error('Player not found');
+		error.status = 404;
+		throw error;
+	}
+
+	const steamProfile = fetchSteamProfile(steamId);
+	if (!steamProfile) {
+		const error = new Error('Player not found');
+		error.status = 404;
+		throw error;
+	}
+
+	const playtime = extras ? fetchSteamPlaytime(steamId) : null;
+	const elo = extras ? loadElo(relicProfile.profile_id) : {};
+	const performance = extras ? loadCommunityPerformance(relicProfile.profile_id) : emptyPerformance();
+	const matches = extras ? fetchMatchHistory(relicProfile.profile_id) : [];
+
+	return {
+		steamId,
+		profileId: relicProfile.profile_id,
+		alias: relicProfile.alias,
+		country: relicProfile.country || null,
+		level: relicProfile.level ?? 0,
+		avatarUrl: steamProfile.avatarfull || steamProfile.avatarmedium || steamProfile.avatar,
+		personastate: steamProfile.personastate ?? 0,
+		gameextrainfo: steamProfile.gameextrainfo || null,
+		lastlogoff: steamProfile.lastlogoff ?? null,
+		playtimeForever: playtime?.playtime_forever ?? null,
+		playtime2weeks: playtime?.playtime_2weeks ?? null,
+		leaderboardStats: relicProfile.leaderboardStats ?? [],
+		elo,
+		performance,
+		matchHistory: matches
+	};
+}
+
+function handleOptions(e) {
+	applyCors(e);
+	return e.noContent(204);
+}
+
+function handleGet(e) {
+	const id = e.request.pathValue('id');
+	const origin = e.request.header.get('Origin') || 'none';
+
+	logInfo('Player page request', { id, origin });
+
+	try {
+		const data = loadPlayerPage(id, { extras: true });
+		logInfo('Player page loaded', {
+			id,
+			steamId: data.steamId,
+			profileId: data.profileId,
+			alias: data.alias,
+			statCount: data.leaderboardStats.length,
+			matchCount: data.matchHistory.length
+		});
+		return jsonWithCors(e, 200, data);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		const status = error?.status || (message.includes('STEAM_API_KEY') ? 503 : 500);
+
+		if (status === 400) {
+			logWarn('Player invalid id', { id });
+			return jsonWithCors(e, 400, { message: 'id must be a SteamID64 or Relic profile id' });
+		}
+
+		if (status === 404) {
+			logWarn('Player not found', { id });
+			return jsonWithCors(e, 404, { message: 'Player not found' });
+		}
+
+		logError('Failed to load player page', { id, error: message });
+
+		if (status === 503) {
+			return jsonWithCors(e, 503, { message: 'Player service is not configured' });
+		}
+
+		return jsonWithCors(e, 500, { message: 'Failed to load player' });
+	}
+}
+
+function handleCardGet(e) {
+	const steamId = e.request.pathValue('steamId');
+	const origin = e.request.header.get('Origin') || 'none';
+
+	logInfo('Player card request', { steamId, origin });
+
+	try {
+		const data = loadPlayerPage(steamId, { extras: false });
+		logInfo('Player card loaded', {
+			steamId: data.steamId,
+			profileId: data.profileId,
+			alias: data.alias,
+			statCount: data.leaderboardStats.length
+		});
+		return jsonWithCors(e, 200, {
+			steamId: data.steamId,
+			profileId: data.profileId,
+			alias: data.alias,
+			country: data.country,
+			level: data.level,
+			avatarUrl: data.avatarUrl,
+			stats: selectCardStats(data.leaderboardStats)
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		const status = error?.status || (message.includes('STEAM_API_KEY') ? 503 : 500);
+
+		if (status === 400) {
+			logWarn('Player card invalid steamId', { steamId });
+			return jsonWithCors(e, 400, { message: 'steamId must be a 17-digit SteamID64' });
+		}
+
+		if (status === 404) {
+			logWarn('Player card not found', { steamId });
+			return jsonWithCors(e, 404, { message: 'Player not found' });
+		}
+
+		logError('Failed to load player card', { steamId, error: message });
+
+		if (status === 503) {
+			return jsonWithCors(e, 503, { message: 'Player card service is not configured' });
+		}
+
+		return jsonWithCors(e, 500, { message: 'Failed to load player card' });
+	}
+}
+
+module.exports = {
+	handleGet,
+	handleOptions,
+	handleCardGet,
+	loadPlayerPage,
+	selectCardStats,
+	applyCors,
+	jsonWithCors
+};

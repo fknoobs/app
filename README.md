@@ -11,10 +11,11 @@ Built with **Tauri**, **SvelteKit**, and **PocketBase**.
 
 **Latest release:** https://github.com/fknoobs/app/releases/latest
 
-Grab the **Windows installer** — the `.exe` named like `fknoobscoh_<version>_x64-setup.exe`.  
 Skip “Source code (zip/tar.gz)” unless you want to build it yourself.
 
-### Step-by-step
+### Windows
+
+Grab the **Windows installer** — the `.exe` named like `fknoobscoh_<version>_x64-setup.exe`.
 
 1. **Download** the installer from the [latest release](https://github.com/fknoobs/app/releases/latest) page
 2. If your **browser** warns you (“This file may not be safe”) → click **Keep** / **Download anyway**
@@ -29,6 +30,17 @@ Skip “Source code (zip/tar.gz)” unless you want to build it yourself.
 > As long as you downloaded from the official GitHub releases link above, it’s safe to proceed with **More info → Run anyway**.
 >
 > **Microsoft Store from v1.0:** From version 1.0 onwards, **Company of Heroes - Companion** will be published on the Microsoft Store — no more browser or SmartScreen warnings. Until then, grab pre-1.0 builds from GitHub releases above.
+
+### Linux
+
+Grab the **AppImage** — the file named like `fknoobscoh_<version>_amd64.AppImage`.
+
+1. **Download** the AppImage from the [latest release](https://github.com/fknoobs/app/releases/latest) page
+2. Make it executable: `chmod +x fknoobscoh_*.AppImage`
+3. Install **WebKitGTK 4.1** if it is not already present (Debian/Ubuntu: `sudo apt install libwebkit2gtk-4.1-0`)
+4. Run the AppImage
+
+In-game features (log watching, keybindings, screenshots) are Windows-only. Match history, leaderboards, player lookup, and stream overlays still work on Linux.
 
 ## Features
 

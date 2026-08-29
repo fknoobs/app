@@ -1,9 +1,7 @@
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
 use tauri::Manager;
 #[cfg(target_os = "macos")]
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
-#[cfg(target_os = "windows")]
-use window_vibrancy::apply_acrylic;
-use tauri::tray::{MouseButton, MouseButtonState, TrayIconEvent};
 
 mod capture;
 mod coh_chat;
@@ -92,10 +90,6 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
                 .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
-
-            #[cfg(target_os = "windows")]
-            apply_acrylic(&window, Some((0, 0, 0, 0)))
-                .expect("Unsupported platform! 'apply_blur' is only supported on Windows");
 
             ws_server::spawn_ws_server();
 

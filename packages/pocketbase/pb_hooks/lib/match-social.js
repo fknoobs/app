@@ -123,6 +123,37 @@ function findUserIdsBySteamIds(steamIds) {
 	}
 }
 
+function findPriorCommenterUserIds(lobbyId, excludeCommentId) {
+	try {
+		const rows = arrayOf(new DynamicModel({ id: '' }));
+		$app
+			.db()
+			.newQuery(
+				`SELECT DISTINCT user AS id FROM lobby_comments
+				 WHERE lobby = {:lobby}
+				 AND ({:exclude} = '' OR id != {:exclude})
+				 AND user IS NOT NULL AND user != ''`
+			)
+			.bind({ lobby: lobbyId, exclude: excludeCommentId || '' })
+			.all(rows);
+		return rows.map((row) => String(row.id)).filter(Boolean);
+	} catch (error) {
+		console.warn('[match_social] prior commenters', String(error?.message || error));
+		return [];
+	}
+}
+
+function uniqueUserIds(ids, excludeId) {
+	const seen = Object.create(null);
+	const out = [];
+	for (const id of ids) {
+		if (!id || id === excludeId || seen[id]) continue;
+		seen[id] = true;
+		out.push(id);
+	}
+	return out;
+}
+
 function commenterName(userId) {
 	try {
 		const user = $app.findRecordById('users', userId);
@@ -145,12 +176,16 @@ function notifyMatchPlayers(comment) {
 	try {
 		const lobbyId = recordId(comment.get('lobby'));
 		const commenterId = recordId(comment.get('user'));
+		const commentId = recordId(comment.id);
 		if (!lobbyId || !commenterId) {
 			console.warn('[match_social] notify skip: missing lobby or user');
 			return;
 		}
 		const steamIds = collectLobbySteamIds(lobbyId);
-		const userIds = findUserIdsBySteamIds(steamIds).filter((id) => id !== commenterId);
+		const userIds = uniqueUserIds(
+			[...findUserIdsBySteamIds(steamIds), ...findPriorCommenterUserIds(lobbyId, commentId)],
+			commenterId
+		);
 		if (!userIds.length) {
 			console.warn('[match_social] notify skip: no recipients', lobbyId, 'steam', steamIds.length);
 			return;
@@ -160,14 +195,14 @@ function notifyMatchPlayers(comment) {
 		const body =
 			commentSnippet(comment.get('text')) || (isReply ? 'New reply' : 'New comment');
 		const record = new Record($app.findCollectionByNameOrId('notifications'));
-		record.set(
-			'title',
-			isReply ? `${name} replied on a match you played` : `${name} commented on a match you played`
-		);
+		record.set('title', isReply ? `${name} replied on a match` : `${name} commented on a match`);
 		record.set('body', body);
 		record.set('targetAll', false);
 		record.set('recipients', userIds);
 		record.set('lobby', lobbyId);
+		if (commentId) {
+			record.set('comment', commentId);
+		}
 		record.set('createdBy', commenterId);
 		$app.save(record);
 		console.log('[match_social] notify', lobbyId, 'recipients', userIds.length);

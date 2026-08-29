@@ -222,9 +222,9 @@
 				</div>
 			{/each}
 		</div>
-		<div class="grid grid-cols-3 gap-2 p-4 sm:grid-cols-4 md:grid-cols-5">
+		<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
 			{#each [0, 1, 2, 3] as thumb (thumb)}
-				<Skeleton class="h-20 w-full rounded-md" />
+				<Skeleton class="aspect-square w-full rounded-none" />
 			{/each}
 		</div>
 	</div>
@@ -305,17 +305,17 @@
 						<p class="text-secondary-500 text-sm">{t('Flagged')}</p>
 					{/if}
 				</div>
-				<div class="grid grid-cols-3 gap-2 p-4 sm:grid-cols-4 md:grid-cols-5">
+				<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
 					{#each activeGroup.captures as capture (capture.id)}
 						<button
 							type="button"
 							class={cn(
 								interactive,
-								'border-secondary-800 hover:border-secondary-600 overflow-hidden rounded-md border transition-colors'
+								'relative aspect-square w-full overflow-clip opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100'
 							)}
 							onclick={() => openCapture(capture)}
 						>
-							<CaptureImage {capture} class="h-20 w-full object-cover" />
+							<CaptureImage {capture} class="absolute inset-0 size-full object-cover" />
 						</button>
 					{/each}
 				</div>

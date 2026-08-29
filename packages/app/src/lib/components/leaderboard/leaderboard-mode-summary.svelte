@@ -89,10 +89,16 @@
 					<span class="inline-flex items-center gap-1.5">
 						<img
 							src={getRankImageByLeaderboardId(row.stat.leaderboard_id, row.stat.ranklevel)}
-							alt={t('Rank {level}', { level: row.stat.ranklevel })}
+							alt={
+								row.stat.ranklevel > 0
+									? t('Rank {level}', { level: row.stat.ranklevel })
+									: t('Unranked')
+							}
 							class="h-8 w-auto shrink-0"
 						/>
-						<span class="text-secondary-300 text-sm font-medium tabular-nums">{row.stat.ranklevel}</span>
+						<span class="text-secondary-300 text-sm font-medium tabular-nums">
+							{row.stat.ranklevel > 0 ? row.stat.ranklevel : '–'}
+						</span>
 					</span>
 				{:else}
 					<span class="text-secondary-500">–</span>

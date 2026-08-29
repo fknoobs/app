@@ -38,6 +38,21 @@ export function matchtypesForMatchups(matchups: string[]): number[] {
 	return [...ids];
 }
 
+/**
+ * CoH lobby slots are team-interleaved: allies 0/2/4/6, axis 1/3/5/7.
+ * UI Position N is the Nth row on either team (1–4). Stored slots are 1-based.
+ */
+export function slotsForPositions(positions: string[]): number[] {
+	const slots = new Set<number>();
+	for (const value of positions) {
+		const position = Number(value);
+		if (!Number.isInteger(position) || position < 1 || position > 4) continue;
+		slots.add((position - 1) * 2 + 1);
+		slots.add((position - 1) * 2 + 2);
+	}
+	return [...slots];
+}
+
 export type MatchesFilterState = {
 	playerIds?: string[];
 	maps?: string[];
@@ -141,9 +156,7 @@ export class Matches {
 			maps: maps ?? [],
 			races: races ?? [],
 			matchtypes: matchtypesForMatchups(matchups ?? []),
-			slots: (positions ?? [])
-				.map((value) => Number(value))
-				.filter((value) => Number.isInteger(value) && value >= 1 && value <= 8),
+			slots: slotsForPositions(positions ?? []),
 			includeSkirmish: dev,
 			eloOp: elo?.op,
 			elo: elo?.value != null ? Number(elo.value) : undefined,

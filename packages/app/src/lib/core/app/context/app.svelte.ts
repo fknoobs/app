@@ -59,6 +59,7 @@ export type AppEvents = {
 		} | null;
 	};
 	'lobby.saved': MatchExpanded;
+	'match.result': MatchExpanded;
 };
 
 /**

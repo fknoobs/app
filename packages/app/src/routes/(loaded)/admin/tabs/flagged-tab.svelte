@@ -344,29 +344,28 @@
 					</div>
 				</div>
 
-				<div class="border-secondary-800 flex-1 border-b p-4">
-					<p class="text-secondary-300 mb-3 text-xs font-semibold tracking-wide uppercase">
-						{t('Screenshots')}
-					</p>
+				<div class="border-secondary-800 flex-1 border-b">
 					{#if captures.loading}
-						<p class="text-secondary-500 text-sm">{t('Loading screenshots...')}</p>
+						<p class="text-secondary-500 px-4 py-3 text-sm">{t('Loading screenshots...')}</p>
 					{:else if (captures.current?.length ?? 0) > 0}
-						<div class="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
+						<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
 							{#each captures.current ?? [] as capture (capture.id)}
 								<button
 									type="button"
 									class={cn(
 										interactive,
-										'border-secondary-800 hover:border-secondary-600 overflow-hidden rounded-md border transition-colors'
+										'relative aspect-square w-full overflow-clip opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100'
 									)}
 									onclick={() => openCapture(capture)}
 								>
-									<CaptureImage {capture} class="h-20 w-full object-cover" />
+									<CaptureImage {capture} class="absolute inset-0 size-full object-cover" />
 								</button>
 							{/each}
 						</div>
 					{:else}
-						<p class="text-secondary-500 text-sm">{t('No screenshots for this report.')}</p>
+						<p class="text-secondary-500 px-4 py-6 text-sm">
+							{t('No screenshots for this report.')}
+						</p>
 					{/if}
 				</div>
 

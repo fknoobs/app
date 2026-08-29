@@ -3,6 +3,7 @@
 'use strict';
 
 onRecordCreate((e) => {
+	require(`${__hooks}/lib/lobbies-dedupe.js`).assertUniqueSession(e.record);
 	require(`${__hooks}/lib/lobby-players.js`).processLobbyRecord(e);
 	e.next();
 }, 'lobbies');

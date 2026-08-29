@@ -3,9 +3,9 @@
 'use strict';
 
 routerAdd('OPTIONS', '/api/player-card/{steamId}', (e) => {
-	return require(`${__hooks}/lib/player-card.js`).handleOptions(e);
+	return require(`${__hooks}/lib/player.js`).handleOptions(e);
 });
 
 routerAdd('GET', '/api/player-card/{steamId}', (e) => {
-	return require(`${__hooks}/lib/player-card.js`).handleGet(e);
+	return require(`${__hooks}/lib/player.js`).handleCardGet(e);
 });

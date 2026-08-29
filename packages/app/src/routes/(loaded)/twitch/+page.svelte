@@ -17,7 +17,7 @@
 </script>
 
 <div class="border-secondary-900 overflow-clip border-b">
-	<div class="border-secondary-800 border-b">
+	<div>
 		<div class="flex items-center gap-2 px-4 py-2">
 			<button
 				type="button"

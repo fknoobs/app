@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { H } from '$lib/components/ui/h';
-	import { cn } from '$lib/utils';
 	import LiveLobbiesTable from './live-lobbies-table.svelte';
+	import WidgetPanel from './widget-panel.svelte';
 	import { LiveLobbiesFeed } from './live-lobbies.svelte';
 	import { useI18n } from '$lib/i18n';
 
@@ -16,19 +15,10 @@
 	});
 </script>
 
-<div
-	class={cn(
-		'border-secondary-900 overflow-clip border-b',
-		'hover:border-secondary-700 transition-colors'
-	)}
+<WidgetPanel
+	title={t('Live lobbies')}
+	summary={feed.isLoading ? undefined : t('{count} active', { count: feed.totalItems })}
 >
-	<div class="border-secondary-800 flex items-center justify-between border-b px-4 py-3">
-		<H level="6" class="mb-0 font-semibold">{t('Live lobbies')}</H>
-		{#if !feed.isLoading}
-			<span class="text-secondary-400 text-sm tabular-nums">{t('{count} active', { count: feed.totalItems })}</span>
-		{/if}
-	</div>
-
 	{#if feed.isLoading}
 		<LiveLobbiesTable lobbies={[]} loading />
 	{:else if feed.items.length === 0}
@@ -38,4 +28,4 @@
 	{:else}
 		<LiveLobbiesTable lobbies={feed.items} />
 	{/if}
-</div>
+</WidgetPanel>

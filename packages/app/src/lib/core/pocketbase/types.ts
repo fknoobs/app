@@ -33,6 +33,8 @@ export const Collections = {
 	ReplayAggregation: "replay_aggregation",
 	Replays: "replays",
 	SmurfWatch: "smurf_watch",
+	UserLabelAssignments: "user_label_assignments",
+	UserLabels: "user_labels",
 	UserOverlays: "user_overlays",
 	Users: "users",
 } as const
@@ -244,6 +246,7 @@ export type NotificationReadsRecord = {
 
 export type NotificationsRecord = {
 	body: string
+	comment?: RecordIdString
 	created: IsoAutoDateString
 	createdBy?: RecordIdString
 	id: string
@@ -356,6 +359,32 @@ export type UsersRecord<Tmeta = unknown, TsteamIds = unknown> = {
 	verified?: boolean
 }
 
+export const UserLabelsColorOptions = {
+	"primary": "primary",
+	"default": "default",
+	"warning": "warning",
+	"success": "success",
+	"info": "info",
+	"destructive": "destructive",
+} as const
+export type UserLabelsColorOptions = typeof UserLabelsColorOptions[keyof typeof UserLabelsColorOptions]
+export type UserLabelsRecord = {
+	color: UserLabelsColorOptions
+	created: IsoAutoDateString
+	id: string
+	name: string
+	sort?: number
+	updated: IsoAutoDateString
+}
+
+export type UserLabelAssignmentsRecord = {
+	created: IsoAutoDateString
+	id: string
+	label: RecordIdString
+	updated: IsoAutoDateString
+	user: RecordIdString
+}
+
 export const SmurfWatchStatusOptions = {
 	"pending_screening": "pending_screening",
 	"watching": "watching",
@@ -440,6 +469,8 @@ export type ReplayAggregationResponse<Tmaps = unknown, Tplayers = unknown, Tuser
 export type ReplaysResponse<Tmessages = unknown, Tplayers = unknown, Texpand = unknown> = Required<ReplaysRecord<Tmessages, Tplayers>> & BaseSystemFields<Texpand>
 export type SmurfWatchResponse<Texpand = unknown> = Required<SmurfWatchRecord> & BaseSystemFields<Texpand>
 export type UserOverlaysResponse<Texpand = unknown> = Required<UserOverlaysRecord> & BaseSystemFields<Texpand>
+export type UserLabelsResponse<Texpand = unknown> = Required<UserLabelsRecord> & BaseSystemFields<Texpand>
+export type UserLabelAssignmentsResponse<Texpand = unknown> = Required<UserLabelAssignmentsRecord> & BaseSystemFields<Texpand>
 export type UsersResponse<Tmeta = unknown, TsteamIds = unknown, Texpand = unknown> = Required<UsersRecord<Tmeta, TsteamIds>> & AuthSystemFields<Texpand>
 
 // Types containing all Records and Responses, useful for creating typing helper functions
@@ -472,6 +503,8 @@ export type CollectionRecords = {
 	replay_aggregation: ReplayAggregationRecord
 	replays: ReplaysRecord
 	smurf_watch: SmurfWatchRecord
+	user_label_assignments: UserLabelAssignmentsRecord
+	user_labels: UserLabelsRecord
 	user_overlays: UserOverlaysRecord
 	users: UsersRecord
 }
@@ -504,6 +537,8 @@ export type CollectionResponses = {
 	replay_aggregation: ReplayAggregationResponse
 	replays: ReplaysResponse
 	smurf_watch: SmurfWatchResponse
+	user_label_assignments: UserLabelAssignmentsResponse
+	user_labels: UserLabelsResponse
 	user_overlays: UserOverlaysResponse
 	users: UsersResponse
 }

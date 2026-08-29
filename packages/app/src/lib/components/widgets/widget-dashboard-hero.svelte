@@ -5,11 +5,16 @@
 	import LeaderboardStatPill from '$lib/components/leaderboard/leaderboard-stat-pill.svelte';
 	import { MatchHistory } from '../match-history';
 	import { PlayerPerformance } from '$lib/components/player-performance';
-	import { relic } from '$lib/relic';
+	import { relic, relicLeaderboardFingerprint } from '$lib/relic';
 	import { steam } from '$core/steam';
 	import { cn, getFactionFlagFromRace } from '$lib/utils';
 	import { interactive, statLosses, statWins, tabTrigger } from '$lib/components/ui/variants';
-	import { resource } from 'runed';
+	import { resource, watch } from 'runed';
+	import { onDestroy } from 'svelte';
+	import type { UnsubscribeFunc } from 'pocketbase';
+	import { fetch } from '$core/http/fetch';
+	import { exp } from '$core/pocketbase';
+	import type { Match as LobbyMatch, MatchExpanded } from '$core/app/database/matches';
 	import { upperCase } from 'lodash-es';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import * as Player from '$lib/components/player';
@@ -27,6 +32,7 @@
 	import {
 		emptyPlayerPerformance,
 		getPlayerPerformance,
+		invalidatePlayerPerformanceCache,
 		type PerformanceRecentMatch
 	} from '$core/pocketbase/player-performance';
 	import { MATCH_TYPES } from '$core/game/lobby';
@@ -35,6 +41,10 @@
 
 	let activeTab = $state('stats');
 	let panelExpanded = $state(false);
+	let statsGeneration = $state(0);
+	let unsubscribeToday = $state<UnsubscribeFunc>();
+	let subscribeGeneration = 0;
+	let bumpTimer: ReturnType<typeof setTimeout> | null = null;
 	const { t } = useI18n();
 
 	const steamId = $derived(
@@ -59,9 +69,22 @@
 	const profileId = $derived(profile?.relic.profile_id ?? null);
 	const todaySteamIds = $derived(collectTodayMatchSteamIds(app.features.auth.user.steamIds));
 
+	function bumpStats() {
+		invalidatePlayerPerformanceCache(profileId ?? undefined);
+		if (bumpTimer) clearTimeout(bumpTimer);
+		bumpTimer = setTimeout(() => {
+			bumpTimer = null;
+			statsGeneration += 1;
+		}, 300);
+	}
+
+	const offLobbySaved = app.on('lobby.saved', bumpStats);
+	const offMatchResult = app.on('match.result', bumpStats);
+	const offLobbyDestroyed = app.on('lobby.destroyed', bumpStats);
+
 	const todayMatches = resource(
-		() => todaySteamIds.join(','),
-		async (steamIdsKey) => {
+		() => [todaySteamIds.join(','), statsGeneration] as const,
+		async ([steamIdsKey]) => {
 			const ids = steamIdsKey ? steamIdsKey.split(',').filter(Boolean) : [];
 			if (ids.length === 0) return [];
 			const items = await app.database.matches.getList({
@@ -75,8 +98,8 @@
 	);
 
 	const recentMatches = resource(
-		() => profileId,
-		(id) => relic.getRecentMatchHistoryForProfile(id!),
+		() => [profileId, statsGeneration] as const,
+		async ([id]) => (id ? relic.getRecentMatchHistoryForProfile(id) : []),
 		{ initialValue: [] }
 	);
 
@@ -85,8 +108,8 @@
 	);
 
 	const storedRating = resource(
-		() => steamId,
-		async (id) => (id ? getPlayerRating(id) : null)
+		() => [steamId, statsGeneration] as const,
+		async ([id]) => (id ? getPlayerRating(id) : null)
 	);
 	const playerElo = $derived(
 		mergeEloMaps(
@@ -96,19 +119,88 @@
 	);
 
 	const trackedPerformance = resource(
-		() => [profileId, app.features.auth.userId] as const,
-		async ([id, userId]) => {
+		() => [profileId, app.features.auth.userId, statsGeneration] as const,
+		async ([id, userId, generation]) => {
 			if (!id || !userId) return emptyPlayerPerformance();
 			return getPlayerPerformance({
 				profileId: id,
 				scope: 'user',
-				userId
+				userId,
+				fresh: generation > 0
 			});
 		},
 		{ initialValue: emptyPlayerPerformance() }
 	);
 	const tracked = $derived(trackedPerformance.current ?? emptyPlayerPerformance());
 	const formMatches = $derived(tracked.recentMatches ?? []);
+
+	watch(
+		() => relicLeaderboardFingerprint(profile?.relic.leaderboardStats),
+		(next, previous) => {
+			if (previous && next !== previous) bumpStats();
+		}
+	);
+
+	watch(
+		() => todaySteamIds.join(','),
+		(steamIdsKey) => {
+			const ids = steamIdsKey ? steamIdsKey.split(',').filter(Boolean) : [];
+			const generation = ++subscribeGeneration;
+			void (async () => {
+				await unsubscribeToday?.();
+				if (generation !== subscribeGeneration) return;
+				unsubscribeToday = undefined;
+				if (ids.length === 0) return;
+
+				const next = await app.pocketbase.collection('lobbies').subscribe<LobbyMatch>(
+					'*',
+					(e) => {
+						const match = exp(e.record) as MatchExpanded;
+						if (!isMatchFromLocalToday(match) || !matchIncludesSteamIds(match, ids)) {
+							return;
+						}
+						if (e.action === 'create') {
+							const current = todayMatches.current || [];
+							if (!current.find((entry) => entry.id === e.record.id)) {
+								todayMatches.mutate([...current, match]);
+							}
+						} else if (e.action === 'update') {
+							todayMatches.mutate(
+								(todayMatches.current || []).map((entry) =>
+									entry.id === e.record.id ? match : entry
+								)
+							);
+							if (!match.needsResult) bumpStats();
+						} else if (e.action === 'delete') {
+							todayMatches.mutate(
+								(todayMatches.current || []).filter((entry) => entry.id !== e.record.id)
+							);
+						}
+					},
+					{
+						filter: todayPlayedMatchesFilter(ids),
+						sort: '-createdAt',
+						fetch
+					}
+				);
+
+				if (generation !== subscribeGeneration) {
+					await next();
+					return;
+				}
+				unsubscribeToday = next;
+			})();
+		}
+	);
+
+	onDestroy(() => {
+		subscribeGeneration += 1;
+		if (bumpTimer) clearTimeout(bumpTimer);
+		unsubscribeToday?.();
+		offLobbySaved();
+		offMatchResult();
+		offLobbyDestroyed();
+	});
 
 	const recentMatchBase =
 		'flex h-8 min-w-0 items-center justify-center text-xs font-semibold transition-colors duration-150';
@@ -326,6 +418,7 @@
 								profileId={profile.relic.profile_id}
 								scope="user"
 								userId={app.features.auth.userId}
+								refreshKey={statsGeneration}
 								empty="self"
 								class="rounded-none border-0"
 							/>

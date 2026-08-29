@@ -315,9 +315,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      html-to-image:
-        specifier: ^1.11.13
-        version: 1.11.13
       phosphor-svelte:
         specifier: ^3.1.0
         version: 3.1.0(svelte@5.56.4(@typescript-eslint/types@8.68.0))(vite@8.1.4(@types/node@26.3.0)(esbuild@0.28.2)(jiti@2.7.0))
@@ -342,7 +339,7 @@ importers:
         version: 5.56.4(@typescript-eslint/types@8.68.0)
       svelte-check:
         specifier: ^4.5.0
-        version: 4.7.2(picomatch@4.0.7)(svelte@5.56.4(@typescript-eslint/types@8.68.0))(typescript@5.6.3)
+        version: 4.7.2(picomatch@4.0.5)(svelte@5.56.4(@typescript-eslint/types@8.68.0))(typescript@5.6.3)
       tailwindcss:
         specifier: ^4.3.0
         version: 4.3.0
@@ -3548,9 +3545,6 @@ packages:
   hasown@2.0.4:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
     engines: {node: '>= 0.4'}
-
-  html-to-image@1.11.13:
-    resolution: {integrity: sha512-cuOPoI7WApyhBElTTb9oqsawRvZ0rHhaHwghRLlTuffoD1B2aDemlCruLeZrUIIdvG7gs9xeELEPm6PhuASqrg==}
 
   http-errors@1.7.3:
     resolution: {integrity: sha512-ZTTX0MWrsQ2ZAhA1cejAwDLycFsd7I7nVtnkT3Ol0aqodaKW+0CTZDQ1uBv5whptCnc8e8HeRRJxRs0kmm/Qfw==}
@@ -8367,8 +8361,6 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  html-to-image@1.11.13: {}
-
   http-errors@1.7.3:
     dependencies:
       depd: 1.1.2
@@ -9485,6 +9477,19 @@ snapshots:
   supports-color@7.2.0:
     dependencies:
       has-flag: 4.0.0
+
+  svelte-check@4.7.2(picomatch@4.0.5)(svelte@5.56.4(@typescript-eslint/types@8.68.0))(typescript@5.6.3):
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      '@sveltejs/load-config': 0.2.0
+      chokidar: 4.0.3
+      fdir: 6.5.0(picomatch@4.0.5)
+      picocolors: 1.1.1
+      sade: 1.8.1
+      svelte: 5.56.4(@typescript-eslint/types@8.68.0)
+      typescript: 5.6.3
+    transitivePeerDependencies:
+      - picomatch
 
   svelte-check@4.7.2(picomatch@4.0.7)(svelte@5.56.4(@typescript-eslint/types@8.68.0))(typescript@5.6.3):
     dependencies:

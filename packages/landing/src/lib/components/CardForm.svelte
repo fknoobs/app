@@ -1,66 +1,60 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { cn, interactive } from '$lib/cn';
-	import { isSteamId } from '$lib/steam-id';
+	import { navigating } from '$app/state';
+	import Button from '$lib/components/Button.svelte';
+	import { cn } from '$lib/cn';
+	import { isPlayerId } from '$lib/steam-id';
+	import { headerCellAction } from '$lib/variants';
 
 	type Props = {
-		initialSteamId?: string;
+		initialId?: string;
 	};
 
-	let { initialSteamId = '' }: Props = $props();
+	let { initialId = '' }: Props = $props();
 
-	let steamId = $state(initialSteamId);
+	let playerId = $state('');
 	let validationError = $state<string | null>(null);
+	const pending = $derived(Boolean(navigating.to?.params?.id));
 
-	$effect(() => {
-		steamId = initialSteamId;
+	$effect.pre(() => {
+		playerId = initialId;
 	});
 
 	function handleSubmit(event: SubmitEvent) {
 		event.preventDefault();
-		const trimmed = steamId.trim();
-
-		if (!isSteamId(trimmed)) {
-			validationError = 'Enter a valid 17-digit Steam ID64 starting with 7656119.';
+		const trimmed = playerId.trim();
+		if (!isPlayerId(trimmed)) {
+			validationError = 'Enter a Steam ID64 (7656119…) or Relic profile id.';
 			return;
 		}
-
 		validationError = null;
-		void goto(`/card/${trimmed}`);
+		void goto(`/players/${trimmed}`);
 	}
 </script>
 
-<form
-	class="mx-auto flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end"
-	onsubmit={handleSubmit}
->
-	<div class="min-w-0 flex-1">
-		<label for="steam-id" class="text-secondary-300 mb-2 block text-sm font-medium">
-			Steam ID64
-		</label>
+<form onsubmit={handleSubmit}>
+	<div class="flex h-11 items-stretch">
 		<input
-			id="steam-id"
+			id="player-id"
 			type="text"
 			inputmode="numeric"
 			autocomplete="off"
-			placeholder="76561198000000000"
-			bind:value={steamId}
+			aria-label="Steam ID64 or profile id"
+			placeholder="Steam ID64 or profile id"
+			bind:value={playerId}
 			class={cn(
-				'border-secondary-700 bg-secondary-900/60 placeholder:text-secondary-600 w-full rounded-lg border px-4 py-2.5 text-white outline-none',
-				'focus:border-primary/50 focus:ring-primary/20 focus:ring-2'
+				'placeholder:text-secondary-500 h-full w-72 shrink-0 rounded-none px-4 text-white',
+				'border-secondary-800 border-y-0 border-r border-l-0 bg-transparent',
+				'focus:bg-secondary-800/30 focus:outline-none'
 			)}
 		/>
-		{#if validationError}
-			<p class="text-red-400 mt-2 text-sm">{validationError}</p>
-		{/if}
+		<div class="border-secondary-800 flex shrink-0 items-stretch border-r">
+			<Button type="submit" class={headerCellAction} disabled={pending}>View player</Button>
+		</div>
 	</div>
-	<button
-		type="submit"
-		class={cn(
-			interactive,
-			'border-primary/30 bg-primary/10 text-primary-100 hover:bg-primary/20 hover:border-primary/50 shrink-0 rounded-lg border px-5 py-2.5 text-sm font-semibold transition-colors'
-		)}
-	>
-		Show card
-	</button>
+	{#if validationError}
+		<p class="text-destructive border-secondary-800 border-t px-4 py-2 text-sm">
+			{validationError}
+		</p>
+	{/if}
 </form>

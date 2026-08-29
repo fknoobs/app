@@ -26,7 +26,13 @@ routerAdd('GET', '/api/player-performance', (e) => {
 	const timings = {};
 
 	try {
-		const data = loadPlayerPerformance(profileId, scope, userId, timings);
+		const data = loadPlayerPerformance(
+			profileId,
+			scope,
+			userId,
+			timings,
+			query.get('fresh') === '1'
+		);
 
 		// Cache hits are the common case and say nothing about query cost.
 		if (timings.cache === 'miss') {

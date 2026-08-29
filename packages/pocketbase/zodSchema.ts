@@ -122,6 +122,8 @@ export const notificationsSchema = z.object({
     targetAll: z.boolean().optional(),
     recipients: z.array(z.string().regex(/^[a-z0-9]+$/).length(15)).optional(),
     createdBy: z.string().regex(/^[a-z0-9]+$/).length(15).optional(),
+    lobby: z.string().regex(/^[a-z0-9]+$/).length(15).optional(),
+    comment: z.string().regex(/^[a-z0-9]+$/).length(15).optional(),
     created: z.string().regex(DATETIME_REGEX).optional(),
     updated: z.string().regex(DATETIME_REGEX).optional(),
 })

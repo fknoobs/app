@@ -109,6 +109,10 @@ export function getFactionFlagByLeaderboardId(leaderboardId: number): string {
 	return RACE_FLAG[getRace(leaderboardId)];
 }
 
+export function getFactionFlagByRace(raceId: number): string {
+	return RACE_FLAG[(raceId as Race) ?? Race.US] ?? RACE_FLAG[Race.US];
+}
+
 export function getLeaderboardTypeLabel(leaderboardId: number, fallback = 'Unknown'): string {
 	return LEADERBOARD_TYPE_LABELS[leaderboardId] || fallback;
 }
@@ -119,7 +123,7 @@ export function formatStreak(streak: number): string {
 }
 
 export function streakClass(streak: number): string {
-	if (streak > 0) return 'text-green-400';
-	if (streak < 0) return 'text-red-400';
-	return 'text-secondary-400';
+	if (streak > 0) return 'text-green-300 tabular-nums';
+	if (streak < 0) return 'text-red-300 tabular-nums';
+	return 'text-secondary-400 tabular-nums';
 }

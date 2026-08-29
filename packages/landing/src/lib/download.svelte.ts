@@ -8,10 +8,31 @@ export type LatestDownload = {
 	loading: boolean;
 };
 
-export const latestDownload = $state<LatestDownload>({
-	url: RELEASE_PAGE_URL,
-	loading: true
-});
+function emptyDownload(): LatestDownload {
+	return {
+		url: RELEASE_PAGE_URL,
+		loading: true
+	};
+}
+
+export const latestDownload = $state<LatestDownload>(emptyDownload());
+export const linuxDownload = $state<LatestDownload>(emptyDownload());
+
+type ReleaseAsset = {
+	name?: string;
+	browser_download_url?: string;
+};
+
+function pickAsset(assets: ReleaseAsset[], pattern: RegExp): ReleaseAsset | undefined {
+	return assets.find((asset) => pattern.test(asset.name ?? '') && asset.browser_download_url);
+}
+
+function applyAsset(target: LatestDownload, asset: ReleaseAsset | undefined): void {
+	if (asset?.browser_download_url) {
+		target.url = asset.browser_download_url;
+		target.fileName = asset.name;
+	}
+}
 
 export async function loadLatestDownload(): Promise<void> {
 	try {
@@ -24,21 +45,19 @@ export async function loadLatestDownload(): Promise<void> {
 		}
 
 		const release = (await response.json()) as {
-			assets?: Array<{ name?: string; browser_download_url?: string }>;
+			assets?: ReleaseAsset[];
 		};
 
 		const assets = release.assets ?? [];
-		const pick = (pattern: RegExp) =>
-			assets.find((asset) => pattern.test(asset.name ?? '') && asset.browser_download_url);
-		const asset = pick(/setup\.exe$/i) ?? pick(/\.exe$/i) ?? pick(/\.msi$/i);
-
-		if (asset?.browser_download_url) {
-			latestDownload.url = asset.browser_download_url;
-			latestDownload.fileName = asset.name;
-		}
+		applyAsset(
+			latestDownload,
+			pickAsset(assets, /setup\.exe$/i) ?? pickAsset(assets, /\.exe$/i) ?? pickAsset(assets, /\.msi$/i)
+		);
+		applyAsset(linuxDownload, pickAsset(assets, /\.AppImage$/i));
 	} catch (error) {
-		console.warn('[landing] failed to resolve latest Windows download:', error);
+		console.warn('[landing] failed to resolve latest downloads:', error);
 	} finally {
 		latestDownload.loading = false;
+		linuxDownload.loading = false;
 	}
 }

@@ -10,7 +10,9 @@ const config = {
 			entries: ['/']
 		},
 		alias: {
-			'@assets': '../shared-assets'
+			'@assets': '../shared-assets',
+			'@tt-mussels': '../app/src/lib/fonts/TT Mussels',
+			'@maps': '../app/src/lib/files/maps'
 		}
 	}
 };

@@ -45,7 +45,7 @@
 		{ label: t('4v4'), value: '4v4' }
 	];
 
-	const positionOptions = ['1', '2', '3', '4', '5', '6', '7', '8'].map((value) => ({
+	const positionOptions = ['1', '2', '3', '4'].map((value) => ({
 		label: value,
 		value
 	}));
