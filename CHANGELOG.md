@@ -1,3 +1,20 @@
+### v0.58.0
+
+- enhance; make dashboard widgets collapsible
+- feat; show compact live Company of Heroes streams on the dashboard
+- fix; keep match screenshots loading after the file token expires
+- fix; refresh dashboard profile stats after matches instead of waiting on stale caches
+- feat; show public player stats on coh1stats.com instead of playercard.cohstats
+- feat; ship a linux appimage on github releases
+- feat; show live Company of Heroes streams on the Twitch page
+- enhance; flush live stream tiles into the Twitch panel
+- enhance; notify prior match commenters and deep-link highlight from notifications
+- fix; history position filter uses team rows so Wehrmacht on position 1 matches
+- fix; merge duplicate accounts that share a steam id into the newest app version
+- enhance; show screenshot thumbnails as flush, hover-opaque tiles
+- fix; wait for player profiles before sending twitch player stats
+- feat; add staff-managed user labels with public badges
+
 ### v0.57.0
 
 - enhance; align management, denylist, and flagged reports layouts with other tabbed pages
