@@ -97,7 +97,9 @@
 		const steamIds = steamIdsOf(groupCaptures);
 		const steamId = steamIds[0] ?? '';
 
-		const lobbyPlayer = players.find((player) => player.steamId && steamIds.includes(player.steamId));
+		const lobbyPlayer = players.find(
+			(player) => player.steamId && steamIds.includes(player.steamId)
+		);
 		if (lobbyPlayer) {
 			return {
 				userId,
@@ -116,9 +118,10 @@
 				userId,
 				steamId: resultSteamId(resultPlayer) || steamId,
 				alias: resultPlayer.alias,
-				profileId: resultPlayer.profile_id && resultPlayer.profile_id > 0
-					? resultPlayer.profile_id
-					: undefined
+				profileId:
+					resultPlayer.profile_id && resultPlayer.profile_id > 0
+						? resultPlayer.profile_id
+						: undefined
 			};
 		}
 
@@ -201,9 +204,9 @@
 			description: dayjs(capture.captured_at || capture.created).format('D MMM YYYY HH:mm'),
 			props: {
 				capture,
-				class: 'border-secondary-800 max-h-[75vh] w-full rounded-md border object-contain'
+				class: 'w-full max-h-[calc(100vh-9rem)] rounded-md object-contain'
 			},
-			size: 'xl'
+			size: 'full'
 		});
 		app.modal.open();
 	}

@@ -88,7 +88,8 @@ function backfillLobbyFromRow(row) {
 		row.id,
 		ids.length > 0 ? ids : summaries.map((player) => player.profile_id),
 		row.result,
-		lobbyPlayers.lobbyMeta(row.sessionId, row.map, row.user, row.needsResult, row.title)
+		lobbyPlayers.lobbyMeta(row.sessionId, row.map, row.user, row.needsResult, row.title),
+		row.players
 	);
 
 	return {

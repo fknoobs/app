@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { ContextMenu } from 'bits-ui';
+	import { cn } from '$lib/utils';
+	import { surfaceOverlay } from '../variants';
 
 	type Props = ContextMenu.RootProps & {
 		trigger: Snippet<[{ props: ContextMenu.TriggerProps }]>;
@@ -16,7 +18,7 @@
 		{/snippet}
 	</ContextMenu.Trigger>
 	<ContextMenu.Portal>
-		<ContextMenu.Content>
+		<ContextMenu.Content class={cn(surfaceOverlay, 'z-50 p-1 shadow-lg')}>
 			{@render children?.()}
 		</ContextMenu.Content>
 	</ContextMenu.Portal>

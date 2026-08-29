@@ -358,7 +358,7 @@
 					{t('(loading...)')}
 				{/if}
 			{:else}
-				{t('No replays found.')}
+				{t('No replays found in your Company of Heroes playback folder.')}
 			{/if}
 		</div>
 	{/if}

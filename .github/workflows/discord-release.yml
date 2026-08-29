@@ -1,0 +1,37 @@
+name: Discord Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to announce (e.g. v0.56.0)
+        required: true
+
+concurrency: ${{ github.workflow }}-${{ github.event.release.tag_name || inputs.tag }}
+
+permissions:
+  contents: read
+
+jobs:
+  announce:
+    if: github.event_name == 'workflow_dispatch' || github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Post changelog to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/discord-release.mjs

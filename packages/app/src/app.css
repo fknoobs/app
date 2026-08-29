@@ -39,7 +39,7 @@
 	--color-secondary-700: oklch(41% 0.004 285);
 	--color-secondary-800: oklch(35% 0.004 285);
 	--color-secondary-900: oklch(32.5% 0.004 285); /* Original Input (#444345) */
-	--color-secondary-950: oklch(29% 0.003 285);
+	--color-secondary-950: oklch(29% 0.003 285 / 1);
 
 	/* Gray Color Shades (Darker than secondary) */
 	--color-gray: oklch(45% 0.008 285); /* Base - darker than secondary */
@@ -113,6 +113,18 @@
 @utility bg-dark {
 	background-color: var(--color-gray-800);
 	color: var(--color-gray-100);
+}
+
+/* Tailwind `bg-*` uses color-mix(..., transparent); WebView2 then composites menus as glass. */
+@utility overlay-surface {
+	background-color: oklch(29% 0.003 285 / 1);
+}
+
+[data-dropdown-menu-content],
+[data-context-menu-content],
+[data-popover-content],
+[data-select-content] {
+	background-color: oklch(29% 0.003 285 / 1);
 }
 
 html {

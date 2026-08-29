@@ -24,7 +24,6 @@
 	import DiscordLogoIcon from 'phosphor-svelte/lib/DiscordLogoIcon';
 	import TwitchLogoIcon from 'phosphor-svelte/lib/TwitchLogoIcon';
 	import GithubLogoIcon from 'phosphor-svelte/lib/GithubLogoIcon';
-	import HistoryIcon from 'phosphor-svelte/lib/LineSegmentsIcon';
 	import ReplaysIcons from 'phosphor-svelte/lib/ClockCounterClockwiseIcon';
 	import CommandIcon from 'phosphor-svelte/lib/CommandIcon';
 	import BriefcaseIcon from 'phosphor-svelte/lib/BriefcaseIcon';
@@ -117,13 +116,9 @@
 					<DashboardIcon size={28} weight="duotone" />
 					{t('Dashboard')}
 				</Nav.Link>
-				<Nav.Link href="/replays">
+				<Nav.Link href="/history" path="/replays">
 					<ReplaysIcons size={28} weight="duotone" />
 					{t('Replays')}
-				</Nav.Link>
-				<Nav.Link href="/history">
-					<HistoryIcon size={28} weight="duotone" />
-					{t('History')}
 				</Nav.Link>
 				<Nav.Link href="/shortcuts">
 					<CommandIcon size={28} weight="duotone" />

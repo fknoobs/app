@@ -29,17 +29,30 @@ export type MatchExpanded = Expand<
 
 export type AggregationPlayer = { profile_id: number; alias: string };
 
+export type HistorySortField = 'createdAt' | 'likeCount' | 'downloadCount' | 'commentCount';
+export type FilterOperator = 'gt' | 'gte' | 'lt' | 'lte';
+
 export type HistoryListQuery = {
 	scope: 'user' | 'community';
 	userId?: string;
 	/** Relic profile id — used as race-filter subject when steamIds are missing. */
 	profileId?: number;
 	ranked?: boolean;
+	pro?: boolean;
 	playerIds?: string[];
 	maps?: string[];
 	races?: string[];
 	matchtypes?: number[];
+	/** 1-based lobby positions (UI: Position). */
+	slots?: number[];
 	includeSkirmish?: boolean;
+	eloOp?: FilterOperator;
+	elo?: number;
+	durationOp?: FilterOperator;
+	/** Duration in seconds. */
+	duration?: number;
+	sort?: HistorySortField;
+	sortDir?: 'asc' | 'desc';
 };
 
 const DEFAULT_EXPAND = 'user';
@@ -122,11 +135,19 @@ export class Matches {
 			userId,
 			profileId,
 			ranked = false,
+			pro = false,
 			playerIds = [],
 			maps = [],
 			races = [],
 			matchtypes = [],
-			includeSkirmish = false
+			slots = [],
+			includeSkirmish = false,
+			eloOp,
+			elo,
+			durationOp,
+			duration,
+			sort,
+			sortDir
 		}: HistoryListQuery,
 		options?: { signal?: AbortSignal }
 	): Promise<ListResult<MatchExpanded>> {
@@ -145,6 +166,10 @@ export class Matches {
 			query.profileId = String(profileId);
 		}
 
+		if (pro) {
+			query.pro = 'true';
+		}
+
 		if (playerIds.length > 0) {
 			query.playerIds = playerIds.join(',');
 		}
@@ -161,8 +186,30 @@ export class Matches {
 			query.matchtypes = matchtypes.join(',');
 		}
 
+		if (slots.length > 0) {
+			query.slots = slots.join(',');
+		}
+
 		if (includeSkirmish) {
 			query.includeSkirmish = 'true';
+		}
+
+		if (eloOp && elo != null && Number.isFinite(elo)) {
+			query.eloOp = eloOp;
+			query.elo = String(elo);
+		}
+
+		if (durationOp && duration != null && Number.isFinite(duration)) {
+			query.durationOp = durationOp;
+			query.duration = String(duration);
+		}
+
+		if (sort && sort !== 'createdAt') {
+			query.sort = sort;
+			query.sortDir = sortDir === 'asc' ? 'asc' : 'desc';
+		} else if (sortDir === 'asc' && (!sort || sort === 'createdAt')) {
+			query.sort = 'createdAt';
+			query.sortDir = 'asc';
 		}
 
 		const response = await pocketbase.send<ListResult<MatchExpanded>>('/api/match-history', {
@@ -176,6 +223,53 @@ export class Matches {
 			...response,
 			items: response.items.map(exp) as MatchExpanded[]
 		};
+	}
+
+	async searchHistoryPlayers(
+		scope: 'user' | 'community',
+		q = '',
+		userId?: string,
+		limit = 20
+	): Promise<AggregationPlayer[]> {
+		const query: Record<string, string> = {
+			scope,
+			q,
+			limit: String(limit)
+		};
+		if (scope === 'user' && userId) {
+			query.userId = userId;
+		}
+		const data = await pocketbase.send<{ items: AggregationPlayer[] }>('/api/history-players', {
+			method: 'GET',
+			query,
+			fetch
+		});
+		return data.items ?? [];
+	}
+
+	async searchHistoryMaps(
+		scope: 'user' | 'community',
+		q = '',
+		userId?: string,
+		limit = 100
+	): Promise<{ map: string; name: string }[]> {
+		const query: Record<string, string> = {
+			scope,
+			q,
+			limit: String(limit)
+		};
+		if (scope === 'user' && userId) {
+			query.userId = userId;
+		}
+		const data = await pocketbase.send<{ items: { map: string; name: string }[] }>(
+			'/api/history-maps',
+			{
+				method: 'GET',
+				query,
+				fetch
+			}
+		);
+		return data.items ?? [];
 	}
 
 	/** Retrieves a full list of matches. */

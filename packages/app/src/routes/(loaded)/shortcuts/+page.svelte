@@ -6,22 +6,24 @@
 	import KeyboardIcon from 'phosphor-svelte/lib/KeyboardIcon';
 	import { onDestroy } from 'svelte';
 	import { ToggleGroup } from '$lib/components/ui/toggle-group';
-	import { shortcuts, type FactionKey } from '$core/app/features/shortcuts';
+	import { shortcuts, type BindingScope } from '$core/app/features/shortcuts';
 	import { Button } from '$lib/components/ui/button';
 	import { KeybindingRow } from '$lib/components/shortcuts';
 	import { useI18n } from '$lib/i18n';
 
 	const { t } = useI18n();
 
-	const factions: { label: string; value: FactionKey }[] = [
+	const scopes: { label: string; value: BindingScope }[] = [
+		{ label: t('Global'), value: 'global' },
 		{ label: 'USA', value: 'allies' },
 		{ label: 'Brits', value: 'allies_commonwealth' },
 		{ label: 'Werhmacht', value: 'axis' },
 		{ label: 'Panzer Elite', value: 'axis_panzer_elite' }
 	];
 
-	let faction = $state<FactionKey>('allies');
-	let keybindings = $derived(shortcuts.getBindings(faction));
+	let scope = $state<BindingScope>('allies');
+	let keybindings = $derived(shortcuts.getBindings(scope));
+	let isGlobal = $derived(scope === 'global');
 	let sortableEl = $state<HTMLTableSectionElement | null>(null);
 	let sortableInstance: Sortable | undefined;
 
@@ -40,7 +42,7 @@
 	}
 
 	$effect(() => {
-		faction;
+		scope;
 		sortableEl;
 		const count = keybindings.length;
 
@@ -57,7 +59,7 @@
 					return;
 				}
 
-				shortcuts.moveBinding(faction, event.oldIndex, event.newIndex);
+				shortcuts.moveBinding(scope, event.oldIndex, event.newIndex);
 			}
 		});
 
@@ -71,7 +73,7 @@
 </script>
 
 <div class="border-secondary-800 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b p-4">
-	<ToggleGroup bind:value={faction} items={factions} class="w-fit" />
+	<ToggleGroup bind:value={scope} items={scopes} class="w-fit" />
 	<div class="flex flex-wrap gap-1">
 		<Button variant="ghost" onclick={() => shortcuts.importSettings()}>
 			<ImportIcon />
@@ -85,7 +87,7 @@
 </div>
 
 <p class="text-secondary-400 border-secondary-800 border-b px-4 py-3 text-sm">
-	{t('Hotkeys are per faction and only work during an active match while Company of Heroes is focused (not in chat). Pick the tab that matches your army, then click a chord field to record keys.')}
+	{t('Use Global for hotkeys that apply in every match. Faction tabs add extra bindings for that army and override the same key. Hotkeys only work during an active match while Company of Heroes is focused (not in chat). Click a chord field to record keys.')}
 </p>
 
 <table class="w-full table-fixed">
@@ -118,9 +120,13 @@
 					<div class="flex flex-col items-center gap-3 text-center">
 						<KeyboardIcon class="text-secondary-600 size-10" weight="duotone" />
 						<div>
-							<p class="text-secondary-300 font-medium">{t('No keybindings for this faction')}</p>
+							<p class="text-secondary-300 font-medium">
+								{isGlobal ? t('No global keybindings') : t('No keybindings for this faction')}
+							</p>
 							<p class="text-secondary-500 mt-1 text-sm">
-								{t('Add a binding below, then record what you press and what the game should receive.')}
+								{isGlobal
+									? t('These apply in every match, on top of the faction you pick.')
+									: t('Add a binding below, then record what you press and what the game should receive.')}
 							</p>
 						</div>
 					</div>
@@ -128,14 +134,14 @@
 			</tr>
 		{:else}
 			{#each keybindings as keybinding (keybinding.id)}
-				<KeybindingRow {keybinding} {faction} />
+				<KeybindingRow {keybinding} {scope} />
 			{/each}
 		{/if}
 	</tbody>
 </table>
 
 <div class="border-secondary-800 border-t p-4">
-	<Button variant="secondary" class="w-fit" onclick={() => shortcuts.addBinding(faction)}>
+	<Button variant="secondary" class="w-fit" onclick={() => shortcuts.addBinding(scope)}>
 		<PlusIcon />
 		{t('Add keybinding')}
 	</Button>

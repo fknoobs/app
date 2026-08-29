@@ -2,4 +2,4 @@
 '@company-of-heroes/app': patch
 ---
 
-enhance; restyle notification inbox to match app chrome
+enhance; restyle notification inbox and popover to match app chrome

@@ -30,9 +30,11 @@ export const labelText = 'font-medium text-secondary-400';
 
 export const surfacePanel = 'bg-secondary-950/90 border-secondary-800 rounded-md border';
 
+export const surfaceOverlay = 'overlay-surface border-secondary-800 rounded-md border';
+
 export const overlayBackdrop = 'bg-gray-950/80 backdrop-blur-md';
 
-export const surfaceModal = surfacePanel;
+export const surfaceModal = surfaceOverlay;
 
 export const menuItem =
 	'cursor-pointer rounded px-4 py-2 text-secondary-200 transition-colors hover:bg-secondary-800 hover:text-white';

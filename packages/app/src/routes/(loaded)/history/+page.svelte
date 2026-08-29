@@ -1,35 +1,77 @@
 <script lang="ts">
+	import type { Snapshot } from './$types';
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import * as Match from '$lib/components/match';
-	import { Selection, Checkbox } from '$lib/components/ui/input';
 	import { cn } from '$lib/utils';
-	import { ToggleGroup } from '$lib/components/ui/toggle-group';
+	import { tabTrigger } from '$lib/components/ui/variants';
 	import { Pagination } from '$lib/components/ui/pagination';
 	import { app } from '$core/app/context';
 	import type { MatchExpanded } from '$core/app/database/matches';
-	import { Race } from '$lib/utils/game';
 	import { useI18n } from '$lib/i18n';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { watch } from 'runed';
+	import HistoryFilters from './history-filters.svelte';
+	import MyReplays from './my-replays.svelte';
+	import { ReplayList, type ReplayListState } from '../replays/replay-list.svelte';
+	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
+	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
+	import ChatCircleIcon from 'phosphor-svelte/lib/ChatCircleIcon';
+
+	type HistoryTab = 'user' | 'community' | 'replays';
+
+	function tabFromSearch(search: URLSearchParams): HistoryTab {
+		const value = search.get('tab');
+		if (value === 'community' || value === 'replays') return value;
+		return 'user';
+	}
 
 	const { t } = useI18n();
 	const matches = $derived(app.features.history?.matches);
+	const tab = $derived(tabFromSearch(page.url.searchParams));
+	let replayList = $state(new ReplayList());
 
-	const factionOptions = [
-		{ label: 'USA', value: String(Race.US) },
-		{ label: 'Wehrmacht', value: String(Race.Wehrmacht) },
-		{ label: 'Commonwealth', value: String(Race.Commonwealth) },
-		{ label: 'Panzer Elite', value: String(Race.PanzerElite) }
-	];
+	watch(
+		() => [tab, matches] as const,
+		([next, current]) => {
+			if (!current) return;
+			if ((next === 'user' || next === 'community') && current.scope !== next) {
+				current.scope = next;
+			}
+		}
+	);
 
-	const columns: ColumnDef<MatchExpanded>[] = [
+	function setTab(next: HistoryTab) {
+		if ((next === 'user' || next === 'community') && matches) {
+			matches.scope = next;
+		}
+		const params = new URLSearchParams(page.url.searchParams);
+		if (next === 'user') params.delete('tab');
+		else params.set('tab', next);
+		const search = params.toString();
+		void goto(search ? `/history?${search}` : '/history', {
+			replaceState: true,
+			keepFocus: true,
+			noScroll: true
+		});
+	}
+
+	export const snapshot: Snapshot<ReplayListState> = {
+		capture: () => replayList.capture(),
+		restore: (value) => {
+			replayList.restore(value);
+		}
+	};
+
+	const columns: ColumnDef<MatchExpanded>[] = $derived([
 		{
 			id: 'map',
 			header: t('Map'),
-			width: 'w-5/24',
+			width: 'w-8/24',
 			class: 'flex h-full min-w-0 items-center gap-0',
 			cellClass: () => 'overflow-clip py-0 pr-0 pl-4',
 			href: (match) => `/history/${match.id}`
 		},
-		{ id: 'name', header: t('Name'), width: 'w-4/24' },
 		{
 			id: 'allies',
 			header: t('Allies'),
@@ -52,13 +94,26 @@
 					row.axisOutcome === 'loss' && 'bg-red-500/5'
 				)
 		},
-		{ id: 'duration', header: t('Duration'), width: 'w-3/24' },
+		{ id: 'duration', header: t('Duration'), width: 'w-2/24' },
 		{
-			id: 'stats',
-			header: t('Activity'),
+			id: 'likes',
+			header: t('Likes'),
 			width: 'w-2/24',
-			class: 'flex items-center justify-end',
-			headerClass: 'text-end'
+			class: 'flex items-center justify-end tabular-nums',
+			headerClass: 'justify-end',
+			sortable: true,
+			onSort: () => matches?.toggleSort('likeCount'),
+			sortDirection: matches?.sort === 'likeCount' ? matches.sortDir : null
+		},
+		{
+			id: 'downloads',
+			header: t('Downloads'),
+			width: 'w-2/24',
+			class: 'flex items-center justify-end tabular-nums',
+			headerClass: 'justify-end',
+			sortable: true,
+			onSort: () => matches?.toggleSort('downloadCount'),
+			sortDirection: matches?.sort === 'downloadCount' ? matches.sortDir : null
 		},
 		{
 			id: 'date',
@@ -67,71 +122,69 @@
 			class: 'flex items-center',
 			headerClass: 'text-end'
 		}
-	];
+	]);
 </script>
 
 {#if matches}
-	<div
-		class="border-secondary-800 flex flex-wrap items-end justify-between gap-x-4 gap-y-3 border-b p-4"
-	>
-		<div class="flex flex-col flex-wrap gap-4">
-			<ToggleGroup
-				bind:value={matches.scope}
-				items={[
-					{ label: t('My matches'), value: 'user' },
-					{ label: t('Community matches'), value: 'community' }
-				]}
-				class="w-fit"
-			/>
-			<div class="flex h-11 items-center">
-				<Checkbox bind:checked={matches.filters.ranked} label={t('Ranked only')} />
+	<div class="border-secondary-800 border-b">
+		<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5">
+			<div class="flex items-center gap-2">
+				<button
+					type="button"
+					class={tabTrigger}
+					data-state={tab === 'user' ? 'active' : undefined}
+					onclick={() => setTab('user')}
+				>
+					{t('My matches')}
+				</button>
+				<button
+					type="button"
+					class={tabTrigger}
+					data-state={tab === 'community' ? 'active' : undefined}
+					onclick={() => setTab('community')}
+				>
+					{t('Community matches')}
+				</button>
+				<button
+					type="button"
+					class={tabTrigger}
+					data-state={tab === 'replays' ? 'active' : undefined}
+					onclick={() => setTab('replays')}
+				>
+					{t('My replays')}
+				</button>
 			</div>
-			<div class="flex gap-4">
-				<div class="flex w-fit flex-col gap-1.5">
-					<span class="text-secondary-400 text-xs font-medium">{t('Players')}</span>
-					<Selection
-						placeholder={t('Select players')}
-						bind:value={matches.filters.playerIds}
-						options={matches.players}
-						multiple
-					/>
-				</div>
-				<div class="flex w-fit flex-col gap-1.5">
-					<span class="text-secondary-400 text-xs font-medium">{t('Maps')}</span>
-					<Selection
-						placeholder={t('Select maps')}
-						bind:value={matches.filters.maps}
-						options={matches.maps}
-						multiple
-					/>
-				</div>
-				<div class="flex w-fit flex-col gap-1.5">
-					<span class="text-secondary-400 text-xs font-medium">{t('Faction')}</span>
-					<Selection
-						placeholder={t('Select factions')}
-						bind:value={matches.filters.races}
-						options={factionOptions}
-						multiple
-					/>
-				</div>
-			</div>
+			{#if tab !== 'replays' && matches.displayedResult}
+				<Pagination
+					class="ms-auto shrink-0"
+					bind:page={matches.page}
+					perPage={matches.perPage}
+					count={matches.displayedResult.totalItems}
+				/>
+			{/if}
 		</div>
-		{#if matches.displayedResult}
-			<Pagination
-				class="ms-auto shrink-0"
-				bind:page={matches.page}
-				perPage={matches.perPage}
-				count={matches.displayedResult.totalItems}
-			/>
+		{#if tab !== 'replays'}
+			<div class="border-secondary-800 flex flex-wrap items-center gap-2 border-t px-4 py-2.5">
+				<HistoryFilters {matches} />
+			</div>
 		{/if}
 	</div>
 
 	{#snippet cell_map({ row }: { row: MatchExpanded })}
 		<Match.MapImage small flush />
-		<Match.MapName class="min-w-0 truncate px-4" />
-	{/snippet}
-	{#snippet cell_name({ row }: { row: MatchExpanded })}
-		<Match.Title class="text-secondary-400" />
+		<div class="flex min-w-0 items-center gap-2 px-4">
+			{#if (row.commentCount ?? 0) > 0}
+				<span
+					class="text-secondary-400 inline-flex shrink-0 items-center gap-1 text-sm tabular-nums"
+					title={t('Comments')}
+				>
+					<ChatCircleIcon size={16} weight="duotone" />
+					{row.commentCount}
+				</span>
+			{/if}
+			<Match.MapName class="min-w-0 truncate" />
+			<Match.Title iconsOnly class="shrink-0" />
+		</div>
 	{/snippet}
 	{#snippet cell_allies({ row }: { row: MatchExpanded })}
 		<Match.Players
@@ -147,13 +200,22 @@
 			highlightedPlayers={matches.filters.playerIds ?? []}
 		/>
 	{/snippet}
-	{#snippet cell_duration({ row }: { row: MatchExpanded })}
+	{#snippet cell_duration({ row: _row }: { row: MatchExpanded })}
 		<Match.Duration class="text-secondary-400 text-sm" />
 	{/snippet}
-	{#snippet cell_stats({ row }: { row: MatchExpanded })}
-		<Match.SocialCounts />
+	{#snippet cell_likes({ row }: { row: MatchExpanded })}
+		<span class="text-secondary-400 inline-flex items-center gap-1.5 text-sm tabular-nums">
+			<HeartIcon size={16} weight="duotone" />
+			{row.likeCount ?? 0}
+		</span>
 	{/snippet}
-	{#snippet cell_date({ row }: { row: MatchExpanded })}
+	{#snippet cell_downloads({ row }: { row: MatchExpanded })}
+		<span class="text-secondary-400 inline-flex items-center gap-1.5 text-sm tabular-nums">
+			<DownloadIcon size={16} weight="duotone" />
+			{row.downloadCount ?? 0}
+		</span>
+	{/snippet}
+	{#snippet cell_date({ row: _row }: { row: MatchExpanded })}
 		{#if matches.scope === 'user'}
 			<Match.Rating />
 		{/if}
@@ -171,7 +233,9 @@
 		</Match.Root>
 	{/snippet}
 
-	{#if matches.tableLoading}
+	{#if tab === 'replays'}
+		<MyReplays bind:list={replayList} />
+	{:else if matches.tableLoading}
 		<DataTable
 			data={[]}
 			{columns}
@@ -188,11 +252,11 @@
 				rowWrapper={matchRowWrapper}
 				cells={{
 					map: cell_map,
-					name: cell_name,
 					allies: cell_allies,
 					axis: cell_axis,
 					duration: cell_duration,
-					stats: cell_stats,
+					likes: cell_likes,
+					downloads: cell_downloads,
 					date: cell_date
 				}}
 			/>

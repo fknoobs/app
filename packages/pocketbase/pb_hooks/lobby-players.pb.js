@@ -42,6 +42,17 @@ $app.onServe().bindFunc((e) => {
 			`[lobby_players] backfill batch processed=${result.processed} updated=${result.updated} indexed=${result.indexed} complete=${result.complete}`
 		);
 	});
+
+	cronAdd('history_catalog_backfill', '1-59/5 * * * *', () => {
+		const catalog = require(`${__hooks}/lib/history-catalog-backfill.js`);
+		if (catalog.isComplete()) {
+			return;
+		}
+		const result = catalog.runBatch();
+		console.log(
+			`[history_catalog] backfill processed=${result.processed} cataloged=${result.cataloged} complete=${result.complete}`
+		);
+	});
 });
 
 routerAdd('POST', '/api/lobby-players/backfill/run', (e) => {

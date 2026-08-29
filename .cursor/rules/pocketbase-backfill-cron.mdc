@@ -1,0 +1,56 @@
+---
+description: PocketBase migrations stay schema-only; heavy backfills run as batched cron so startup stays instant
+globs: packages/pocketbase/**/*
+alwaysApply: true
+---
+
+# PocketBase Backfills
+
+`migrate()` must return quickly. The local DB is hundreds of megabytes; full-table SQL in a migration blocks `Server started` and looks like PocketBase is down.
+
+## Migrations
+
+Allowed: create/alter collections, add fields, add empty tables.
+
+Not allowed in `migrate()`: `UPDATE`/`INSERT`/`SELECT` over `lobbies` or `lobby_player_index`, `json_each` on stored JSON, `CREATE INDEX` on those existing large collections, or any loop over records.
+
+```javascript
+// ❌ BAD — runs before the server listens
+migrate((app) => {
+	app.db().newQuery('UPDATE lobbies SET avgElo = …').execute();
+});
+
+// ✅ GOOD — schema only; data comes later
+migrate((app) => {
+	const lobbies = app.findCollectionByNameOrId('lobbies');
+	if (!lobbies.fields.getByName('avgElo')) {
+		lobbies.fields.add(new Field({ name: 'avgElo', type: 'number' /* … */ }));
+		app.save(lobbies);
+	}
+});
+```
+
+If a migration file exists only to document a backfill, keep it empty (see `1783700032_lobby_players_backfill.js`).
+
+## Cron backfill
+
+Put the work in `pb_hooks/lib/<name>-backfill.js`:
+
+- Batches (hundreds of rows, not the whole table)
+- Cursor in `job_state` via `pb_hooks/lib/job-state.js` (survives restarts)
+- Register with `cronAdd` **inside** `$app.onServe()` **after** `e.next()` so listen is not blocked
+- Stagger crons that write the same tables (not the same minute)
+- Dual-write new fields on record create/update so live data is correct while the cron catches up
+
+```javascript
+$app.onServe().bindFunc((e) => {
+	e.next();
+	cronAdd('history_catalog_backfill', '1-59/5 * * * *', () => {
+		const catalog = require(`${__hooks}/lib/history-catalog-backfill.js`);
+		if (catalog.isComplete()) return;
+		catalog.runBatch();
+	});
+});
+```
+
+Follow `lobby-players-backfill.js` / `history-catalog-backfill.js`.

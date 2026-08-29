@@ -56,7 +56,7 @@ from the perspective of the consumer of this component, it will be typed appropr
 			sideOffset={6}
 			{...contentProps}
 			class={cn(
-				'bg-secondary-950 border-secondary-800 z-50 max-h-64 min-w-[var(--bits-select-anchor-width)] w-[var(--bits-select-anchor-width)] rounded-md border shadow-md',
+				'overlay-surface border-secondary-800 z-50 max-h-64 min-w-[var(--bits-select-anchor-width)] w-[var(--bits-select-anchor-width)] rounded-md border shadow-md',
 				contentProps?.class
 			)}
 		>

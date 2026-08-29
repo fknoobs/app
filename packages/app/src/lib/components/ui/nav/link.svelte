@@ -3,14 +3,15 @@
 	import { cn } from '$lib/utils';
 	import { page } from '$app/state';
 
-	let { path, component, children, ...restProps }: LinkProps = $props();
-	let isActive = $derived(
-		restProps.href === '/' && page.url.pathname === '/current-game'
-			? true
-			: restProps.href === '/'
-				? page.url.pathname === '/'
-				: page.url.pathname.startsWith(restProps.href ?? '')
-	);
+	let { path, component: _component, children, ...restProps }: LinkProps = $props();
+	let isActive = $derived.by(() => {
+		const pathname = page.url.pathname;
+		if (restProps.href === '/') {
+			return pathname === '/current-game' || pathname === '/';
+		}
+		const prefixes = [restProps.href, path].filter((value): value is string => !!value);
+		return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+	});
 </script>
 
 <a

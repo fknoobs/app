@@ -2,9 +2,9 @@
 	import { cn } from '$lib/utils';
 	import { Pagination, type PaginationRootProps } from 'bits-ui';
 	import { watch } from 'runed';
-	import CaretLeft from 'phosphor-svelte/lib/CaretLeftIcon';
-	import CaretRight from 'phosphor-svelte/lib/CaretRightIcon';
-	import { controlBase, interactive } from '../variants';
+	import CaretLeftIcon from 'phosphor-svelte/lib/CaretLeftIcon';
+	import CaretRightIcon from 'phosphor-svelte/lib/CaretRightIcon';
+	import { controlBase, tabTrigger } from '../variants';
 	import { useI18n } from '$lib/i18n';
 
 	let {
@@ -50,13 +50,9 @@
 	{#snippet children({ pages })}
 		<div class="flex items-center gap-2">
 			<Pagination.PrevButton
-				class={cn(
-					interactive,
-					'inline-flex size-8 items-center justify-center rounded-md bg-transparent',
-					'hover:bg-secondary-500/30'
-				)}
+				class={cn(tabTrigger, 'inline-flex size-8 items-center justify-center px-0 py-0')}
 			>
-				<CaretLeft class="size-4" />
+				<CaretLeftIcon class="size-4" />
 			</Pagination.PrevButton>
 			<div class="flex items-center gap-1">
 				{#each pages as pageItem (pageItem.key)}
@@ -66,12 +62,9 @@
 						<Pagination.Page
 							page={pageItem}
 							class={cn(
-								interactive,
-								'inline-flex size-9 items-center justify-center rounded-[9px] text-sm font-medium select-none',
-								'border border-transparent',
-								'hover:bg-secondary-700/20',
-								'data-selected:border-secondary-800 data-selected:bg-secondary-700/30',
-								'disabled:opacity-50 hover:disabled:bg-transparent'
+								tabTrigger,
+								'inline-flex size-9 items-center justify-center px-0 py-0 font-medium',
+								'data-selected:border-primary/20 data-selected:bg-primary/5 data-selected:text-primary'
 							)}
 						>
 							{pageItem.value}
@@ -80,13 +73,9 @@
 				{/each}
 			</div>
 			<Pagination.NextButton
-				class={cn(
-					interactive,
-					'inline-flex size-8 items-center justify-center rounded-md bg-transparent',
-					'hover:bg-secondary-500/30'
-				)}
+				class={cn(tabTrigger, 'inline-flex size-8 items-center justify-center px-0 py-0')}
 			>
-				<CaretRight class="size-4" />
+				<CaretRightIcon class="size-4" />
 			</Pagination.NextButton>
 			<div class="text-secondary-400 ms-2 flex items-center gap-1.5 text-sm">
 				<input
@@ -96,7 +85,7 @@
 					bind:value={pageInput}
 					onkeydown={onPageInputKeydown}
 					onblur={commitPageInput}
-					class={cn(controlBase, 'h-9 w-12 px-1 text-center text-sm')}
+					class={cn(controlBase, 'h-9 w-12 rounded-none px-1 text-center text-sm')}
 				/>
 				<span>/ {totalPages}</span>
 			</div>

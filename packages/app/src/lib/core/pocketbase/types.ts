@@ -27,7 +27,9 @@ export const Collections = {
 	LobbyCommentLikes: "lobby_comment_likes",
 	LobbyDownloads: "lobby_downloads",
 	LobbyLikes: "lobby_likes",
+	Maps: "maps",
 	PlayerRatings: "player_ratings",
+	Players: "players",
 	ReplayAggregation: "replay_aggregation",
 	Replays: "replays",
 	SmurfWatch: "smurf_watch",
@@ -200,6 +202,8 @@ export type LobbiesRecord<Tplayers = unknown, Tresult = unknown> = {
 	commentCount?: number
 	downloadCount?: number
 	likeCount?: number
+	durationSeconds?: number
+	avgElo?: number
 	sessionId: number
 	title: string
 	updatedAt: IsoAutoDateString
@@ -283,6 +287,23 @@ export type LobbyLikesRecord = {
 	lobby: RecordIdString
 	updated: IsoAutoDateString
 	user: RecordIdString
+}
+
+export type MapsRecord = {
+	created: IsoAutoDateString
+	id: string
+	map: string
+	name?: string
+	updated: IsoAutoDateString
+}
+
+export type PlayersRecord = {
+	alias?: string
+	created: IsoAutoDateString
+	id: string
+	profile_id: number
+	steam_id?: string
+	updated: IsoAutoDateString
 }
 
 export type ReplayAggregationRecord<Tmaps = unknown, Tplayers = unknown, Tuser = unknown> = {
@@ -412,6 +433,8 @@ export type LobbyCommentsResponse<Texpand = unknown> = Required<LobbyCommentsRec
 export type LobbyCommentLikesResponse<Texpand = unknown> = Required<LobbyCommentLikesRecord> & BaseSystemFields<Texpand>
 export type LobbyDownloadsResponse<Texpand = unknown> = Required<LobbyDownloadsRecord> & BaseSystemFields<Texpand>
 export type LobbyLikesResponse<Texpand = unknown> = Required<LobbyLikesRecord> & BaseSystemFields<Texpand>
+export type MapsResponse<Texpand = unknown> = Required<MapsRecord> & BaseSystemFields<Texpand>
+export type PlayersResponse<Texpand = unknown> = Required<PlayersRecord> & BaseSystemFields<Texpand>
 export type PlayerRatingsResponse<Telo = unknown, Texpand = unknown> = Required<PlayerRatingsRecord<Telo>> & BaseSystemFields<Texpand>
 export type ReplayAggregationResponse<Tmaps = unknown, Tplayers = unknown, Tuser = unknown, Texpand = unknown> = Required<ReplayAggregationRecord<Tmaps, Tplayers, Tuser>> & BaseSystemFields<Texpand>
 export type ReplaysResponse<Tmessages = unknown, Tplayers = unknown, Texpand = unknown> = Required<ReplaysRecord<Tmessages, Tplayers>> & BaseSystemFields<Texpand>
@@ -443,7 +466,9 @@ export type CollectionRecords = {
 	lobby_comment_likes: LobbyCommentLikesRecord
 	lobby_downloads: LobbyDownloadsRecord
 	lobby_likes: LobbyLikesRecord
+	maps: MapsRecord
 	player_ratings: PlayerRatingsRecord
+	players: PlayersRecord
 	replay_aggregation: ReplayAggregationRecord
 	replays: ReplaysRecord
 	smurf_watch: SmurfWatchRecord
@@ -473,7 +498,9 @@ export type CollectionResponses = {
 	lobby_comment_likes: LobbyCommentLikesResponse
 	lobby_downloads: LobbyDownloadsResponse
 	lobby_likes: LobbyLikesResponse
+	maps: MapsResponse
 	player_ratings: PlayerRatingsResponse
+	players: PlayersResponse
 	replay_aggregation: ReplayAggregationResponse
 	replays: ReplaysResponse
 	smurf_watch: SmurfWatchResponse

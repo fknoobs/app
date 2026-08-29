@@ -15,7 +15,7 @@ const NESTED_FALLBACK: Record<string, string> = {
 
 const SECTIONS: Record<string, string> = {
 	replays: 'Replays',
-	history: 'History',
+	history: 'Replays',
 	shortcuts: 'Keybindings',
 	leaderboards: 'Leaderboards',
 	players: 'Players',
@@ -69,5 +69,6 @@ export function crumbsFromPath(pathname: string, extra: Crumb[]): Crumb[] {
 			? extra
 			: [{ label: nestedKey ? t(nestedKey) : (parts[1] ?? sectionLabel) }];
 
-	return [{ label: sectionLabel, href: `/${parts[0]}` }, ...rest];
+	const href = parts[0] === 'replays' ? '/history?tab=replays' : `/${parts[0]}`;
+	return [{ label: sectionLabel, href }, ...rest];
 }

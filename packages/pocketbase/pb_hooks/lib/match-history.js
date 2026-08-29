@@ -236,14 +236,16 @@ function resolvePlayersForRow(row, aliasMap, playersByLobby) {
 	return playersByLobby[row.id] || [];
 }
 
-function countFilteredMatches(hasPlayerFilter, numericPlayerIds, whereClause, bindings) {
+function countFilteredMatches(hasPlayerFilter, numericPlayerIds, whereClause, bindings, joinExtra) {
 	let countSql;
+	const extra = joinExtra ? ` ${joinExtra}` : '';
 
 	if (hasPlayerFilter) {
 		countSql = `SELECT COUNT(DISTINCT l.id) AS total
        FROM lobby_player_index i
        INNER JOIN lobbies l ON l.id = i.lobby
        WHERE i.profile_id IN (${numericPlayerIds.join(', ')})
+         ${extra}
          AND ${whereClause}`;
 	} else {
 		countSql = `SELECT COUNT(*) AS total FROM lobbies l WHERE ${whereClause}`;
@@ -253,6 +255,187 @@ function countFilteredMatches(hasPlayerFilter, numericPlayerIds, whereClause, bi
 	$app.db().newQuery(countSql).bind(bindings).one(countRow);
 
 	return Number(countRow.total) || 0;
+}
+
+const COMPARE_OPS = {
+	gt: '>',
+	gte: '>=',
+	lt: '<',
+	lte: '<='
+};
+
+function parseCompareOp(raw) {
+	return COMPARE_OPS[raw] ? raw : '';
+}
+
+function compareClause(column, op, bindingKey, value, bindings) {
+	const sqlOp = COMPARE_OPS[op] || '>=';
+	bindings[bindingKey] = value;
+	return `${column} IS NOT NULL AND ${column} ${sqlOp} {:${bindingKey}}`;
+}
+
+const RESULT_PLAYERS_JSON = `CASE
+          WHEN l.result IS NOT NULL AND l.result != ''
+               AND json_valid(l.result)
+               AND json_type(json_extract(l.result, '$.players')) = 'array'
+          THEN json_extract(l.result, '$.players')
+          ELSE '[]'
+        END`;
+
+/**
+ * Player ELO for filters. `lobby_player_index.elo` is 0 until the catalog
+ * backfill catches up, so fall back to Relic oldrating/newrating on the
+ * same profile in `lobbies.result`.
+ */
+function playerEloExpr() {
+	return `COALESCE(
+    NULLIF(i.elo, 0),
+    (
+      SELECT COALESCE(
+        NULLIF(CAST(json_extract(p.value, '$.oldrating') AS REAL), 0),
+        NULLIF(CAST(json_extract(p.value, '$.newrating') AS REAL), 0)
+      )
+      FROM json_each(${RESULT_PLAYERS_JSON}) p
+      WHERE CAST(json_extract(p.value, '$.profile_id') AS INTEGER) = i.profile_id
+      LIMIT 1
+    )
+  )`;
+}
+
+function comparePlayerEloClause(op, value, bindings) {
+	const sqlOp = COMPARE_OPS[op] || '>=';
+	bindings.eloValue = value;
+	const elo = playerEloExpr();
+	return `${elo} IS NOT NULL AND ${elo} ${sqlOp} {:eloValue}`;
+}
+
+const LOBBY_PLAYERS_JSON = `CASE
+          WHEN l.players IS NOT NULL AND l.players != '' AND l.players != '[]'
+               AND json_valid(l.players)
+          THEN l.players
+          ELSE '[]'
+        END`;
+
+/**
+ * 1-based lobby position. `lobby_player_index.slot` is 0 until backfill;
+ * game `players.slot` is 0-based so JSON fallback adds 1.
+ */
+function playerSlotExpr() {
+	const fromPlayers = `(
+      SELECT CAST(json_extract(p.value, '$.slot') AS INTEGER) + 1
+      FROM json_each(${LOBBY_PLAYERS_JSON}) p
+      WHERE CAST(COALESCE(
+        json_extract(p.value, '$.playerId'),
+        json_extract(p.value, '$.profile.profile_id'),
+        json_extract(p.value, '$.profile_id')
+      ) AS INTEGER) = i.profile_id
+        AND json_extract(p.value, '$.slot') IS NOT NULL
+      LIMIT 1
+    )`;
+	try {
+		if ($app.findCollectionByNameOrId('lobby_player_index').fields.getByName('slot')) {
+			return `COALESCE(NULLIF(i.slot, 0), ${fromPlayers})`;
+		}
+	} catch {
+		// field not migrated yet
+	}
+	return fromPlayers;
+}
+
+function buildProFilterClause() {
+	return `l.isRanked = 1
+    AND l.avgElo IS NOT NULL
+    AND (
+      CASE
+        WHEN CAST(json_extract(l.result, '$.matchtype_id') AS INTEGER) = 1 THEN l.avgElo >= 1800
+        WHEN CAST(json_extract(l.result, '$.matchtype_id') AS INTEGER) IN (2, 3, 4, 5, 6, 7)
+          THEN l.avgElo >= 1850
+        WHEN json_array_length(json_extract(l.result, '$.players')) = 2 THEN l.avgElo >= 1800
+        WHEN json_array_length(json_extract(l.result, '$.players')) IN (4, 6, 8) THEN l.avgElo >= 1850
+        ELSE 0
+      END
+    )`;
+}
+
+/**
+ * Conditions on lobby_player_index alias `i` for faction + position + player-ELO
+ * composition. Returns null when the filter should not apply.
+ */
+function buildIndexPlayerConditions(
+	{ races = [], slots = [], eloOp, eloValue, steamIds = [], profileIds = [] } = {},
+	bindings,
+	{ allowAnyPlayer = false } = {}
+) {
+	const hasRace = Array.isArray(races) && races.length > 0;
+	const hasSlot = Array.isArray(slots) && slots.length > 0;
+	const hasElo = eloOp && Number.isFinite(eloValue);
+	if (!hasRace && !hasElo && !hasSlot) {
+		return null;
+	}
+
+	const hasIdentity =
+		(steamIds && steamIds.length > 0) || (profileIds && profileIds.length > 0);
+	if (!hasIdentity && !allowAnyPlayer) {
+		return null;
+	}
+
+	const parts = [];
+
+	if (hasRace) {
+		const racePlaceholders = [];
+		for (let i = 0; i < races.length; i++) {
+			const key = `idxRace${i}`;
+			bindings[key] = races[i];
+			racePlaceholders.push(`{:${key}}`);
+		}
+		parts.push(`i.race_id IN (${racePlaceholders.join(', ')})`);
+	}
+
+	if (hasSlot) {
+		const slotPlaceholders = [];
+		for (let i = 0; i < slots.length; i++) {
+			const key = `idxSlot${i}`;
+			bindings[key] = slots[i];
+			slotPlaceholders.push(`{:${key}}`);
+		}
+		parts.push(`${playerSlotExpr()} IN (${slotPlaceholders.join(', ')})`);
+	}
+
+	if (hasElo) {
+		parts.push(comparePlayerEloClause(eloOp, eloValue, bindings));
+	}
+
+	if (hasIdentity) {
+		const identity = [];
+		for (let i = 0; i < steamIds.length; i++) {
+			const key = `idxSteam${i}`;
+			bindings[key] = steamIds[i];
+			identity.push(`i.steam_id = {:${key}}`);
+		}
+		for (let i = 0; i < profileIds.length; i++) {
+			const key = `idxPid${i}`;
+			bindings[key] = profileIds[i];
+			identity.push(`i.profile_id = {:${key}}`);
+		}
+		parts.push(`(${identity.join(' OR ')})`);
+	}
+
+	return parts.join(' AND ');
+}
+
+function buildSortClause(sort, sortDir) {
+	const columns = {
+		createdAt: 'l.createdAt',
+		likeCount: 'l.likeCount',
+		downloadCount: 'l.downloadCount',
+		commentCount: 'l.commentCount'
+	};
+	const column = columns[sort] || 'l.createdAt';
+	const direction = sortDir === 'asc' ? 'ASC' : 'DESC';
+	if (column === 'l.createdAt') {
+		return `l.createdAt ${direction}`;
+	}
+	return `${column} ${direction}, l.createdAt DESC`;
 }
 
 /**
@@ -546,6 +729,12 @@ module.exports = {
 	resolvePlayersForRow,
 	countFilteredMatches,
 	buildRaceFilterClause,
+	buildIndexPlayerConditions,
+	buildProFilterClause,
+	buildSortClause,
+	parseCompareOp,
+	compareClause,
+	comparePlayerEloClause,
 	loadUserSteamIds,
 	asList,
 	transformMatchHistory

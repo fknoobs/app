@@ -28,6 +28,8 @@
 		() => app.database.matches.getById(page.params.id!)
 	);
 
+	$inspect(match.current);
+
 	const STATUS_POLL_MS = 10_000;
 	const hasReplay = $derived(!!(match.current?.hasReplay || match.current?.replay));
 	const pendingResult = $derived(!!match.current?.needsResult);

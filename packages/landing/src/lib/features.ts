@@ -55,7 +55,7 @@ export const features: Feature[] = [
 		id: 'keybindings',
 		title: 'Keybindings',
 		description:
-			'Custom shortcuts per faction — USA, Brits, Wehrmacht, Panzer Elite. Record, drag to reorder, export and import.',
+			'Custom shortcuts globally and per faction — USA, Brits, Wehrmacht, Panzer Elite. Record, drag to reorder, export and import.',
 		image: keybindingsImg,
 		imageAlt: 'Faction keybinding editor',
 		icon: KeyboardIcon

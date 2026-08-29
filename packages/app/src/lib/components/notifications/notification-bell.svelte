@@ -34,7 +34,7 @@
 	side="right"
 	align="center"
 	sideOffset={12}
-	contentClass="bg-secondary-950 w-[360px] overflow-hidden p-0"
+	contentClass="w-[360px] overflow-hidden p-0"
 >
 	{#snippet trigger({ props })}
 		<Button

@@ -22,14 +22,13 @@
 			class={cn(
 				'data-[state=open]:animate-in data-[state=open]:zoom-in absolute duration-75',
 				'data-[state=closed]:animate-out data-[state=closed]:zoom-out data-[state=closed]:fade-out',
-				'top-0 left-1/2 z-50 mx-auto mt-12 -translate-x-1/2 rounded-xl outline-hidden',
-				'max-h-[calc(100vh-4rem)]',
+				'top-0 left-1/2 z-50 mx-auto -translate-x-1/2 rounded-xl outline-hidden',
 				surfaceModal,
-				modal.size === 'sm' && 'w-[320px]',
-				modal.size === 'md' && 'w-[480px]',
-				modal.size === 'lg' && 'w-[640px]',
-				modal.size === 'xl' && 'w-[800px]',
-				modal.size === 'full' && 'w-[calc(100vw-4rem)]'
+				modal.size === 'sm' && 'mt-12 max-h-[calc(100vh-4rem)] w-[320px]',
+				modal.size === 'md' && 'mt-12 max-h-[calc(100vh-4rem)] w-[480px]',
+				modal.size === 'lg' && 'mt-12 max-h-[calc(100vh-4rem)] w-[640px]',
+				modal.size === 'xl' && 'mt-12 max-h-[calc(100vh-4rem)] w-[800px]',
+				modal.size === 'full' && 'mt-4 max-h-[calc(100vh-2rem)] w-[calc(100vw-2rem)]'
 			)}
 			{...modal.contentProps}
 		>
@@ -43,7 +42,7 @@
 								<H level="4">{modal.title}</H>
 							{/if}
 							{#if modal.description}
-								<Dialog.Description class="mt-1 text-secondary-400">
+								<Dialog.Description class="text-secondary-400 mt-1">
 									{#if typeof modal.description === 'function'}
 										{@render modal.description()}
 									{:else}
@@ -54,7 +53,7 @@
 						</div>
 						{#if false === modal.hideCloseButton}
 							<Dialog.Close
-								class="cursor-pointer rounded-md bg-secondary-800 p-1.5 transition outline-none hover:bg-secondary-700"
+								class="bg-secondary-800 hover:bg-secondary-700 cursor-pointer rounded-md p-1.5 transition outline-none"
 							>
 								<CloseIcon size={24} />
 							</Dialog.Close>
@@ -62,7 +61,12 @@
 					</div>
 				</Dialog.Title>
 			{/if}
-			<div class="max-h-[calc(100vh-12rem)] overflow-y-auto px-6 pb-6">
+			<div
+				class={cn(
+					'overflow-y-auto px-6 pb-6',
+					modal.size === 'full' ? 'max-h-[calc(100vh-7rem)]' : 'max-h-[calc(100vh-12rem)]'
+				)}
+			>
 				<svelte:component this={modal.component} {...modal.props} />
 			</div>
 		</Dialog.Content>

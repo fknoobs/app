@@ -43,7 +43,7 @@
 			align="start"
 			side="bottom"
 			sideOffset={6}
-			class="bg-secondary-950 border-secondary-800 z-50 max-h-72 min-w-(--bits-select-anchor-width) w-(--bits-select-anchor-width) rounded-md border shadow-md"
+			class="overlay-surface border-secondary-800 z-50 max-h-72 min-w-(--bits-select-anchor-width) w-(--bits-select-anchor-width) rounded-md border shadow-md"
 		>
 			<Select.ScrollUpButton class="flex items-center justify-center py-1">
 				<CaretUpIcon />

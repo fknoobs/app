@@ -1,17 +1,27 @@
 <script lang="ts">
-	import type { Snapshot } from './$types';
 	import { app } from '$core/app/context';
 	import { getString } from '$lib/utils/game';
 	import { resource } from 'runed';
-	import { ReplayList, type ReplayListState } from './replay-list.svelte';
-	import ReplayFilters from './replay-filters.svelte';
-	import ReplayTable from './replay-table.svelte';
+	import { ReplayList } from '../replays/replay-list.svelte';
+	import ReplayFilters from '../replays/replay-filters.svelte';
+	import ReplayTable from '../replays/replay-table.svelte';
+	import { Alert } from '$lib/components/ui/alert';
+	import { useI18n } from '$lib/i18n';
 
-	let list = $state(new ReplayList());
+	interface Props {
+		list: ReplayList;
+	}
+
+	let { list = $bindable() }: Props = $props();
+	const { t } = useI18n();
+	const playbackDir = resource(
+		() => true,
+		() => app.paths.cohPlaybackDir()
+	);
 
 	$effect(() => {
-		if (list.replays.length === 0) {
-			list.loadMore();
+		if (list.replays.length === 0 && !list.isLoading && list.hasMore) {
+			void list.loadMore();
 		}
 	});
 
@@ -25,7 +35,6 @@
 				method: 'GET',
 				query: { userId: app.features.auth.userId }
 			});
-
 			return {
 				players: response.players ?? [],
 				maps: response.maps ?? []
@@ -46,14 +55,15 @@
 			label: p.name
 		})) || []
 	);
-
-	export const snapshot: Snapshot<ReplayListState> = {
-		capture: () => list.capture(),
-		restore: (value) => {
-			list.restore(value);
-		}
-	};
 </script>
 
+<Alert variant="info" size="sm" class="rounded-none border-x-0 border-t-0">
+	<p>{t('These replays come from your local Company of Heroes playback folder.')}</p>
+	{#if playbackDir.current}
+		<p class="mt-1 font-mono text-xs opacity-80">
+			{t('Playback folder: {path}', { path: playbackDir.current })}
+		</p>
+	{/if}
+</Alert>
 <ReplayFilters bind:list {mapsList} {playersList} />
 <ReplayTable {list} />

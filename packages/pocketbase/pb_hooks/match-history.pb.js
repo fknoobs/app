@@ -12,7 +12,11 @@ routerAdd('GET', '/api/match-history', (e) => {
 		resolvePlayersForRow,
 		parseResultField,
 		countFilteredMatches,
-		buildRaceFilterClause,
+		buildIndexPlayerConditions,
+		buildProFilterClause,
+		buildSortClause,
+		parseCompareOp,
+		compareClause,
 		loadUserSteamIds
 	} = require(`${__hooks}/lib/match-history.js`);
 
@@ -27,6 +31,7 @@ routerAdd('GET', '/api/match-history', (e) => {
 	const perPage = Math.min(50, Math.max(1, parseInt(query.get('perPage') || '15', 10) || 15));
 
 	const ranked = query.get('ranked') === 'true';
+	const pro = query.get('pro') === 'true';
 
 	const playerIds = (query.get('playerIds') || '')
 		.split(',')
@@ -45,6 +50,11 @@ routerAdd('GET', '/api/match-history', (e) => {
 		.map((value) => Number(value))
 		.filter((value) => !Number.isNaN(value) && value >= 0 && value <= 3);
 
+	const slots = (query.get('slots') || '')
+		.split(',')
+		.map((value) => Number(value.trim()))
+		.filter((value) => Number.isInteger(value) && value >= 1 && value <= 8);
+
 	const matchtypes = (query.get('matchtypes') || '')
 		.split(',')
 		.map((value) => value.trim())
@@ -53,6 +63,38 @@ routerAdd('GET', '/api/match-history', (e) => {
 		.filter((value) => Number.isFinite(value));
 
 	const includeSkirmish = query.get('includeSkirmish') === 'true';
+
+	let eloOp = parseCompareOp(query.get('eloOp') || '');
+	let eloValue = Number(query.get('elo') || '');
+	if (!eloOp && Number.isFinite(Number(query.get('minElo')))) {
+		eloOp = 'gte';
+		eloValue = Number(query.get('minElo'));
+	} else if (!eloOp && Number.isFinite(Number(query.get('maxElo')))) {
+		eloOp = 'lte';
+		eloValue = Number(query.get('maxElo'));
+	}
+	if (!Number.isFinite(eloValue)) {
+		eloOp = '';
+		eloValue = NaN;
+	}
+
+	let durationOp = parseCompareOp(query.get('durationOp') || '');
+	let durationSeconds = Number(query.get('duration') || query.get('minDuration') || '');
+	if (!durationOp && Number.isFinite(Number(query.get('minDuration')))) {
+		durationOp = 'gte';
+		durationSeconds = Number(query.get('minDuration'));
+	} else if (!durationOp && Number.isFinite(Number(query.get('maxDuration')))) {
+		durationOp = 'lte';
+		durationSeconds = Number(query.get('maxDuration'));
+	}
+	if (!Number.isFinite(durationSeconds) || durationSeconds < 0) {
+		durationOp = '';
+		durationSeconds = NaN;
+	}
+
+	const sort = query.get('sort') || 'createdAt';
+	const sortDir = query.get('sortDir') || 'desc';
+	const orderBy = buildSortClause(sort, sortDir);
 
 	const bindings = {};
 	const lobbyFilters = includeSkirmish
@@ -74,6 +116,10 @@ routerAdd('GET', '/api/match-history', (e) => {
 		lobbyFilters.push('l.isRanked = 1');
 	}
 
+	if (pro) {
+		lobbyFilters.push(buildProFilterClause());
+	}
+
 	if (maps.length > 0) {
 		const mapClauses = [];
 
@@ -88,16 +134,48 @@ routerAdd('GET', '/api/match-history', (e) => {
 
 	if (matchtypes.length > 0) {
 		const matchtypeClauses = [];
+		const playerCountKeys = [];
+		const playerCountByType = {
+			1: 2,
+			2: 4,
+			3: 6,
+			4: 8,
+			5: 4,
+			6: 6,
+			7: 8
+		};
+		const playerCounts = {};
 
 		for (let i = 0; i < matchtypes.length; i++) {
 			const key = `matchtype${i}`;
 			bindings[key] = matchtypes[i];
 			matchtypeClauses.push(`{:${key}}`);
+			const count = playerCountByType[matchtypes[i]];
+			if (count && !playerCounts[count]) {
+				playerCounts[count] = true;
+				const countKey = `matchPlayers${i}`;
+				bindings[countKey] = count;
+				playerCountKeys.push(`{:${countKey}}`);
+			}
 		}
 
-		lobbyFilters.push(
-			`CAST(json_extract(l.result, '$.matchtype_id') AS INTEGER) IN (${matchtypeClauses.join(', ')})`
-		);
+		const typeClause = `CAST(json_extract(l.result, '$.matchtype_id') AS INTEGER) IN (${matchtypeClauses.join(', ')})`;
+		if (playerCountKeys.length > 0) {
+			lobbyFilters.push(
+				`(${typeClause}
+          OR (
+            (json_extract(l.result, '$.matchtype_id') IS NULL
+              OR CAST(json_extract(l.result, '$.matchtype_id') AS INTEGER) = 0)
+            AND json_array_length(json_extract(l.result, '$.players')) IN (${playerCountKeys.join(', ')})
+          ))`
+			);
+		} else {
+			lobbyFilters.push(typeClause);
+		}
+	}
+
+	if (durationOp && Number.isFinite(durationSeconds)) {
+		lobbyFilters.push(compareClause('l.durationSeconds', durationOp, 'durationSeconds', durationSeconds, bindings));
 	}
 
 	const numericPlayerIds = [];
@@ -120,32 +198,72 @@ routerAdd('GET', '/api/match-history', (e) => {
 	const userProfileIds =
 		Number.isFinite(subjectProfileId) && subjectProfileId > 0 ? [subjectProfileId] : [];
 
-	const raceSubjects =
-		scope === 'user'
-			? { steamIds: loadUserSteamIds(userId), profileIds: userProfileIds }
-			: { steamIds: [], profileIds: numericPlayerIdValues };
+	const hasPlayerFilter = numericPlayerIds.length > 0;
+	const indexSubjects =
+		hasPlayerFilter
+			? { steamIds: [], profileIds: [] }
+			: scope === 'user'
+				? { steamIds: loadUserSteamIds(userId), profileIds: userProfileIds }
+				: { steamIds: [], profileIds: [] };
 
-	// Community without a player filter: match any participant with the race.
-	// User without steam/profile ids: soft-fail (ignore race filter) instead of empty list.
-	const raceClause = buildRaceFilterClause(races, raceSubjects, bindings, {
-		allowAnyPlayer: scope === 'community'
-	});
+	const indexConditions = buildIndexPlayerConditions(
+		{
+			races,
+			slots,
+			eloOp,
+			eloValue,
+			steamIds: indexSubjects.steamIds,
+			profileIds: indexSubjects.profileIds
+		},
+		bindings,
+		{
+			allowAnyPlayer: hasPlayerFilter || scope === 'community'
+		}
+	);
 
-	if (raceClause) {
-		lobbyFilters.push(raceClause);
+	let joinExtra = '';
+	if (indexConditions) {
+		if (hasPlayerFilter) {
+			joinExtra = `AND ${indexConditions}`;
+		} else {
+			lobbyFilters.push(
+				`EXISTS (SELECT 1 FROM lobby_player_index i WHERE i.lobby = l.id AND ${indexConditions})`
+			);
+		}
 	}
 
-	const hasPlayerFilter = numericPlayerIds.length > 0;
-	const hasRaceFilter = !!raceClause;
+	const hasRaceOrEloFilter = !!indexConditions;
 	const hasMatchtypeFilter = matchtypes.length > 0;
+	const hasDurationFilter = !!(durationOp && Number.isFinite(durationSeconds));
 	const hasExtraFilters =
-		hasPlayerFilter || maps.length > 0 || ranked || hasRaceFilter || hasMatchtypeFilter;
+		hasPlayerFilter ||
+		maps.length > 0 ||
+		ranked ||
+		pro ||
+		hasRaceOrEloFilter ||
+		hasMatchtypeFilter ||
+		hasDurationFilter;
 	const offset = (page - 1) * perPage;
 
 	bindings.limit = perPage;
 	bindings.offset = offset;
 
 	const canUseCommunityCountCache = scope === 'community' && !hasExtraFilters;
+
+	const selectColumns = `l.id,
+           l.map,
+           l.title,
+           COALESCE(l.result, '') AS result,
+           l.createdAt,
+           l.isRanked,
+           l.sessionId,
+           l.needsResult,
+           COALESCE(l.hasReplay, 0) AS hasReplay,
+           COALESCE(l.likeCount, 0) AS likeCount,
+           COALESCE(l.downloadCount, 0) AS downloadCount,
+           COALESCE(l.commentCount, 0) AS commentCount,
+           COALESCE(l.lobbyPlayers, '[]') AS lobbyPlayers,
+           COALESCE(l.playerProfileIdsCsv, '') AS playerProfileIdsCsv`;
 
 	try {
 		let totalItems = null;
@@ -167,7 +285,13 @@ routerAdd('GET', '/api/match-history', (e) => {
 		const whereClause = lobbyFilters.join(' AND ');
 
 		if (totalItems === null && hasExtraFilters) {
-			totalItems = countFilteredMatches(hasPlayerFilter, numericPlayerIds, whereClause, bindings);
+			totalItems = countFilteredMatches(
+				hasPlayerFilter,
+				numericPlayerIds,
+				whereClause,
+				bindings,
+				joinExtra
+			);
 		}
 
 		const aliasMap = loadPlayerAliasMap(scope, userId);
@@ -185,6 +309,7 @@ routerAdd('GET', '/api/match-history', (e) => {
 				hasReplay: false,
 				likeCount: 0,
 				downloadCount: 0,
+				commentCount: 0,
 				lobbyPlayers: '',
 				playerProfileIdsCsv: '',
 				totalCount: 0
@@ -195,43 +320,20 @@ routerAdd('GET', '/api/match-history', (e) => {
 
 		if (hasPlayerFilter) {
 			selectSql = `SELECT DISTINCT
-           l.id,
-           l.map,
-           l.title,
-           COALESCE(l.result, '') AS result,
-           l.createdAt,
-           l.isRanked,
-           l.sessionId,
-           l.needsResult,
-           COALESCE(l.hasReplay, 0) AS hasReplay,
-           COALESCE(l.likeCount, 0) AS likeCount,
-           COALESCE(l.downloadCount, 0) AS downloadCount,
-           COALESCE(l.lobbyPlayers, '[]') AS lobbyPlayers,
-           COALESCE(l.playerProfileIdsCsv, '') AS playerProfileIdsCsv${useInlineCount ? ', COUNT(*) OVER() AS totalCount' : ''}
+           ${selectColumns}${useInlineCount ? ', COUNT(*) OVER() AS totalCount' : ''}
          FROM lobby_player_index i
          INNER JOIN lobbies l ON l.id = i.lobby
          WHERE i.profile_id IN (${numericPlayerIds.join(', ')})
+           ${joinExtra}
            AND ${whereClause}
-         ORDER BY l.createdAt DESC
+         ORDER BY ${orderBy}
          LIMIT {:limit} OFFSET {:offset}`;
 		} else {
 			selectSql = `SELECT
-           l.id,
-           l.map,
-           l.title,
-           COALESCE(l.result, '') AS result,
-           l.createdAt,
-           l.isRanked,
-           l.sessionId,
-           l.needsResult,
-           COALESCE(l.hasReplay, 0) AS hasReplay,
-           COALESCE(l.likeCount, 0) AS likeCount,
-           COALESCE(l.downloadCount, 0) AS downloadCount,
-           COALESCE(l.lobbyPlayers, '[]') AS lobbyPlayers,
-           COALESCE(l.playerProfileIdsCsv, '') AS playerProfileIdsCsv${useInlineCount ? ', COUNT(*) OVER() AS totalCount' : ''}
+           ${selectColumns}${useInlineCount ? ', COUNT(*) OVER() AS totalCount' : ''}
          FROM lobbies l
          WHERE ${whereClause}
-         ORDER BY l.createdAt DESC
+         ORDER BY ${orderBy}
          LIMIT {:limit} OFFSET {:offset}`;
 		}
 
@@ -283,6 +385,7 @@ routerAdd('GET', '/api/match-history', (e) => {
 				hasReplay: !!row.hasReplay,
 				likeCount: Number(row.likeCount) || 0,
 				downloadCount: Number(row.downloadCount) || 0,
+				commentCount: Number(row.commentCount) || 0,
 				players
 			});
 		}

@@ -2,5 +2,5 @@
 '@company-of-heroes/app': patch
 ---
 
-enhance; align destructive success and warning buttons with primary button styling
-enhance; soften badge status labels to match primary badge styling
+enhance; align buttons, badges, and tabs with primary chip styling
+enhance; use solid backgrounds on dropdowns, popovers, and context menus

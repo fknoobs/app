@@ -5,18 +5,18 @@
 	import { cn } from '$lib/utils';
 	import { interactive } from '$lib/components/ui/variants';
 	import { tooltip } from '$lib/attachments';
-	import { shortcuts, type FactionKey, type Shortcut } from '$core/app/features/shortcuts';
+	import { shortcuts, type BindingScope, type Shortcut } from '$core/app/features/shortcuts';
 	import { Button } from '$lib/components/ui/button';
 	import KeybindingChord from './keybinding-chord.svelte';
 	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		keybinding: Shortcut;
-		faction: FactionKey;
+		scope: BindingScope;
 		class?: string;
 	};
 
-	let { keybinding, faction, class: className }: Props = $props();
+	let { keybinding, scope, class: className }: Props = $props();
 	const { t } = useI18n();
 </script>
 
@@ -67,7 +67,7 @@
 				interactive,
 				'hover:text-destructive text-secondary-600 opacity-0 group-hover:opacity-100'
 			)}
-			onclick={() => shortcuts.removeBinding(faction, keybinding.id)}
+			onclick={() => shortcuts.removeBinding(scope, keybinding.id)}
 			{@attach tooltip(t('Delete keybinding'))}
 		>
 			<TrashIcon size={18} />

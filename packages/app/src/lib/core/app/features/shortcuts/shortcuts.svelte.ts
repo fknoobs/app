@@ -27,6 +27,7 @@ export type Shortcut = {
 };
 
 export type FactionKey = keyof ShortcutSettings['factions'];
+export type BindingScope = FactionKey | 'global';
 
 function createShortcut(partial?: Partial<Shortcut>): Shortcut {
 	return {
@@ -42,6 +43,7 @@ function normalizeShortcut(shortcut: Partial<Shortcut>): Shortcut {
 }
 
 export type ShortcutSettings = {
+	global: Shortcut[];
 	factions: {
 		axis: Shortcut[];
 		axis_panzer_elite: Shortcut[];
@@ -81,18 +83,27 @@ function isHoldAction(keys: string[]): boolean {
 	return keys.length > 0 && keys.every((key) => HOLD_ACTION_KEYS.has(key));
 }
 
+function fingerprintBindings(bindings: Shortcut[]) {
+	return bindings.map((binding) => ({
+		trigger: binding.triggerKeys,
+		action: binding.actionKeys
+	}));
+}
+
+function allBindings(settings: ShortcutSettings): Shortcut[] {
+	return [...(settings.global ?? []), ...Object.values(settings.factions).flat()];
+}
+
 function bindingsFingerprint(settings: ShortcutSettings): string {
-	return JSON.stringify(
-		Object.fromEntries(
+	return JSON.stringify({
+		global: fingerprintBindings(settings.global ?? []),
+		factions: Object.fromEntries(
 			Object.entries(settings.factions).map(([faction, bindings]) => [
 				faction,
-				bindings.map((binding) => ({
-					trigger: binding.triggerKeys,
-					action: binding.actionKeys
-				}))
+				fingerprintBindings(bindings)
 			])
 		)
-	);
+	});
 }
 
 const FACTION_KEYS: FactionKey[] = ['allies', 'allies_commonwealth', 'axis', 'axis_panzer_elite'];
@@ -154,8 +165,7 @@ function unregisterVariants(trigger: string): string[] {
 function collectTriggers(settings: ShortcutSettings, registered: Set<string>): Set<string> {
 	return new Set([
 		...registered,
-		...Object.values(settings.factions)
-			.flat()
+		...allBindings(settings)
 			.map((shortcut) => formatTrigger(shortcut.triggerKeys))
 			.filter((trigger): trigger is string => Boolean(trigger))
 	]);
@@ -166,17 +176,27 @@ function isAlreadyRegisteredError(error: unknown): boolean {
 	return message.includes('already registered');
 }
 
-function normalizeSettings(settings: ShortcutSettings) {
-	for (const list of Object.values(settings.factions)) {
-		for (let i = 0; i < list.length; i++) {
-			const binding = list[i];
+function normalizeBindingList(list: Shortcut[]) {
+	for (let i = 0; i < list.length; i++) {
+		const binding = list[i];
 
-			if (!binding.id) {
-				list[i] = normalizeShortcut(binding);
-			}
-
-			list[i].triggerKeys = list[i].triggerKeys.map(normalizeTriggerKey);
+		if (!binding.id) {
+			list[i] = normalizeShortcut(binding);
 		}
+
+		list[i].triggerKeys = list[i].triggerKeys.map(normalizeTriggerKey);
+	}
+}
+
+function normalizeSettings(settings: ShortcutSettings) {
+	if (!Array.isArray(settings.global)) {
+		settings.global = [];
+	}
+
+	normalizeBindingList(settings.global);
+
+	for (const list of Object.values(settings.factions)) {
+		normalizeBindingList(list);
 	}
 }
 
@@ -394,7 +414,8 @@ export class Shortcuts extends Feature<ShortcutSettings> {
 				3: this.settings.factions.axis_panzer_elite
 			};
 
-			const shortcutsToRegister = factionMap[race] || [];
+			const factionBindings = factionMap[race] ?? [];
+			const shortcutsToRegister = [...factionBindings, ...(this.settings.global ?? [])];
 			const seenTriggers = new Set<string>();
 			const holdBindings: { trigger: string; actionKeys: string[] }[] = [];
 
@@ -425,16 +446,27 @@ export class Shortcuts extends Feature<ShortcutSettings> {
 		});
 	}
 
-	getBindings(faction: FactionKey) {
-		return this.settings.factions[faction];
+	private bindingsFor(scope: BindingScope): Shortcut[] {
+		if (scope === 'global') {
+			if (!Array.isArray(this.settings.global)) {
+				this.settings.global = [];
+			}
+			return this.settings.global;
+		}
+
+		return this.settings.factions[scope];
 	}
 
-	addBinding(faction: FactionKey) {
-		this.settings.factions[faction].push(createShortcut());
+	getBindings(scope: BindingScope) {
+		return this.bindingsFor(scope);
 	}
 
-	removeBinding(faction: FactionKey, id: string) {
-		const list = this.settings.factions[faction];
+	addBinding(scope: BindingScope) {
+		this.bindingsFor(scope).push(createShortcut());
+	}
+
+	removeBinding(scope: BindingScope, id: string) {
+		const list = this.bindingsFor(scope);
 		const index = list.findIndex((binding) => binding.id === id);
 		if (index === -1) {
 			return;
@@ -446,8 +478,8 @@ export class Shortcuts extends Feature<ShortcutSettings> {
 		list.splice(index, 1);
 	}
 
-	moveBinding(faction: FactionKey, fromIndex: number, toIndex: number) {
-		const list = this.settings.factions[faction];
+	moveBinding(scope: BindingScope, fromIndex: number, toIndex: number) {
+		const list = this.bindingsFor(scope);
 		if (fromIndex < 0 || toIndex < 0 || fromIndex >= list.length || toIndex >= list.length) {
 			return;
 		}
@@ -668,6 +700,7 @@ export class Shortcuts extends Feature<ShortcutSettings> {
 	defaultSettings() {
 		return {
 			enabled: true,
+			global: [],
 			factions: {
 				axis: [],
 				axis_panzer_elite: [],

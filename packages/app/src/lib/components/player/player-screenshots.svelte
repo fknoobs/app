@@ -92,9 +92,9 @@
 			description: captureDate(capture),
 			props: {
 				capture,
-				class: 'border-secondary-800 max-h-[75vh] w-full rounded-md border object-contain'
+				class: 'w-full max-h-[calc(100vh-9rem)] rounded-md object-contain'
 			},
-			size: 'xl'
+			size: 'full'
 		});
 		app.modal.open();
 	}

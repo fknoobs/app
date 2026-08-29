@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
-	import { surfacePanel } from '../variants';
+	import { surfaceOverlay } from '../variants';
 	import { Popover as PopoverPrimitive, type WithoutChildren } from 'bits-ui';
 	import type { Snippet } from 'svelte';
 
@@ -34,7 +34,7 @@
 	<PopoverPrimitive.Portal>
 		<PopoverPrimitive.Content
 			class={cn(
-				surfacePanel,
+				surfaceOverlay,
 				'z-50 rounded-lg shadow-lg',
 				'data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
 				'data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95',

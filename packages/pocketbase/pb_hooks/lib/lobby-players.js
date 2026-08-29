@@ -133,15 +133,219 @@ function parseResultPlayerStats(raw) {
 		byProfile[profileId] = {
 			steamId,
 			outcome: player.outcome,
-			race_id: player.race_id
+			race_id: player.race_id,
+			elo: playerMatchElo(player)
 		};
 	}
 
 	const matchtypeId = Number(result.matchtype_id);
 	return {
 		matchtypeId: Number.isFinite(matchtypeId) ? matchtypeId : null,
-		byProfile
+		byProfile,
+		durationSeconds: durationSecondsFromResult(result),
+		avgElo: averageEloFromResult(result)
 	};
+}
+
+function playerMatchElo(player) {
+	const previous = Number(player?.oldrating);
+	if (Number.isFinite(previous) && previous >= 1) {
+		return previous;
+	}
+	const next = Number(player?.newrating);
+	if (Number.isFinite(next) && next >= 1) {
+		return next;
+	}
+	return null;
+}
+
+function durationSecondsFromResult(result) {
+	const start = Number(result?.startgametime);
+	const end = Number(result?.completiontime);
+	if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+		return null;
+	}
+	return end - start;
+}
+
+function averageEloFromResult(result) {
+	const players = Array.isArray(result?.players) ? result.players : [];
+	if (players.length === 0) {
+		return null;
+	}
+	const ratings = [];
+	for (let i = 0; i < players.length; i++) {
+		const rating = playerMatchElo(players[i]);
+		if (rating != null) {
+			ratings.push(rating);
+		}
+	}
+	if (ratings.length < 2 || ratings.length < players.length / 2) {
+		return null;
+	}
+	let sum = 0;
+	for (let i = 0; i < ratings.length; i++) {
+		sum += ratings[i];
+	}
+	return sum / ratings.length;
+}
+
+function parseResultObject(raw) {
+	if (!raw) {
+		return null;
+	}
+	if (typeof raw === 'object') {
+		return raw;
+	}
+	if (typeof raw === 'string') {
+		if (!raw) {
+			return null;
+		}
+		try {
+			return JSON.parse(raw);
+		} catch {
+			return null;
+		}
+	}
+	return null;
+}
+
+function applyLobbyFilterStats(record, resultRaw) {
+	const parsed = parseResultObject(resultRaw);
+	if (!parsed) {
+		return;
+	}
+	const durationSeconds = durationSecondsFromResult(parsed);
+	const avgElo = averageEloFromResult(parsed);
+	if (durationSeconds != null) {
+		record.set('durationSeconds', durationSeconds);
+	}
+	if (avgElo != null) {
+		record.set('avgElo', avgElo);
+	}
+}
+
+function backfillLobbyPlayerElo(lobbyId) {
+	if (!lobbyId) {
+		return;
+	}
+	$app
+		.db()
+		.newQuery(
+			`UPDATE lobby_player_index
+			 SET elo = (
+				SELECT COALESCE(
+					NULLIF(CAST(json_extract(p.value, '$.oldrating') AS INTEGER), 0),
+					CAST(json_extract(p.value, '$.newrating') AS INTEGER)
+				)
+				FROM lobbies l,
+				json_each(
+					CASE
+						WHEN l.result IS NOT NULL AND l.result != ''
+							AND json_valid(l.result)
+							AND json_type(json_extract(l.result, '$.players')) = 'array'
+						THEN json_extract(l.result, '$.players')
+						ELSE '[]'
+					END
+				) p
+				WHERE l.id = lobby_player_index.lobby
+				  AND CAST(json_extract(p.value, '$.profile_id') AS INTEGER) = lobby_player_index.profile_id
+				LIMIT 1
+			 )
+			 WHERE lobby = {:lobbyId}
+			   AND (elo IS NULL OR elo = 0)`
+		)
+		.bind({ lobbyId })
+		.execute();
+}
+
+function normalizeMapName(mapName) {
+	if (!mapName) {
+		return '';
+	}
+	const match = String(mapName).match(/^(\d+)[pP][ _](.+)$/);
+	if (!match) {
+		return String(mapName).replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+	}
+	const formattedName = match[2]
+		.replace(/_/g, ' ')
+		.toLowerCase()
+		.replace(/\b\w/g, (c) => c.toUpperCase());
+	return `${formattedName} (${match[1]})`;
+}
+
+function upsertHistoryMap(map) {
+	if (!map) {
+		return;
+	}
+	let collection;
+	try {
+		collection = $app.findCollectionByNameOrId('maps');
+	} catch {
+		return;
+	}
+	try {
+		const existing = $app.findFirstRecordByData('maps', 'map', String(map));
+		const name = normalizeMapName(map);
+		if (name && existing.get('name') !== name) {
+			existing.set('name', name);
+			$app.save(existing);
+		}
+	} catch {
+		const record = new Record(collection);
+		record.set('map', String(map));
+		record.set('name', normalizeMapName(map));
+		$app.save(record);
+	}
+}
+
+function upsertHistoryPlayers(summaries) {
+	if (!summaries || summaries.length === 0) {
+		return;
+	}
+	let collection;
+	try {
+		collection = $app.findCollectionByNameOrId('players');
+	} catch {
+		return;
+	}
+	for (let i = 0; i < summaries.length; i++) {
+		const summary = summaries[i];
+		const profileId = Number(summary?.profile_id);
+		if (!Number.isFinite(profileId) || profileId <= 0) {
+			continue;
+		}
+		const alias = String(summary.alias || '').trim();
+		const steamId = summary.steamId ? String(summary.steamId) : '';
+		try {
+			const existing = $app.findFirstRecordByData('players', 'profile_id', profileId);
+			let changed = false;
+			if (alias && existing.get('alias') !== alias) {
+				existing.set('alias', alias);
+				changed = true;
+			}
+			if (steamId && existing.get('steam_id') !== steamId) {
+				existing.set('steam_id', steamId);
+				changed = true;
+			}
+			if (changed) {
+				$app.save(existing);
+			}
+		} catch {
+			const record = new Record(collection);
+			record.set('profile_id', profileId);
+			record.set('alias', alias);
+			if (steamId) {
+				record.set('steam_id', steamId);
+			}
+			$app.save(record);
+		}
+	}
+}
+
+function upsertHistoryCatalog(summaries, map) {
+	upsertHistoryMap(map);
+	upsertHistoryPlayers(summaries);
 }
 
 function indexHasStatsFields(collection) {
@@ -174,29 +378,93 @@ function applyLobbyMeta(record, meta) {
 	record.set('counts', meta.counts);
 }
 
-function applyIndexStats(record, stats, matchtypeId) {
+function applyIndexStats(record, stats, matchtypeId, hasElo) {
 	if (!stats) {
-		return;
-	}
-
-	const outcome = Number(stats.outcome);
-	if (outcome !== 0 && outcome !== 1) {
 		return;
 	}
 
 	if (stats.steamId) {
 		record.set('steam_id', stats.steamId);
 	}
-	record.set('outcome', outcome);
+	const outcome = Number(stats.outcome);
+	if (outcome === 0 || outcome === 1) {
+		record.set('outcome', outcome);
+	}
 	if (stats.race_id != null && stats.race_id !== '') {
 		record.set('race_id', Number(stats.race_id));
 	}
 	if (matchtypeId != null) {
 		record.set('matchtype_id', matchtypeId);
 	}
+	if (hasElo && stats.elo != null) {
+		record.set('elo', stats.elo);
+	}
 }
 
-function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw, meta) {
+function displaySlotFromPlayer(player) {
+	const slot = Number(player?.slot);
+	if (!Number.isFinite(slot) || slot < 0 || slot > 7) {
+		return null;
+	}
+	return slot + 1;
+}
+
+function slotsByProfileFromPlayers(playersRaw) {
+	const byProfile = {};
+	const players = parsePlayers(playersRaw);
+	for (let i = 0; i < players.length; i++) {
+		const player = players[i];
+		const displaySlot = displaySlotFromPlayer(player);
+		if (displaySlot == null) {
+			continue;
+		}
+		const ids = [player.playerId, player.profile_id, player.profile?.profile_id];
+		for (let j = 0; j < ids.length; j++) {
+			const profileId = Number(ids[j]);
+			if (Number.isFinite(profileId) && profileId > 0) {
+				byProfile[profileId] = displaySlot;
+			}
+		}
+	}
+	return byProfile;
+}
+
+function backfillLobbyPlayerSlot(lobbyId) {
+	if (!lobbyId) {
+		return;
+	}
+	$app
+		.db()
+		.newQuery(
+			`UPDATE lobby_player_index
+			 SET slot = (
+				SELECT CAST(json_extract(p.value, '$.slot') AS INTEGER) + 1
+				FROM lobbies l,
+				json_each(
+					CASE
+						WHEN l.players IS NOT NULL AND l.players != '' AND l.players != '[]'
+							AND json_valid(l.players)
+						THEN l.players
+						ELSE '[]'
+					END
+				) p
+				WHERE l.id = lobby_player_index.lobby
+				  AND CAST(COALESCE(
+					json_extract(p.value, '$.playerId'),
+					json_extract(p.value, '$.profile.profile_id'),
+					json_extract(p.value, '$.profile_id')
+				  ) AS INTEGER) = lobby_player_index.profile_id
+				  AND json_extract(p.value, '$.slot') IS NOT NULL
+				LIMIT 1
+			 )
+			 WHERE lobby = {:lobbyId}
+			   AND (slot IS NULL OR slot = 0)`
+		)
+		.bind({ lobbyId })
+		.execute();
+}
+
+function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw, meta, playersRaw) {
 	let collection;
 	try {
 		collection = $app.findCollectionByNameOrId('lobby_player_index');
@@ -231,14 +499,22 @@ function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw, meta) {
 	}
 
 	const hasStats = indexHasStatsFields(collection);
+	const hasElo = Boolean(collection.fields.getByName('elo'));
+	const hasSlot = Boolean(collection.fields.getByName('slot'));
 	const hasMeta = meta && indexHasLobbyMeta(collection);
+	const slotsByProfile = hasSlot ? slotsByProfileFromPlayers(playersRaw) : {};
 	for (let i = 0; i < profileIdList.length; i++) {
 		const profileId = profileIdList[i];
 		const record = new Record(collection);
 		record.set('lobby', lobbyId);
 		record.set('profile_id', profileId);
 		if (hasStats) {
-			applyIndexStats(record, byProfile[profileId], matchtypeId);
+			applyIndexStats(record, byProfile[profileId], matchtypeId, hasElo);
+		} else if (hasElo && byProfile[profileId]?.elo != null) {
+			record.set('elo', byProfile[profileId].elo);
+		}
+		if (hasSlot && slotsByProfile[profileId] != null) {
+			record.set('slot', slotsByProfile[profileId]);
 		}
 		if (hasMeta) {
 			applyLobbyMeta(record, meta);
@@ -294,6 +570,7 @@ function processLobbyRecord(e) {
 	}
 
 	e.record.set('hasReplay', !!e.record.get('replay'));
+	applyLobbyFilterStats(e.record, e.record.get('result'));
 
 	if (
 		!e.record.get('needsResult') &&
@@ -316,7 +593,10 @@ function syncLobbyPlayerIndexForRecord(e) {
 		e.record.get('needsResult'),
 		e.record.get('title')
 	);
-	syncLobbyPlayerIndex(e.record.id, profileIds, e.record.get('result'), meta);
+	syncLobbyPlayerIndex(e.record.id, profileIds, e.record.get('result'), meta, e.record.get('players'));
+	if (!e.record.get('needsResult') && e.record.get('title') !== 'Skirmish') {
+		upsertHistoryCatalog(summaries, e.record.get('map'));
+	}
 	try {
 		require(`${__hooks}/lib/player-performance.js`).invalidatePerformanceCache(
 			e.record.get('user') || '',
@@ -344,5 +624,9 @@ module.exports = {
 	lobbyMeta,
 	syncLobbyPlayerIndex,
 	syncLobbyPlayerIndexForRecord,
+	upsertHistoryCatalog,
+	applyLobbyFilterStats,
+	backfillLobbyPlayerElo,
+	backfillLobbyPlayerSlot,
 	isServiceRequest
 };

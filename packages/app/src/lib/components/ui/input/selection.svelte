@@ -5,26 +5,31 @@
 	import { Button } from '../button';
 	import { cn } from '$lib/utils';
 	import { interactive, overlayBackdrop, surfaceModal, controlBase, menuItem } from '../variants';
-	import X from 'phosphor-svelte/lib/XIcon';
+	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import { selectionPicker } from './selection-picker';
 	import { useI18n } from '$lib/i18n';
+	import { Debounced, resource } from 'runed';
 
 	const PAGE_SIZE = 50;
 
+	type Option = {
+		value: string;
+		label: string;
+		child?: Snippet<[{ value: string; label: string }]>;
+	};
+
 	type Props = {
-		options: {
-			value: string;
-			label: string;
-			child?: Snippet<[{ value: string; label: string }]>;
-		}[];
+		options: Option[];
 		open?: boolean;
 		placeholder?: string;
 		multiple?: boolean;
 		icon?: Snippet;
-		getDisplayLabel?: (option: { value: string; label: string }) => string;
+		getDisplayLabel?: (option: Option) => string;
 		onEditSelected?: (value: string, event: Event) => void;
+		onSearch?: (query: string) => Promise<Option[]>;
+		hideTrigger?: boolean;
 	} & HTMLInputAttributes;
 
 	let {
@@ -35,12 +40,25 @@
 		multiple = false,
 		icon,
 		getDisplayLabel,
-		onEditSelected
+		onEditSelected,
+		onSearch,
+		hideTrigger = false,
+		class: className
 	}: Props = $props();
 	const { t } = useI18n();
 
 	let search = $state('');
 	let displayedCount = $state(PAGE_SIZE);
+	const debouncedSearch = new Debounced(() => search, 200);
+	const remoteResults = resource(
+		() => [open, debouncedSearch.current] as const,
+		([isOpen, query]) => {
+			if (!onSearch || !isOpen) {
+				return Promise.resolve([] as Option[]);
+			}
+			return onSearch(query);
+		}
+	);
 
 	let selectedValues = $derived.by(() => {
 		if (multiple) {
@@ -49,7 +67,28 @@
 		return [];
 	});
 
+	let knownOptions = $derived.by(() => {
+		const byValue: Record<string, Option> = {};
+		for (const option of options) {
+			byValue[option.value] = option;
+		}
+		for (const option of remoteResults.current ?? []) {
+			byValue[option.value] = option;
+		}
+		return Object.values(byValue);
+	});
+
 	let filteredOptions = $derived.by(() => {
+		if (onSearch) {
+			const fetched = remoteResults.current ?? [];
+			if (fetched.length > 0) return fetched;
+			const query = search.trim().toLowerCase();
+			if (!query) return options;
+			return options.filter(
+				(option) =>
+					option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query)
+			);
+		}
 		const query = search.trim().toLowerCase();
 		if (!query) return options;
 		return options.filter(
@@ -68,13 +107,13 @@
 			const selected = selectedValues;
 			if (selected.length === 0) return t(placeholder);
 			if (selected.length === 1) {
-				const option = options.find((opt) => opt.value === selected[0]);
+				const option = knownOptions.find((opt) => opt.value === selected[0]);
 				return option ? labelFor(option) : t(placeholder);
 			}
 			return t('{count} selected', { count: selected.length });
 		}
 
-		const option = value ? options.find((option) => option.value === value) : undefined;
+		const option = value ? knownOptions.find((option) => option.value === value) : undefined;
 		return option ? labelFor(option) : t(placeholder);
 	});
 
@@ -110,7 +149,7 @@
 		open = false;
 	}
 
-	function selectOption(option: { value: string; label: string }) {
+	function selectOption(option: Option) {
 		if (multiple) {
 			const currentValues = selectedValues;
 			if (currentValues.includes(option.value)) {
@@ -149,7 +188,7 @@
 	}
 </script>
 
-{#if multiple && selectedValues.length > 0}
+{#if !hideTrigger && multiple && selectedValues.length > 0}
 	<div class="mb-2 flex flex-wrap items-center gap-1.5">
 		<button
 			type="button"
@@ -162,7 +201,9 @@
 		</button>
 
 		{#each selectedValues as selectedValue (selectedValue)}
-			{@const opt = options.find((o) => o.value === selectedValue)}
+			{@const opt =
+				knownOptions.find((o) => o.value === selectedValue) ??
+				options.find((o) => o.value === selectedValue)}
 			{#if opt}
 				<span
 					class={cn(
@@ -198,7 +239,7 @@
 						aria-label={t('Remove')}
 						onclick={(e) => removeValue(selectedValue, e)}
 					>
-						<X size={12} />
+						<XIcon size={12} />
 					</button>
 				</span>
 			{/if}
@@ -206,12 +247,14 @@
 	</div>
 {/if}
 
-<Button type="button" onclick={() => (open = true)} class="w-fit max-w-48" variant="secondary">
-	{#if icon}
-		<span class="size-fit">{@render icon()}</span>
-	{/if}
-	<span class="truncate">{displayText}</span>
-</Button>
+{#if !hideTrigger}
+	<Button type="button" onclick={() => (open = true)} class={cn('w-fit max-w-48', className)} variant="secondary">
+		{#if icon}
+			<span class="size-fit">{@render icon()}</span>
+		{/if}
+		<span class="truncate">{displayText}</span>
+	</Button>
+{/if}
 
 <Dialog.Root bind:open>
 	{#if open}

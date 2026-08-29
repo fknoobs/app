@@ -1,28 +1,66 @@
 import { useQuery } from '$core/app/cache';
 import { app } from '$core/app/context';
 import { Debounced, resource, watch, type ResourceReturn } from 'runed';
-import { map, uniqBy } from 'lodash-es';
-import type {
-	LobbyAggregationResponse,
-	LobbyAggregationCommunityResponse
-} from '$core/pocketbase/types';
 import type { ListResult } from 'pocketbase';
-import type { AggregationPlayer, MatchExpanded } from '$core/app/database/matches';
-import { md5, normalizeMapName } from '$lib/utils';
+import type {
+	FilterOperator,
+	HistoryListQuery,
+	HistorySortField,
+	MatchExpanded
+} from '$core/app/database/matches';
+import { md5 } from '$lib/utils';
 import { dev } from '$app/environment';
 
 const FILTER_DEBOUNCE_MS = 200;
+
+export type CompareFilter = {
+	op: FilterOperator;
+	value: number;
+};
+
+export type HistoryMatchup = '1v1' | '2v2' | '3v3' | '4v4';
+
+/** Automatch + AT matchtype ids for 1v1–4v4 history filters. */
+export const HISTORY_MATCHUP_TYPES: Record<HistoryMatchup, readonly number[]> = {
+	'1v1': [1],
+	'2v2': [2, 5],
+	'3v3': [3, 6],
+	'4v4': [4, 7]
+};
+
+export function matchtypesForMatchups(matchups: string[]): number[] {
+	const ids = new Set<number>();
+	for (const matchup of matchups) {
+		const types = HISTORY_MATCHUP_TYPES[matchup as HistoryMatchup];
+		if (!types) continue;
+		for (const id of types) ids.add(id);
+	}
+	return [...ids];
+}
 
 export type MatchesFilterState = {
 	playerIds?: string[];
 	maps?: string[];
 	races?: string[];
+	matchups?: string[];
+	positions?: string[];
 	ranked?: boolean;
+	pro?: boolean;
+	elo?: CompareFilter;
+	duration?: CompareFilter;
 };
 
-type MatchAggregation =
-	| LobbyAggregationResponse<string, string[], AggregationPlayer[]>
-	| LobbyAggregationCommunityResponse<string[], AggregationPlayer[], string[]>;
+const EMPTY_FILTERS: MatchesFilterState = {
+	playerIds: undefined,
+	maps: undefined,
+	races: undefined,
+	matchups: undefined,
+	positions: undefined,
+	ranked: false,
+	pro: false,
+	elo: undefined,
+	duration: undefined
+};
 
 export class Matches {
 	private _scope = $state<'user' | 'community'>('user');
@@ -39,33 +77,27 @@ export class Matches {
 		this._scope = value;
 		this.page = 1;
 		this.#awaitingScopeFetch = true;
-		this.filters = {
-			playerIds: undefined,
-			maps: undefined,
-			races: undefined,
-			ranked: false
-		};
+		this.filters = { ...EMPTY_FILTERS };
+		this.sort = 'createdAt';
+		this.sortDir = 'desc';
+		this.playerOptions = [];
+		this.mapOptions = [];
 		this.#debouncedFilters.setImmediately($state.snapshot(this.filters));
 	}
 	public page = $state(1);
 	public perPage = $state(15);
 
-	public aggregation = $state<ResourceReturn<MatchAggregation>>()!;
-
 	public result = $state<ResourceReturn<ListResult<MatchExpanded>>>()!;
 
-	public filters = $state<MatchesFilterState>({
-		playerIds: undefined,
-		maps: undefined,
-		races: undefined,
-		ranked: false
-	});
+	public filters = $state<MatchesFilterState>({ ...EMPTY_FILTERS });
+	public sort = $state<HistorySortField>('createdAt');
+	public sortDir = $state<'asc' | 'desc'>('desc');
+	public playerOptions = $state<{ label: string; value: string }[]>([]);
+	public mapOptions = $state<{ label: string; value: string }[]>([]);
 
 	#debouncedFilters: Debounced<MatchesFilterState>;
 	#resultsByKey = $state<Record<string, ListResult<MatchExpanded>>>({});
-	#aggregationByScope = $state<Partial<Record<'user' | 'community', MatchAggregation>>>({});
 	#loadedResultKey = $state<string | null>(null);
-	#loadedAggregationScope = $state<'user' | 'community' | null>(null);
 	#awaitingScopeFetch = $state(false);
 
 	public resultKey = $derived.by(() =>
@@ -94,54 +126,9 @@ export class Matches {
 		!this.displayedResult && (this.result.loading || this.#awaitingScopeFetch)
 	);
 
-	public displayedAggregation = $derived.by(() => {
-		const cached = this.#aggregationByScope[this.scope];
-		const current =
-			this.#loadedAggregationScope === this.scope ? this.aggregation.current : undefined;
-
-		if (this.aggregation.loading) {
-			return cached;
-		}
-
-		return current ?? cached;
-	});
-
-	public players = $derived.by(() => {
-		const options = (this.displayedAggregation?.players || [])
-			.map((player) => {
-				const nested =
-					typeof player === 'object' &&
-					player !== null &&
-					'profile' in player &&
-					player.profile &&
-					typeof player.profile === 'object'
-						? (player.profile as { alias?: string; profile_id?: number })
-						: null;
-				const flat = player as AggregationPlayer;
-				const profileId = nested?.profile_id ?? flat.profile_id;
-				if (profileId == null) {
-					return null;
-				}
-				const alias = (nested?.alias ?? flat.alias ?? '').trim();
-				return {
-					label: alias || String(profileId),
-					value: String(profileId)
-				};
-			})
-			.filter((option): option is { label: string; value: string } => option != null);
-
-		return uniqBy(options, 'value');
-	});
-
-	public maps = $derived.by(() => {
-		return map(this.displayedAggregation?.maps || [], (m) => ({
-			label: normalizeMapName(m),
-			value: m
-		}));
-	});
-
-	public query = $derived.by(() => {
-		const { playerIds, maps, races, ranked } = this.#debouncedFilters.current;
+	public query = $derived.by((): HistoryListQuery => {
+		const { playerIds, maps, races, matchups, positions, ranked, pro, elo, duration } =
+			this.#debouncedFilters.current;
 
 		return {
 			scope: this.scope,
@@ -149,10 +136,21 @@ export class Matches {
 			profileId:
 				this.scope === 'user' ? (app.game.profile?.relic.profile_id ?? undefined) : undefined,
 			ranked: ranked ?? false,
+			pro: pro ?? false,
 			playerIds: playerIds ?? [],
 			maps: maps ?? [],
 			races: races ?? [],
-			includeSkirmish: dev
+			matchtypes: matchtypesForMatchups(matchups ?? []),
+			slots: (positions ?? [])
+				.map((value) => Number(value))
+				.filter((value) => Number.isInteger(value) && value >= 1 && value <= 8),
+			includeSkirmish: dev,
+			eloOp: elo?.op,
+			elo: elo?.value != null ? Number(elo.value) : undefined,
+			durationOp: duration?.op,
+			duration: duration != null ? Number(duration.value) * 60 : undefined,
+			sort: this.sort,
+			sortDir: this.sortDir
 		};
 	});
 
@@ -163,15 +161,6 @@ export class Matches {
 			() => $state.snapshot(this.#debouncedFilters.current),
 			() => {
 				this.page = 1;
-			}
-		);
-		this.aggregation = resource(
-			() => this.scope,
-			() => {
-				return useQuery('matches-aggregation-v2-' + this.scope, {
-					queryFn: () => this.getAggregation(),
-					ttl: 300
-				});
 			}
 		);
 		this.result = resource(
@@ -209,18 +198,77 @@ export class Matches {
 				}
 			}
 		);
+	}
 
-		watch(
-			() => this.aggregation.current,
-			(current) => {
-				if (!current) {
-					return;
-				}
-
-				this.#loadedAggregationScope = this.scope;
-				this.#aggregationByScope[this.scope] = current;
+	toggleSort(field: HistorySortField) {
+		if (this.sort === field) {
+			if (this.sortDir === 'desc') {
+				this.sortDir = 'asc';
+			} else {
+				this.sort = 'createdAt';
+				this.sortDir = 'desc';
 			}
-		);
+		} else {
+			this.sort = field;
+			this.sortDir = 'desc';
+		}
+		this.page = 1;
+	}
+
+	rememberPlayerOptions(options: { label: string; value: string }[]) {
+		const byValue: Record<string, { label: string; value: string }> = {};
+		for (const option of this.playerOptions) {
+			byValue[option.value] = option;
+		}
+		for (const option of options) {
+			byValue[option.value] = option;
+		}
+		this.playerOptions = Object.values(byValue);
+	}
+
+	rememberMapOptions(options: { label: string; value: string }[]) {
+		const byValue: Record<string, { label: string; value: string }> = {};
+		for (const option of this.mapOptions) {
+			byValue[option.value] = option;
+		}
+		for (const option of options) {
+			byValue[option.value] = option;
+		}
+		this.mapOptions = Object.values(byValue);
+	}
+
+	searchPlayers(q: string) {
+		return app.database.matches
+			.searchHistoryPlayers(
+				this.scope,
+				q,
+				this.scope === 'user' ? app.features.auth.userId : undefined
+			)
+			.then((items) => {
+				const options = items.map((player) => ({
+					label: (player.alias || '').trim() || String(player.profile_id),
+					value: String(player.profile_id)
+				}));
+				this.rememberPlayerOptions(options);
+				return options;
+			});
+	}
+
+	searchMaps(q: string) {
+		return app.database.matches
+			.searchHistoryMaps(
+				this.scope,
+				q,
+				this.scope === 'user' ? app.features.auth.userId : undefined
+			)
+			.then((items) => {
+				const options = items.map((item) => ({
+					label: item.name || item.map,
+					value: item.map
+				}));
+				this.rememberMapOptions(options);
+				return options;
+			});
 	}
 
 	getMatches(signal?: AbortSignal) {
@@ -228,7 +276,14 @@ export class Matches {
 			this.query.playerIds.length > 0 ||
 			this.query.maps.length > 0 ||
 			this.query.races.length > 0 ||
+			this.query.matchtypes.length > 0 ||
+			this.query.slots?.length > 0 ||
 			this.query.ranked ||
+			this.query.pro ||
+			this.query.elo != null ||
+			this.query.duration != null ||
+			this.query.sort !== 'createdAt' ||
+			this.query.sortDir === 'asc' ||
 			!!this.query.includeSkirmish;
 		const cacheKey = `matches-${md5(JSON.stringify({ ...this.query, page: this.page }))}`;
 
@@ -238,12 +293,5 @@ export class Matches {
 			ttl: hasFilters ? undefined : 60,
 			signal
 		});
-	}
-
-	getAggregation() {
-		return app.database.matches.getMatchAggregation(
-			this.scope,
-			this.scope === 'user' ? app.features.auth.user.id : undefined
-		);
 	}
 }
