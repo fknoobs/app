@@ -1,3 +1,33 @@
+### v0.57.0
+
+- enhance; align management, denylist, and flagged reports layouts with other tabbed pages
+- fix; show relic aliases on flagged player reports instead of account names
+- enhance; align buttons, badges, and tabs with primary chip styling
+- enhance; use solid backgrounds on dropdowns, popovers, and context menus
+- enhance; show country flags next to player names on match history overview
+- feat; take random in-game screenshots and report known cheat processes during matches
+- feat; show match screenshots for community review and label confirmed cheaters
+- fix; show existing match screenshots on player profiles and in the admin captures tab
+- enhance; open player and match captures in a larger preview modal
+- feat; add global keybindings that apply in every match regardless of faction
+- feat; allow admins to impersonate users from management
+- feat; filter history by mode, lobby position, ELO, and duration, and sort by likes, downloads, and comments
+- fix; history ELO filter uses match ratings when player index elo is empty
+- fix; don't block pocketbase startup on history catalog sql backfill
+- feat; merge history and local playback replays into one replays page
+- feat; show steam id on the player profile header
+- feat; mark high average ELO matches as pro gameplay
+- enhance; restyle notification inbox and popover to match app chrome
+- feat; install updates in the background and restart when ready
+- fix; ship the NSIS installer so background updates apply to new installs
+- feat; allow only one app instance at a time
+- feat; like, download, and comment on match history
+- feat; notify match players when someone comments
+- feat; like, reply to, and edit match comments in nested threads
+- enhance; write multiline comments with a markdown toolbar
+- enhance; show comment counts before the map name
+- enhance; enlarge the dashboard W/L form and replay player stats
+
 ### v0.56.0
 
 - enhance; drop lobby scout details so ELO, level and position scan first
