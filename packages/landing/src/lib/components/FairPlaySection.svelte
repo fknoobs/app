@@ -32,7 +32,7 @@
 			id: 'all-chat',
 			title: 'All-chat announce',
 			description:
-				'At the start of a match the app posts "[FAIPLAY] Supervised by coh1stats.com" so other players can see fair play is on.',
+				'At the start of a match the app posts "[FAIRPLAY] Supervised by coh1stats.com" so other players can see fair play is on.',
 			icon: ChatTextIcon
 		}
 	];
