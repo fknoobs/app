@@ -1,5 +1,17 @@
 # @company-of-heroes/landing
 
+## 1.2.1
+
+- enhance; rewrite homepage copy so it matches the companion and stays factually accurate
+- enhance; style the SmartScreen notice as a warning alert
+- enhance; mention SignPath Foundation as the Authenticode signing path
+- enhance; load player profiles faster in the app and on the website
+- enhance; publish an up-to-date privacy policy covering the website, match stats, and fair play checks
+- fix; allow opening the privacy policy url from the desktop app
+- feat; highlight fair play and cheater checks on the homepage
+- feat; show Relic player labels on public player pages and leaderboards
+- fix; stop windows eperm on landing builds by not locking the cloudflare output dir
+
 ## 1.2.0
 
 - enhance; remove compact ranked card from public player pages
