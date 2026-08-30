@@ -1,3 +1,7 @@
+### v0.59.1
+
+- fix; send the fair-play all-chat announce immediately at match start and pause hotkeys while typing it
+
 ### v0.59.0
 
 - enhance; align the management users search form with labels
