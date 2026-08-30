@@ -1,5 +1,9 @@
 # @company-of-heroes/landing
 
+## 1.2.2
+
+- fix; typo
+
 ## 1.2.1
 
 - enhance; rewrite homepage copy so it matches the companion and stays factually accurate

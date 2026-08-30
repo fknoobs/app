@@ -1,5 +1,9 @@
 # @company-of-heroes/app
 
+## 0.59.2
+
+- fix; typo
+
 ## 0.59.1
 
 - fix; send the fair-play all-chat announce immediately at match start and pause hotkeys while typing it
