@@ -9,7 +9,12 @@ on:
   # GITHUB_TOKEN tag pushes do not trigger this workflow on their own.
   workflow_call:
 
-concurrency: ${{ github.workflow }}-${{ github.ref }}
+# Do not use github.workflow here: in a workflow_call it is the caller name
+# ("Release"), which would share Release-refs/heads/master with the parent
+# and GitHub cancels both as a deadlock.
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: write
