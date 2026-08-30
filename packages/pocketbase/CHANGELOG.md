@@ -1,5 +1,23 @@
 # @company-of-heroes/pocketbase
 
+## 0.7.0
+
+- fix; apply the cheater label to every steam account linked to the same user
+- fix; expanding a ranked mode on the performance tab no longer lists unranked lobby matches
+- enhance; load player profiles faster in the app and on the website
+- fix; show newest community matches on the replays page
+- enhance; keep leaderboard ELO fresher from Relic match history
+- enhance; cron-harvest ELO for ranked leaderboard players from Relic match history
+- feat; hide tournament matches whose lobby title matches a staff word list
+- feat; let staff hide tournament match results from public overviews
+- feat; pick custom hex colors for user labels
+- feat; show Relic player labels on public player pages and leaderboards
+- feat; let staff assign Relic player labels from the profile page
+- feat; assign public labels to Relic players instead of app accounts
+- fix; match history and form by steam id, not who uploaded the lobby
+- fix; saving a hidden title word no longer fails after the record is created
+- enhance; serve public leaderboards from a warm cache instead of Relic on every request
+
 ## 0.6.0
 
 - fix; refresh dashboard profile stats after matches instead of waiting on stale caches

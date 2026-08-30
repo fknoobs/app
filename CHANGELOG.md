@@ -1,3 +1,39 @@
+### v0.59.0
+
+- enhance; align the management users search form with labels
+- fix; apply the cheater label to every steam account linked to the same user
+- enhance; restyle the label color picker to match other form controls
+- enhance; let match list tables choose which columns to show
+- fix; keep the leaderboard player search field compact
+- enhance; restyle the dashboard profile to match other dashboard panels
+- feat; show Relic player labels on the dashboard profile
+- fix; expanding a ranked mode on the performance tab no longer lists unranked lobby matches
+- feat; announce fair play in Company of Heroes all-chat during matches
+- feat; add a settings toggle for the fair play all-chat announce
+- enhance; load player profiles faster in the app and on the website
+- enhance; review flagged reports in an expandable table
+- enhance; use compact boxed form fields and distinct action buttons across the app
+- enhance; tidy the management new-label composer into one field
+- fix; show newest community matches on the replays page
+- enhance; keep leaderboard ELO fresher from Relic match history
+- enhance; cron-harvest ELO for ranked leaderboard players from Relic match history
+- feat; hide tournament matches whose lobby title matches a staff word list
+- feat; let staff hide tournament match results from public overviews
+- enhance; publish an up-to-date privacy policy covering the website, match stats, and fair play checks
+- fix; allow opening the privacy policy url from the desktop app
+- feat; add korean locale
+- feat; pick custom hex colors for user labels
+- enhance; show match screenshots in an expandable player table
+- feat; default the app language to the os locale until settings override it
+- feat; let staff assign Relic player labels from the profile page
+- fix; stop fair play screenshots when a match ends so the main menu is not uploaded
+- feat; assign public labels to Relic players instead of app accounts
+- enhance; paginate player screenshots in an expandable match table
+- enhance; detect CoH install paths more reliably and make setup easier to follow
+- fix; match history and form by steam id, not who uploaded the lobby
+- fix; saving a hidden title word no longer fails after the record is created
+- feat; open a player profile from the management users tab
+
 ### v0.58.1
 
 - fix; skip blank CoH screenshots and recapture from the visible screen
