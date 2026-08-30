@@ -18,6 +18,9 @@ export {
 	validateGameDir,
 	detectWarningsLog,
 	detectGameDir,
+	defaultWarningsLogPath,
+	defaultWarningsLogDir,
+	defaultGameDirPath,
 	type PathValidation
 } from './paths';
 export { BackupService, type BackupCandidate, type BackupReason } from './backup';

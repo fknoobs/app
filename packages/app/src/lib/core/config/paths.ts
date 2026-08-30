@@ -1,5 +1,6 @@
 import { dev } from '$app/environment';
-import { basename, dirname, documentDir, join, appConfigDir } from '@tauri-apps/api/path';
+import { invoke } from '@tauri-apps/api/core';
+import { basename, dirname, documentDir, homeDir, join, appConfigDir } from '@tauri-apps/api/path';
 import { exists, readTextFile } from '@tauri-apps/plugin-fs';
 import { t } from '$lib/i18n';
 
@@ -38,6 +39,12 @@ export async function validateWarningsLog(path: string): Promise<PathValidation>
 	return { valid: true };
 }
 
+export const COH_CONFIG_FOLDER = 'Company of Heroes Relaunch';
+export const COH_GAME_FOLDER = 'Company of Heroes Relaunch';
+export const COH_LEGACY_FOLDER = 'Company of Heroes';
+export const WARNINGS_LOG_NAME = 'warnings.log';
+export const GAME_EXE_NAME = 'RelicCOH.exe';
+
 /** Validates a Company of Heroes installation directory. */
 export async function validateGameDir(path: string): Promise<PathValidation> {
 	if (!path || path.trim() === '') {
@@ -48,54 +55,156 @@ export async function validateGameDir(path: string): Promise<PathValidation> {
 		return { valid: false, reason: t('Folder does not exist') };
 	}
 
-	if (!(await exists(await join(path, 'RelicCOH.exe')))) {
+	if (!(await exists(await join(path, GAME_EXE_NAME)))) {
 		return { valid: false, reason: t('RelicCOH.exe not found in this folder') };
 	}
 
 	return { valid: true };
 }
 
+/** Default warnings.log path under Documents (may not exist yet). */
+export async function defaultWarningsLogPath(): Promise<string> {
+	return join(await documentDir(), 'My Games', COH_CONFIG_FOLDER, WARNINGS_LOG_NAME);
+}
+
+/** Folder that should contain warnings.log. */
+export async function defaultWarningsLogDir(): Promise<string> {
+	return join(await documentDir(), 'My Games', COH_CONFIG_FOLDER);
+}
+
+/** Typical Steam install path, used as a hint when detection fails. */
+export async function defaultGameDirPath(): Promise<string> {
+	return join(
+		'C:',
+		'Program Files (x86)',
+		'Steam',
+		'steamapps',
+		'common',
+		COH_GAME_FOLDER
+	);
+}
+
+async function warningsLogCandidates(): Promise<string[]> {
+	const docs = await documentDir();
+	const folders = [COH_CONFIG_FOLDER, COH_LEGACY_FOLDER];
+	const candidates: string[] = [];
+
+	for (const folder of folders) {
+		candidates.push(await join(docs, 'My Games', folder, WARNINGS_LOG_NAME));
+	}
+
+	try {
+		const home = await homeDir();
+		for (const folder of folders) {
+			candidates.push(
+				await join(home, 'OneDrive', 'Documents', 'My Games', folder, WARNINGS_LOG_NAME)
+			);
+		}
+	} catch {
+		// homeDir is best effort
+	}
+
+	return candidates;
+}
+
+function parseLibraryFolders(content: string): string[] {
+	const paths: string[] = [];
+
+	for (const match of content.matchAll(/"path"\s+"([^"]+)"/g)) {
+		paths.push(match[1].replace(/\\\\/g, '\\'));
+	}
+
+	return paths;
+}
+
+function enqueueSteamRoot(queue: string[], queued: Set<string>, raw: string) {
+	const normalized = raw.replace(/\//g, '\\').replace(/\\+$/, '');
+	const key = normalized.toLowerCase();
+
+	if (!normalized || queued.has(key)) {
+		return;
+	}
+
+	queued.add(key);
+	queue.push(normalized);
+}
+
+async function collectSteamLibraries(): Promise<string[]> {
+	const queue: string[] = [];
+	const queued = new Set<string>();
+
+	try {
+		const fromRegistry = await invoke<string | null>('get_steam_install_path');
+
+		if (fromRegistry) {
+			enqueueSteamRoot(queue, queued, fromRegistry);
+		}
+	} catch {
+		// registry lookup is best effort
+	}
+
+	enqueueSteamRoot(queue, queued, 'C:\\Program Files (x86)\\Steam');
+	enqueueSteamRoot(queue, queued, 'C:\\Program Files\\Steam');
+	enqueueSteamRoot(queue, queued, 'C:\\Steam');
+	enqueueSteamRoot(queue, queued, 'C:\\SteamLibrary');
+
+	const libraries: string[] = [];
+
+	for (let i = 0; i < queue.length; i++) {
+		const root = queue[i];
+		const steamapps = await join(root, 'steamapps');
+
+		if (!(await exists(steamapps))) {
+			continue;
+		}
+
+		libraries.push(root);
+
+		for (const parts of [
+			['steamapps', 'libraryfolders.vdf'],
+			['config', 'libraryfolders.vdf']
+		]) {
+			try {
+				const vdfPath = await join(root, ...parts);
+
+				if (!(await exists(vdfPath))) {
+					continue;
+				}
+
+				for (const libraryPath of parseLibraryFolders(await readTextFile(vdfPath))) {
+					enqueueSteamRoot(queue, queued, libraryPath);
+				}
+			} catch {
+				// ignore, detection is best effort
+			}
+		}
+	}
+
+	return libraries;
+}
+
 /** Attempts to auto-detect the warnings.log location. */
 export async function detectWarningsLog(): Promise<string | null> {
-	const candidate = await join(
-		await documentDir(),
-		'My Games',
-		'Company of Heroes Relaunch',
-		'warnings.log'
-	);
+	for (const candidate of await warningsLogCandidates()) {
+		if ((await validateWarningsLog(candidate)).valid) {
+			return candidate;
+		}
+	}
 
-	return (await validateWarningsLog(candidate)).valid ? candidate : null;
+	return null;
 }
 
 /** Attempts to auto-detect the CoH installation directory (Steam libraries). */
 export async function detectGameDir(): Promise<string | null> {
-	const steamRoots = ['C:\\Program Files (x86)\\Steam', 'C:\\Program Files\\Steam'];
-	const libraries: string[] = [];
+	const folders = [COH_GAME_FOLDER, COH_LEGACY_FOLDER];
 
-	for (const root of steamRoots) {
-		libraries.push(root);
+	for (const library of await collectSteamLibraries()) {
+		for (const folder of folders) {
+			const candidate = await join(library, 'steamapps', 'common', folder);
 
-		// Best effort: scan additional Steam library folders.
-		try {
-			const vdfPath = await join(root, 'steamapps', 'libraryfolders.vdf');
-
-			if (await exists(vdfPath)) {
-				const content = await readTextFile(vdfPath);
-
-				for (const match of content.matchAll(/"path"\s+"([^"]+)"/g)) {
-					libraries.push(match[1].replace(/\\\\/g, '\\'));
-				}
+			if ((await validateGameDir(candidate)).valid) {
+				return candidate;
 			}
-		} catch {
-			// ignore, detection is best effort
-		}
-	}
-
-	for (const library of libraries) {
-		const candidate = await join(library, 'steamapps', 'common', 'Company of Heroes Relaunch');
-
-		if ((await validateGameDir(candidate)).valid) {
-			return candidate;
 		}
 	}
 

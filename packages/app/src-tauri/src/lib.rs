@@ -11,6 +11,7 @@ mod input;
 mod migrations;
 mod process_check;
 mod replay_parser;
+mod steam;
 mod tray;
 mod unzip;
 mod window;
@@ -62,7 +63,8 @@ pub fn run() {
             input::shortcut_modifiers_match,
             input::send_game_chat,
             hold_bindings::sync_hold_bindings,
-            window::get_active_window_title
+            window::get_active_window_title,
+            steam::get_steam_install_path
         ])
         .on_menu_event(|app, event| match event.id().as_ref() {
             "tray-show" => tray::show_main(app),

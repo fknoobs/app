@@ -8,7 +8,11 @@ const RELIC_API_BASE = 'https://coh1-lobby.reliclink.com';
 const RANKED_LEADERBOARD_MIN = 4;
 const RANKED_LEADERBOARD_MAX = 19;
 const ELO_BATCH_SIZE = 40;
-const CACHE_TTL_MS = 60 * 1000;
+const RELIC_COUNT = 200;
+const CACHE_MAX_STALE_MS = 30 * 60 * 1000;
+const CACHE_REFRESH_MIN_AGE_MS = 4 * 60 * 1000;
+const CACHE_CRON_BATCH = 2;
+const HTTP_CACHE_CONTROL = 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
 
 const ALLOWED_ORIGINS = [
 	'https://coh1stats.com',
@@ -18,6 +22,8 @@ const ALLOWED_ORIGINS = [
 ];
 
 const cache = {};
+const inflight = {};
+let refreshCursor = RANKED_LEADERBOARD_MIN;
 
 function isRankedLeaderboard(leaderboardId) {
 	return leaderboardId >= RANKED_LEADERBOARD_MIN && leaderboardId <= RANKED_LEADERBOARD_MAX;
@@ -28,6 +34,14 @@ function steamIdFromName(name) {
 		return '';
 	}
 	return name.replace('/steam/', '');
+}
+
+function relicLeaderboardUrl(leaderboardId) {
+	return (
+		`${RELIC_API_BASE}/community/leaderboard/getleaderboard2?title=coh1&leaderboard_id=` +
+		encodeURIComponent(String(leaderboardId)) +
+		`&count=${RELIC_COUNT}`
+	);
 }
 
 function logInfo(message, attrs) {
@@ -76,6 +90,11 @@ function applyCors(e) {
 
 function jsonWithCors(e, status, body) {
 	applyCors(e);
+	if (status === 200) {
+		e.response.header().set('Cache-Control', HTTP_CACHE_CONTROL);
+	} else {
+		e.response.header().set('Cache-Control', 'no-store');
+	}
 	return e.json(status, body);
 }
 
@@ -97,16 +116,15 @@ function fetchRelicJsonInsecure(url, context) {
 	}
 }
 
-function readCache(leaderboardId) {
+function getCached(leaderboardId) {
 	const entry = cache[leaderboardId];
-	if (!entry) {
+	if (!entry?.data) {
 		return null;
 	}
-	if (Date.now() - entry.at > CACHE_TTL_MS) {
-		delete cache[leaderboardId];
-		return null;
-	}
-	return entry.data;
+	return {
+		data: entry.data,
+		ageMs: Date.now() - entry.at
+	};
 }
 
 function writeCache(leaderboardId, data) {
@@ -224,47 +242,10 @@ function fetchSteamAvatars(steamIds) {
 	}
 }
 
-function loadLeaderboard(leaderboardId) {
-	const cached = readCache(leaderboardId);
-	if (cached) {
-		return cached;
-	}
-
-	const url =
-		`${RELIC_API_BASE}/community/leaderboard/getleaderboard2?title=coh1&leaderboard_id=` +
-		encodeURIComponent(String(leaderboardId));
-	const data = fetchRelicJsonInsecure(url, { leaderboardId });
-	const stats = joinLeaderboard(data);
+function assemblePayload(leaderboardId, relicData) {
+	const stats = joinLeaderboard(relicData);
 	const steamIds = stats.map((stat) => steamIdFromName(stat.profile.name));
-	let eloBySteamId = loadEloBySteamIds(steamIds);
-
-	const missingProfileIds = [];
-	for (const stat of stats) {
-		if (missingProfileIds.length >= 12) {
-			break;
-		}
-
-		const steamId = steamIdFromName(stat.profile.name);
-		const elo = eloBySteamId[steamId];
-		if (ratings.getStoredEloForLeaderboard(elo, leaderboardId) == null) {
-			const profileId = Number(stat.profile.profile_id);
-			if (Number.isInteger(profileId) && profileId > 0) {
-				missingProfileIds.push(profileId);
-			}
-		}
-	}
-
-	if (missingProfileIds.length > 0) {
-		try {
-			const harvest = require(`${__hooks}/lib/player-ratings-harvest.js`);
-			const result = harvest.harvestProfiles(missingProfileIds);
-			if (result.processed > 0) {
-				eloBySteamId = loadEloBySteamIds(steamIds);
-			}
-		} catch (error) {
-			logWarn('Leaderboard ELO harvest failed', { error: String(error), leaderboardId });
-		}
-	}
+	const eloBySteamId = loadEloBySteamIds(steamIds);
 
 	const topSteamIds = stats
 		.slice(0, 3)
@@ -285,13 +266,91 @@ function loadLeaderboard(leaderboardId) {
 		stat.profile.labels = labelsBySteamId[steamId] ?? [];
 	}
 
-	const payload = {
+	return {
 		leaderboardId,
 		stats,
 		eloBySteamId
 	};
+}
+
+function cacheFromRelicData(leaderboardId, relicData) {
+	const payload = assemblePayload(leaderboardId, relicData);
 	writeCache(leaderboardId, payload);
 	return payload;
+}
+
+function refreshBoard(leaderboardId) {
+	if (inflight[leaderboardId]) {
+		const hit = getCached(leaderboardId);
+		if (hit) {
+			return hit.data;
+		}
+	}
+
+	inflight[leaderboardId] = true;
+	try {
+		const data = fetchRelicJsonInsecure(relicLeaderboardUrl(leaderboardId), { leaderboardId });
+		return cacheFromRelicData(leaderboardId, data);
+	} finally {
+		delete inflight[leaderboardId];
+	}
+}
+
+function resolveLeaderboard(leaderboardId) {
+	const hit = getCached(leaderboardId);
+	if (hit && hit.ageMs <= CACHE_MAX_STALE_MS) {
+		return { payload: hit.data, cached: true, ageMs: hit.ageMs };
+	}
+
+	try {
+		const payload = refreshBoard(leaderboardId);
+		return { payload, cached: false, ageMs: 0 };
+	} catch (error) {
+		if (hit) {
+			logWarn('Leaderboard refresh failed, serving stale', {
+				leaderboardId,
+				error: String(error),
+				ageMs: hit.ageMs
+			});
+			return { payload: hit.data, cached: true, ageMs: hit.ageMs };
+		}
+		throw error;
+	}
+}
+
+function loadLeaderboard(leaderboardId) {
+	return resolveLeaderboard(leaderboardId).payload;
+}
+
+function nextRefreshId() {
+	const id = refreshCursor;
+	refreshCursor = id >= RANKED_LEADERBOARD_MAX ? RANKED_LEADERBOARD_MIN : id + 1;
+	return id;
+}
+
+function refreshNextBoards(count) {
+	const n = Number(count) > 0 ? Number(count) : CACHE_CRON_BATCH;
+	const results = [];
+	for (let i = 0; i < n; i++) {
+		const leaderboardId = nextRefreshId();
+		const hit = getCached(leaderboardId);
+		if (hit && hit.ageMs < CACHE_REFRESH_MIN_AGE_MS) {
+			results.push({ leaderboardId, skipped: true, ageMs: hit.ageMs });
+			continue;
+		}
+
+		try {
+			const payload = refreshBoard(leaderboardId);
+			results.push({ leaderboardId, statCount: payload.stats.length });
+			logInfo('Leaderboard cache refreshed', {
+				leaderboardId,
+				statCount: payload.stats.length
+			});
+		} catch (error) {
+			results.push({ leaderboardId, error: String(error) });
+		}
+	}
+	return results;
 }
 
 function handleOptions(e) {
@@ -312,14 +371,14 @@ function handleGet(e) {
 	}
 
 	try {
-		const cached = Boolean(readCache(leaderboardId));
-		const payload = loadLeaderboard(leaderboardId);
+		const result = resolveLeaderboard(leaderboardId);
 		logInfo('Leaderboard loaded', {
 			leaderboardId,
-			statCount: payload.stats.length,
-			cached
+			statCount: result.payload.stats.length,
+			cached: result.cached,
+			ageMs: result.ageMs
 		});
-		return jsonWithCors(e, 200, payload);
+		return jsonWithCors(e, 200, result.payload);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		logError('Failed to load leaderboard', { leaderboardId, error: message });
@@ -330,5 +389,7 @@ function handleGet(e) {
 module.exports = {
 	handleGet,
 	handleOptions,
-	loadLeaderboard
+	loadLeaderboard,
+	cacheFromRelicData,
+	refreshNextBoards
 };

@@ -78,12 +78,25 @@ function joinLeaderboardProfileIds(data) {
 	return profileIds;
 }
 
-function fetchLeaderboardProfileIds(leaderboardId) {
+function fetchLeaderboardData(leaderboardId) {
 	const url =
 		`${RELIC_API_BASE}/community/leaderboard/getleaderboard2?title=coh1&leaderboard_id=` +
-		encodeURIComponent(String(leaderboardId));
-	const data = fetchRelicJson(url);
-	return joinLeaderboardProfileIds(data);
+		encodeURIComponent(String(leaderboardId)) +
+		'&count=200';
+	return fetchRelicJson(url);
+}
+
+function warmPublicCache(leaderboardId, relicData) {
+	try {
+		const leaderboard = require(`${__hooks}/lib/leaderboard.js`);
+		leaderboard.cacheFromRelicData(leaderboardId, relicData);
+	} catch (error) {
+		console.log(
+			'[player_ratings] leaderboard cache warm failed',
+			leaderboardId,
+			String(error)
+		);
+	}
 }
 
 function runForLeaderboard(leaderboardId) {
@@ -97,7 +110,9 @@ function runForLeaderboard(leaderboardId) {
 	}
 
 	try {
-		const profileIds = fetchLeaderboardProfileIds(leaderboardId);
+		const relicData = fetchLeaderboardData(leaderboardId);
+		warmPublicCache(leaderboardId, relicData);
+		const profileIds = joinLeaderboardProfileIds(relicData);
 		const result = harvest.harvestProfiles(profileIds);
 		return {
 			leaderboardId,
