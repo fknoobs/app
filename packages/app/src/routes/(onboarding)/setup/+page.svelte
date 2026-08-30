@@ -2,14 +2,19 @@
 	import '../../../app.css';
 	import * as Form from '$lib/components/ui/form';
 	import { Button } from '$lib/components/ui/button';
-	import { H } from '$lib/components/ui/h';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Box } from '$lib/components/ui/box';
 	import { FileSelection } from '$lib/components/ui/input';
 	import { Toaster, toast } from '$lib/components/ui/toasts';
+	import { surfacePanel } from '$lib/components/ui/variants';
 	import { onMount } from 'svelte';
 	import { watch } from 'runed';
 	import { boot } from '$core/runtime/boot.svelte';
 	import { settings } from '$core/config/settings.svelte';
 	import {
+		defaultGameDirPath,
+		defaultWarningsLogDir,
+		defaultWarningsLogPath,
 		detectGameDir,
 		detectWarningsLog,
 		validateGameDir,
@@ -20,8 +25,13 @@
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircleIcon';
 	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
+	import ArrowSquareOutIcon from 'phosphor-svelte/lib/ArrowSquareOutIcon';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import dayjs from '$lib/dayjs';
 	import { useI18n } from '$lib/i18n';
+	import { exists } from '@tauri-apps/plugin-fs';
+	import { revealItemInDir } from '@tauri-apps/plugin-opener';
+	import { dirname } from '@tauri-apps/api/path';
 
 	const { t } = useI18n();
 
@@ -29,10 +39,22 @@
 	let dirValidation = $state<PathValidation>({ valid: false });
 	let isRestoring = $state(false);
 	let isFinishing = $state(false);
+	let isDetecting = $state(false);
 	let didDismissRestore = $state(false);
+	let expectedLogPath = $state('');
+	let expectedLogDir = $state('');
+	let expectedGameDir = $state('');
+	let detectedLog = $state<string | null>(null);
+	let detectedGame = $state<string | null>(null);
 
 	const canFinish = $derived(logValidation.valid && dirValidation.valid);
 	const showRestore = $derived(boot.restoreCandidate !== null && !didDismissRestore);
+	const logAutoDetected = $derived(
+		!!detectedLog && settings.tree.app.companyOfHeroesConfigPath === detectedLog
+	);
+	const gameAutoDetected = $derived(
+		!!detectedGame && settings.tree.app.companyOfHeroesInstallationPath === detectedGame
+	);
 
 	watch(
 		() => settings.tree.app.companyOfHeroesConfigPath,
@@ -52,42 +74,72 @@
 		}
 	);
 
-	onMount(async () => {
-		// Best-effort auto-detection for empty paths.
-		if (!settings.tree.app.companyOfHeroesConfigPath) {
-			const detected = await detectWarningsLog();
-
-			if (detected) {
-				settings.tree.app.companyOfHeroesConfigPath = detected;
+	const detectPaths = async () => {
+		isDetecting = true;
+		try {
+			expectedLogPath = await defaultWarningsLogPath();
+			expectedLogDir = await defaultWarningsLogDir();
+			expectedGameDir = await defaultGameDirPath();
+			const [log, game] = await Promise.all([detectWarningsLog(), detectGameDir()]);
+			detectedLog = log;
+			detectedGame = game;
+			if (log) {
+				const current = settings.tree.app.companyOfHeroesConfigPath;
+				const currentOk = current ? (await validateWarningsLog(current)).valid : false;
+				if (!current || !currentOk) {
+					settings.tree.app.companyOfHeroesConfigPath = log;
+				}
 			}
-		}
-
-		if (!settings.tree.app.companyOfHeroesInstallationPath) {
-			const detected = await detectGameDir();
-
-			if (detected) {
-				settings.tree.app.companyOfHeroesInstallationPath = detected;
+			if (game) {
+				expectedGameDir = game;
+				const current = settings.tree.app.companyOfHeroesInstallationPath;
+				const currentOk = current ? (await validateGameDir(current)).valid : false;
+				if (!current || !currentOk) {
+					settings.tree.app.companyOfHeroesInstallationPath = game;
+				}
 			}
+		} finally {
+			isDetecting = false;
 		}
+	};
+
+	onMount(() => {
+		void detectPaths();
 	});
+
+	const revealPath = async (selected: string, fallback: string) => {
+		const candidates = [selected, fallback].filter(Boolean);
+		for (const candidate of candidates) {
+			if (!(await exists(candidate))) {
+				continue;
+			}
+			try {
+				await revealItemInDir(candidate);
+				return;
+			} catch {
+				try {
+					await revealItemInDir(await dirname(candidate));
+					return;
+				} catch {
+					// try the next candidate
+				}
+			}
+		}
+		toast.error(t('Could not open this location. Use Select to browse to it.'));
+	};
 
 	const restoreBackup = async () => {
 		const candidate = boot.restoreCandidate;
-
 		if (!candidate) {
 			return;
 		}
-
 		isRestoring = true;
-
 		try {
 			const result = await settings.replace(candidate.settings);
-
 			if (!result.success) {
 				toast.error(t('Could not restore backup: {message}', { message: result.error }));
 				return;
 			}
-
 			didDismissRestore = true;
 			toast.success(t('Backup restored. Your account and settings are back.'));
 		} finally {
@@ -97,7 +149,6 @@
 
 	const finish = async () => {
 		isFinishing = true;
-
 		try {
 			await boot.completeOnboarding();
 		} finally {
@@ -106,29 +157,35 @@
 	};
 </script>
 
-<div class="bg-secondary-950 flex min-h-screen w-screen justify-center overflow-auto font-sans">
-	<div class="flex w-full max-w-2xl flex-col gap-8 px-8 py-16 text-white">
-		<div class="flex items-center gap-4">
-			<img src={Logo} alt={t('Fknoobs - CoH app')} class="size-12" />
+<div class="flex min-h-screen w-screen justify-center overflow-auto bg-gray-950/90 font-sans">
+	<div class="flex w-full max-w-xl flex-col gap-6 px-6 py-12 text-white">
+		<div class="flex items-center gap-4 px-1">
+			<img src={Logo} alt={t('Fknoobscoh - CoH app')} class="size-10" />
 			<div>
-				<H level="1">{t('Setup')}</H>
-				<p class="text-secondary-400 text-sm">
-					{t('The app needs to know where Company of Heroes lives before it can track your games.')}
-				</p>
+				<p class="font-medium">{t('Company of Heroes')}</p>
+				<p class="text-secondary-400 text-sm">{t('Setup')}</p>
 			</div>
 		</div>
+		<p class="text-secondary-400 px-1 text-sm">
+			{t('The app needs to know where Company of Heroes lives before it can track your games.')}
+		</p>
 
 		{#if showRestore}
-			<div class="border-primary/40 bg-primary/5 flex flex-col gap-3 rounded-lg border p-4">
+			<Box class="flex flex-col gap-3">
 				<div class="flex items-center gap-2">
 					<ArchiveIcon size={22} weight="duotone" class="text-primary" />
 					<span class="font-semibold">{t('Backup found')}</span>
 				</div>
 				<p class="text-secondary-300 text-sm">
 					{#if boot.restoreCandidate?.settings.updatedAt}
-						{t('We found a backup of your previous configuration (account and settings) from {date}. Restoring it keeps your existing account and match history linked.', { date: dayjs(boot.restoreCandidate.settings.updatedAt).format('DD MMM YYYY, HH:mm') })}
+						{t(
+							'We found a backup of your previous configuration (account and settings) from {date}. Restoring it keeps your existing account and match history linked.',
+							{ date: dayjs(boot.restoreCandidate.settings.updatedAt).format('DD MMM YYYY, HH:mm') }
+						)}
 					{:else}
-						{t('We found a backup of your previous configuration (account and settings). Restoring it keeps your existing account and match history linked.')}
+						{t(
+							'We found a backup of your previous configuration (account and settings). Restoring it keeps your existing account and match history linked.'
+						)}
 					{/if}
 				</p>
 				<div class="flex gap-2">
@@ -137,26 +194,51 @@
 						{t('Start fresh')}
 					</Button>
 				</div>
-			</div>
+			</Box>
 		{/if}
 
-		<Form.Root>
-			<Form.Group label={t('Company of Heroes warnings.log')}>
-				{#snippet description()}
-					{t('The game writes everything the app needs to this log file. It usually lives in')}
-					<code>Documents\My Games\Company of Heroes Relaunch\warnings.log</code>.
-				{/snippet}
-				<div class="flex w-full min-w-0 flex-col">
+		<div class={surfacePanel}>
+			<Form.Root
+				onsubmit={(event) => {
+					event.preventDefault();
+					if (!canFinish || isFinishing) return;
+					void finish();
+				}}
+			>
+				<Form.Group label={t('Company of Heroes warnings.log')} layout="stacked">
+					{#snippet hint()}
+						{#if logAutoDetected}
+							<Badge variant="success">{t('Detected')}</Badge>
+						{/if}
+					{/snippet}
+					{#snippet description()}
+						<p>
+							{t('The game writes match data to this log file.')}
+							{t(
+								'If this file is missing, launch Company of Heroes once. The game creates it automatically.'
+							)}
+						</p>
+						{#if expectedLogPath}
+							<p class="mt-2">
+								<span class="text-secondary-500">{t('Default location')}</span>
+								<code class="text-secondary-200 mt-0.5 block select-text break-all">
+									{expectedLogPath}
+								</code>
+							</p>
+						{/if}
+					{/snippet}
 					<FileSelection
 						name="pathToConfig"
 						bind:value={settings.tree.app.companyOfHeroesConfigPath}
 						filters={[{ name: 'warnings.log', extensions: ['log'] }]}
+						defaultPath={settings.tree.app.companyOfHeroesConfigPath || expectedLogDir}
 						showStatus={false}
 					/>
 					<div
-						class="mt-2 flex items-center gap-1 text-sm {logValidation.valid
-							? 'text-green-500'
-							: 'text-red-500'}"
+						class={[
+							'flex items-center gap-1 text-sm',
+							logValidation.valid ? 'text-green-500' : 'text-red-500'
+						]}
 					>
 						{#if logValidation.valid}
 							<CheckCircleIcon weight="duotone" size={18} />
@@ -166,24 +248,65 @@
 							{logValidation.reason ?? t('Select your warnings.log')}
 						{/if}
 					</div>
-				</div>
-			</Form.Group>
-			<Form.Group label={t('Company of Heroes installation folder')}>
-				{#snippet description()}
-					{t('The folder containing')} <code>RelicCOH.exe</code>, {t('usually inside your Steam library under')}
-					<code>steamapps\common\Company of Heroes Relaunch</code>.
-				{/snippet}
-				<div class="flex w-full min-w-0 flex-col">
+					{#snippet footer()}
+						<Button
+							variant="secondary"
+							size="sm"
+							type="button"
+							loading={isDetecting}
+							onclick={() => detectPaths()}
+						>
+							<MagnifyingGlassIcon size={16} />
+							{t('Look again')}
+						</Button>
+						<Button
+							variant="secondary"
+							size="sm"
+							type="button"
+							onclick={() =>
+								revealPath(settings.tree.app.companyOfHeroesConfigPath, expectedLogDir)}
+						>
+							<ArrowSquareOutIcon size={16} />
+							{t('Show in Explorer')}
+						</Button>
+					{/snippet}
+				</Form.Group>
+				<Form.Group label={t('Company of Heroes installation folder')} layout="stacked">
+					{#snippet hint()}
+						{#if gameAutoDetected}
+							<Badge variant="success">{t('Detected')}</Badge>
+						{/if}
+					{/snippet}
+					{#snippet description()}
+						<p>
+							{t(
+								'The folder that contains RelicCOH.exe. Steam usually installs it under steamapps\\common\\Company of Heroes Relaunch.'
+							)}
+							{t(
+								'We search your Steam libraries automatically. If nothing shows up, pick the folder yourself.'
+							)}
+						</p>
+						{#if expectedGameDir}
+							<p class="mt-2">
+								<span class="text-secondary-500">{t('Default location')}</span>
+								<code class="text-secondary-200 mt-0.5 block select-text break-all">
+									{expectedGameDir}
+								</code>
+							</p>
+						{/if}
+					{/snippet}
 					<FileSelection
 						name="pathToInstallation"
 						directory
 						bind:value={settings.tree.app.companyOfHeroesInstallationPath}
+						defaultPath={settings.tree.app.companyOfHeroesInstallationPath || expectedGameDir}
 						showStatus={false}
 					/>
 					<div
-						class="mt-2 flex items-center gap-1 text-sm {dirValidation.valid
-							? 'text-green-500'
-							: 'text-red-500'}"
+						class={[
+							'flex items-center gap-1 text-sm',
+							dirValidation.valid ? 'text-green-500' : 'text-red-500'
+						]}
 					>
 						{#if dirValidation.valid}
 							<CheckCircleIcon weight="duotone" size={18} />
@@ -193,17 +316,43 @@
 							{dirValidation.reason ?? t('Select your installation folder')}
 						{/if}
 					</div>
+					{#snippet footer()}
+						<Button
+							variant="secondary"
+							size="sm"
+							type="button"
+							loading={isDetecting}
+							onclick={() => detectPaths()}
+						>
+							<MagnifyingGlassIcon size={16} />
+							{t('Look again')}
+						</Button>
+						<Button
+							variant="secondary"
+							size="sm"
+							type="button"
+							onclick={() =>
+								revealPath(
+									settings.tree.app.companyOfHeroesInstallationPath,
+									expectedGameDir
+								)}
+						>
+							<ArrowSquareOutIcon size={16} />
+							{t('Show in Explorer')}
+						</Button>
+					{/snippet}
+				</Form.Group>
+				<div
+					class="border-secondary-800 flex items-center justify-end gap-3 border-t px-4 py-3"
+				>
+					{#if !canFinish}
+						<span class="text-secondary-500 mr-auto text-sm">
+							{t('Both paths must be valid before you can continue.')}
+						</span>
+					{/if}
+					<Button type="submit" disabled={!canFinish} loading={isFinishing}>{t('Continue')}</Button>
 				</div>
-			</Form.Group>
-		</Form.Root>
-
-		<div class="flex items-center gap-4">
-			<Button onclick={finish} disabled={!canFinish} loading={isFinishing}>{t('Continue')}</Button>
-			{#if !canFinish}
-				<span class="text-secondary-500 text-sm">
-					{t('Both paths must be valid before you can continue.')}
-				</span>
-			{/if}
+			</Form.Root>
 		</div>
 	</div>
 </div>

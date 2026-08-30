@@ -722,9 +722,8 @@ function handleGetBySteamId(e) {
 
 	const forceFill = e.request.url.query().get('fill') === '1';
 	let record = findBySteamId(steamId);
-	const currentElo = record ? readEloFromRecord(record) : {};
 
-	if (!record || forceFill || countEloSlotsFromMap(currentElo) < MAX_ELO_SLOTS) {
+	if (forceFill) {
 		try {
 			fillFromLobbies(steamId, record?.get('profileId'));
 			record = findBySteamId(steamId);

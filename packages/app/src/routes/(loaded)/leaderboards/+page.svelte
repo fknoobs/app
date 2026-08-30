@@ -176,7 +176,7 @@
 	<Input
 		type="text"
 		placeholder={t('Search player...')}
-		class="w-full sm:w-58"
+		class="w-full flex-none sm:w-56"
 		bind:value={searchInput}
 		oninput={() => searchPlayer()}
 	>

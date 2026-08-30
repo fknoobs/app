@@ -28,61 +28,100 @@
 
 	let currentTab = $state('stats');
 
-	const profile = resource(
+	const relicProfile = resource(
 		() => page.params.id,
 		async (id) => {
-			const relicProfile = isSteamId(id!)
-				? await relic.getProfileBySteamId(id!)
-				: await relic.getProfileById(parseInt(id!, 10));
-
-			if (!relicProfile) {
+			if (!id) {
 				throw new Error(t('Profile not found'));
 			}
+			const profile = isSteamId(id)
+				? await relic.getProfileBySteamId(id)
+				: await relic.getProfileById(parseInt(id, 10));
+			if (!profile) {
+				throw new Error(t('Profile not found'));
+			}
+			return profile;
+		}
+	);
 
-			const steamId = relicProfile.name.replace('/steam/', '');
-			const [steamProfile, gamePlayTime, matchHistory, playerRating, cheater] = await Promise.all([
-				steam.getUserProfile(steamId),
-				steam.getRecentlyPlayedGameByAppId(steamId, 228200),
-				relic.getRecentMatchHistoryForProfile(relicProfile.profile_id),
-				getPlayerRating(steamId),
-				findCheaterBySteamId(steamId)
+	const steamId = $derived.by(() => {
+		const id = page.params.id;
+		if (id && isSteamId(id)) return id;
+		const name = relicProfile.current?.name;
+		return name ? name.replace('/steam/', '') : null;
+	});
+
+	const steamProfile = resource(
+		() => steamId,
+		async (id) => {
+			if (!id) return null;
+			const [user, game] = await Promise.all([
+				steam.getUserProfile(id),
+				steam.getRecentlyPlayedGameByAppId(id, 228200)
 			]);
-
-			if (!steamProfile) {
+			if (!user) {
 				throw new Error(t('Profile not found'));
 			}
+			return { user, game };
+		}
+	);
 
-			const smurf = await loadSmurfAlert(steamId, relicProfile.profile_id);
-
+	const extras = resource(
+		() => {
+			const profile = relicProfile.current;
+			const id = steamId;
+			return profile && id ? `${id}:${profile.profile_id}` : null;
+		},
+		async (key) => {
+			const profile = relicProfile.current;
+			const id = steamId;
+			if (!key || !profile || !id) {
+				return null;
+			}
+			const [matchHistory, playerRating, cheater, smurf] = await Promise.all([
+				relic.getRecentMatchHistoryForProfile(profile.profile_id, {
+					includeHidden: true
+				}),
+				getPlayerRating(id),
+				findCheaterBySteamId(id),
+				loadSmurfAlert(id, profile.profile_id)
+			]);
 			return {
-				relic: relicProfile,
-				steam: steamProfile,
-				steamId,
-				game: gamePlayTime,
+				key,
 				matchHistory,
-				smurf,
 				playerRating,
-				cheater: !!cheater
+				cheater: !!cheater,
+				smurf
 			};
 		}
 	);
 
-	const playerElo = $derived.by(() => {
-		const current = profile.current;
-		if (!current) return {};
+	const extra = $derived.by(() => {
+		const current = extras.current;
+		const profile = relicProfile.current;
+		const id = steamId;
+		if (!current || !profile || !id) return null;
+		if (current.key !== `${id}:${profile.profile_id}`) return null;
+		return current;
+	});
 
+	const profile = $derived(relicProfile.current);
+	const user = $derived(steamProfile.current?.user);
+	const game = $derived(steamProfile.current?.game);
+
+	const playerElo = $derived.by(() => {
+		if (!profile || !user) return {};
 		return mergeEloMaps(
-			current.playerRating?.elo,
-			eloMapForSteamId(current.matchHistory, current.steam.steamid, current.relic.profile_id)
+			extra?.playerRating?.elo,
+			eloMapForSteamId(extra?.matchHistory ?? [], user.steamid, profile.profile_id)
 		);
 	});
 
 	const isSelf = $derived.by(() => {
-		const current = profile.current;
-		if (!current) return false;
+		if (!profile || !user) return false;
 		return (
-			account.user.steamIds.includes(current.steam.steamid) ||
-			app.game.profile?.relic.profile_id === current.relic.profile_id
+			account.user.steamIds.includes(user.steamid) ||
+			app.game.profile?.relic.profile_id === profile.profile_id
 		);
 	});
 
@@ -92,11 +131,11 @@
 	};
 </script>
 
-<SetCrumbs items={[{ label: profile.current?.relic.alias ?? t('Player') }]} />
+<SetCrumbs items={[{ label: profile?.alias ?? t('Player') }]} />
 
-{#if profile.loading}
+{#if relicProfile.loading || steamProfile.loading || !profile || !user}
 	<Player.ProfileSkeleton />
-{:else if profile.current}
+{:else if profile && user}
 	<div class="border-secondary-900 overflow-clip border-b">
 		<div
 			class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]"
@@ -104,47 +143,44 @@
 			<div
 				class={cn(
 					'border-secondary-800 aspect-square overflow-clip sm:aspect-auto sm:h-full sm:border-r',
-					profile.current.steam.gameextrainfo?.trim() === 'Company of Heroes'
+					user.gameextrainfo?.trim() === 'Company of Heroes'
 						? 'border-green-500'
-						: profile.current.steam.personastate > 0
+						: user.personastate > 0
 							? 'border-blue-400'
 							: 'border-secondary-800'
 				)}
 			>
-				<img
-					src={profile.current.steam.avatarfull}
-					alt={profile.current.relic.alias}
-					class="h-full w-full object-cover"
-				/>
+				<img src={user.avatarfull} alt={profile.alias} class="h-full w-full object-cover" />
 			</div>
 
 			<div class="min-w-0 px-6 py-4">
 				<div class="mb-3 flex flex-wrap items-center gap-2.5">
-					{#if profile.current.relic.country}
+					{#if profile.country}
 						<img
 							class="h-5 w-auto shrink-0 rounded-xs"
-							src="https://flagsapi.com/{upperCase(profile.current.relic.country)}/shiny/64.png"
-							alt={profile.current.relic.country}
+							src="https://flagsapi.com/{upperCase(profile.country)}/shiny/64.png"
+							alt={profile.country}
 						/>
 					{/if}
-					<span class="font-heading truncate text-3xl font-bold">{profile.current.relic.alias}</span
-					>
-					<Player.Labels steamId={profile.current.steamId} class="shrink-0" />
+					<span class="font-heading truncate text-3xl font-bold">{profile.alias}</span>
+					<Player.Labels steamId={user.steamid} class="shrink-0" />
 					<Player.LabelEditor
-						steamId={profile.current.steamId}
-						profileId={profile.current.relic.profile_id}
-						alias={profile.current.relic.alias}
+						steamId={user.steamid}
+						profileId={profile.profile_id}
+						alias={profile.alias}
 						class="shrink-0"
 					/>
-					<SmurfAlert smurf={profile.current.smurf} />
-					{#if profile.current.cheater}
-						<CheaterAlert />
+					{#if extra}
+						<SmurfAlert smurf={extra.smurf} />
+						{#if extra.cheater}
+							<CheaterAlert />
+						{/if}
 					{/if}
 				</div>
 
 				<PlayerPerformanceSummary
-					profileId={profile.current.relic.profile_id}
-					steamId={profile.current.steam.steamid}
+					profileId={profile.profile_id}
+					steamId={user.steamid}
 					scope={isSelf ? 'user' : 'community'}
 					userId={isSelf ? account.userId : undefined}
 					empty={isSelf ? 'self' : 'other'}
@@ -191,25 +227,29 @@
 			<div class="border-secondary-800 border-t">
 				{#if currentTab === 'stats'}
 					<Leaderboard
-						stats={profile.current.relic.leaderboardStats ?? []}
+						stats={profile.leaderboardStats ?? []}
 						elo={playerElo}
 						class="rounded-none border-0"
 					/>
 				{:else if currentTab === 'performance'}
 					<PlayerPerformance
-						profileId={profile.current.relic.profile_id}
+						profileId={profile.profile_id}
 						scope={isSelf ? 'user' : 'community'}
 						userId={isSelf ? account.userId : undefined}
 						empty={isSelf ? 'self' : 'other'}
 						class="rounded-none border-0"
 					/>
 				{:else if currentTab === 'match-history'}
-					<MatchHistory matches={profile.current.matchHistory} showSessionId />
+					{#if !extra}
+						<Leaderboard stats={[]} loading skeletonRows={10} class="rounded-none border-0" />
+					{:else}
+						<MatchHistory matches={extra.matchHistory} showSessionId />
+					{/if}
 				{:else}
 					<PlayerScreenshots
-						steamId={profile.current.steamId}
+						steamId={user.steamid}
 						userId={isSelf ? account.userId : undefined}
-						profileId={profile.current.relic.profile_id}
+						profileId={profile.profile_id}
 					/>
 				{/if}
 			</div>
@@ -218,22 +258,22 @@
 		<div
 			class="text-secondary-400 bg-secondary-950/50 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm"
 		>
-			{#if profile.current.steam.lastlogoff}
+			{#if user.lastlogoff}
 				<span>
 					<span class="text-secondary-500">{t('Last seen')}</span>
-					{dayjs.unix(profile.current.steam.lastlogoff).fromNow()}
+					{dayjs.unix(user.lastlogoff).fromNow()}
 				</span>
 			{/if}
-			{#if profile.current.game?.playtime_forever}
+			{#if game?.playtime_forever}
 				<span>
 					<span class="text-secondary-500">{t('Playtime')}</span>
-					{t('{hours} hours', { hours: (profile.current.game.playtime_forever / 60).toFixed(0) })}
+					{t('{hours} hours', { hours: (game.playtime_forever / 60).toFixed(0) })}
 				</span>
 			{/if}
-			{#if profile.current.game?.playtime_2weeks}
+			{#if game?.playtime_2weeks}
 				<span>
 					<span class="text-secondary-500">{t('Past 2 weeks')}</span>
-					{t('{hours} hours', { hours: (profile.current.game.playtime_2weeks / 60).toFixed(0) })}
+					{t('{hours} hours', { hours: (game.playtime_2weeks / 60).toFixed(0) })}
 				</span>
 			{/if}
 		</div>

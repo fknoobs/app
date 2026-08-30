@@ -143,13 +143,17 @@ export async function harvestPlayerRatingsForProfiles(
 	}
 }
 
-export async function getPlayerRating(steamId: string): Promise<PlayerRatingRecord | null> {
+export async function getPlayerRating(
+	steamId: string,
+	options?: { fill?: boolean }
+): Promise<PlayerRatingRecord | null> {
 	if (!isValidSteamId(steamId)) {
 		return null;
 	}
 
 	try {
-		const response = await fetch(`${baseUrl()}/api/player-ratings/${steamId}?fill=1`);
+		const fill = options?.fill ? '?fill=1' : '';
+		const response = await fetch(`${baseUrl()}/api/player-ratings/${steamId}${fill}`);
 		if (response.status === 404) {
 			return null;
 		}

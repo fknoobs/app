@@ -10,7 +10,6 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-	$inspect(data);
 	let currentTab = $state<'stats' | 'performance' | 'match-history'>('stats');
 </script>
 

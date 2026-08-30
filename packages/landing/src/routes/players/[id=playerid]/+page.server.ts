@@ -18,7 +18,10 @@ async function loadPlayer(fetchFn: typeof fetch, id: string): Promise<PlayerPage
 	return (await response.json()) as PlayerPageData;
 }
 
-export const load: PageServerLoad = ({ fetch, params }) => {
+export const load: PageServerLoad = ({ fetch, params, setHeaders }) => {
+	setHeaders({
+		'cache-control': 'public, s-maxage=30, stale-while-revalidate=60'
+	});
 	return {
 		player: loadPlayer(fetch, params.id)
 	};

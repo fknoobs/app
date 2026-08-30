@@ -8,12 +8,10 @@ Multiple URLs or --ndjson: one JSON object per line
 import json
 import ssl
 import sys
-import time
-import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 PER_URL_TIMEOUT = 8
 SINGLE_URL_TIMEOUT = 15
-MAX_TOTAL_SECONDS = 40
 
 
 def ssl_context() -> ssl.SSLContext:
@@ -24,6 +22,8 @@ def ssl_context() -> ssl.SSLContext:
 
 
 def fetch_one(url: str, timeout: float) -> str:
+	import urllib.request
+
 	with urllib.request.urlopen(url, context=ssl_context(), timeout=timeout) as response:
 		return response.read().decode()
 
@@ -34,6 +34,23 @@ def emit_ndjson(url: str, timeout: float) -> None:
 		sys.stdout.write(json.dumps({'url': url, 'ok': True, 'body': json.loads(raw)}) + '\n')
 	except Exception as error:
 		sys.stdout.write(json.dumps({'url': url, 'ok': False, 'error': str(error)}) + '\n')
+
+
+def fetch_many_ndjson(urls) -> None:
+	if len(urls) == 1:
+		emit_ndjson(urls[0], PER_URL_TIMEOUT)
+		return
+
+	workers = min(8, len(urls))
+	with ThreadPoolExecutor(max_workers=workers) as pool:
+		futures = {pool.submit(fetch_one, url, PER_URL_TIMEOUT): url for url in urls}
+		for future in as_completed(futures):
+			url = futures[future]
+			try:
+				raw = future.result()
+				sys.stdout.write(json.dumps({'url': url, 'ok': True, 'body': json.loads(raw)}) + '\n')
+			except Exception as error:
+				sys.stdout.write(json.dumps({'url': url, 'ok': False, 'error': str(error)}) + '\n')
 
 
 def main() -> None:
@@ -58,13 +75,7 @@ def main() -> None:
 		sys.stdout.write(fetch_one(args[0], SINGLE_URL_TIMEOUT))
 		return
 
-	started = time.monotonic()
-	for url in args:
-		remaining = MAX_TOTAL_SECONDS - (time.monotonic() - started)
-		if remaining <= 0:
-			sys.stdout.write(json.dumps({'url': url, 'ok': False, 'error': 'tick budget exceeded'}) + '\n')
-			continue
-		emit_ndjson(url, min(PER_URL_TIMEOUT, remaining))
+	fetch_many_ndjson(args)
 
 
 if __name__ == '__main__':

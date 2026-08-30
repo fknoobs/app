@@ -152,8 +152,11 @@ function applyCors(e) {
 	e.response.header().set('Access-Control-Allow-Headers', 'Content-Type');
 }
 
-function jsonWithCors(e, status, body) {
+function jsonWithCors(e, status, body, cacheControl) {
 	applyCors(e);
+	if (cacheControl) {
+		e.response.header().set('Cache-Control', cacheControl);
+	}
 	return e.json(status, body);
 }
 
@@ -211,6 +214,129 @@ function fetchRelicJsonInsecure(url, context) {
 	}
 }
 
+function fetchJsonMany(urls, context) {
+	const unique = [];
+	const seen = {};
+	for (const url of urls) {
+		if (!url || seen[url]) {
+			continue;
+		}
+		seen[url] = true;
+		unique.push(url);
+	}
+
+	if (unique.length === 0) {
+		return {};
+	}
+
+	if (unique.length === 1) {
+		return fetchJsonManySequential(unique, context);
+	}
+
+	try {
+		const raw = toString(
+			$os.cmd('python3', `${__hooks}/lib/fetch-insecure.py`, '--ndjson', JSON.stringify(unique)).output()
+		);
+		const byUrl = {};
+		const lines = String(raw || '').split('\n');
+		for (const line of lines) {
+			if (!line.trim()) {
+				continue;
+			}
+			try {
+				const row = JSON.parse(line);
+				if (row?.ok && row.url) {
+					byUrl[row.url] = row.body;
+				} else if (row?.url) {
+					logWarn('Player parallel fetch item failed', {
+						...context,
+						urlHost: String(row.url).split('?')[0],
+						error: row.error || 'unknown'
+					});
+				}
+			} catch (error) {
+				logWarn('Player parallel fetch line parse failed', {
+					...context,
+					error: error instanceof Error ? error.message : String(error)
+				});
+			}
+		}
+		if (Object.keys(byUrl).length === 0) {
+			return fetchJsonManySequential(unique, context);
+		}
+		return byUrl;
+	} catch (error) {
+		logError('Player parallel fetch failed', {
+			...context,
+			error: error instanceof Error ? error.message : String(error)
+		});
+		return fetchJsonManySequential(unique, context);
+	}
+}
+
+function fetchJsonManySequential(urls, context) {
+	const byUrl = {};
+	for (const url of urls) {
+		try {
+			byUrl[url] = fetchRelicJsonInsecure(url, context);
+		} catch (error) {
+			logWarn('Player sequential fetch item failed', {
+				...context,
+				error: error instanceof Error ? error.message : String(error)
+			});
+		}
+	}
+	return byUrl;
+}
+
+function relicPersonalStatUrlBySteamId(steamId) {
+	return (
+		`${RELIC_API_BASE}/community/leaderboard/getpersonalstat?title=coh1&profile_names=` +
+		encodeURIComponent(JSON.stringify([`/steam/${steamId}`]))
+	);
+}
+
+function relicPersonalStatUrlById(profileId) {
+	return (
+		`${RELIC_API_BASE}/community/leaderboard/getpersonalstat?title=coh1&profile_ids=` +
+		encodeURIComponent(JSON.stringify([Number(profileId)]))
+	);
+}
+
+function relicMatchHistoryUrl(profileId) {
+	return (
+		`${RELIC_API_BASE}/community/leaderboard/getrecentmatchhistorybyprofileid` +
+		`?title=coh1&profile_id=${encodeURIComponent(String(profileId))}`
+	);
+}
+
+function steamApiKey() {
+	return $os.getenv('STEAM_API_KEY') || $os.getenv('PUBLIC_STEAM_API_KEY') || '';
+}
+
+function steamSummariesUrl(steamId, apiKey) {
+	return (
+		'https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?' +
+		`key=${encodeURIComponent(apiKey)}&steamids=${encodeURIComponent(steamId)}`
+	);
+}
+
+function steamPlaytimeUrl(steamId, apiKey) {
+	return (
+		'https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/?' +
+		`key=${encodeURIComponent(apiKey)}&steamid=${encodeURIComponent(steamId)}`
+	);
+}
+
+function steamPlayerFromBody(data) {
+	return data?.response?.players?.[0] ?? null;
+}
+
+function steamPlaytimeFromBody(data) {
+	const games = data?.response?.games ?? [];
+	return games.find((game) => Number(game?.appid) === COH_APP_ID) ?? null;
+}
+
 function memberFromPersonalStat(data, steamId, profileId) {
 	const members = data?.statGroups?.[0]?.members ?? [];
 	const member = steamId
@@ -237,64 +363,47 @@ function memberFromPersonalStat(data, steamId, profileId) {
 }
 
 function fetchRelicProfileBySteamId(steamId) {
-	const url =
-		`${RELIC_API_BASE}/community/leaderboard/getpersonalstat?title=coh1&profile_names=` +
-		encodeURIComponent(JSON.stringify([`/steam/${steamId}`]));
-
-	const data = fetchRelicJsonInsecure(url, { steamId });
+	const data = fetchRelicJsonInsecure(relicPersonalStatUrlBySteamId(steamId), { steamId });
 	return memberFromPersonalStat(data, steamId, null);
 }
 
 function fetchRelicProfileById(profileId) {
-	const url =
-		`${RELIC_API_BASE}/community/leaderboard/getpersonalstat?title=coh1&profile_ids=` +
-		encodeURIComponent(JSON.stringify([Number(profileId)]));
-
-	const data = fetchRelicJsonInsecure(url, { profileId });
+	const data = fetchRelicJsonInsecure(relicPersonalStatUrlById(profileId), { profileId });
 	return memberFromPersonalStat(data, null, profileId);
 }
 
 function fetchSteamProfile(steamId) {
-	const apiKey = $os.getenv('STEAM_API_KEY') || $os.getenv('PUBLIC_STEAM_API_KEY');
+	const apiKey = steamApiKey();
 	if (!apiKey) {
 		logError('STEAM_API_KEY is not configured', { steamId });
 		throw new Error('STEAM_API_KEY is not configured');
 	}
 
-	const url =
-		'https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v2/?' +
-		`key=${encodeURIComponent(apiKey)}&steamids=${encodeURIComponent(steamId)}`;
-
 	const response = $http.send({
-		url,
+		url: steamSummariesUrl(steamId, apiKey),
 		method: 'GET',
 		timeout: 15
 	});
 
 	const data = parseHttpJson(response, { upstream: 'steam', steamId });
-	return data?.response?.players?.[0] ?? null;
+	return steamPlayerFromBody(data);
 }
 
 function fetchSteamPlaytime(steamId) {
-	const apiKey = $os.getenv('STEAM_API_KEY') || $os.getenv('PUBLIC_STEAM_API_KEY');
+	const apiKey = steamApiKey();
 	if (!apiKey || !isSteamId(steamId)) {
 		return null;
 	}
 
 	try {
-		const url =
-			'https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/?' +
-			`key=${encodeURIComponent(apiKey)}&steamid=${encodeURIComponent(steamId)}`;
-
 		const response = $http.send({
-			url,
+			url: steamPlaytimeUrl(steamId, apiKey),
 			method: 'GET',
 			timeout: 15
 		});
 
 		const data = parseHttpJson(response, { upstream: 'steam-playtime', steamId });
-		const games = data?.response?.games ?? [];
-		return games.find((game) => Number(game?.appid) === COH_APP_ID) ?? null;
+		return steamPlaytimeFromBody(data);
 	} catch (error) {
 		logWarn('Player Steam playtime lookup failed', {
 			steamId,
@@ -304,14 +413,26 @@ function fetchSteamPlaytime(steamId) {
 	}
 }
 
-function fetchMatchHistory(profileId) {
+function matchesFromRelicBody(data, profileId) {
 	try {
-		const url =
-			`${RELIC_API_BASE}/community/leaderboard/getrecentmatchhistorybyprofileid` +
-			`?title=coh1&profile_id=${encodeURIComponent(String(profileId))}`;
-		const data = fetchRelicJsonInsecure(url, { profileId, upstream: 'match-history' });
 		const matches = matchHistory.transformMatchHistory(data, profileId);
 		return require(`${__hooks}/lib/hidden-matches.js`).filterHiddenMatchHistory(matches);
+	} catch (error) {
+		logWarn('Player match history lookup failed', {
+			profileId,
+			error: error instanceof Error ? error.message : String(error)
+		});
+		return [];
+	}
+}
+
+function fetchMatchHistory(profileId) {
+	try {
+		const data = fetchRelicJsonInsecure(relicMatchHistoryUrl(profileId), {
+			profileId,
+			upstream: 'match-history'
+		});
+		return matchesFromRelicBody(data, profileId);
 	} catch (error) {
 		logWarn('Player match history lookup failed', {
 			profileId,
@@ -349,7 +470,7 @@ function loadCommunityPerformance(profileId) {
 	}
 }
 
-function loadSmurf(steamId) {
+function peekResolvedSmurfLender(steamId) {
 	try {
 		const { findSmurfWatchBySteamId } = require(`${__hooks}/lib/smurf-watch.js`);
 		const record = findSmurfWatchBySteamId(steamId);
@@ -362,34 +483,7 @@ function loadSmurf(steamId) {
 			return null;
 		}
 
-		let lenderProfile = null;
-		try {
-			lenderProfile = fetchRelicProfileBySteamId(lenderSteamId);
-		} catch (error) {
-			logWarn('Smurf lender Relic lookup failed', {
-				steamId,
-				lenderSteamId,
-				error: error instanceof Error ? error.message : String(error)
-			});
-		}
-
-		let lenderSteam = null;
-		try {
-			lenderSteam = fetchSteamProfile(lenderSteamId);
-		} catch (error) {
-			logWarn('Smurf lender Steam lookup failed', {
-				steamId,
-				lenderSteamId,
-				error: error instanceof Error ? error.message : String(error)
-			});
-		}
-
-		return {
-			lenderSteamId,
-			lenderProfileId: lenderProfile?.profile_id ?? null,
-			lenderAlias: lenderProfile?.alias || lenderSteam?.personaname || 'Original account',
-			lenderAvatarUrl: lenderSteam?.avatarfull || lenderSteam?.avatarmedium || null
-		};
+		return lenderSteamId;
 	} catch (error) {
 		logWarn('Smurf lookup failed', {
 			steamId,
@@ -397,6 +491,39 @@ function loadSmurf(steamId) {
 		});
 		return null;
 	}
+}
+
+function smurfFromLenderSteam(lenderSteamId, lenderSteam) {
+	if (!isSteamId(lenderSteamId)) {
+		return null;
+	}
+
+	return {
+		lenderSteamId,
+		lenderProfileId: null,
+		lenderAlias: lenderSteam?.personaname || 'Original account',
+		lenderAvatarUrl: lenderSteam?.avatarfull || lenderSteam?.avatarmedium || null
+	};
+}
+
+function loadSmurf(steamId) {
+	const lenderSteamId = peekResolvedSmurfLender(steamId);
+	if (!lenderSteamId) {
+		return null;
+	}
+
+	let lenderSteam = null;
+	try {
+		lenderSteam = fetchSteamProfile(lenderSteamId);
+	} catch (error) {
+		logWarn('Smurf lender Steam lookup failed', {
+			steamId,
+			lenderSteamId,
+			error: error instanceof Error ? error.message : String(error)
+		});
+	}
+
+	return smurfFromLenderSteam(lenderSteamId, lenderSteam);
 }
 
 function selectCardStats(stats) {
@@ -422,8 +549,45 @@ function selectCardStats(stats) {
 	}));
 }
 
+const PAGE_CACHE_TTL_MS = 45 * 1000;
+const PAGE_CACHE_MAX = 40;
+const PAGE_CACHE_CONTROL = 'public, max-age=30, stale-while-revalidate=60';
+const pageCache = {};
+
+function nowMs() {
+	return Number(new Date());
+}
+
+function readPageCache(key) {
+	const hit = pageCache[key];
+	if (!hit || nowMs() - hit.at > PAGE_CACHE_TTL_MS) {
+		delete pageCache[key];
+		return null;
+	}
+	return hit.value;
+}
+
+function writePageCache(key, value) {
+	pageCache[key] = { at: nowMs(), value };
+	const keys = Object.keys(pageCache);
+	if (keys.length <= PAGE_CACHE_MAX) {
+		return;
+	}
+	keys.sort((a, b) => (pageCache[a].at || 0) - (pageCache[b].at || 0));
+	const remove = keys.length - PAGE_CACHE_MAX;
+	for (let i = 0; i < remove; i++) {
+		delete pageCache[keys[i]];
+	}
+}
+
 function loadPlayerPage(id, options) {
 	const extras = options?.extras !== false;
+	const cacheKey = `${id}:${extras ? 'full' : 'card'}`;
+	const cached = readPageCache(cacheKey);
+	if (cached) {
+		return cached;
+	}
+
 	const steamLookup = isSteamId(String(id));
 	const profileLookup = isProfileId(String(id));
 
@@ -433,9 +597,38 @@ function loadPlayerPage(id, options) {
 		throw error;
 	}
 
-	const relicProfile = steamLookup
-		? fetchRelicProfileBySteamId(String(id))
-		: fetchRelicProfileById(Number(id));
+	const apiKey = steamApiKey();
+	if (!apiKey) {
+		logError('STEAM_API_KEY is not configured', { id });
+		throw new Error('STEAM_API_KEY is not configured');
+	}
+
+	let relicProfile = null;
+	let steamProfile = null;
+	let playtime = null;
+	let playtimeFetched = !extras;
+	let matchBody = null;
+	let lenderSteam = null;
+
+	if (steamLookup) {
+		const relicUrl = relicPersonalStatUrlBySteamId(String(id));
+		const summaryUrl = steamSummariesUrl(String(id), apiKey);
+		const urls = [relicUrl, summaryUrl];
+		let firstPlaytimeUrl = '';
+		if (extras) {
+			firstPlaytimeUrl = steamPlaytimeUrl(String(id), apiKey);
+			urls.push(firstPlaytimeUrl);
+		}
+		const byUrl = fetchJsonMany(urls, { steamId: String(id) });
+		relicProfile = memberFromPersonalStat(byUrl[relicUrl], String(id), null);
+		steamProfile = steamPlayerFromBody(byUrl[summaryUrl]);
+		if (extras) {
+			playtime = steamPlaytimeFromBody(byUrl[firstPlaytimeUrl]);
+			playtimeFetched = true;
+		}
+	} else {
+		relicProfile = fetchRelicProfileById(Number(id));
+	}
 
 	if (!relicProfile) {
 		const error = new Error('Player not found');
@@ -450,24 +643,63 @@ function loadPlayerPage(id, options) {
 		throw error;
 	}
 
-	const steamProfile = fetchSteamProfile(steamId);
+	const lenderSteamId = extras ? peekResolvedSmurfLender(steamId) : null;
+	const followUp = [];
+	const summaryUrl = steamSummariesUrl(steamId, apiKey);
+	const playtimeUrl = steamPlaytimeUrl(steamId, apiKey);
+	const historyUrl = relicMatchHistoryUrl(relicProfile.profile_id);
+	let lenderSummaryUrl = '';
+
+	if (!steamProfile) {
+		followUp.push(summaryUrl);
+	}
+	if (extras && !playtimeFetched) {
+		followUp.push(playtimeUrl);
+	}
+	if (extras) {
+		followUp.push(historyUrl);
+	}
+	if (lenderSteamId) {
+		lenderSummaryUrl = steamSummariesUrl(lenderSteamId, apiKey);
+		followUp.push(lenderSummaryUrl);
+	}
+
+	if (followUp.length > 0) {
+		const byUrl = fetchJsonMany(followUp, { steamId, profileId: relicProfile.profile_id });
+		if (!steamProfile) {
+			steamProfile = steamPlayerFromBody(byUrl[summaryUrl]);
+		}
+		if (extras && !playtimeFetched) {
+			playtime = steamPlaytimeFromBody(byUrl[playtimeUrl]);
+		}
+		if (extras) {
+			matchBody = byUrl[historyUrl] || null;
+		}
+		if (lenderSummaryUrl) {
+			lenderSteam = steamPlayerFromBody(byUrl[lenderSummaryUrl]);
+		}
+	}
+
 	if (!steamProfile) {
 		const error = new Error('Player not found');
 		error.status = 404;
 		throw error;
 	}
 
-	const playtime = extras ? fetchSteamPlaytime(steamId) : null;
 	const elo = extras ? loadElo(relicProfile.profile_id) : {};
 	const performance = extras ? loadCommunityPerformance(relicProfile.profile_id) : emptyPerformance();
-	const matches = extras ? fetchMatchHistory(relicProfile.profile_id) : [];
-	const smurf = extras ? loadSmurf(steamId) : null;
+	const matches = extras
+		? matchBody
+			? matchesFromRelicBody(matchBody, relicProfile.profile_id)
+			: fetchMatchHistory(relicProfile.profile_id)
+		: [];
+	const smurf = extras && lenderSteamId ? smurfFromLenderSteam(lenderSteamId, lenderSteam) : null;
 	const labelsBySteamId = extras
 		? playerLabels.loadLabelsBySteamIds([steamId, ...playerLabels.steamIdsFromMatches(matches)])
 		: {};
 	const labeledMatches = extras ? playerLabels.attachLabelsToMatches(matches, labelsBySteamId) : matches;
 
-	return {
+	const page = {
 		steamId,
 		profileId: relicProfile.profile_id,
 		alias: relicProfile.alias,
@@ -486,6 +718,9 @@ function loadPlayerPage(id, options) {
 		smurf,
 		labels: labelsBySteamId[steamId] ?? []
 	};
+
+	writePageCache(cacheKey, page);
+	return page;
 }
 
 function handleOptions(e) {
@@ -509,7 +744,7 @@ function handleGet(e) {
 			statCount: data.leaderboardStats.length,
 			matchCount: data.matchHistory.length
 		});
-		return jsonWithCors(e, 200, data);
+		return jsonWithCors(e, 200, data, PAGE_CACHE_CONTROL);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		const status = error?.status || (message.includes('STEAM_API_KEY') ? 503 : 500);
@@ -556,7 +791,7 @@ function handleCardGet(e) {
 			level: data.level,
 			avatarUrl: data.avatarUrl,
 			stats: selectCardStats(data.leaderboardStats)
-		});
+		}, PAGE_CACHE_CONTROL);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		const status = error?.status || (message.includes('STEAM_API_KEY') ? 503 : 500);

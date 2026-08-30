@@ -40,10 +40,6 @@ export async function appDataDir(): Promise<string> {
 	return __paths.appConfigDir;
 }
 
-export async function appDataDir(): Promise<string> {
-	return __paths.appConfigDir;
-}
-
 export async function homeDir(): Promise<string> {
 	return 'C:/Users/test';
 }
