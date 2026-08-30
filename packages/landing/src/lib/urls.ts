@@ -9,3 +9,5 @@ export const GITHUB_URL = 'https://github.com/fknoobs/app';
 export const TWITCH_URL = 'https://www.twitch.tv/fknoobscoh';
 export const API_URL = env.PUBLIC_API_URL || 'https://api.coh1stats.com';
 export const SITE_URL = 'https://coh1stats.com';
+export const PRIVACY_URL = `${SITE_URL}/privacy`;
+export const SIGNPATH_APPLY_URL = 'https://signpath.org/apply';

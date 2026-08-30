@@ -141,6 +141,41 @@ function isValidSteamId(value) {
 	return typeof value === 'string' && STEAM_ID_REGEX.test(value);
 }
 
+function matchTypeIdFromLeaderboardId(leaderboardId) {
+	const id = Number(leaderboardId);
+	if (id >= 0 && id <= 3) return 0;
+	if (id >= 4 && id <= 7) return 1;
+	if (id >= 8 && id <= 11) return 2;
+	if (id >= 12 && id <= 15) return 3;
+	if (id >= 16 && id <= 19) return 4;
+	return null;
+}
+
+function raceIdFromLeaderboardId(leaderboardId) {
+	const id = Number(leaderboardId);
+	// Relic packs race as id % 4 within each mode block (basic 0-3, 1v1 4-7, …).
+	if (Number.isInteger(id) && id >= 0 && id <= 19) {
+		return id % 4;
+	}
+	return null;
+}
+
+function getStoredEloForLeaderboard(elo, leaderboardId) {
+	const matchType = matchTypeIdFromLeaderboardId(leaderboardId);
+	const raceId = raceIdFromLeaderboardId(leaderboardId);
+	if (matchType == null || raceId == null) {
+		return null;
+	}
+
+	const map = eloToMap(elo);
+	const slot = map[String(matchType)]?.[String(raceId)];
+	if (!slot || typeof slot.rating !== 'number' || slot.rating < 1) {
+		return null;
+	}
+
+	return slot.rating;
+}
+
 function parseJson(raw, fallback) {
 	if (raw == null || raw === '') {
 		return fallback;
@@ -261,7 +296,8 @@ function serializeRecord(record) {
 		steamId: record.get('steamId'),
 		profileId: record.get('profileId'),
 		alias: record.get('alias'),
-		elo: readEloFromRecord(record)
+		elo: readEloFromRecord(record),
+		harvestedAt: record.get('harvestedAt') || null
 	};
 }
 
@@ -908,8 +944,10 @@ module.exports = {
 	isValidSteamId,
 	parseJson,
 	asList,
+	readRequestJsonBody,
 	countEloSlots,
 	eloHasGaps,
+	getStoredEloForLeaderboard,
 	findByProfileId,
 	fillFromLobbies,
 	runLobbyFillBatch,

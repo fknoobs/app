@@ -26,7 +26,9 @@
 		const first = stats[0];
 		const second = stats[1];
 		const third = stats[2];
-		return [second, first, third].filter((stat): stat is LeaderboardStatWithProfile => Boolean(stat));
+		return [second, first, third].filter((stat): stat is LeaderboardStatWithProfile =>
+			Boolean(stat)
+		);
 	});
 
 	function eloForStat(stat: LeaderboardStatWithProfile): number | null {
@@ -47,7 +49,7 @@
 </script>
 
 <div
-	class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-3 sm:divide-x sm:divide-secondary-800"
+	class="border-secondary-800 sm:divide-secondary-800 grid grid-cols-1 border-b sm:grid-cols-3 sm:divide-x"
 >
 	{#if loading}
 		{#each [2, 1, 3] as rank (rank)}

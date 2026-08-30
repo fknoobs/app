@@ -5,6 +5,7 @@ import type { TransformedMatch } from '@fknoobs/app';
 import {
 	eloMapFromRecord,
 	extractPlayerRatingSnapshots,
+	getStoredEloForLeaderboard,
 	isValidSteamId,
 	type PlayerEloMap,
 	type PlayerRatingSnapshot
@@ -16,7 +17,12 @@ export type PlayerRatingRecord = {
 	profileId: number;
 	alias: string;
 	elo: PlayerEloMap;
+	harvestedAt?: string | null;
 };
+
+/** Match harvest cron cooldown — refresh if older than this. */
+export const LEADERBOARD_ELO_STALE_MS = 6 * 60 * 60 * 1000;
+export const LEADERBOARD_HARVEST_MAX = 12;
 
 const baseUrl = () => (PUBLIC_PB_URL ?? 'https://api.coh1stats.com').replace(/\/$/, '');
 
@@ -26,14 +32,115 @@ function toRecord(raw: {
 	profileId: number;
 	alias: string;
 	elo?: unknown;
+	harvestedAt?: string | null;
 }): PlayerRatingRecord {
 	return {
 		id: raw.id,
 		steamId: raw.steamId,
 		profileId: raw.profileId,
 		alias: raw.alias,
-		elo: eloMapFromRecord(raw.elo)
+		elo: eloMapFromRecord(raw.elo),
+		harvestedAt: raw.harvestedAt ?? null
 	};
+}
+
+function isHarvestedStale(harvestedAt: string | null | undefined, staleMs: number): boolean {
+	if (!harvestedAt) {
+		return true;
+	}
+
+	const at = new Date(harvestedAt).getTime();
+	if (!Number.isFinite(at)) {
+		return true;
+	}
+
+	return Date.now() - at >= staleMs;
+}
+
+/**
+ * Profile IDs that need a Relic match-history harvest for this leaderboard:
+ * missing ELO slot for the ladder, or harvestedAt older than staleMs.
+ */
+export function selectLeaderboardHarvestProfileIds(options: {
+	stats: Array<{ profile: { profile_id: number }; leaderboard_id?: number }>;
+	leaderboardId: number;
+	ratingsBySteamId: Map<string, PlayerRatingRecord>;
+	steamIdForProfile: (profileId: number) => string | null;
+	staleMs?: number;
+	limit?: number;
+}): number[] {
+	const staleMs = options.staleMs ?? LEADERBOARD_ELO_STALE_MS;
+	const limit = options.limit ?? LEADERBOARD_HARVEST_MAX;
+	const selected: number[] = [];
+
+	for (const stat of options.stats) {
+		if (selected.length >= limit) {
+			break;
+		}
+
+		const profileId = Number(stat.profile?.profile_id);
+		if (!Number.isInteger(profileId) || profileId <= 0) {
+			continue;
+		}
+
+		const steamId = options.steamIdForProfile(profileId);
+		const record = steamId ? options.ratingsBySteamId.get(steamId) : undefined;
+		const leaderboardId = Number(stat.leaderboard_id ?? options.leaderboardId);
+		const hasSlot =
+			record != null && getStoredEloForLeaderboard(record.elo, leaderboardId) != null;
+		const stale = !record || isHarvestedStale(record.harvestedAt, staleMs);
+
+		if (!hasSlot || stale) {
+			selected.push(profileId);
+		}
+	}
+
+	return selected;
+}
+
+export async function harvestPlayerRatingsForProfiles(
+	profileIds: number[]
+): Promise<{ processed: number; skipped: number; updated: number } | null> {
+	const unique = [...new Set(profileIds.filter((id) => Number.isInteger(id) && id > 0))];
+	if (unique.length === 0 || !pocketbase.authStore.isValid) {
+		return null;
+	}
+
+	const headers: Record<string, string> = {
+		'Content-Type': 'application/json'
+	};
+
+	if (pocketbase.authStore.token) {
+		headers.Authorization = pocketbase.authStore.token;
+	}
+
+	try {
+		const response = await fetch(`${baseUrl()}/api/player-ratings/harvest/profiles`, {
+			method: 'POST',
+			headers,
+			body: JSON.stringify({ profileIds: unique })
+		});
+
+		if (!response.ok) {
+			console.warn('[player_ratings] harvest profiles failed', response.status);
+			return null;
+		}
+
+		const payload = (await response.json()) as {
+			processed?: number;
+			skipped?: number;
+			updated?: number;
+		};
+
+		return {
+			processed: Number(payload.processed) || 0,
+			skipped: Number(payload.skipped) || 0,
+			updated: Number(payload.updated) || 0
+		};
+	} catch (error) {
+		console.warn('[player_ratings] harvest profiles failed', error);
+		return null;
+	}
 }
 
 export async function getPlayerRating(steamId: string): Promise<PlayerRatingRecord | null> {

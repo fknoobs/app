@@ -1,0 +1,35 @@
+---
+description: Review POLICY.md whenever a change collects, stores, publishes, or shares data
+alwaysApply: true
+---
+
+# Privacy Policy
+
+After every **feature**, **bugfix**, or **enhancement**, check whether `POLICY.md` still matches what the product does. The landing page `/privacy` renders that file — update `POLICY.md` only; do not duplicate the text in Svelte.
+
+## When to update
+
+Required if the change does any of:
+
+- collects, stores, or uploads new data (accounts, matches, replays, screenshots, process names, logs, comments)
+- publishes new player or match data on the website or API
+- adds or changes a third-party integration (Steam, Relic, Twitch, ElevenLabs, Cloudflare, …)
+- changes what an account stores (email, Steam ID, avatar) or how fair play works
+- starts using data for a new purpose (analytics, marketing, sharing)
+
+Then: edit `POLICY.md`, set a new **Effective date** if the change is material, and keep `/privacy` and in-app privacy links working (including Tauri `opener:allow-open-url` for `https://coh1stats.com/*`).
+
+## When to skip
+
+- UI, copy, styling, refactors, or Cursor rules with no data-handling change
+- The policy already describes the behavior
+
+## Voice
+
+Stay accurate. We do not store sensitive personal data. The only personal contact detail we might have is an email, and only if the user replaces the generated `@fknoobs.com` placeholder. Game identifiers (Steam ID, alias, match stats) are CoH/Relic/Steam data, not real-life identity. Do not claim we collect “no personal data” if we still store game or account fields.
+
+```markdown
+# ❌ BAD — ship fair-play uploads / a new API field and leave POLICY.md unchanged
+
+# ✅ GOOD — POLICY.md lists the new data, purpose, and whether it is public or local-only
+```

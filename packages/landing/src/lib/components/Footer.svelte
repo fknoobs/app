@@ -14,6 +14,7 @@
 			© {new Date().getFullYear()} Code IT · Fknoobs
 		</p>
 		<nav class="ms-auto flex items-stretch">
+			<a href="/privacy" class={cn(interactive, footerLink)}>Privacy</a>
 			<a
 				href={GITHUB_URL}
 				target="_blank"

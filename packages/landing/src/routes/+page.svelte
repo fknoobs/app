@@ -10,21 +10,21 @@
 	<title>Company of Heroes - Companion | coh1stats.com</title>
 	<meta
 		name="description"
-		content="Free desktop companion for Company of Heroes — replay analysis, match history, leaderboards, keybindings, and Twitch streaming tools."
+		content="Free desktop companion for Company of Heroes 1 — replay analysis, live lobby scouting, match history, Relic leaderboards, keybindings, and Twitch overlays."
 	/>
 	<meta property="og:type" content="website" />
 	<meta property="og:url" content="{SITE_URL}/" />
 	<meta property="og:title" content="Company of Heroes - Companion" />
 	<meta
 		property="og:description"
-		content="Your command center for Company of Heroes. Replay analysis, match history, leaderboards, and Twitch tools — all in one free desktop app."
+		content="Desktop companion for Company of Heroes 1. Replay analysis, live lobby scouting, match history, Relic leaderboards, and Twitch overlays — in one free app."
 	/>
 	<meta property="og:image" content="{SITE_URL}/og-image.png" />
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content="Company of Heroes - Companion" />
 	<meta
 		name="twitter:description"
-		content="Your command center for Company of Heroes. Replay analysis, match history, leaderboards, and Twitch tools."
+		content="Desktop companion for Company of Heroes 1. Replay analysis, live lobby scouting, match history, Relic leaderboards, and Twitch overlays."
 	/>
 	<meta name="twitter:image" content="{SITE_URL}/og-image.png" />
 </svelte:head>
@@ -33,13 +33,11 @@
 	<Hero />
 	<section id="features">
 		<div class="border-secondary-800 border-b px-4 py-3">
-			<p class="text-primary mb-1 text-xs font-medium">Everything in one place</p>
-			<h2 class="font-heading text-xl font-bold text-white">
-				Built for players who take CoH seriously
-			</h2>
+			<p class="text-primary mb-1 text-xs font-medium">Features</p>
+			<h2 class="font-heading text-xl font-bold text-white">What the companion does</h2>
 			<p class="text-secondary-400 mt-1 text-sm">
-				From replay review to live lobbies and Twitch overlays — the companion runs alongside the
-				game so you stay in the fight.
+				Parse replays, scout the current lobby, browse community match history, and look up Relic
+				ranks — plus hotkeys and stream overlays.
 			</p>
 		</div>
 		{#each features as feature, index (feature.id)}

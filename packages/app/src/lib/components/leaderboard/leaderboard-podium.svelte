@@ -32,12 +32,7 @@
 		class?: string;
 	};
 
-	let {
-		stats,
-		eloBySteamId = new Map(),
-		loading = false,
-		class: className
-	}: Props = $props();
+	let { stats, eloBySteamId = new Map(), loading = false, class: className }: Props = $props();
 	const { t } = useI18n();
 
 	const podiumOrder = $derived.by(() => {
@@ -92,7 +87,7 @@
 
 <div
 	class={cn(
-		'border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-3 sm:divide-secondary-800 sm:divide-x',
+		'border-secondary-800 sm:divide-secondary-800 grid grid-cols-1 border-b sm:grid-cols-3 sm:divide-x',
 		className
 	)}
 >
@@ -148,7 +143,9 @@
 						alt={t('Rank {level}', { level: stat.ranklevel })}
 						class={cn('w-auto', stat.rank === 1 ? 'h-8' : 'h-7')}
 					/>
-					<span class="text-secondary-400 text-sm tabular-nums">{t('Lvl {level}', { level: stat.ranklevel })}</span>
+					<span class="text-secondary-400 text-sm tabular-nums"
+						>{t('Lvl {level}', { level: stat.ranklevel })}</span
+					>
 				</div>
 
 				<div
@@ -185,12 +182,16 @@
 					</span>
 				{/if}
 
-				<div class="text-secondary-400 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm">
+				<div
+					class="text-secondary-400 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm"
+				>
 					<span class={statWins}>{t('{count}W', { count: stat.wins })}</span>
 					<span class="text-secondary-600">·</span>
 					<span class={statLosses}>{t('{count}L', { count: stat.losses })}</span>
 					<span class="text-secondary-600">·</span>
-					<span class={statStreakClass(stat.streak)}>{t('{streak} streak', { streak: formatStreak(stat.streak) })}</span>
+					<span class={statStreakClass(stat.streak)}
+						>{t('{streak} streak', { streak: formatStreak(stat.streak) })}</span
+					>
 				</div>
 			</button>
 		{/each}

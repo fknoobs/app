@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+  # Called from Release after the Version Packages PR is merged and tagged.
+  # GITHUB_TOKEN tag pushes do not trigger this workflow on their own.
+  workflow_call:
 
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 

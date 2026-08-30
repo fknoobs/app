@@ -1,68 +1,123 @@
 # Privacy Policy
 
-**Effective date:** March 4, 2026
+**Effective date:** August 30, 2026
 
-This Privacy Policy explains how **FKNOOBS App** (“App”, “we”, “us”) collects, uses, shares, and protects information when you use the App and related services.
+This Privacy Policy explains how **Code IT** (“we”, “us”) collects, uses, shares, and protects information when you use **Company of Heroes Companion** (also called the FKNOOBS App), the website at [https://coh1stats.com](https://coh1stats.com), and the API at [https://api.coh1stats.com](https://api.coh1stats.com) (together, the “Service”).
 
-## 1. Information We Collect
+We do **not** store or use sensitive personal data. We do not ask for your real name, phone number, home address, payment details, government ID, or anything similar.
 
-### a) Account and profile data
+The only personal contact detail we might store is an **email address**, and only if you replace the default generated address with a real one. New accounts get a random `@fknoobs.com` email that is not yours. We do not use email for marketing.
 
-- Steam ID
-- Steam Avatar
-- E-mail if you setup an account
-- Metadata, currently only the app version you are using is stored
-- We do NOT store or collect personal data than the above
+Everything else we keep is game data (Steam IDs, in-game aliases, match stats, replays) from Company of Heroes / Relic / Steam — not sensitive information about you in real life.
 
-### b) Content and files you provide
+## 1. Who this applies to
 
-- Data you create in the App (for example replay-related data)
-- Files you explicitly select or upload (for example logs or images)
+It applies to:
 
-### c) Technical and usage data
+- people who install or use the desktop app;
+- people who visit the website or call the public API;
+- Company of Heroes players whose public multiplayer identity appears in match data, leaderboards, or player pages, even if they never installed the app.
 
-- App settings and preferences
-- Device/app metadata needed to operate the service (for example app version, session/auth data, and basic request logs)
+## 2. Information we collect
 
-### d) Third-party integration data
+### a) App accounts
 
-If you connect third-party services, we process the minimum information needed to enable those integrations.
+When you use the desktop app we create or restore an account so your match history can sync. That account may include:
 
-## 2. How We Use Information
+- a display name and avatar (optional);
+- one or more Steam IDs;
+- an email address — by default a random `@fknoobs.com` placeholder, or your real email **only if you change it**;
+- a password hash;
+- last login time and the app version;
+- staff role, if we grant you one.
+
+### b) Match, replay, and community data
+
+To provide match history, scouting, leaderboards, and player pages we store:
+
+- lobby and match records (map, mode, duration, outcome, ratings);
+- player identities seen in those matches (Steam ID, Relic profile ID, in-game alias, country when Relic provides it);
+- community ELO and performance stats we derive from matches;
+- replay files you upload, including metadata and in-game chat captured in the replay;
+- comments, likes, and similar social actions on matches;
+- overlay and notification data needed to run those features.
+
+Game logs such as `warnings.log` are read **on your device** so the app can detect matches. We store the match data that results, not the full log file, unless you explicitly upload a file.
+
+### c) Public player pages and leaderboards
+
+The website and API publish ranked stats, match history, performance breakdowns, and (where available) Steam profile details such as avatar, alias, online/last-seen status, and playtime. That information comes from Relic and Steam public multiplayer/profile APIs and from matches recorded by the community.
+
+We may also show smurf / related-account labels when our systems link Steam accounts that appear to be used together.
+
+### d) Fair play checks (desktop app)
+
+Fair play checks are **on by default** and can be turned off in Settings. While they are enabled, during a match the app may:
+
+- take random screenshots of the Company of Heroes window and upload them for review and analysis (these can include other players’ in-game names and units);
+- check running process names against a denylist and report a match (process name and process id);
+- store reports and a staff-maintained list of flagged Steam IDs.
+
+### e) Settings and optional integrations
+
+Settings, Twitch tokens, overlay config, and API keys you enter (for example an ElevenLabs key for TTS) are stored **on your device** unless a feature needs to publish something to our servers (for example a stream overlay).
+
+If you connect Twitch, Twitch provides the account information needed to run chat, rewards, and overlays. If you use ElevenLabs, chat text is sent to ElevenLabs with **your** key; we do not keep that key on our servers.
+
+### f) Technical data
+
+We keep basic operational data such as app version, authentication/session tokens, and request logs needed to run and secure the Service.
+
+## 3. How we use information
 
 We use information to:
 
-- create and manage accounts;
-- authenticate users and maintain sessions;
-- provide app features and sync data;
-- secure the service and prevent abuse;
-- debug, maintain, and improve performance;
+- create and manage accounts, and keep you signed in;
+- provide match tracking, history, replays, leaderboards, and player pages;
+- sync data across the app, website, and API;
+- operate overlays, notifications, and other features you enable;
+- review fair play reports and protect the community from abuse;
+- debug, maintain, and improve the Service;
 - comply with legal obligations.
 
-## 3. Legal Bases (where applicable)
+## 4. Legal bases (where applicable)
 
 Depending on your location, we process personal data under one or more of:
 
-- performance of a contract;
-- legitimate interests;
-- your consent;
-- legal obligations.
+- **contract** — to provide the app features you use;
+- **legitimate interests** — to operate public leaderboards and match records, keep the Service secure, and review fair play reports;
+- **consent** — where you connect a third-party account or keep a setting enabled (you can disconnect or turn it off);
+- **legal obligations**.
 
-## 4. How We Share Information
+Publishing Relic/Steam multiplayer stats is how the website works. If you want a player page taken down or corrected, contact us.
 
-We may share information:
+## 5. How we share information
 
-- with third-party platforms you choose to connect (Twitch / Steam);
+We share information with:
 
-## 5. Data Retention
+- **Steam (Valve)** and **Relic Entertainment / SEGA** — to look up profiles, ranks, and match history;
+- **Twitch** — if you connect Twitch;
+- **ElevenLabs** — if you use TTS with your own API key;
+- **Cloudflare** — to host and deliver the website;
+- staff moderators who review fair play reports.
 
-We keep personal data only as long as necessary for the purposes in this policy, including legal, accounting, and security needs. When no longer required, data is deleted, anonymized, or securely archived.
+Match results, player identities, and stats may be **public** on the website and API. Replay files, comments, and similar content you post may be visible to other users of the Service.
 
-## 6. Security
+We may also disclose information if required by law, or to protect the Service and other players.
 
-We apply reasonable technical and organizational safeguards to protect your data. No system is completely secure, and absolute security cannot be guaranteed.
+## 6. Data retention
 
-## 7. Your Privacy Rights
+We keep account, match, replay, and stats data for as long as the Service needs them, including for history, leaderboards, security, and legal reasons.
+
+You can ask us to delete or correct your **account** data. Match records that include other players, public leaderboard rows, and fair play evidence may be retained or only partly removed so history for everyone else stays accurate.
+
+Local settings are stored on your device until you clear app data. External backups the app writes on your computer stay under your control.
+
+## 7. Security
+
+We apply reasonable technical and organizational safeguards. No system is completely secure, and we cannot guarantee absolute security.
+
+## 8. Your privacy rights
 
 Depending on your jurisdiction, you may have rights to:
 
@@ -70,24 +125,26 @@ Depending on your jurisdiction, you may have rights to:
 - object to or restrict certain processing;
 - withdraw consent (where processing is based on consent);
 - request data portability;
-- lodge a complaint with a regulator.
+- lodge a complaint with a regulator (in the EU/EEA, your local data protection authority).
 
-## 8. Children’s Privacy
+To use these rights, email us. We may need to verify that the request is yours.
 
-The App is not directed to children under 13 (or the minimum age required by local law). We do not knowingly collect personal data from children without required consent.
+## 9. Children’s privacy
 
-## 9. International Transfers
+The Service is not directed to children under 16 (or the higher age required where you live). Company of Heroes is a game for older players. We do not knowingly collect personal data from children. If you believe a child has given us data, contact us and we will delete it.
 
-Your data may be processed in countries other than your own. Where required, we apply appropriate safeguards for cross-border transfers.
+## 10. International transfers
 
-## 10. Changes to This Policy
+The website is hosted on Cloudflare. The API and databases run on our backend. Your data may be processed in the Netherlands and in other countries where those providers operate. Where required, we rely on appropriate safeguards for those transfers.
 
-This policy may be updated from time to time. Updates will be posted with a revised effective date.
+## 11. Changes to this policy
 
-## 11. Contact
+We may update this policy from time to time. The current version is posted at [https://coh1stats.com/privacy](https://coh1stats.com/privacy) with a revised effective date.
 
-For privacy requests or questions, contact:
+## 12. Contact
 
-- **Email:** [richard@codeit.ninja]
+For privacy requests or questions:
 
-By using the App, you acknowledge this Privacy Policy.
+- **Email:** [richard@codeit.ninja](mailto:richard@codeit.ninja)
+
+By using the Service, you acknowledge this Privacy Policy.

@@ -190,6 +190,15 @@
 							<Button
 								variant="link"
 								size="sm"
+								type="button"
+								class="px-0"
+								onclick={() => openUrl('https://coh1stats.com/privacy')}
+							>
+								{t('Privacy')}
+							</Button>
+							<Button
+								variant="link"
+								size="sm"
 								class="px-0"
 								onclick={() => app.features.updater.openChangelog()}
 							>

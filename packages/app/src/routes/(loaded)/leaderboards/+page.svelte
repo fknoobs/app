@@ -8,7 +8,12 @@
 		getSteamIdFromProfile
 	} from '$lib/components/leaderboard/leaderboard-utils';
 	import { LeaderboardPodium, LeaderboardList } from '$lib/components/leaderboard';
-	import { getPlayerRatings } from '$core/pocketbase/player-ratings';
+	import {
+		getPlayerRatings,
+		harvestPlayerRatingsForProfiles,
+		selectLeaderboardHarvestProfileIds,
+		type PlayerRatingRecord
+	} from '$core/pocketbase/player-ratings';
 	import type { PlayerEloMap } from '$lib/utils/player-elo';
 	import { leaderboards } from '$lib/utils/game';
 	import Input from '$lib/components/ui/input/input.svelte';
@@ -20,6 +25,8 @@
 	let leaderboardFactionId = $state(leaderboards[0].leaderboardFationIds[0].value);
 	let searchInput = $state('');
 	let debouncedSearch = $state('');
+	let eloOverride = $state<Map<string, PlayerEloMap> | null>(null);
+	let lastHarvestKey = $state('');
 	const { t } = useI18n();
 
 	let leaderboardFactionsIds = $derived(
@@ -39,21 +46,28 @@
 		}
 	);
 
-	const eloBySteamId = resource(
+	const ratingsResource = resource(
 		() => statsResource.current.map((stat) => stat.profile.profile_id).join(','),
 		async () => {
 			const steamIds = statsResource.current
 				.map((stat) => getSteamIdFromProfile(stat.profile))
 				.filter(Boolean);
-			const records = await getPlayerRatings(steamIds);
-			const map = new Map<string, PlayerEloMap>();
-			for (const [steamId, record] of records) {
-				map.set(steamId, record.elo);
-			}
-			return map;
+			return getPlayerRatings(steamIds);
 		},
-		{ initialValue: new Map<string, PlayerEloMap>() }
+		{ initialValue: new Map<string, PlayerRatingRecord>() }
 	);
+
+	const eloBySteamId = $derived.by(() => {
+		if (eloOverride) {
+			return eloOverride;
+		}
+
+		const map = new Map<string, PlayerEloMap>();
+		for (const [steamId, record] of ratingsResource.current) {
+			map.set(steamId, record.elo);
+		}
+		return map;
+	});
 
 	const filteredStats = $derived.by(() => {
 		const query = debouncedSearch.trim().toLowerCase();
@@ -91,6 +105,57 @@
 		}
 	);
 
+	watch(
+		() => [leaderboardFactionId, statsResource.current, ratingsResource.current] as const,
+		([factionId, stats, ratings]) => {
+			if (stats.length === 0 || ratingsResource.loading) {
+				return;
+			}
+
+			const harvestKey = `${factionId}:${stats.map((s) => s.profile.profile_id).join(',')}`;
+			if (harvestKey === lastHarvestKey) {
+				return;
+			}
+			lastHarvestKey = harvestKey;
+			eloOverride = null;
+
+			const steamByProfile = new Map<number, string>();
+			for (const stat of stats) {
+				const steamId = getSteamIdFromProfile(stat.profile);
+				if (steamId) {
+					steamByProfile.set(stat.profile.profile_id, steamId);
+				}
+			}
+
+			const profileIds = selectLeaderboardHarvestProfileIds({
+				stats,
+				leaderboardId: parseInt(factionId, 10),
+				ratingsBySteamId: ratings,
+				steamIdForProfile: (profileId) => steamByProfile.get(profileId) ?? null
+			});
+
+			if (profileIds.length === 0) {
+				return;
+			}
+
+			void harvestPlayerRatingsForProfiles(profileIds).then(async (result) => {
+				if (!result || result.processed === 0) {
+					return;
+				}
+
+				const steamIds = stats
+					.map((stat) => getSteamIdFromProfile(stat.profile))
+					.filter(Boolean);
+				const refreshed = await getPlayerRatings(steamIds);
+				const map = new Map<string, PlayerEloMap>();
+				for (const [steamId, record] of refreshed) {
+					map.set(steamId, record.elo);
+				}
+				eloOverride = map;
+			});
+		}
+	);
+
 	export const snapshot: Snapshot<[string, string]> = {
 		capture: () => [leaderboardFactionId, leaderboardId],
 		restore: ([factionId, id]) => {
@@ -124,14 +189,14 @@
 {#if !isSearching}
 	<LeaderboardPodium
 		stats={podiumStats}
-		eloBySteamId={eloBySteamId.current}
+		eloBySteamId={eloBySteamId}
 		loading={statsResource.loading}
 	/>
 {/if}
 
 <LeaderboardList
 	stats={listStats}
-	eloBySteamId={eloBySteamId.current}
+	eloBySteamId={eloBySteamId}
 	loading={statsResource.loading}
 	empty={filteredStats.length === 0 ? t('No players found.') : t('No more players to show.')}
 	class="rounded-none border-0"

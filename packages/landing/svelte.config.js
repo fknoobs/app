@@ -5,9 +5,14 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 const config = {
 	preprocess: vitePreprocess(),
 	kit: {
-		adapter: adapter(),
+		adapter: adapter({
+			platformProxy: {
+				configPath: 'wrangler.emulate.toml',
+				persist: false
+			}
+		}),
 		prerender: {
-			entries: ['/']
+			entries: ['/', '/privacy']
 		},
 		alias: {
 			'@assets': '../shared-assets',

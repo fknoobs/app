@@ -28,63 +28,63 @@ export const features: Feature[] = [
 		id: 'dashboard',
 		title: 'Dashboard',
 		description:
-			'Your command center. Live lobbies, recent matches, and quick links into every part of the app.',
+			'Your profile, today’s matches, and live lobbies from other companion users. Open replays, history, or the current game from here.',
 		image: dashboardImg,
-		imageAlt: 'Company of Heroes Companion dashboard showing live lobbies and recent matches',
+		imageAlt: 'Companion dashboard with profile, today’s matches, and live lobbies from other users',
 		icon: GaugeIcon
 	},
 	{
 		id: 'replays',
 		title: 'Replays',
 		description:
-			'Point it at your replay folder and go. Browse, filter, and open any match for details, chat logs, and analysis.',
+			'Point it at your playback folder and it scans automatically. Filter the list, then open a match for overview, chat, timeline, and screenshots.',
 		image: replaysImg,
-		imageAlt: 'Replay browser with filters and match list',
+		imageAlt: 'Replay browser with filters, match list, and parsed replay details',
 		icon: FilmStripIcon
 	},
 	{
 		id: 'history',
 		title: 'Match history',
 		description:
-			'Your games and the community’s — searchable, filterable, and one click away from full match breakdowns.',
+			'Your games and the community’s. Search by map, faction, matchup, and ELO, then open the full breakdown with comments and downloads.',
 		image: historyImg,
-		imageAlt: 'Match history with search and filters',
+		imageAlt: 'Community match history with search and filters',
 		icon: ClockCounterClockwiseIcon
 	},
 	{
 		id: 'keybindings',
 		title: 'Keybindings',
 		description:
-			'Custom shortcuts globally and per faction — USA, Brits, Wehrmacht, Panzer Elite. Record, drag to reorder, export and import.',
+			'Global shortcuts plus per-faction binds for USA, Brits, Wehrmacht, and Panzer Elite. Record, drag to reorder, export and import.',
 		image: keybindingsImg,
-		imageAlt: 'Faction keybinding editor',
+		imageAlt: 'Global and faction keybinding editor',
 		icon: KeyboardIcon
 	},
 	{
 		id: 'leaderboards',
 		title: 'Leaderboards',
 		description:
-			'Relic leaderboards by mode and faction. Search players, see the podium, climb the ranks.',
+			'Official Relic boards for 1v1–4v4 and each faction, with rank, ELO, and win/loss. Search a player and open their profile.',
 		image: leaderboardsImg,
-		imageAlt: 'Relic leaderboards by mode and faction',
+		imageAlt: 'Relic leaderboards by mode and faction with rank and ELO',
 		icon: TrophyIcon
 	},
 	{
 		id: 'players',
 		title: 'Players',
 		description:
-			'Look anyone up by name, Steam ID, or Relic profile. Profiles with match history and stats included.',
+			'Look anyone up by name, Steam ID, or Relic profile. Ranks, ELO, performance, match history, and smurf labels.',
 		image: playersImg,
-		imageAlt: 'Player search and profile view',
+		imageAlt: 'Player search and profile with ranks, ELO, and match history',
 		icon: UsersIcon
 	},
 	{
 		id: 'twitch',
 		title: 'Twitch',
 		description:
-			'Connect your channel and stream with purpose: TTS, bot commands, and OBS-ready Opponent Bot overlays on api.coh1stats.com.',
+			'Connect your channel for TTS, auto player-stat chat messages, and an OBS Opponent Bot overlay hosted on api.coh1stats.com.',
 		image: twitchImg,
-		imageAlt: 'Twitch integration with TTS and overlay settings',
+		imageAlt: 'Twitch TTS, player-stat chat messages, and OBS overlay settings',
 		icon: TwitchLogoIcon
 	}
 ];

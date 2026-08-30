@@ -11,8 +11,10 @@
 	import ExportIcon from 'phosphor-svelte/lib/ExportIcon';
 	import ArchiveIcon from 'phosphor-svelte/lib/ArchiveIcon';
 	import { useI18n } from '$lib/i18n';
+	import { openUrl } from '@tauri-apps/plugin-opener';
 
 	const { t } = useI18n();
+	const privacyUrl = 'https://coh1stats.com/privacy';
 
 	let backupDir = $state('');
 	let lastBackupAt = $state<Date | null>(settings.backup.lastBackupAt);
@@ -98,6 +100,14 @@
 				{t(
 					'During a match the app takes random screenshots of the Company of Heroes window and checks for known cheat processes. These are uploaded for review and later analysis.'
 				)}
+				<Button
+					variant="link"
+					class="h-auto px-0"
+					type="button"
+					onclick={() => openUrl(privacyUrl)}
+				>
+					{t('Privacy policy')}
+				</Button>
 			</Form.Description>
 			<Checkbox label={t('Enable fair play checks')} bind:checked={antiCheat.settings.enabled} />
 		</Form.Group>

@@ -25,7 +25,7 @@ Grab the **Windows installer** — the `.exe` named like `fknoobscoh_<version>_x
 6. Launch **Company of Heroes - Companion** from the Start Menu or desktop shortcut
 
 > [!IMPORTANT]
-> **Why the warnings?** The app is **not code-signed** yet. Signing certificates are expensive, and this is a free hobby project — so Windows and your browser don’t recognize the publisher. That’s normal for unsigned apps.
+> **Why the warnings?** The app is **not code-signed** yet. We’re applying for free Authenticode signing through [SignPath Foundation](https://signpath.org/apply). Until that lands, Windows and your browser may not recognize the publisher. That’s normal for unsigned apps.
 >
 > As long as you downloaded from the official GitHub releases link above, it’s safe to proceed with **More info → Run anyway**.
 >

@@ -26,7 +26,7 @@ From `packages/landing`:
 pnpm deploy
 ```
 
-This runs `wrangler deploy` using [`wrangler.toml`](./wrangler.toml) (`main = ".svelte-kit/cloudflare/_worker.js"`).
+This runs `vite build && wrangler deploy` using [`wrangler.toml`](./wrangler.toml) (`main = ".svelte-kit/cloudflare/_worker.js"`).
 
 ## Custom domain
 

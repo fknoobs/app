@@ -54,6 +54,9 @@
 					"url": "https://discord.gg/Cc69hbDnPD"
 				},
 				{
+					"url": "https://coh1stats.com/*"
+				},
+				{
 					"url": "https://*.coh1stats.com"
 				}
 			]

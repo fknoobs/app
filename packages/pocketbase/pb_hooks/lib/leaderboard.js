@@ -235,7 +235,36 @@ function loadLeaderboard(leaderboardId) {
 	const data = fetchRelicJsonInsecure(url, { leaderboardId });
 	const stats = joinLeaderboard(data);
 	const steamIds = stats.map((stat) => steamIdFromName(stat.profile.name));
-	const eloBySteamId = loadEloBySteamIds(steamIds);
+	let eloBySteamId = loadEloBySteamIds(steamIds);
+
+	const missingProfileIds = [];
+	for (const stat of stats) {
+		if (missingProfileIds.length >= 12) {
+			break;
+		}
+
+		const steamId = steamIdFromName(stat.profile.name);
+		const elo = eloBySteamId[steamId];
+		if (ratings.getStoredEloForLeaderboard(elo, leaderboardId) == null) {
+			const profileId = Number(stat.profile.profile_id);
+			if (Number.isInteger(profileId) && profileId > 0) {
+				missingProfileIds.push(profileId);
+			}
+		}
+	}
+
+	if (missingProfileIds.length > 0) {
+		try {
+			const harvest = require(`${__hooks}/lib/player-ratings-harvest.js`);
+			const result = harvest.harvestProfiles(missingProfileIds);
+			if (result.processed > 0) {
+				eloBySteamId = loadEloBySteamIds(steamIds);
+			}
+		} catch (error) {
+			logWarn('Leaderboard ELO harvest failed', { error: String(error), leaderboardId });
+		}
+	}
+
 	const topSteamIds = stats
 		.slice(0, 3)
 		.map((stat) => steamIdFromName(stat.profile.name))

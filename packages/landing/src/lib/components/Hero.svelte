@@ -15,15 +15,13 @@
 			<div class="flex grow flex-col justify-center px-6 py-6">
 				<p class="text-primary mb-2 text-xs font-medium">Free desktop app</p>
 				<h1 class="font-heading text-3xl font-bold text-white sm:text-4xl">
-					Your command center for Company of Heroes
+					Desktop companion for Company of Heroes 1
 				</h1>
 				<p class="text-secondary-400 mt-3 max-w-xl text-sm leading-relaxed">
-					Replay analysis, match history, leaderboards, custom keybindings, and Twitch streaming
-					tools — everything you need between games, without alt-tab chaos.
+					Replay analysis, live lobby scouting, match history, Relic leaderboards, faction
+					keybindings, and Twitch overlays — in one app next to the game.
 				</p>
-				<p class="text-secondary-500 mt-4 text-sm">
-					Windows & Linux · Free · Auto-updates with changelog
-				</p>
+				<p class="text-secondary-500 mt-4 text-sm">Windows and Linux · Free · Auto-updates</p>
 			</div>
 			<div class="border-secondary-800 flex h-11 items-stretch border-t">
 				<div class="border-secondary-800 flex items-stretch border-r">
@@ -54,7 +52,7 @@
 		>
 			<img
 				src={dashboardImg}
-				alt="Company of Heroes Companion dashboard"
+				alt="Companion dashboard with profile, today’s matches, and live lobbies from other users"
 				class="absolute inset-0 size-full object-cover"
 				width="1280"
 				height="800"

@@ -1,0 +1,7 @@
+# Used only by adapter-cloudflare emulate()/getPlatformProxy during vite
+# dev and prerender. Must not point main or assets at .svelte-kit/cloudflare:
+# workerd keeps those files open, and Windows then fails the adapter's rimraf
+# with EPERM.
+name = "coh1stats-landing"
+compatibility_date = "2025-07-10"
+compatibility_flags = ["nodejs_als"]

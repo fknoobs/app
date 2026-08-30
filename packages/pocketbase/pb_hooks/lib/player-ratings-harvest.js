@@ -4,9 +4,11 @@ const ratings = require(`${__hooks}/lib/player-ratings.js`);
 const matchHistory = require(`${__hooks}/lib/match-history.js`);
 
 const RELIC_API_BASE = 'https://coh1-lobby.reliclink.com';
-const HARVEST_BATCH_SIZE = 8;
+const HARVEST_BATCH_SIZE = 12;
 const SNOWBALL_BATCH_SIZE = 8;
-const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+const COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const PAGE_HARVEST_MAX = 12;
+const PAGE_HARVEST_SKIP_MS = 60 * 60 * 1000;
 const ERROR_RETRY_MS = 60 * 60 * 1000;
 const FETCH_SCRIPT = `${__hooks}/lib/fetch-insecure.py`;
 
@@ -61,10 +63,125 @@ function selectDuePlayers() {
 			return aNever - bNever;
 		}
 
-		return ratings.countEloSlots(a.elo) - ratings.countEloSlots(b.elo);
+		const slotDiff = ratings.countEloSlots(a.elo) - ratings.countEloSlots(b.elo);
+		if (slotDiff !== 0) {
+			return slotDiff;
+		}
+
+		return String(a.harvestedAt || '').localeCompare(String(b.harvestedAt || ''));
 	});
 
 	return rows.slice(0, HARVEST_BATCH_SIZE);
+}
+
+function isHarvestedWithin(harvestedAt, withinMs) {
+	if (!harvestedAt) {
+		return false;
+	}
+
+	const at = new Date(harvestedAt).getTime();
+	if (!Number.isFinite(at)) {
+		return false;
+	}
+
+	return Date.now() - at < withinMs;
+}
+
+/**
+ * On-demand Relic match-history harvest for specific profile IDs (leaderboard page).
+ * Caps fetches and skips recently harvested players to avoid Relic spam.
+ */
+function harvestProfiles(profileIds) {
+	const unique = [];
+	const seen = {};
+
+	for (const raw of ratings.asList(profileIds)) {
+		const profileId = Number(raw);
+		if (!Number.isInteger(profileId) || profileId <= 0 || seen[profileId]) {
+			continue;
+		}
+		seen[profileId] = true;
+		unique.push(profileId);
+	}
+
+	if (unique.length === 0) {
+		return { processed: 0, fetched: 0, updated: 0, failed: 0, skipped: 0 };
+	}
+
+	let skipped = 0;
+	const toFetch = [];
+
+	for (const profileId of unique) {
+		if (toFetch.length >= PAGE_HARVEST_MAX) {
+			skipped += 1;
+			continue;
+		}
+
+		const record = ratings.findByProfileId(profileId);
+		const harvestedAt = record?.get('harvestedAt') || '';
+		if (isHarvestedWithin(harvestedAt, PAGE_HARVEST_SKIP_MS)) {
+			skipped += 1;
+			continue;
+		}
+
+		toFetch.push(profileId);
+	}
+
+	if (toFetch.length === 0) {
+		return { processed: 0, fetched: 0, updated: 0, failed: 0, skipped };
+	}
+
+	const urls = toFetch.map((profileId) => matchHistoryUrl(profileId));
+	const byUrl = fetchMatchHistories(urls);
+
+	let fetched = 0;
+	let updated = 0;
+	let failed = 0;
+
+	for (const profileId of toFetch) {
+		const url = matchHistoryUrl(profileId);
+		const payload = byUrl[url];
+		if (payload?.ok) {
+			fetched += 1;
+		}
+
+		const result = harvestProfileId(profileId, payload);
+		updated += result.updated;
+		failed += result.failed;
+
+		// Ensure harvestedAt is set even when the player had no player_ratings row yet
+		// (ingest creates rows from match participants; set by profile if present).
+		if (result.failed === 0 && payload?.ok) {
+			setHarvestedAtByProfileId(profileId, new Date().toISOString());
+		}
+	}
+
+	return {
+		processed: toFetch.length,
+		fetched,
+		updated,
+		failed,
+		skipped
+	};
+}
+
+function handleHarvestProfiles(e) {
+	const ratingsLib = require(`${__hooks}/lib/player-ratings.js`);
+	if (!e.auth?.id && !e.hasSuperuserAuth() && !ratingsLib.isServiceRequest(e)) {
+		return e.json(401, { message: 'Unauthorized' });
+	}
+
+	const body = ratingsLib.readRequestJsonBody(e);
+	const profileIds = ratingsLib.asList(body?.profileIds ?? body?.profile_ids);
+	if (profileIds.length === 0) {
+		return e.json(400, { message: 'profileIds is required' });
+	}
+
+	if (profileIds.length > 40) {
+		return e.json(400, { message: 'profileIds cannot exceed 40' });
+	}
+
+	return e.json(200, harvestProfiles(profileIds));
 }
 
 function setHarvestedAt(id, at) {
@@ -129,7 +246,7 @@ function fetchMatchHistories(urls) {
 
 function harvestPlayer(player, payload) {
 	if (!payload?.ok || !payload.body) {
-		// Eligible again in ~1h: due query is harvestedAt <= now-24h.
+		// Eligible again in ~1h: due query is harvestedAt <= now-cooldown.
 		setHarvestedAt(player.id, isoOffset(ERROR_RETRY_MS - COOLDOWN_MS));
 		return { updated: 0, failed: 1, matches: [] };
 	}
@@ -316,5 +433,9 @@ function runBatch() {
 module.exports = {
 	HARVEST_BATCH_SIZE,
 	SNOWBALL_BATCH_SIZE,
-	runBatch
+	PAGE_HARVEST_MAX,
+	COOLDOWN_MS,
+	runBatch,
+	harvestProfiles,
+	handleHarvestProfiles
 };

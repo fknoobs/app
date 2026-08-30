@@ -12,13 +12,22 @@
 	import { readFile } from '@tauri-apps/plugin-fs';
 	import { dev } from '$app/environment';
 	import { useI18n } from '$lib/i18n';
+	import { openUrl } from '@tauri-apps/plugin-opener';
 
 	const { t } = useI18n();
+	const privacyUrl = 'https://coh1stats.com/privacy';
 </script>
 
 <div class="px-5 py-4">
 	<p class="text-secondary-400 mb-4 max-w-4xl">
-		{t('When you install the app, we automatically create a default account for you using a randomly generated email address and password. You can use this account right away to sign in and access your data. For better security and to be recognizable on leaderboards, we recommend creating your own account and switching to it. This makes it easier for others to identify you and helps keep your data protected.')}
+		{t(
+			'When you install the app, we automatically create a default account for you using a randomly generated email address and password. You can use this account right away to sign in and access your data. For better security and to be recognizable on leaderboards, we recommend creating your own account and switching to it. This makes it easier for others to identify you and helps keep your data protected.'
+		)}
+	</p>
+	<p class="text-secondary-400 mb-4 max-w-4xl">
+		<Button variant="link" class="h-auto px-0" type="button" onclick={() => openUrl(privacyUrl)}>
+			{t('Privacy policy')}
+		</Button>
 	</p>
 
 	<H level={3} class="mt-4 mb-4">{t('Update Account Settings')}</H>
@@ -100,7 +109,9 @@
 			<Form.Label>{t('Email (Emails are private and will not be shared!)')}</Form.Label>
 			<Input type="email" bind:value={app.account.settings.email} disabled={!dev} />
 			<Form.Description class="mt-1">
-				{t('This email is used to sign in to your account. It is recommended to use a valid email address so you can recover your account.')}
+				{t(
+					'This email is used to sign in to your account. It is recommended to use a valid email address so you can recover your account.'
+				)}
 			</Form.Description>
 		</Form.Group>
 		<Form.Group class="mt-4">

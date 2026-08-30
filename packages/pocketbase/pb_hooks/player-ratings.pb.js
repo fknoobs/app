@@ -17,6 +17,14 @@ $app.onServe().bindFunc((e) => {
 		);
 	});
 
+	cronAdd('player_ratings_leaderboard_harvest', '2-59/5 * * * *', () => {
+		const lbHarvest = require(`${__hooks}/lib/player-ratings-leaderboard-harvest.js`);
+		const result = lbHarvest.runBatch();
+		console.log(
+			`[player_ratings] leaderboard harvest leaderboardId=${result.leaderboardId} profiles=${result.profileIds} next=${result.nextLeaderboardId} harvest=${JSON.stringify(result.harvest)} error=${result.error || ''}`
+		);
+	});
+
 	cronAdd('player_ratings_harvest', '3-59/5 * * * *', () => {
 		const harvest = require(`${__hooks}/lib/player-ratings-harvest.js`);
 		const result = harvest.runBatch();
@@ -63,6 +71,16 @@ routerAdd('POST', '/api/player-ratings/harvest/run', (e) => {
 
 	const harvest = require(`${__hooks}/lib/player-ratings-harvest.js`);
 	return e.json(200, harvest.runBatch());
+});
+
+routerAdd('POST', '/api/player-ratings/harvest/profiles', (e) => {
+	return require(`${__hooks}/lib/player-ratings-harvest.js`).handleHarvestProfiles(e);
+});
+
+routerAdd('POST', '/api/player-ratings/harvest/leaderboards', (e) => {
+	return require(`${__hooks}/lib/player-ratings-leaderboard-harvest.js`).handleHarvestLeaderboards(
+		e
+	);
 });
 
 routerAdd('POST', '/api/player-ratings/fill-from-lobbies', (e) => {
