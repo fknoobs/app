@@ -224,6 +224,7 @@ export class Shortcuts extends Feature<ShortcutSettings> {
 	private registrationQueue: Promise<void> = Promise.resolve();
 	private disposeEnable?: () => void;
 	private settingsRegisterTimer?: ReturnType<typeof setTimeout>;
+	#suspendCount = 0;
 
 	private runRegistration<T>(task: () => Promise<T>): Promise<T> {
 		const run = this.registrationQueue.then(task);
@@ -236,11 +237,25 @@ export class Shortcuts extends Feature<ShortcutSettings> {
 
 	private shouldRegisterShortcuts() {
 		return (
+			this.#suspendCount === 0 &&
 			app.game.isRunning &&
 			app.game.isWindowFocused &&
 			!app.game.isIngameChatOpen &&
 			Boolean(app.lobby?.me)
 		);
+	}
+
+	/** Unregister hotkeys so injected keys (e.g. all-chat announce) are not remapped. */
+	async suspendBindings(): Promise<void> {
+		this.#suspendCount += 1;
+		await this.unregisterAllShortcuts();
+	}
+
+	resumeBindings(): void {
+		this.#suspendCount = Math.max(0, this.#suspendCount - 1);
+		if (this.#suspendCount === 0) {
+			this.maybeRegisterShortcuts();
+		}
 	}
 
 	private maybeRegisterShortcuts() {

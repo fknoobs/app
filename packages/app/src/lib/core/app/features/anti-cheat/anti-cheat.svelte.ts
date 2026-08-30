@@ -8,6 +8,7 @@ import { account } from '$core/account';
 import { pocketbase } from '$core/pocketbase';
 import { fetch } from '$core/http/fetch';
 import { Feature } from '../feature.svelte';
+import { shortcuts } from '../shortcuts';
 
 export type AntiCheatSettings = {
 	enabled: boolean;
@@ -44,7 +45,6 @@ const CAPTURE_RETRY_MIN_MS = 5_000;
 const CAPTURE_RETRY_MAX_MS = 15_000;
 const MAX_CAPTURE_RETRIES = 20;
 const CHAT_ANNOUNCE_MESSAGE = '[FAIPLAY] Supervised by coh1stats.com';
-const CHAT_ANNOUNCE_GRACE_MS = dev ? 5_000 : LOADING_GRACE_MS;
 const CHAT_ANNOUNCE_RETRY_MS = 3_000;
 const CHAT_ANNOUNCE_RETRY_WINDOW_MS = 60_000;
 
@@ -160,6 +160,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			map: match.map || match.mapName || 'Unknown'
 		};
 		this.#reportedHits.clear();
+		void this.#announceChatNow();
 		await this.#refreshDenylist();
 		if (token !== this.#sessionToken || !this.#session) {
 			return;
@@ -171,7 +172,6 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			elapsedSec: Math.round(elapsedMs / 1000)
 		});
 		this.#scheduleCaptures(elapsedMs);
-		this.#scheduleChatAnnounce(elapsedMs);
 		this.#processTimer = setTimeout(() => {
 			void this.#scanProcesses();
 		}, FIRST_PROCESS_SCAN_MS);
@@ -250,20 +250,13 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 		return this.enabled && this.settings.announceInChat;
 	}
 
-	#scheduleChatAnnounce(elapsedMs: number): void {
+	async #announceChatNow(): Promise<void> {
 		if (!this.#shouldAnnounceChat()) {
 			console.info('[ANTI-CHEAT]: skip chat announce, disabled in settings');
 			return;
 		}
 
-		const delay = Math.max(CHAT_ANNOUNCE_GRACE_MS - elapsedMs, 0);
-		console.info('[ANTI-CHEAT]: chat announce scheduled in', `${Math.round(delay / 1000)}s`);
-		this.#trackTimer(
-			setTimeout(
-				() => void this.#announceChatWithRetry(Date.now() + CHAT_ANNOUNCE_RETRY_WINDOW_MS),
-				delay
-			)
-		);
+		await this.#announceChatWithRetry(Date.now() + CHAT_ANNOUNCE_RETRY_WINDOW_MS);
 	}
 
 	async #announceChatWithRetry(deadlineMs: number): Promise<void> {
@@ -276,6 +269,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			return;
 		}
 
+		await shortcuts.suspendBindings();
 		try {
 			await invoke('send_game_chat', { message: CHAT_ANNOUNCE_MESSAGE });
 			if (!this.#isLiveMatch()) {
@@ -289,6 +283,8 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 				return;
 			}
 			console.warn('[ANTI-CHEAT]: chat announce failed:', error);
+		} finally {
+			shortcuts.resumeBindings();
 		}
 	}
 
