@@ -1,3 +1,8 @@
+### v0.59.3
+
+- fix; open Company of Heroes all-chat with shift+enter instead of team chat
+- fix; make the entire row collapsible on the screenshots tabs
+
 ### v0.59.2
 
 - fix; typo
