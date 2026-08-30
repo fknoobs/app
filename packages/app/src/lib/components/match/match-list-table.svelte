@@ -159,24 +159,20 @@
 	{getMatchModeLabel(row)}
 {/snippet}
 {#snippet cell_allies({ row }: { row: MatchExpanded })}
-	<div onpointerdown={(event) => event.stopPropagation()}>
-		<MatchPlayers
-			team="allies"
-			bind:outcome={row.alliesOutcome}
-			{highlightedPlayers}
-			class="flex items-center gap-1.5 overflow-visible"
-		/>
-	</div>
+	<MatchPlayers
+		team="allies"
+		bind:outcome={row.alliesOutcome}
+		{highlightedPlayers}
+		class="flex items-center gap-1.5 overflow-visible"
+	/>
 {/snippet}
 {#snippet cell_axis({ row }: { row: MatchExpanded })}
-	<div onpointerdown={(event) => event.stopPropagation()}>
-		<MatchPlayers
-			team="axis"
-			bind:outcome={row.axisOutcome}
-			{highlightedPlayers}
-			class="flex items-center gap-1.5 overflow-visible"
-		/>
-	</div>
+	<MatchPlayers
+		team="axis"
+		bind:outcome={row.axisOutcome}
+		{highlightedPlayers}
+		class="flex items-center gap-1.5 overflow-visible"
+	/>
 {/snippet}
 {#snippet cell_duration({ row }: { row: MatchExpanded })}
 	<MatchDuration />
@@ -202,7 +198,12 @@
 	{/if}
 {/snippet}
 {#snippet cell_expand({ row }: { row: MatchExpanded })}
-	<CaretDownIcon class={cn('size-4 transition-transform', expandedId === row.id && 'rotate-180')} />
+	<CaretDownIcon
+		class={cn(
+			'pointer-events-none size-4 transition-transform',
+			expandedId === row.id && 'rotate-180'
+		)}
+	/>
 {/snippet}
 {#snippet matchRowWrapper({ row, children }: { row: MatchExpanded; children: Snippet })}
 	{@const expanded = canExpand && expandedId === row.id}

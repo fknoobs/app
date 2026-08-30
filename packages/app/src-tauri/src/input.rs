@@ -186,15 +186,13 @@ pub fn shortcut_modifiers_match(trigger: String) -> Result<bool, String> {
 #[cfg(target_os = "windows")]
 const CHAT_MAX_CHARS: usize = 80;
 #[cfg(target_os = "windows")]
-const CHAT_KEY_GAP_MS: u64 = 25;
+const CHAT_OPEN_DELAY_MS: u64 = 25;
 #[cfg(target_os = "windows")]
-const CHAT_OPEN_DELAY_MS: u64 = 80;
-#[cfg(target_os = "windows")]
-const CHAT_SEND_DELAY_MS: u64 = 20;
+const CHAT_SEND_DELAY_MS: u64 = 5;
 #[cfg(target_os = "windows")]
 const CHAT_NOT_FOCUSED: &str = "Company of Heroes is not focused";
 
-/// Opens Company of Heroes all-chat (Right Ctrl+Enter), types ASCII text, and sends it.
+/// Opens Company of Heroes all-chat (Shift+Enter), types ASCII text, and sends it.
 #[command]
 pub async fn send_game_chat(message: String) -> Result<(), String> {
     #[cfg(not(target_os = "windows"))]
@@ -263,36 +261,39 @@ fn send_game_chat_sync(message: &str) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn open_all_chat_scancode() -> Result<(), String> {
-    key_vk(VK_RCONTROL, true, true)?;
-    thread::sleep(time::Duration::from_millis(CHAT_KEY_GAP_MS));
-    if let Err(error) = click_vk(VK_RETURN, false) {
-        let _ = key_vk(VK_RCONTROL, false, true);
-        return Err(error);
-    }
-    thread::sleep(time::Duration::from_millis(CHAT_KEY_GAP_MS));
-    key_vk(VK_RCONTROL, false, true)
+    send_inputs(&[
+        vk_input(VK_SHIFT, true, false),
+        vk_input(VK_RETURN, true, false),
+        vk_input(VK_RETURN, false, false),
+        vk_input(VK_SHIFT, false, false),
+    ])
 }
 
 #[cfg(target_os = "windows")]
 fn type_ascii(message: &str) -> Result<(), String> {
     use windows::Win32::UI::Input::KeyboardAndMouse::VkKeyScanW;
 
-    let mut events = Vec::with_capacity(message.len() * 4);
+    let mut events = Vec::with_capacity(message.len() * 2 + 8);
+    let mut shift_down = false;
     for c in message.chars() {
         let mapped = unsafe { VkKeyScanW(c as u16) };
         if mapped < 0 {
             return Err(format!("Cannot map {c:?} to a virtual key"));
         }
         let vk = VIRTUAL_KEY((mapped as u16) & 0xFF);
-        let shift = (mapped as u16) & 0x100 != 0;
-        if shift {
+        let need_shift = (mapped as u16) & 0x100 != 0;
+        if need_shift && !shift_down {
             events.push(vk_input(VK_SHIFT, true, false));
+            shift_down = true;
+        } else if !need_shift && shift_down {
+            events.push(vk_input(VK_SHIFT, false, false));
+            shift_down = false;
         }
         events.push(vk_input(vk, true, false));
         events.push(vk_input(vk, false, false));
-        if shift {
-            events.push(vk_input(VK_SHIFT, false, false));
-        }
+    }
+    if shift_down {
+        events.push(vk_input(VK_SHIFT, false, false));
     }
     send_inputs(&events)
 }
@@ -300,11 +301,6 @@ fn type_ascii(message: &str) -> Result<(), String> {
 #[cfg(target_os = "windows")]
 fn click_vk(vk: VIRTUAL_KEY, extended: bool) -> Result<(), String> {
     send_inputs(&[vk_input(vk, true, extended), vk_input(vk, false, extended)])
-}
-
-#[cfg(target_os = "windows")]
-fn key_vk(vk: VIRTUAL_KEY, down: bool, extended: bool) -> Result<(), String> {
-    send_inputs(&[vk_input(vk, down, extended)])
 }
 
 #[cfg(target_os = "windows")]
@@ -317,7 +313,6 @@ fn vk_input(vk: VIRTUAL_KEY, down: bool, extended: bool) -> INPUT {
     let mut scan = (unsafe { MapVirtualKeyW(vk.0 as u32, MAPVK_VK_TO_VSC_EX) } as u16) & 0xFF;
     if scan == 0 {
         scan = match vk {
-            VK_RCONTROL => 0x1D,
             VK_RETURN => 0x1C,
             VK_ESCAPE => 0x01,
             VK_SHIFT => 0x2A,
@@ -382,7 +377,7 @@ fn hold_bindings_clear_active() {
 
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetAsyncKeyState, INPUT, VIRTUAL_KEY, VK_ESCAPE, VK_RCONTROL, VK_RETURN, VK_SHIFT,
+    GetAsyncKeyState, INPUT, VIRTUAL_KEY, VK_ESCAPE, VK_RETURN, VK_SHIFT,
 };
 
 #[cfg(target_os = "windows")]

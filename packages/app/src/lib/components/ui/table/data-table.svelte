@@ -66,39 +66,78 @@
 		void goto(href);
 	}
 
-	function handleRowClick(event: MouseEvent, href: string | undefined, row: T) {
-		const target = event.target as HTMLElement;
-		if (target.closest('a, button')) return;
+	function activateRow(row: T, href: string | undefined) {
 		if (onRowClick) {
 			onRowClick(row);
 			return;
 		}
-		if (!href) return;
-		navigate(href);
+		if (href) navigate(href);
 	}
+
+	const overlayContent =
+		'relative z-10 pointer-events-none [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_input]:pointer-events-auto';
 </script>
 
 {#snippet rowCells(row: T)}
+	{@const href = rowHref?.(row)}
+	{@const clickable = Boolean(href || onRowClick)}
 	{#each columns as column (column.id)}
 		{@const cellSnippet = getCellSnippet(column)}
 		{@const cellHref = column.href?.(row)}
-		<td class={cn(cellPad, 'h-full', column.cellClass?.(row))}>
+		<td class={cn(cellPad, 'relative h-full', column.cellClass?.(row), clickable && 'p-0!')}>
+			{#if clickable}
+				<button
+					type="button"
+					class="absolute inset-0 z-0 cursor-pointer"
+					tabindex="-1"
+					aria-hidden="true"
+					onclick={() => activateRow(row, href)}
+				></button>
+			{/if}
 			{#if cellSnippet}
 				{#if cellHref}
-					<a href={cellHref} class={cn('hover:text-primary flex h-full min-w-0 items-center gap-4 transition-colors', column.class)}>
+					<a
+						href={cellHref}
+						class={cn(
+							'hover:text-primary relative z-10 flex h-full min-w-0 items-center gap-4 transition-colors',
+							clickable && cellPad,
+							column.class
+						)}
+					>
 						{@render cellSnippet({ row })}
 					</a>
 				{:else}
-					<div class={cn('flex h-full min-w-0 items-center', column.class)}>
+					<div
+						class={cn(
+							overlayContent,
+							'flex h-full w-full min-w-0 items-center',
+							clickable && cellPad,
+							column.class
+						)}
+					>
 						{@render cellSnippet({ row })}
 					</div>
 				{/if}
 			{:else if cellHref}
-				<a href={cellHref} class={cn('hover:text-primary flex min-w-0 items-center transition-colors', column.class)}>
+				<a
+					href={cellHref}
+					class={cn(
+						'hover:text-primary relative z-10 flex min-w-0 items-center transition-colors',
+						clickable && cellPad,
+						column.class
+					)}
+				>
 					{getCellContent(row, column) ?? ''}
 				</a>
 			{:else}
-				<div class={cn('flex min-w-0 items-center', column.class)}>
+				<div
+					class={cn(
+						overlayContent,
+						'flex min-w-0 items-center',
+						clickable && cellPad,
+						column.class
+					)}
+				>
 					{getCellContent(row, column) ?? ''}
 				</div>
 			{/if}
@@ -136,19 +175,14 @@
 			expanded && 'bg-secondary-950/60 text-primary',
 			rowClass?.(row)
 		)}
-		tabindex={clickable ? 0 : undefined}
-		role={href ? 'link' : onRowClick ? 'button' : undefined}
+		tabindex={clickable && !onRowClick ? 0 : undefined}
+		role={href ? 'link' : undefined}
 		aria-expanded={onRowClick ? expanded : undefined}
-		onclick={(event) => handleRowClick(event, href, row)}
 		onkeydown={(event) => {
 			if (!clickable) return;
 			if (event.key !== 'Enter' && event.key !== ' ') return;
 			event.preventDefault();
-			if (onRowClick) {
-				onRowClick(row);
-				return;
-			}
-			if (href) navigate(href);
+			activateRow(row, href);
 		}}
 	>
 		{@render rowCells(row)}

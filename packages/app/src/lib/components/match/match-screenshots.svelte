@@ -66,7 +66,7 @@
 		() => listOwnReportForMatch(account.userId, sessionId)
 	);
 
-	let expandedOverride = $state<string | null | undefined>(undefined);
+	let expandedId = $state<string | null>(null);
 	let flaggingKey = $state<string | null>(null);
 	let extraFlagged = $state<string[]>([]);
 
@@ -150,10 +150,6 @@
 	const flaggedAccused = $derived(
 		new Set([...(ownReports.current ?? []).map((report) => report.accused), ...extraFlagged])
 	);
-	const expandedId = $derived.by(() => {
-		if (expandedOverride === undefined) return groups[0]?.key ?? null;
-		return expandedOverride;
-	});
 	const columns = $derived.by((): ColumnDef<CaptureGroup>[] => [
 		{
 			id: 'player',
@@ -197,7 +193,7 @@
 	};
 
 	function toggleExpanded(key: string) {
-		expandedOverride = expandedId === key ? null : key;
+		expandedId = expandedId === key ? null : key;
 	}
 
 	function formatDate(value: string) {
@@ -299,7 +295,12 @@
 	{/if}
 {/snippet}
 {#snippet cell_expand({ row }: { row: CaptureGroup })}
-	<CaretDownIcon class={cn('size-4 transition-transform', expandedId === row.key && 'rotate-180')} />
+	<CaretDownIcon
+		class={cn(
+			'pointer-events-none size-4 transition-transform',
+			expandedId === row.key && 'rotate-180'
+		)}
+	/>
 {/snippet}
 {#snippet rowWrapper({ row, children }: { row: CaptureGroup; children: Snippet })}
 	{@render children()}

@@ -322,7 +322,12 @@
 	{/if}
 {/snippet}
 {#snippet cell_expand({ row }: { row: ReportRow })}
-	<CaretDownIcon class={cn('size-4 transition-transform', expandedId === row.id && 'rotate-180')} />
+	<CaretDownIcon
+		class={cn(
+			'pointer-events-none size-4 transition-transform',
+			expandedId === row.id && 'rotate-180'
+		)}
+	/>
 {/snippet}
 {#snippet rowWrapper({ row, children }: { row: ReportRow; children: Snippet })}
 	{@render children()}
