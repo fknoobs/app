@@ -1,6 +1,7 @@
 import type { Match } from '$core/game/lobby';
 import type { AntiCheatProcessDenylistResponse } from '$core/pocketbase/types';
 import { invoke } from '@tauri-apps/api/core';
+import { watch } from 'runed';
 import { dev } from '$app/environment';
 import { app } from '$core/app/context';
 import { account } from '$core/account';
@@ -10,6 +11,7 @@ import { Feature } from '../feature.svelte';
 
 export type AntiCheatSettings = {
 	enabled: boolean;
+	announceInChat: boolean;
 };
 
 type GameWindowCapture = {
@@ -32,6 +34,7 @@ const LOADING_GRACE_MS = 30_000;
 const MIN_CAPTURES = 2;
 const MAX_CAPTURES = 5;
 const SCHEDULE_WINDOW_MS = 25 * 60 * 1000;
+const MAX_SESSION_AGE_MS = 2 * 60 * 60 * 1000;
 const FIRST_CAPTURE_MIN_MS = dev ? 5_000 : LOADING_GRACE_MS;
 const FIRST_CAPTURE_MAX_MS = dev ? 8_000 : LOADING_GRACE_MS + 15_000;
 const FIRST_PROCESS_SCAN_MS = 8_000;
@@ -40,9 +43,28 @@ const PROCESS_SCAN_MAX_MS = 30_000;
 const CAPTURE_RETRY_MIN_MS = 5_000;
 const CAPTURE_RETRY_MAX_MS = 15_000;
 const MAX_CAPTURE_RETRIES = 20;
+const CHAT_ANNOUNCE_MESSAGE = '[FAIPLAY] Supervised by coh1stats.com';
+const CHAT_ANNOUNCE_GRACE_MS = dev ? 5_000 : LOADING_GRACE_MS;
+const CHAT_ANNOUNCE_RETRY_MS = 3_000;
+const CHAT_ANNOUNCE_RETRY_WINDOW_MS = 60_000;
 
 function randomInt(min: number, max: number): number {
 	return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/** Elapsed time since `warnings.log` lobby start (`HH:MM:SS` wall clock). */
+function matchElapsedMs(startedAt: string | undefined | null): number {
+	if (!startedAt) return 0;
+	const parsed = startedAt.trim().match(/^(\d{1,2}):(\d{2}):(\d{2})/);
+	if (!parsed) return 0;
+	const now = new Date();
+	const started = new Date(now);
+	started.setHours(Number(parsed[1]), Number(parsed[2]), Number(parsed[3]), 0);
+	let elapsed = now.getTime() - started.getTime();
+	if (elapsed < -5 * 60 * 1000) {
+		elapsed += 24 * 60 * 60 * 1000;
+	}
+	return Math.max(0, elapsed);
 }
 
 function base64ToJpegFile(base64: string): File {
@@ -55,13 +77,15 @@ function base64ToJpegFile(base64: string): File {
 }
 
 /**
- * Takes random screenshots of the CoH window during a live match and reports
- * known cheat processes from a server denylist.
+ * Takes random screenshots of the CoH window during a live match, reports
+ * known cheat processes from a server denylist, and posts a one-time all-chat
+ * announce so other players can see that fair play is on.
  */
 export class AntiCheat extends Feature<AntiCheatSettings> {
 	name = 'anti-cheat';
 
 	#unsubscribers: (() => void)[] = [];
+	#disposeWatchers: (() => void) | null = null;
 	#captureTimers: ReturnType<typeof setTimeout>[] = [];
 	#processTimer: ReturnType<typeof setTimeout> | null = null;
 	#session: ActiveSession | null = null;
@@ -74,18 +98,34 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			app.on('lobby.started', (match) => {
 				void this.#startSession(match);
 			}),
+			app.on('lobby.gameover', () => {
+				this.#stopSession();
+			}),
 			app.on('lobby.destroyed', () => {
 				this.#stopSession();
 			})
 		);
 
-		if (app.lobby?.started) {
+		this.#disposeWatchers = $effect.root(() => {
+			watch(
+				() => app.game.isRunning,
+				(running) => {
+					if (!running) {
+						this.#stopSession();
+					}
+				}
+			);
+		});
+
+		if (app.lobby?.started && !app.lobby.ended) {
 			void this.#startSession(app.lobby);
 		}
 	}
 
 	disable() {
 		this.#stopSession();
+		this.#disposeWatchers?.();
+		this.#disposeWatchers = null;
 		for (const unsubscribe of this.#unsubscribers) {
 			unsubscribe();
 		}
@@ -93,7 +133,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 	}
 
 	defaultSettings(): AntiCheatSettings {
-		return { enabled: true };
+		return { enabled: true, announceInChat: true };
 	}
 
 	async #startSession(match: Match): Promise<void> {
@@ -101,6 +141,16 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 
 		if (!account.isAuthenticated) {
 			console.warn('[ANTI-CHEAT]: skip session, not authenticated');
+			return;
+		}
+
+		if (match.ended || !app.game.isRunning) {
+			return;
+		}
+
+		const elapsedMs = matchElapsedMs(match.startedAt);
+		if (elapsedMs > MAX_SESSION_AGE_MS) {
+			console.warn('[ANTI-CHEAT]: skip session, match start too old');
 			return;
 		}
 
@@ -117,9 +167,11 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 
 		console.info('[ANTI-CHEAT]: session started', {
 			sessionId: this.#session.sessionId,
-			map: this.#session.map
+			map: this.#session.map,
+			elapsedSec: Math.round(elapsedMs / 1000)
 		});
-		this.#scheduleCaptures();
+		this.#scheduleCaptures(elapsedMs);
+		this.#scheduleChatAnnounce(elapsedMs);
 		this.#processTimer = setTimeout(() => {
 			void this.#scanProcesses();
 		}, FIRST_PROCESS_SCAN_MS);
@@ -142,11 +194,45 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 		this.#captureTimers.push(timer);
 	}
 
-	#scheduleCaptures(): void {
+	#isLiveMatch(): boolean {
+		if (!this.#session || !app.game.isRunning) {
+			return false;
+		}
+
+		const lobby = app.lobby;
+		if (!lobby?.started || lobby.ended) {
+			return false;
+		}
+
+		if (this.#session.sessionId && lobby.sessionId && lobby.sessionId !== this.#session.sessionId) {
+			return false;
+		}
+
+		return true;
+	}
+
+	#scheduleCaptures(elapsedMs: number): void {
+		const offsets = new Set<number>();
+		const firstFromStart = randomInt(FIRST_CAPTURE_MIN_MS, FIRST_CAPTURE_MAX_MS);
+		if (firstFromStart > elapsedMs) {
+			offsets.add(firstFromStart - elapsedMs);
+		}
+
 		const count = randomInt(MIN_CAPTURES, MAX_CAPTURES);
-		const offsets = new Set<number>([randomInt(FIRST_CAPTURE_MIN_MS, FIRST_CAPTURE_MAX_MS)]);
-		while (offsets.size < count) {
-			offsets.add(randomInt(LOADING_GRACE_MS + 30_000, SCHEDULE_WINDOW_MS));
+		let attempts = 0;
+		while (offsets.size < count && attempts < 40) {
+			attempts += 1;
+			const fromStart = randomInt(LOADING_GRACE_MS + 30_000, SCHEDULE_WINDOW_MS);
+			if (fromStart > elapsedMs) {
+				offsets.add(fromStart - elapsedMs);
+			}
+		}
+
+		if (offsets.size === 0) {
+			console.info('[ANTI-CHEAT]: skip captures, match sample window already elapsed', {
+				elapsedSec: Math.round(elapsedMs / 1000)
+			});
+			return;
 		}
 
 		const scheduled = [...offsets].sort((a, b) => a - b);
@@ -160,13 +246,76 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 		}
 	}
 
+	#shouldAnnounceChat(): boolean {
+		return this.enabled && this.settings.announceInChat;
+	}
+
+	#scheduleChatAnnounce(elapsedMs: number): void {
+		if (!this.#shouldAnnounceChat()) {
+			console.info('[ANTI-CHEAT]: skip chat announce, disabled in settings');
+			return;
+		}
+
+		const delay = Math.max(CHAT_ANNOUNCE_GRACE_MS - elapsedMs, 0);
+		console.info('[ANTI-CHEAT]: chat announce scheduled in', `${Math.round(delay / 1000)}s`);
+		this.#trackTimer(
+			setTimeout(
+				() => void this.#announceChatWithRetry(Date.now() + CHAT_ANNOUNCE_RETRY_WINDOW_MS),
+				delay
+			)
+		);
+	}
+
+	async #announceChatWithRetry(deadlineMs: number): Promise<void> {
+		if (!this.#isLiveMatch() || !this.#shouldAnnounceChat()) {
+			return;
+		}
+
+		if (app.game.isIngameChatOpen) {
+			this.#retryChatAnnounce('ingame chat is open', deadlineMs);
+			return;
+		}
+
+		try {
+			await invoke('send_game_chat', { message: CHAT_ANNOUNCE_MESSAGE });
+			if (!this.#isLiveMatch()) {
+				return;
+			}
+			console.info('[ANTI-CHEAT]: chat announce sent');
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			if (message.includes('not focused')) {
+				this.#retryChatAnnounce('game is not focused', deadlineMs);
+				return;
+			}
+			console.warn('[ANTI-CHEAT]: chat announce failed:', error);
+		}
+	}
+
+	#retryChatAnnounce(reason: string, deadlineMs: number): void {
+		if (!this.#isLiveMatch() || !this.#shouldAnnounceChat() || Date.now() >= deadlineMs) {
+			console.info('[ANTI-CHEAT]: skip chat announce,', reason);
+			return;
+		}
+
+		this.#trackTimer(
+			setTimeout(() => void this.#announceChatWithRetry(deadlineMs), CHAT_ANNOUNCE_RETRY_MS)
+		);
+	}
+
 	async #captureWithRetry(attempts: number): Promise<void> {
-		if (!this.#session) {
+		if (!this.#isLiveMatch()) {
+			this.#stopSession();
 			return;
 		}
 
 		try {
 			const capture = await invoke<GameWindowCapture>('capture_game_window');
+			if (!this.#isLiveMatch()) {
+				this.#stopSession();
+				return;
+			}
+
 			await this.#uploadCapture(capture);
 			console.info('[ANTI-CHEAT]: capture uploaded', {
 				width: capture.width,
@@ -179,7 +328,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 	}
 
 	#retryCapture(attempts: number): void {
-		if (!this.#session || attempts >= MAX_CAPTURE_RETRIES) {
+		if (!this.#isLiveMatch() || attempts >= MAX_CAPTURE_RETRIES) {
 			return;
 		}
 
@@ -192,6 +341,10 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 	}
 
 	async #uploadCapture(capture: GameWindowCapture): Promise<void> {
+		if (!this.#isLiveMatch()) {
+			return;
+		}
+
 		const session = this.#session;
 		const userId = pocketbase.authStore.record?.id ?? account.userId;
 		if (!session || !userId) {
@@ -230,7 +383,8 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 	}
 
 	async #scanProcesses(): Promise<void> {
-		if (!this.#session) {
+		if (!this.#isLiveMatch()) {
+			this.#stopSession();
 			return;
 		}
 

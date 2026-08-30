@@ -3,8 +3,9 @@
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Input, Checkbox } from '$lib/components/ui/input';
+	import { Checkbox, Input } from '$lib/components/ui/input';
 	import * as Form from '$lib/components/ui/form';
+	import * as User from '$lib/components/user';
 	import { app } from '$core/app/context';
 	import { pocketbase } from '$core/pocketbase';
 	import { fetch } from '$core/http/fetch';
@@ -14,6 +15,7 @@
 		UsersResponse
 	} from '$core/pocketbase/types';
 	import dayjs from '$lib/dayjs';
+	import PlusIcon from 'phosphor-svelte/lib/PlusIcon';
 	import { useI18n } from '$lib/i18n';
 
 	const { t } = useI18n();
@@ -58,6 +60,7 @@
 	let isSaving = $state(false);
 	let deletingId = $state<string | null>(null);
 	let togglingId = $state<string | null>(null);
+	const canAdd = $derived(name.trim().length > 0 && !isSaving);
 
 	$effect(() => {
 		if (app.account.isStaff) {
@@ -169,40 +172,49 @@
 	};
 </script>
 
-<Form.Root class="space-y-0">
-	<div class="border-secondary-800 border-b p-4">
-		<div class="grid max-w-4xl gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
-			<Form.Group class="mb-0">
-				<Form.Label>{t('Process name')}</Form.Label>
-				<Input
-					bind:value={name}
-					placeholder="cheatengine"
-					onkeydown={(event) => {
-						if (event.key === 'Enter') {
-							event.preventDefault();
-							void addProcess();
-						}
-					}}
-				/>
-			</Form.Group>
-			<Form.Group class="mb-0">
-				<Form.Label>{t('Label')}</Form.Label>
-				<Input bind:value={label} placeholder={t('Optional display name')} />
-			</Form.Group>
-			<Form.Group class="mb-0">
-				<span class="invisible select-none" aria-hidden="true">
-					<Form.Label>&nbsp;</Form.Label>
-				</span>
-				<div class="flex h-11 items-center gap-3">
-					<Checkbox bind:checked={enabled} label={t('Enabled')} size="sm" />
-					<Button type="button" class="shrink-0" loading={isSaving} onclick={() => addProcess()}>
-						{t('Add process')}
-					</Button>
-				</div>
-			</Form.Group>
-		</div>
-	</div>
-</Form.Root>
+<Form.Group
+	inputId="denylist-process-name"
+	label={t('New process')}
+	description={t('Add a process name to the fair play denylist.')}
+>
+	<Input
+		id="denylist-process-name"
+		bind:value={name}
+		placeholder="cheatengine"
+		aria-label={t('Process name')}
+		onkeydown={(event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				void addProcess();
+			}
+		}}
+	/>
+	<Input
+		bind:value={label}
+		placeholder={t('Optional display name')}
+		aria-label={t('Label')}
+		onkeydown={(event) => {
+			if (event.key === 'Enter') {
+				event.preventDefault();
+				void addProcess();
+			}
+		}}
+	/>
+	<Checkbox bind:checked={enabled} label={t('Enabled')} size="sm" />
+	{#snippet footer()}
+		<Button
+			type="button"
+			variant="secondary"
+			class="w-fit"
+			disabled={!canAdd}
+			loading={isSaving}
+			onclick={() => addProcess()}
+		>
+			<PlusIcon size={16} />
+			{t('Add process')}
+		</Button>
+	{/snippet}
+</Form.Group>
 
 <section>
 	<div class="border-secondary-800 border-b px-4 py-3">
@@ -267,7 +279,13 @@
 		</p>
 	</div>
 	{#snippet cell_user({ row }: { row: HitRow })}
-		<span class="block truncate">{userLabel(row)}</span>
+		{#if row.expand?.user}
+			<User.Root user={row.expand.user}>
+				<User.Name />
+			</User.Root>
+		{:else}
+			<span class="block truncate">{userLabel(row)}</span>
+		{/if}
 	{/snippet}
 	{#snippet cell_process({ row }: { row: HitRow })}
 		<span class="block truncate">{row.process_name}</span>

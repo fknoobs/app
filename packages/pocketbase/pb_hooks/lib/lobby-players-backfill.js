@@ -227,6 +227,59 @@ function repairEmptyLobbyPlayers(limit = 100) {
 	return { scanned: rows.length, updated };
 }
 
+function repairMissingPlayerIndex(limit = 100) {
+	const rows = arrayOf(
+		new DynamicModel({
+			id: '',
+			players: '',
+			lobbyPlayers: '',
+			playerProfileIdsCsv: '',
+			replay: '',
+			result: '',
+			sessionId: 0,
+			map: '',
+			user: '',
+			needsResult: false,
+			title: ''
+		})
+	);
+
+	$app
+		.db()
+		.newQuery(
+			`SELECT
+				l.id,
+				COALESCE(l.players, '') AS players,
+				COALESCE(l.lobbyPlayers, '') AS lobbyPlayers,
+				COALESCE(l.playerProfileIdsCsv, '') AS playerProfileIdsCsv,
+				COALESCE(l.replay, '') AS replay,
+				COALESCE(l.result, '') AS result,
+				COALESCE(l.sessionId, 0) AS sessionId,
+				COALESCE(l.map, '') AS map,
+				COALESCE(l.user, '') AS user,
+				COALESCE(l.needsResult, 0) AS needsResult,
+				COALESCE(l.title, '') AS title
+			FROM lobbies l
+			WHERE l.needsResult = 0
+				AND l.title != 'Skirmish'
+				AND NOT EXISTS (SELECT 1 FROM lobby_player_index i WHERE i.lobby = l.id)
+			ORDER BY l.createdAt DESC
+			LIMIT {:limit}`
+		)
+		.bind({ limit })
+		.all(rows);
+
+	let indexed = 0;
+	for (const row of rows) {
+		const result = backfillLobbyFromRow(row);
+		if (result.indexed) {
+			indexed += 1;
+		}
+	}
+
+	return { scanned: rows.length, indexed };
+}
+
 function reset() {
 	jobState.reset(JOB_ID);
 }
@@ -239,6 +292,7 @@ module.exports = {
 	isComplete,
 	runBatch,
 	repairEmptyLobbyPlayers,
+	repairMissingPlayerIndex,
 	reset,
 	getPage
 };

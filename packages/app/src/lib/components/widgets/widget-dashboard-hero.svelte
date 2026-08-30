@@ -18,6 +18,7 @@
 	import { upperCase } from 'lodash-es';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import * as Player from '$lib/components/player';
+	import { Badge } from '$lib/components/ui/badge';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import {
 		collectTodayMatchSteamIds,
@@ -38,6 +39,7 @@
 	import { MATCH_TYPES } from '$core/game/lobby';
 	import { getRaceLabel } from '$lib/components/leaderboard/leaderboard-utils';
 	import { tooltip } from '$lib/attachments';
+	import { resolve } from '$app/paths';
 
 	let activeTab = $state('stats');
 	let panelExpanded = $state(false);
@@ -202,12 +204,14 @@
 		offLobbyDestroyed();
 	});
 
+	const statCell =
+		'border-secondary-800 flex h-full flex-col items-center justify-center px-2 py-3 text-center';
 	const recentMatchBase =
 		'flex h-8 min-w-0 items-center justify-center text-xs font-semibold transition-colors duration-150';
 	const recentMatchWin =
-		'bg-success/15 text-success/70 hover:bg-success/30 hover:text-green-300 focus-visible:bg-success/30 focus-visible:text-green-300';
+		'bg-success/20 text-success hover:bg-success/35 hover:text-green-300 focus-visible:bg-success/35 focus-visible:text-green-300';
 	const recentMatchLoss =
-		'bg-destructive/15 text-destructive/70 hover:bg-destructive/30 hover:text-red-300 focus-visible:bg-destructive/30 focus-visible:text-red-300';
+		'bg-destructive/20 text-destructive hover:bg-destructive/35 hover:text-red-300 focus-visible:bg-destructive/35 focus-visible:text-red-300';
 
 	function openTab(tab: string) {
 		activeTab = tab;
@@ -241,29 +245,27 @@
 				'hover:border-secondary-700 transition-colors'
 			)}
 		>
-			<div
-				class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(170px,220px)_minmax(0,1fr)]"
-			>
-				<div
-					class={cn(
-						'relative aspect-square h-full min-h-0 overflow-clip sm:aspect-auto sm:border-r',
-						app.lobby ? 'border-green-500' : 'border-secondary-800'
-					)}
-				>
-					<img
-						src={profile.steam.avatarfull}
-						alt={profile.relic.alias}
-						class="absolute inset-0 h-full w-full object-cover"
-					/>
-				</div>
-
-				<div class="flex min-h-0 min-w-0 flex-col sm:h-full">
-					<div class="flex items-center gap-3 px-6 py-3">
+			<div class="border-secondary-800 border-b">
+				<div class="flex items-center gap-3 px-4 py-3">
+					<a
+						href={resolve('/(loaded)/players/[id]', { id: String(profile.relic.profile_id) })}
+						class={cn(interactive, 'shrink-0')}
+					>
+						<img
+							src={profile.steam.avatarfull}
+							alt={profile.relic.alias}
+							class={cn(
+								'size-10 rounded-full object-cover ring-2',
+								app.lobby ? 'ring-green-500' : 'ring-secondary-600'
+							)}
+						/>
+					</a>
+					<div class="flex min-w-0 flex-1 items-center gap-2">
 						<a
-							href="/players/{profile.relic.profile_id}"
+							href={resolve('/(loaded)/players/[id]', { id: String(profile.relic.profile_id) })}
 							class={cn(
 								interactive,
-								'hover:text-primary flex min-w-0 max-w-full items-center gap-2 transition-colors'
+								'hover:text-primary flex min-w-0 items-center gap-2 transition-colors'
 							)}
 						>
 							{#if profile.relic.country}
@@ -273,95 +275,81 @@
 									alt={profile.relic.country}
 								/>
 							{/if}
-							<span class="font-heading truncate text-xl font-bold">{profile.relic.alias}</span>
+							<span class="font-heading truncate text-lg font-bold">{profile.relic.alias}</span>
 						</a>
+						<Player.Labels steamId={profile.steam.steamid} class="shrink-0" />
 						{#if app.lobby}
-							<a
-								href="/current-game"
-								class={cn(
-									interactive,
-									'text-success ml-auto shrink-0 text-xs font-medium hover:underline'
-								)}
-							>
-								{t('In match')}
+							<a href={resolve('/(loaded)/current-game')} class={cn(interactive, 'ml-auto shrink-0')}>
+								<Badge variant="success">{t('In match')}</Badge>
 							</a>
 						{:else if !app.game.isRunning}
-							<span class="text-secondary-500 ml-auto shrink-0 text-xs font-medium">
-								{t('Not running')}
-							</span>
+							<Badge variant="default" class="ml-auto shrink-0">{t('Not running')}</Badge>
 						{/if}
 					</div>
-
-					<div class="border-secondary-800 flex min-h-0 flex-1 flex-col border-t">
-						<dl class="grid min-h-0 min-w-0 flex-1 grid-cols-6 items-stretch text-center text-sm">
-							<LeaderboardModeSummary
-								stats={profile.relic.leaderboardStats ?? []}
-								elo={playerElo}
-							/>
-							<div
-								class="border-secondary-800 flex h-full flex-col items-center justify-center border-r px-2 py-3"
-							>
-								<dt class="text-secondary-500 text-xs font-medium uppercase">{t('Record')}</dt>
-								<dd class="mt-1">
-									{#if tracked.matchCount > 0}
-										<span class="inline-flex flex-wrap items-center justify-center gap-1.5">
-											<span class={statWins}>{t('{count}W', { count: tracked.wins })}</span>
-											<span class="text-secondary-600">·</span>
-											<span class={statLosses}>{t('{count}L', { count: tracked.losses })}</span>
-											<LeaderboardStatPill
-												type="ratio"
-												wins={tracked.wins}
-												losses={tracked.losses}
-												streak={0}
-											/>
-										</span>
-									{:else}
-										<span class="text-secondary-500 line-clamp-2 text-xs">
-											{t('Play with the companion running to build stats.')}
-										</span>
-									{/if}
-								</dd>
-							</div>
-							<div class="flex h-full flex-col items-center justify-center px-2 py-3">
-								<dt class="text-secondary-500 text-xs font-medium uppercase">{t('Today')}</dt>
-								<dd class="mt-1 flex items-center gap-1.5">
-									{#if todayRecord.wins + todayRecord.losses > 0}
-										<span class={statWins}>{t('{count}W', { count: todayRecord.wins })}</span>
-										<span class="text-secondary-600">·</span>
-										<span class={statLosses}>{t('{count}L', { count: todayRecord.losses })}</span>
-									{:else if todayRecord.pending > 0}
-										<span class="text-secondary-500 text-xs">
-											{t('{count} pending', { count: todayRecord.pending })}
-										</span>
-									{/if}
-									<span class="text-secondary-200 tabular-nums">({todayRecord.total})</span>
-								</dd>
-							</div>
-						</dl>
-					</div>
-
-					{#if formMatches.length > 0}
-						<div
-							class="border-secondary-800 divide-secondary-800 mt-auto grid divide-x overflow-clip border-t"
-							style:grid-template-columns="repeat({formMatches.length}, minmax(0, 1fr))"
-						>
-							{#each formMatches as match (match.id || match.sessionId)}
-								<a
-									href="/history/{match.id}"
-									class={cn(
-										interactive,
-										recentMatchBase,
-										match.outcome === 1 ? recentMatchWin : recentMatchLoss
-									)}
-									aria-label="{match.outcome === 1 ? t('Win') : t('Loss')} — {recentMatchLabel(match)}"
-									{@attach tooltip(recentMatchTooltip(match))}
-								>
-									{match.outcome === 1 ? t('W') : t('L')}
-								</a>
-							{/each}
-						</div>
-					{/if}
 				</div>
+
+				<dl class="border-secondary-800 grid min-w-0 grid-cols-6 border-t">
+					<LeaderboardModeSummary stats={profile.relic.leaderboardStats ?? []} elo={playerElo} />
+					<div class={cn(statCell, 'border-r')}>
+						<dt class="text-secondary-500 text-xs font-medium uppercase">{t('Record')}</dt>
+						<dd class="mt-1">
+							{#if tracked.matchCount > 0}
+								<span class="inline-flex flex-wrap items-center justify-center gap-1.5">
+									<span class={statWins}>{t('{count}W', { count: tracked.wins })}</span>
+									<span class="text-secondary-600">·</span>
+									<span class={statLosses}>{t('{count}L', { count: tracked.losses })}</span>
+									<LeaderboardStatPill
+										type="ratio"
+										wins={tracked.wins}
+										losses={tracked.losses}
+										streak={0}
+									/>
+								</span>
+							{:else}
+								<span class="text-secondary-500 line-clamp-2 text-xs">
+									{t('Play with the companion running to build stats.')}
+								</span>
+							{/if}
+						</dd>
+					</div>
+					<div class={statCell}>
+						<dt class="text-secondary-500 text-xs font-medium uppercase">{t('Today')}</dt>
+						<dd class="mt-1 flex items-center gap-1.5">
+							{#if todayRecord.wins + todayRecord.losses > 0}
+								<span class={statWins}>{t('{count}W', { count: todayRecord.wins })}</span>
+								<span class="text-secondary-600">·</span>
+								<span class={statLosses}>{t('{count}L', { count: todayRecord.losses })}</span>
+							{:else if todayRecord.pending > 0}
+								<span class="text-secondary-500 text-xs">
+									{t('{count} pending', { count: todayRecord.pending })}
+								</span>
+							{/if}
+							<span class="text-secondary-200 tabular-nums">({todayRecord.total})</span>
+						</dd>
+					</div>
+				</dl>
+
+				{#if formMatches.length > 0}
+					<div
+						class="border-secondary-800 divide-secondary-800 grid divide-x overflow-clip border-t"
+						style:grid-template-columns="repeat({formMatches.length}, minmax(0, 1fr))"
+					>
+						{#each formMatches as match (match.id || match.sessionId)}
+							<a
+								href={resolve('/(loaded)/history/[id]', { id: match.id })}
+								class={cn(
+									interactive,
+									recentMatchBase,
+									match.outcome === 1 ? recentMatchWin : recentMatchLoss
+								)}
+								aria-label="{match.outcome === 1 ? t('Win') : t('Loss')} — {recentMatchLabel(match)}"
+								{@attach tooltip(recentMatchTooltip(match))}
+							>
+								{match.outcome === 1 ? t('W') : t('L')}
+							</a>
+						{/each}
+					</div>
+				{/if}
 			</div>
 
 			<div>

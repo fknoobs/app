@@ -35,6 +35,12 @@ $app.onServe().bindFunc((e) => {
 					`[lobby_players] repair updated=${repaired.updated} scanned=${repaired.scanned}`
 				);
 			}
+			const missing = backfill.repairMissingPlayerIndex(100);
+			if (missing.indexed > 0) {
+				console.log(
+					`[lobby_players] missing-index indexed=${missing.indexed} scanned=${missing.scanned}`
+				);
+			}
 			return;
 		}
 

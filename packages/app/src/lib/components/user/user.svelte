@@ -6,7 +6,7 @@
 	import { isEmpty } from 'lodash-es';
 
 	type Props = {
-		user: UsersResponse<Record<string, any>, string[]>;
+		user: UsersResponse;
 	} & HTMLAttributes<HTMLDivElement>;
 
 	let { user, children, ...restProps }: Props = $props();

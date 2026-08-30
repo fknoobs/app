@@ -1,6 +1,6 @@
 'use strict';
 
-const { SESSION_PARTITION_SQL, isPreferredLobbyClause } = require(`${__hooks}/lib/lobbies-dedupe.js`);
+const { SESSION_PARTITION_SQL } = require(`${__hooks}/lib/lobbies-dedupe.js`);
 
 function parseLobbyPlayersField(raw) {
 	if (Array.isArray(raw)) {
@@ -50,7 +50,7 @@ function summarizePlayersFromLobbyField(lobbyPlayersRaw) {
 
 function loadPlayerAliasMap(scope, userId) {
 	try {
-		const snapshotId = scope === 'community' ? 'community' : `user:${userId}`;
+		const snapshotId = scope === 'community' ? 'community' : `user-v2:${userId}`;
 		const snapshot = $app.findRecordById('match_filter_snapshots', snapshotId);
 		const snapshotPlayers = snapshot.get('players') || [];
 		const aliasMap = {};
@@ -541,6 +541,38 @@ function buildRaceFilterClause(
   )`;
 }
 
+/**
+ * Lobbies the account uploaded, or that one of their Steam IDs (or Relic
+ * profiles) actually played in. Index alias `pi` so callers can still use `i`.
+ */
+function userPlayedLobbyClause(lobbyAlias, { steamIds = [], profileIds = [] } = {}, bindings) {
+	const alias = lobbyAlias || 'l';
+	const played = [];
+	for (let i = 0; i < steamIds.length; i++) {
+		const key = `playedSid${i}`;
+		bindings[key] = steamIds[i];
+		played.push(`pi.steam_id = {:${key}}`);
+	}
+	for (let i = 0; i < profileIds.length; i++) {
+		const key = `playedPid${i}`;
+		bindings[key] = profileIds[i];
+		played.push(`pi.profile_id = {:${key}}`);
+	}
+	if (steamIds.length === 0) {
+		played.push(`pi.steam_id IN (
+			SELECT CAST(json_each.value AS TEXT)
+			FROM json_each(COALESCE((SELECT steamIds FROM users WHERE id = {:userId}), '[]'))
+		)`);
+	}
+	if (played.length === 0) {
+		return `${alias}.user = {:userId}`;
+	}
+	return `(${alias}.user = {:userId} OR EXISTS (
+		SELECT 1 FROM lobby_player_index pi
+		WHERE pi.lobby = ${alias}.id AND (${played.join(' OR ')})
+	))`;
+}
+
 function loadUserSteamIds(userId) {
 	if (!userId) {
 		return [];
@@ -730,7 +762,6 @@ module.exports = {
 	loadPlayersByLobbyIds,
 	resolvePlayersForRow,
 	countFilteredMatches,
-	isPreferredLobbyClause,
 	buildRaceFilterClause,
 	buildIndexPlayerConditions,
 	buildProFilterClause,
@@ -739,6 +770,7 @@ module.exports = {
 	compareClause,
 	comparePlayerEloClause,
 	loadUserSteamIds,
+	userPlayedLobbyClause,
 	asList,
 	transformMatchHistory
 };

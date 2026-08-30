@@ -21,7 +21,8 @@ export type GameLogEvents = {
  * watcher starts on an existing log, all historical lines are replayed first
  * (consumers ignore events while not ready), then `ready` fires. If a lobby
  * is still active, `lobby.started` or `lobby.joined` is re-emitted once so
- * opening the app mid-game still shows the current match. App-level publish
+ * opening the app mid-game still shows the current match. Finished matches
+ * (game over already in the log) are not re-emitted. App-level publish
  * keys guarantee `game.lobby.joined` / `game.lobby.started` fire once per match.
  */
 export class GameLogService extends Emittery<GameLogEvents> {
@@ -116,9 +117,12 @@ export class GameLogService extends Emittery<GameLogEvents> {
 			}
 
 			// Opened mid-match: replay was ignored while not ready, so surface
-			// the active lobby once. Only re-emit `started` when the mission
-			// has actually started — otherwise `joined` so listeners do not
-			// get a premature `game.lobby.started`.
+			// the active lobby once. Skip finished matches so fair-play captures
+			// do not start against the main menu.
+			if (lobby.ended) {
+				return;
+			}
+
 			if (lobby.started) {
 				void this.emitSerial('lobby.started', lobby);
 				return;

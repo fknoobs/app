@@ -244,7 +244,10 @@ export class RelicClient {
 	 * @param profileId - The profile id (number)
 	 * @returns An array of TransformedMatch objects
 	 */
-	public async getRecentMatchHistoryForProfile(profileId: number): Promise<TransformedMatch[]> {
+	public async getRecentMatchHistoryForProfile(
+		profileId: number,
+		options?: { includeHidden?: boolean }
+	): Promise<TransformedMatch[]> {
 		const result = await this.request<any>(
 			['community', 'leaderboard', 'getrecentmatchhistorybyprofileid'],
 			{
@@ -261,7 +264,16 @@ export class RelicClient {
 			.catch((error) => {
 				console.warn('[relic] player ratings ingest skipped', error);
 			});
-		return matches;
+		if (options?.includeHidden) {
+			return matches;
+		}
+		try {
+			const { filterPublicMatchHistory } = await import('$core/pocketbase/hidden-matches');
+			return await filterPublicMatchHistory(matches);
+		} catch (error) {
+			console.warn('[relic] public match history filter skipped', error);
+			return matches;
+		}
 	}
 
 	/**

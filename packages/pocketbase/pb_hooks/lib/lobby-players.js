@@ -472,12 +472,6 @@ function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw, meta, playersRaw) 
 		return;
 	}
 
-	$app
-		.db()
-		.newQuery('DELETE FROM lobby_player_index WHERE lobby = {:lobbyId}')
-		.bind({ lobbyId })
-		.execute();
-
 	const { matchtypeId, byProfile } = parseResultPlayerStats(resultRaw);
 	const uniqueIds = {};
 	for (const id of profileIds || []) {
@@ -497,6 +491,12 @@ function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw, meta, playersRaw) 
 	if (profileIdList.length === 0) {
 		return;
 	}
+
+	$app
+		.db()
+		.newQuery('DELETE FROM lobby_player_index WHERE lobby = {:lobbyId}')
+		.bind({ lobbyId })
+		.execute();
 
 	const hasStats = indexHasStatsFields(collection);
 	const hasElo = Boolean(collection.fields.getByName('elo'));
@@ -519,7 +519,16 @@ function syncLobbyPlayerIndex(lobbyId, profileIds, resultRaw, meta, playersRaw) 
 		if (hasMeta) {
 			applyLobbyMeta(record, meta);
 		}
-		$app.save(record);
+		try {
+			$app.save(record);
+		} catch (error) {
+			console.warn(
+				'[lobby_players] index save failed',
+				lobbyId,
+				profileId,
+				String(error?.message || error)
+			);
+		}
 	}
 }
 

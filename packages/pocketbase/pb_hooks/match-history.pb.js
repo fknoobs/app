@@ -12,13 +12,13 @@ routerAdd('GET', '/api/match-history', (e) => {
 		resolvePlayersForRow,
 		parseResultField,
 		countFilteredMatches,
-		isPreferredLobbyClause,
 		buildIndexPlayerConditions,
 		buildProFilterClause,
 		buildSortClause,
 		parseCompareOp,
 		compareClause,
-		loadUserSteamIds
+		loadUserSteamIds,
+		userPlayedLobbyClause
 	} = require(`${__hooks}/lib/match-history.js`);
 
 	const query = e.request.url.query();
@@ -63,6 +63,7 @@ routerAdd('GET', '/api/match-history', (e) => {
 		.map((value) => Number(value))
 		.filter((value) => Number.isFinite(value));
 
+	const exactMatchtypes = query.get('exactMatchtypes') === 'true';
 	const includeSkirmish = query.get('includeSkirmish') === 'true';
 
 	let eloOp = parseCompareOp(query.get('eloOp') || '');
@@ -98,9 +99,18 @@ routerAdd('GET', '/api/match-history', (e) => {
 	const orderBy = buildSortClause(sort, sortDir);
 
 	const bindings = {};
+	const { notHiddenSessionClause, notHiddenTitleClause, lobbyDescriptionSql, isStaffAuth } =
+		require(`${__hooks}/lib/hidden-matches.js`);
+	const includeHidden = isStaffAuth(e.auth);
+
 	const lobbyFilters = includeSkirmish
 		? ["(l.needsResult = 0 OR l.title = 'Skirmish')"]
 		: ["l.needsResult = 0", "l.title != 'Skirmish'"];
+
+	if (!includeHidden) {
+		lobbyFilters.push(notHiddenSessionClause('l.sessionId'));
+		lobbyFilters.push(notHiddenTitleClause(lobbyDescriptionSql('l')));
+	}
 
 	if (scope === 'community') {
 		lobbyFilters.push("(l.hasReplay = 1 OR (l.replay IS NOT NULL AND l.replay != ''))");
@@ -110,7 +120,6 @@ routerAdd('GET', '/api/match-history', (e) => {
 		}
 
 		bindings.userId = userId;
-		lobbyFilters.push('l.user = {:userId}');
 	}
 
 	if (ranked) {
@@ -151,6 +160,10 @@ routerAdd('GET', '/api/match-history', (e) => {
 			const key = `matchtype${i}`;
 			bindings[key] = matchtypes[i];
 			matchtypeClauses.push(`{:${key}}`);
+			// History 4v4 also includes 8-player basic matches; performance rows are exact ids.
+			if (exactMatchtypes) {
+				continue;
+			}
 			const count = playerCountByType[matchtypes[i]];
 			if (count && !playerCounts[count]) {
 				playerCounts[count] = true;
@@ -200,11 +213,17 @@ routerAdd('GET', '/api/match-history', (e) => {
 		Number.isFinite(subjectProfileId) && subjectProfileId > 0 ? [subjectProfileId] : [];
 
 	const hasPlayerFilter = numericPlayerIds.length > 0;
+	const userSteamIds = scope === 'user' ? loadUserSteamIds(userId) : [];
+	if (scope === 'user') {
+		lobbyFilters.push(
+			userPlayedLobbyClause('l', { steamIds: userSteamIds, profileIds: userProfileIds }, bindings)
+		);
+	}
 	const indexSubjects =
 		hasPlayerFilter
 			? { steamIds: [], profileIds: [] }
 			: scope === 'user'
-				? { steamIds: loadUserSteamIds(userId), profileIds: userProfileIds }
+				? { steamIds: userSteamIds, profileIds: userProfileIds }
 				: { steamIds: [], profileIds: [] };
 
 	const indexConditions = buildIndexPlayerConditions(
@@ -246,10 +265,7 @@ routerAdd('GET', '/api/match-history', (e) => {
 		hasDurationFilter;
 	const offset = (page - 1) * perPage;
 
-	bindings.limit = perPage;
-	bindings.offset = offset;
-
-	const canUseCommunityCountCache = scope === 'community' && !hasExtraFilters;
+	const canUseCommunityCountCache = scope === 'community' && !hasExtraFilters && !includeHidden;
 
 	const selectColumns = `l.id,
            l.map,
@@ -283,7 +299,9 @@ routerAdd('GET', '/api/match-history', (e) => {
 		}
 
 		const whereClause = lobbyFilters.join(' AND ');
-		const selectWhere = `${whereClause} AND ${isPreferredLobbyClause('l')}`;
+		// Skip the correlated preferred-lobby subquery: it made LIMIT ignore
+		// createdAt and drop newest community rows. Duplicates are blocked on create.
+		const selectWhere = whereClause;
 
 		if (totalItems === null) {
 			totalItems = countFilteredMatches(
@@ -337,14 +355,14 @@ routerAdd('GET', '/api/match-history', (e) => {
            ${joinExtra}
            AND ${selectWhere}
          ORDER BY ${orderBy}
-         LIMIT {:limit} OFFSET {:offset}`;
+         LIMIT ${perPage} OFFSET ${offset}`;
 		} else {
 			selectSql = `SELECT
            ${selectColumns}
          FROM lobbies l
          WHERE ${selectWhere}
          ORDER BY ${orderBy}
-         LIMIT {:limit} OFFSET {:offset}`;
+         LIMIT ${perPage} OFFSET ${offset}`;
 		}
 
 		$app.db().newQuery(selectSql).bind(bindings).all(itemRows);

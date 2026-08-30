@@ -1,11 +1,13 @@
 <script lang="ts">
 	import type { MatchExpanded } from '$core/app/database/matches';
+	import type { MatchListColumnId } from './match-list-columns';
 	import MatchRoot from './match.svelte';
 	import MatchMapImage from './match-map-image.svelte';
 	import MatchMapName from './match-map-name.svelte';
 	import MatchProBadge from './match-pro-badge.svelte';
 	import MatchPlayers from './match-players.svelte';
 	import MatchRating from './match-rating.svelte';
+	import MatchDate from './match-date.svelte';
 	import MatchDuration from './match-duration.svelte';
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import { Button } from '$lib/components/ui/button';
@@ -20,6 +22,7 @@
 	type Props = {
 		matches: MatchExpanded[];
 		loading?: boolean;
+		columns?: MatchListColumnId[];
 		showMap?: boolean;
 		showRating?: boolean;
 		expandable?: boolean;
@@ -27,43 +30,61 @@
 		emptyMessage?: string;
 		class?: string;
 		footer?: Snippet;
+		expandContent?: Snippet<[{ row: MatchExpanded }]>;
+		detailsHref?: (row: MatchExpanded) => string | undefined;
 	};
 
 	let {
 		matches,
 		loading = false,
+		columns: columnIds,
 		showMap = true,
 		showRating = true,
 		expandable = true,
 		highlightedPlayers = [],
 		emptyMessage,
 		class: className,
-		footer
+		footer,
+		expandContent,
+		detailsHref
 	}: Props = $props();
 	const { t } = useI18n();
 
 	let expandedId = $state<string | null>(null);
 
-	const columns = $derived.by(() => {
-		const cols: ColumnDef<MatchExpanded>[] = [];
-		if (showMap) {
-			cols.push({
+	const resolvedColumnIds = $derived.by((): MatchListColumnId[] => {
+		if (columnIds?.length) return columnIds;
+		const ids: MatchListColumnId[] = [];
+		if (showMap) ids.push('map');
+		ids.push('name', 'type', 'allies', 'axis', 'duration');
+		if (showRating) ids.push('rating');
+		ids.push('actions');
+		if (expandable) ids.push('expand');
+		return ids;
+	});
+	const canExpand = $derived(resolvedColumnIds.includes('expand'));
+	const columnDefs = $derived.by(() => {
+		const defs: Record<MatchListColumnId, ColumnDef<MatchExpanded>> = {
+			map: {
 				id: 'map',
 				header: t('Map'),
 				width: 'w-2/24',
 				class: 'flex h-full items-center',
 				cellClass: () => 'overflow-clip py-0 pr-0 pl-4'
-			});
-		}
-		cols.push(
-			{ id: 'name', header: t('Name'), width: 'w-5/24', class: 'min-w-0 truncate font-medium' },
-			{
+			},
+			name: {
+				id: 'name',
+				header: t('Name'),
+				width: 'w-5/24',
+				class: 'min-w-0 truncate font-medium'
+			},
+			type: {
 				id: 'type',
 				header: t('Type'),
 				width: 'w-2/24',
 				class: 'text-secondary-400 truncate text-sm'
 			},
-			{
+			allies: {
 				id: 'allies',
 				header: t('Allies'),
 				width: 'w-3/24',
@@ -74,7 +95,7 @@
 						row.alliesOutcome === 'loss' && 'bg-red-500/5'
 					)
 			},
-			{
+			axis: {
 				id: 'axis',
 				header: t('Axis'),
 				width: 'w-3/24',
@@ -85,19 +106,21 @@
 						row.axisOutcome === 'loss' && 'bg-red-500/5'
 					)
 			},
-			{
+			duration: {
 				id: 'duration',
 				header: t('Duration'),
 				width: 'w-3/24',
 				class: 'text-secondary-400 truncate text-sm'
-			}
-		);
-		if (showRating) {
-			cols.push({ id: 'rating', header: t('Rating'), width: 'w-3/24' });
-		}
-		cols.push({ id: 'actions', header: '', width: 'w-3/24', hideSkeleton: true });
-		if (expandable) {
-			cols.push({
+			},
+			rating: { id: 'rating', header: t('Rating'), width: 'w-3/24' },
+			date: {
+				id: 'date',
+				header: t('Date'),
+				width: 'w-3/24',
+				class: 'text-secondary-400 truncate text-sm'
+			},
+			actions: { id: 'actions', header: '', width: 'w-3/24', hideSkeleton: true },
+			expand: {
 				id: 'expand',
 				header: '',
 				width: 'w-1/24',
@@ -105,13 +128,13 @@
 				cellClass: () => 'p-0',
 				class: 'flex w-full justify-center',
 				hideSkeleton: true
-			});
-		}
-		return cols;
+			}
+		};
+		return resolvedColumnIds.map((id) => defs[id]);
 	});
 
 	function toggleExpanded(id: string) {
-		if (!expandable) return;
+		if (!canExpand) return;
 		expandedId = expandedId === id ? null : id;
 	}
 
@@ -161,28 +184,38 @@
 {#snippet cell_rating({ row }: { row: MatchExpanded })}
 	<MatchRating class="text-sm" profileId={highlightedPlayers[0]} />
 {/snippet}
+{#snippet cell_date({ row }: { row: MatchExpanded })}
+	<MatchDate class="text-sm" />
+{/snippet}
 {#snippet cell_actions({ row }: { row: MatchExpanded })}
-	<Button
-		href="/history/{row.id}"
-		size="sm"
-		variant="secondary"
-		class="h-7 px-2.5 text-xs"
-		onclick={(event) => openDetails(event, `/history/${row.id}`)}
-	>
-		{t('Details')}
-	</Button>
+	{@const href = detailsHref ? detailsHref(row) : `/history/${row.id}`}
+	{#if href}
+		<Button
+			{href}
+			size="sm"
+			variant="secondary"
+			class="h-7 px-2.5 text-xs"
+			onclick={(event) => openDetails(event, href)}
+		>
+			{t('Details')}
+		</Button>
+	{/if}
 {/snippet}
 {#snippet cell_expand({ row }: { row: MatchExpanded })}
 	<CaretDownIcon class={cn('size-4 transition-transform', expandedId === row.id && 'rotate-180')} />
 {/snippet}
 {#snippet matchRowWrapper({ row, children }: { row: MatchExpanded; children: Snippet })}
-	{@const expanded = expandable && expandedId === row.id}
+	{@const expanded = canExpand && expandedId === row.id}
 	<MatchRoot match={row}>
 		{@render children()}
 		{#if expanded}
-			<tr>
-				<td colspan={columns.length} class="p-0">
-					<MatchLobbyPlayers match={row} />
+			<tr class="border-secondary-800 border-b">
+				<td colspan={columnDefs.length} class="p-0">
+					{#if expandContent}
+						{@render expandContent({ row })}
+					{:else}
+						<MatchLobbyPlayers match={row} />
+					{/if}
 				</td>
 			</tr>
 		{/if}
@@ -195,10 +228,10 @@
 	{:else}
 		<DataTable
 			data={matches}
-			{columns}
+			columns={columnDefs}
 			rowKey={(match) => match.id}
-			onRowClick={expandable ? (match) => toggleExpanded(match.id) : undefined}
-			isRowExpanded={(match) => expandable && expandedId === match.id}
+			onRowClick={canExpand ? (match) => toggleExpanded(match.id) : undefined}
+			isRowExpanded={(match) => canExpand && expandedId === match.id}
 			rowWrapper={matchRowWrapper}
 			{loading}
 			skeletonRows={3}
@@ -212,6 +245,7 @@
 				axis: cell_axis,
 				duration: cell_duration,
 				rating: cell_rating,
+				date: cell_date,
 				actions: cell_actions,
 				expand: cell_expand
 			}}

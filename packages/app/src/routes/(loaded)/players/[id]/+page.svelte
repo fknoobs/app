@@ -129,6 +129,13 @@
 					{/if}
 					<span class="font-heading truncate text-3xl font-bold">{profile.current.relic.alias}</span
 					>
+					<Player.Labels steamId={profile.current.steamId} class="shrink-0" />
+					<Player.LabelEditor
+						steamId={profile.current.steamId}
+						profileId={profile.current.relic.profile_id}
+						alias={profile.current.relic.alias}
+						class="shrink-0"
+					/>
 					<SmurfAlert smurf={profile.current.smurf} />
 					{#if profile.current.cheater}
 						<CheaterAlert />
@@ -202,6 +209,7 @@
 					<PlayerScreenshots
 						steamId={profile.current.steamId}
 						userId={isSelf ? account.userId : undefined}
+						profileId={profile.current.relic.profile_id}
 					/>
 				{/if}
 			</div>

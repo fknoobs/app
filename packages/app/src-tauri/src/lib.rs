@@ -60,6 +60,7 @@ pub fn run() {
             input::send_keys,
             input::release_all_held_keys,
             input::shortcut_modifiers_match,
+            input::send_game_chat,
             hold_bindings::sync_hold_bindings,
             window::get_active_window_title
         ])

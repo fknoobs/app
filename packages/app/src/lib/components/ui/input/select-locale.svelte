@@ -5,7 +5,7 @@
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
-	import { localeLabels, locales, setLocale, type AppLocale } from '$lib/i18n';
+	import { detectOsLocale, isAppLocale, localeLabels, locales, setLocale } from '$lib/i18n';
 	import { watch } from 'runed';
 
 	let { value = $bindable('en') }: { value: string } = $props();
@@ -14,12 +14,10 @@
 		value: locale,
 		label: localeLabels[locale]
 	}));
-	const selectedLabel = $derived(
-		locales.includes(value as AppLocale) ? localeLabels[value as AppLocale] : value
-	);
+	const selectedLabel = $derived(isAppLocale(value) ? localeLabels[value] : value);
 
-	if (!locales.includes(value as AppLocale)) {
-		value = 'en';
+	if (!isAppLocale(value)) {
+		value = detectOsLocale();
 	}
 
 	watch(

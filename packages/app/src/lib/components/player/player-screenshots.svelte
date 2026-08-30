@@ -1,84 +1,72 @@
 <script lang="ts">
+	import type { MatchExpanded } from '$core/app/database/matches';
 	import CaptureImage from '$lib/components/anti-cheat/capture-image.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { MatchListTable, type MatchListColumnId } from '$lib/components/match';
 	import { interactive } from '$lib/components/ui/variants';
-	import { resource } from 'runed';
+	import { watch } from 'runed';
 	import { app } from '$core/app/context';
-	import { listCapturesBySteamId, type CaptureRecord } from '$core/pocketbase/anti-cheat';
+	import {
+		listCaptureSessionHints,
+		listCapturesBySessionIds,
+		type CaptureRecord,
+		type CaptureSessionHint
+	} from '$core/pocketbase/anti-cheat';
 	import dayjs from '$lib/dayjs';
-	import { cn, normalizeMapName } from '$lib/utils';
+	import { cn } from '$lib/utils';
 	import { useI18n } from '$lib/i18n';
 
 	type Props = {
 		steamId: string;
 		userId?: string;
+		profileId?: number;
 	};
 
-	type SessionGroup = {
-		sessionId: number;
-		map?: string;
-		captures: CaptureRecord[];
-	};
+	const SESSION_PAGE = 25;
 
-	let { steamId, userId }: Props = $props();
+	let { steamId, userId, profileId }: Props = $props();
 	const { t } = useI18n();
 
-	const captures = resource(
-		() => `${steamId}:${userId ?? ''}`,
-		() => listCapturesBySteamId(steamId, { userId })
+	let matches = $state<MatchExpanded[]>([]);
+	let capturesBySession = $state<Record<number, CaptureRecord[]>>({});
+	let initialLoading = $state(true);
+	let loadingMore = $state(false);
+	let exhausted = $state(false);
+	let capturePage = $state(1);
+	let leftover = $state<CaptureSessionHint[]>([]);
+	let seenSessionIds = $state<number[]>([]);
+
+	const highlightedPlayers = $derived(
+		profileId ? [String(profileId), steamId] : steamId ? [steamId] : []
 	);
+	const hasMore = $derived(matches.length > 0 && !exhausted);
+	const columns: MatchListColumnId[] = [
+		'map',
+		'name',
+		'type',
+		'allies',
+		'axis',
+		'duration',
+		'date',
+		'actions',
+		'expand'
+	];
 
-	const sessions = $derived.by((): SessionGroup[] => {
-		const items = captures.current ?? [];
-		const bySession: Record<string, CaptureRecord[]> = {};
-		for (const capture of items) {
-			const sessionId = String(capture.session_id ?? 0);
-			(bySession[sessionId] ??= []).push(capture);
-		}
-
-		return Object.entries(bySession).map(([sessionKey, groupCaptures]) => ({
-			sessionId: Number(sessionKey),
-			map: groupCaptures.find((capture) => capture.map)?.map,
-			captures: groupCaptures
-		}));
-	});
-
-	const lobbyIds = resource(
-		() =>
-			sessions
-				.map((session) => session.sessionId)
-				.filter((id) => id > 0)
-				.join(','),
-		async (key) => {
-			const ids = key ? key.split(',').map(Number) : [];
-			return app.database.matches.getIdsBySessionIds(ids);
-		}
-	);
-
-	let selectedSessionId = $state<number | null>(null);
-
-	const activeSession = $derived.by(() => {
-		if (sessions.length === 0) return null;
-		if (selectedSessionId != null) {
-			const match = sessions.find((session) => session.sessionId === selectedSessionId);
-			if (match) return match;
-		}
-		return sessions[0] ?? null;
-	});
-
-	function selectSession(sessionId: number) {
-		selectedSessionId = sessionId;
-	}
-
-	function sessionLabel(session: SessionGroup) {
-		return session.map ? normalizeMapName(session.map) : t('Match');
-	}
-
-	function sessionDate(session: SessionGroup) {
-		return dayjs(session.captures[0]?.captured_at || session.captures[0]?.created).format(
-			'D MMM YYYY HH:mm'
-		);
+	function sessionStub(
+		sessionId: number,
+		map: string,
+		capturedAt: string
+	): MatchExpanded {
+		return {
+			id: `session:${sessionId}`,
+			sessionId,
+			map,
+			title: '',
+			players: [],
+			createdAt: capturedAt,
+			updatedAt: capturedAt,
+			user: ''
+		} as unknown as MatchExpanded;
 	}
 
 	function captureDate(capture: CaptureRecord) {
@@ -98,105 +86,180 @@
 		});
 		app.modal.open();
 	}
+
+	function detailsHref(row: MatchExpanded) {
+		if (!row.id || String(row.id).startsWith('session:')) return undefined;
+		return `/history/${row.id}`;
+	}
+
+	async function collectSessionIds(limit: number): Promise<number[]> {
+		const found: number[] = [];
+		const seen = new Set(seenSessionIds);
+		const queue = [...leftover];
+		let noMorePages = exhausted;
+
+		while (found.length < limit) {
+			if (queue.length === 0) {
+				if (noMorePages) break;
+				const page = await listCaptureSessionHints(steamId, capturePage, { userId });
+				if (page.items.length === 0) {
+					noMorePages = true;
+					break;
+				}
+				queue.push(...page.items);
+				capturePage += 1;
+				if (page.totalPages === 0 || capturePage > page.totalPages) {
+					noMorePages = true;
+				}
+			}
+
+			const hint = queue.shift();
+			if (!hint) break;
+			const sessionId = Number(hint.session_id);
+			if (!Number.isInteger(sessionId) || sessionId <= 0 || seen.has(sessionId)) {
+				continue;
+			}
+			seen.add(sessionId);
+			found.push(sessionId);
+		}
+
+		leftover = queue;
+		seenSessionIds = [...seen];
+		exhausted = noMorePages && queue.length === 0;
+		return found;
+	}
+
+	async function loadMatchesForSessions(sessionIds: number[]): Promise<MatchExpanded[]> {
+		if (sessionIds.length === 0) return [];
+
+		const [captures, idMap] = await Promise.all([
+			listCapturesBySessionIds(steamId, sessionIds, { userId }),
+			app.database.matches.getIdsBySessionIds(sessionIds)
+		]);
+
+		const grouped: Record<number, CaptureRecord[]> = { ...capturesBySession };
+		for (const capture of captures) {
+			const sessionId = Number(capture.session_id);
+			if (!Number.isInteger(sessionId) || sessionId <= 0) continue;
+			(grouped[sessionId] ??= []).push(capture);
+		}
+		capturesBySession = grouped;
+
+		const lobbyIds = sessionIds.map((id) => idMap.get(id)).filter((id): id is string => !!id);
+		const loaded = await app.database.matches.getByIds(lobbyIds);
+		const bySession = new Map(
+			loaded.map((match) => [Number(match.sessionId), match] as const)
+		);
+
+		return sessionIds.map((sessionId) => {
+			const existing = bySession.get(sessionId);
+			if (existing) return existing;
+			const first = grouped[sessionId]?.[0];
+			return sessionStub(
+				sessionId,
+				first?.map || '',
+				first?.captured_at || first?.created || new Date().toISOString()
+			);
+		});
+	}
+
+	async function loadPage(reset: boolean) {
+		if (!steamId && !userId) {
+			matches = [];
+			exhausted = true;
+			return;
+		}
+
+		const sessionIds = await collectSessionIds(SESSION_PAGE);
+		if (sessionIds.length === 0) {
+			if (reset) matches = [];
+			exhausted = true;
+			return;
+		}
+
+		const rows = await loadMatchesForSessions(sessionIds);
+		matches = reset ? rows : [...matches, ...rows];
+	}
+
+	watch(
+		() => `${steamId}:${userId ?? ''}`,
+		() => {
+			matches = [];
+			capturesBySession = {};
+			leftover = [];
+			seenSessionIds = [];
+			capturePage = 1;
+			exhausted = false;
+			initialLoading = true;
+			void (async () => {
+				try {
+					await loadPage(true);
+				} catch (error) {
+					console.warn('[ANTI-CHEAT]: screenshot matches failed:', error);
+				} finally {
+					initialLoading = false;
+				}
+			})();
+		}
+	);
+
+	async function loadMore() {
+		if (loadingMore || !hasMore) return;
+		loadingMore = true;
+		try {
+			await loadPage(false);
+		} catch (error) {
+			console.warn('[ANTI-CHEAT]: screenshot load more failed:', error);
+		} finally {
+			loadingMore = false;
+		}
+	}
 </script>
 
-{#if captures.loading}
-	<div class="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-		<div class="border-secondary-800 divide-secondary-800 divide-y border-r">
-			{#each [0, 1, 2] as row (row)}
-				<div class="flex flex-col gap-1.5 px-4 py-3">
-					<Skeleton class="h-3.5 w-24" />
-					<Skeleton class="h-3 w-20" />
-				</div>
-			{/each}
-		</div>
-		<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
-			{#each [0, 1, 2, 3, 4] as thumb (thumb)}
-				<Skeleton class="aspect-square w-full rounded-none" />
-			{/each}
-		</div>
-	</div>
-{:else if sessions.length === 0}
-	<p class="text-secondary-400 px-4 py-6 text-sm">
-		{t('No screenshots for this player. Screenshots only appear when they used the app.')}
-	</p>
-{:else}
-	<div class="grid min-h-0 grid-cols-[minmax(0,14rem)_minmax(0,1fr)] items-stretch">
-		<nav
-			class="border-secondary-800 divide-secondary-800 flex h-full min-h-0 flex-col divide-y border-r"
-			aria-label={t('Select match')}
-		>
-			{#each sessions as session (session.sessionId || session.captures[0]?.id)}
-				{@const isSelected = activeSession?.sessionId === session.sessionId}
-				<button
-					type="button"
-					class={cn(
-						interactive,
-						'flex w-full flex-col gap-1 px-4 py-2.5 text-left text-sm transition-colors',
-						isSelected
-							? 'bg-secondary-950/80 text-primary font-medium'
-							: 'text-secondary-300 hover:bg-secondary-950/50 hover:text-white'
-					)}
-					aria-current={isSelected ? 'true' : undefined}
-					onclick={() => selectSession(session.sessionId)}
-				>
-					<span class="min-w-0 truncate">{sessionLabel(session)}</span>
-					<span
+<MatchListTable
+	{matches}
+	{columns}
+	loading={initialLoading}
+	{highlightedPlayers}
+	emptyMessage={t('No screenshots for this player. Screenshots only appear when they used the app.')}
+	class="bg-gray-950/90"
+	{detailsHref}
+>
+	{#snippet expandContent({ row }: { row: MatchExpanded })}
+		{@const captures = capturesBySession[row.sessionId] ?? []}
+		{#if captures.length === 0}
+			<p class="text-secondary-400 px-4 py-3 text-sm">
+				{t(
+					'No screenshots for this match. Screenshots only appear when a player used the app.'
+				)}
+			</p>
+		{:else}
+			<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+				{#each captures as capture (capture.id)}
+					<button
+						type="button"
 						class={cn(
-							'text-xs tabular-nums',
-							isSelected ? 'text-primary/70' : 'text-secondary-500'
+							interactive,
+							'relative aspect-square w-full overflow-clip opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100'
 						)}
+						onclick={() => openCapture(capture)}
 					>
-						{sessionDate(session)}
-					</span>
-					<span class={cn('text-xs', isSelected ? 'text-primary/70' : 'text-secondary-500')}>
-						{session.captures.length}
-						{session.captures.length === 1 ? ` ${t('screenshot')}` : ` ${t('screenshots')}`}
-					</span>
-				</button>
-			{/each}
-		</nav>
-
-		<div class="bg-secondary-950/50 min-h-0 min-w-0">
-			{#if activeSession}
-				{@const lobbyId = activeSession.sessionId
-					? lobbyIds.current?.get(activeSession.sessionId)
-					: undefined}
-				<div
-					class="border-secondary-800 flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5"
-				>
-					<div class="min-w-0">
-						<p class="text-secondary-300 text-xs font-semibold tracking-wide uppercase">
-							{sessionLabel(activeSession)}
-						</p>
-						<p class="text-secondary-500 text-xs tabular-nums">
-							{sessionDate(activeSession)}
-							{#if activeSession.sessionId}
-								· {activeSession.sessionId}
-							{/if}
-						</p>
-					</div>
-					{#if lobbyId}
-						<Button href="/history/{lobbyId}" variant="secondary" size="sm">
-							{t('Open match')}
-						</Button>
-					{/if}
-				</div>
-				<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
-					{#each activeSession.captures as capture (capture.id)}
-						<button
-							type="button"
-							class={cn(
-								interactive,
-								'relative aspect-square w-full overflow-clip opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100'
-							)}
-							onclick={() => openCapture(capture)}
-						>
-							<CaptureImage {capture} class="absolute inset-0 size-full object-cover" />
-						</button>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	</div>
-{/if}
+						<CaptureImage {capture} class="absolute inset-0 size-full object-cover" />
+					</button>
+				{/each}
+			</div>
+		{/if}
+	{/snippet}
+	{#snippet footer()}
+		{#if hasMore}
+			<div class="flex flex-col items-center gap-2 px-4 pt-2 pb-3">
+				<p class="text-secondary-500 text-xs">
+					{t('Showing {shown} matches', { shown: matches.length })}
+				</p>
+				<Button variant="secondary" size="sm" loading={loadingMore} onclick={() => loadMore()}>
+					{t('Load more')}
+				</Button>
+			</div>
+		{/if}
+	{/snippet}
+</MatchListTable>

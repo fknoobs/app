@@ -175,6 +175,7 @@
 					{:else}
 						<span class={nameClass}>{player.name}</span>
 					{/if}
+					<PlayerUi.Labels steamId={lobbyPlayer?.steamId} class="shrink-0" />
 					{#if lobbyPlayer?.steamId && cheaters.current?.has(lobbyPlayer.steamId)}
 						<PlayerUi.CheaterAlert compact />
 					{/if}

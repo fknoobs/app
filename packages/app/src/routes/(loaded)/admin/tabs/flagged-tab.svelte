@@ -1,15 +1,17 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { confirm } from '@tauri-apps/plugin-dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
-	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import CaptureImage from '$lib/components/anti-cheat/capture-image.svelte';
 	import { interactive, tabTrigger, type SemanticVariant } from '$lib/components/ui/variants';
 	import { app } from '$core/app/context';
 	import { pocketbase } from '$core/pocketbase';
 	import { fetch } from '$core/http/fetch';
 	import {
-		findCheaterBySteamId,
+		deleteCheaterLabelsForUser,
+		labelCheaterAccounts,
 		listCapturesForUserSession,
 		type CaptureRecord
 	} from '$core/pocketbase/anti-cheat';
@@ -24,6 +26,7 @@
 	import { cn } from '$lib/utils';
 	import dayjs from '$lib/dayjs';
 	import { useI18n } from '$lib/i18n';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 
 	const { t } = useI18n();
 
@@ -42,7 +45,7 @@
 	];
 
 	let statusFilter = $state<StatusFilter>('pending');
-	let selectedId = $state<string | null>(null);
+	let expandedOverride = $state<string | null | undefined>(undefined);
 	let updatingId = $state<string | null>(null);
 
 	const loadReports = async (status: StatusFilter): Promise<ReportRow[]> => {
@@ -66,13 +69,18 @@
 		async (status) => (status ? loadReports(status) : [])
 	);
 
-	const selected = $derived(
-		reports.current?.find((report) => report.id === selectedId) ?? reports.current?.[0] ?? null
-	);
+	const rows = $derived(reports.current ?? []);
+	const expandedId = $derived.by(() => {
+		if (expandedOverride === undefined) return rows[0]?.id ?? null;
+		if (expandedOverride === null) return null;
+		if (rows.some((report) => report.id === expandedOverride)) return expandedOverride;
+		return rows[0]?.id ?? null;
+	});
+	const expandedReport = $derived(rows.find((report) => report.id === expandedId) ?? null);
 
 	const aliasBySteamId = resource(
 		() => {
-			const ids = (reports.current ?? []).flatMap((report) => [
+			const ids = rows.flatMap((report) => [
 				report.accused_steam_id,
 				...steamIdsOf(report.expand?.accused),
 				...steamIdsOf(report.expand?.reporter)
@@ -96,17 +104,49 @@
 	);
 
 	const captures = resource(
-		() => (selected ? `${selected.accused}:${selected.session_id}` : null),
+		() => (expandedReport ? `${expandedReport.accused}:${expandedReport.session_id}` : null),
 		async () => {
-			if (!selected) return [] as CaptureRecord[];
+			if (!expandedReport) return [] as CaptureRecord[];
 			try {
-				return await listCapturesForUserSession(selected.accused, selected.session_id);
+				return await listCapturesForUserSession(expandedReport.accused, expandedReport.session_id);
 			} catch (error) {
 				console.error('[ADMIN]: report captures load failed:', error);
 				return [];
 			}
 		}
 	);
+
+	const columns = $derived.by((): ColumnDef<ReportRow>[] => [
+		{
+			id: 'player',
+			header: t('Player'),
+			width: 'w-5/24',
+			class: 'min-w-0 truncate font-medium'
+		},
+		{
+			id: 'reporter',
+			header: t('Reporter'),
+			width: 'w-4/24',
+			class: 'text-secondary-400 min-w-0 truncate text-sm'
+		},
+		{
+			id: 'date',
+			header: t('Date'),
+			width: 'w-4/24',
+			class: 'text-secondary-400 truncate text-sm'
+		},
+		{ id: 'status', header: t('Status'), width: 'w-3/24' },
+		{ id: 'actions', header: '', width: 'w-4/24', hideSkeleton: true },
+		{
+			id: 'expand',
+			header: '',
+			width: 'w-1/24',
+			headerCellClass: 'p-0',
+			cellClass: () => 'p-0',
+			class: 'flex w-full justify-center',
+			hideSkeleton: true
+		}
+	]);
 
 	const statusLabel = (status: AntiCheatReportsStatusOptions) => {
 		if (status === 'pending') return t('Pending');
@@ -141,6 +181,21 @@
 		return relicAlias(steamId) || steamId || report.reporter;
 	};
 
+	function formatDate(value: string) {
+		if (!value) return '';
+		return new Date(value).toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
+
+	function toggleExpanded(id: string) {
+		expandedOverride = expandedId === id ? null : id;
+	}
+
 	const reloadReports = async () => {
 		reports.mutate(await loadReports(statusFilter));
 	};
@@ -159,7 +214,10 @@
 	};
 
 	const markCheater = async (report: ReportRow) => {
-		if (!report.accused_steam_id) {
+		const steamIds = [
+			...new Set([report.accused_steam_id, ...steamIdsOf(report.expand?.accused)].filter(Boolean))
+		];
+		if (steamIds.length === 0) {
 			app.toast.error(t('This report has no Steam ID.'));
 			return;
 		}
@@ -172,17 +230,11 @@
 
 		updatingId = report.id;
 		try {
-			const existing = await findCheaterBySteamId(report.accused_steam_id);
-			if (!existing) {
-				await pocketbase.collection('anti_cheat_cheaters').create(
-					{
-						user: report.accused,
-						steam_id: report.accused_steam_id,
-						labeled_by: app.account.userId
-					},
-					{ fetch }
-				);
-			}
+			await labelCheaterAccounts({
+				userId: report.accused,
+				steamIds,
+				labeledBy: app.account.userId
+			});
 			await pocketbase
 				.collection('anti_cheat_reports')
 				.update(report.id, { status: AntiCheatReportsStatusOptions.confirmed }, { fetch });
@@ -204,7 +256,7 @@
 	};
 
 	const removeCheater = async (report: ReportRow) => {
-		if (!report.accused_steam_id) return;
+		if (!report.accused) return;
 		const confirmed = await confirm(t('Remove the cheater label from this player?'), {
 			okLabel: t('Remove cheater label'),
 			cancelLabel: t('Cancel'),
@@ -214,10 +266,7 @@
 
 		updatingId = report.id;
 		try {
-			const existing = await findCheaterBySteamId(report.accused_steam_id);
-			if (existing) {
-				await pocketbase.collection('anti_cheat_cheaters').delete(existing.id, { fetch });
-			}
+			await deleteCheaterLabelsForUser(report.accused);
 			app.toast.success(t('Cheater label removed.'));
 		} catch (error) {
 			console.error('[ADMIN]: remove cheater failed:', error);
@@ -242,119 +291,65 @@
 	}
 </script>
 
-<div class="border-secondary-800 flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
-	{#each statusFilters as filter (filter.id)}
-		<button
-			type="button"
-			class={tabTrigger}
-			data-state={statusFilter === filter.id ? 'active' : undefined}
-			onclick={() => {
-				statusFilter = filter.id;
-				selectedId = null;
-			}}
+{#snippet cell_player({ row }: { row: ReportRow })}
+	{#if accusedSteamId(row)}
+		<a
+			href="/players/{accusedSteamId(row)}"
+			class={cn(interactive, 'text-secondary-300 hover:text-primary min-w-0 truncate font-medium')}
 		>
-			{filter.label}
-		</button>
-	{/each}
-</div>
-
-{#if reports.loading && (reports.current?.length ?? 0) === 0}
-	<div class="grid min-h-0 grid-cols-[minmax(0,18rem)_minmax(0,1fr)]">
-		<div class="border-secondary-800 divide-secondary-800 divide-y border-r">
-			{#each [0, 1, 2] as row (row)}
-				<div class="flex flex-col gap-1.5 px-4 py-3">
-					<Skeleton class="h-3.5 w-28" />
-					<Skeleton class="h-3 w-20" />
-				</div>
-			{/each}
-		</div>
-		<div class="p-4">
-			<Skeleton class="h-40 w-full rounded-md" />
-		</div>
-	</div>
-{:else if (reports.current?.length ?? 0) === 0}
-	<p class="text-secondary-400 px-4 py-6 text-sm">{t('No flagged players yet.')}</p>
-{:else}
-	<div class="grid min-h-0 grid-cols-[minmax(0,18rem)_minmax(0,1fr)] items-stretch">
-		<nav
-			class="border-secondary-800 divide-secondary-800 flex max-h-[70vh] min-h-0 flex-col divide-y overflow-y-auto border-r"
-			aria-label={t('Select report')}
-		>
-			{#each reports.current ?? [] as report (report.id)}
-				{@const isSelected = selected?.id === report.id}
-				<button
-					type="button"
-					class={cn(
-						interactive,
-						'flex w-full flex-col gap-1 px-4 py-2.5 text-left text-sm transition-colors',
-						isSelected
-							? 'bg-secondary-950/80 text-primary font-medium'
-							: 'text-secondary-300 hover:bg-secondary-950/50 hover:text-white'
-					)}
-					aria-current={isSelected ? 'true' : undefined}
-					onclick={() => (selectedId = report.id)}
-				>
-					<span class="min-w-0 truncate">{accusedLabel(report)}</span>
-					<span class={cn('text-xs', isSelected ? 'text-primary/70' : 'text-secondary-500')}>
-						{dayjs(report.created).format('D MMM YYYY HH:mm')}
-					</span>
-					<span class="pt-0.5">
-						<Badge variant={statusVariant(report.status)} class="px-2 py-0.5">
-							{statusLabel(report.status)}
-						</Badge>
-					</span>
-				</button>
-			{/each}
-		</nav>
-
-		<div class="bg-secondary-950/50 flex min-h-0 min-w-0 flex-col">
-			{#if selected}
-				<div
-					class="border-secondary-800 flex flex-wrap items-start justify-between gap-3 border-b px-4 py-2.5"
-				>
-					<div class="min-w-0">
-						<p class="text-secondary-300 text-xs font-semibold tracking-wide uppercase">
-							{#if accusedSteamId(selected)}
-								<a
-									href="/players/{accusedSteamId(selected)}"
-									class={cn(interactive, 'hover:text-primary')}
-								>
-									{accusedLabel(selected)}
-								</a>
-							{:else}
-								{accusedLabel(selected)}
+			{accusedLabel(row)}
+		</a>
+	{:else}
+		<span class="min-w-0 truncate">{accusedLabel(row)}</span>
+	{/if}
+{/snippet}
+{#snippet cell_reporter({ row }: { row: ReportRow })}
+	{reporterLabel(row)}
+{/snippet}
+{#snippet cell_date({ row }: { row: ReportRow })}
+	{formatDate(row.created)}
+{/snippet}
+{#snippet cell_status({ row }: { row: ReportRow })}
+	<Badge variant={statusVariant(row.status)} class="px-2 py-0.5">
+		{statusLabel(row.status)}
+	</Badge>
+{/snippet}
+{#snippet cell_actions({ row }: { row: ReportRow })}
+	{#if row.lobby}
+		<Button href="/history/{row.lobby}" variant="secondary" size="sm" class="h-7 px-2.5 text-xs">
+			{t('Open match')}
+		</Button>
+	{/if}
+{/snippet}
+{#snippet cell_expand({ row }: { row: ReportRow })}
+	<CaretDownIcon class={cn('size-4 transition-transform', expandedId === row.id && 'rotate-180')} />
+{/snippet}
+{#snippet rowWrapper({ row, children }: { row: ReportRow; children: Snippet })}
+	{@render children()}
+	{#if expandedId === row.id}
+		<tr class="border-secondary-800 border-b">
+			<td colspan={columns.length} class="p-0">
+				<div class="border-secondary-800 divide-secondary-800 divide-y border-t">
+					{#if row.session_id || row.accused_steam_id}
+						<p class="text-secondary-500 px-4 py-2.5 text-xs">
+							{#if row.session_id}{t('Session')} {row.session_id}{/if}
+							{#if row.session_id && row.accused_steam_id}
+								·
 							{/if}
+							{#if row.accused_steam_id}<span class="tabular-nums">{row.accused_steam_id}</span
+								>{/if}
 						</p>
-						<p class="text-secondary-500 mt-0.5 text-xs">
-							{t('Reported by {name}', { name: reporterLabel(selected) })}
-							· {t('Session')}
-							{selected.session_id}
-						</p>
-						{#if selected.accused_steam_id}
-							<p class="text-secondary-500 text-xs tabular-nums">{selected.accused_steam_id}</p>
-						{/if}
-					</div>
-					<div class="flex flex-wrap items-center gap-2">
-						{#if selected.lobby}
-							<Button href="/history/{selected.lobby}" variant="secondary" size="sm">
-								{t('Open match')}
-							</Button>
-						{/if}
-						<Badge variant={statusVariant(selected.status)}>{statusLabel(selected.status)}</Badge>
-					</div>
-				</div>
-
-				<div class="border-secondary-800 flex-1 border-b">
+					{/if}
 					{#if captures.loading}
 						<p class="text-secondary-500 px-4 py-3 text-sm">{t('Loading screenshots...')}</p>
 					{:else if (captures.current?.length ?? 0) > 0}
-						<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
+						<div class="grid grid-cols-3 gap-px sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
 							{#each captures.current ?? [] as capture (capture.id)}
 								<button
 									type="button"
 									class={cn(
 										interactive,
-										'relative aspect-square w-full overflow-clip opacity-50 transition-opacity hover:opacity-100 focus-visible:opacity-100'
+										'relative aspect-video w-full overflow-clip opacity-30 transition-opacity hover:opacity-100 focus-visible:opacity-100'
 									)}
 									onclick={() => openCapture(capture)}
 								>
@@ -363,44 +358,82 @@
 							{/each}
 						</div>
 					{:else}
-						<p class="text-secondary-500 px-4 py-6 text-sm">
+						<p class="text-secondary-500 px-4 py-3 text-sm">
 							{t('No screenshots for this report.')}
 						</p>
 					{/if}
+					<div class="flex flex-wrap gap-2 px-4 py-3">
+						<Button
+							type="button"
+							size="sm"
+							variant="destructive"
+							loading={updatingId === row.id}
+							onclick={() => void markCheater(row)}
+						>
+							{t('Mark as cheater')}
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							variant="success"
+							loading={updatingId === row.id}
+							onclick={() => void setStatus(row, 'dismissed')}
+						>
+							{t('Dismiss')}
+						</Button>
+						<Button
+							type="button"
+							size="sm"
+							variant="secondary"
+							loading={updatingId === row.id}
+							onclick={() => void removeCheater(row)}
+						>
+							{t('Remove cheater label')}
+						</Button>
+					</div>
 				</div>
+			</td>
+		</tr>
+	{/if}
+{/snippet}
 
-				<div class="flex flex-wrap gap-2 px-4 py-3">
-					<Button
-						type="button"
-						size="sm"
-						variant="destructive"
-						loading={updatingId === selected.id}
-						onclick={() => void markCheater(selected)}
-					>
-						{t('Mark as cheater')}
-					</Button>
-					<Button
-						type="button"
-						size="sm"
-						variant="success"
-						loading={updatingId === selected.id}
-						onclick={() => void setStatus(selected, 'dismissed')}
-					>
-						{t('Dismiss')}
-					</Button>
-					<Button
-						type="button"
-						size="sm"
-						variant="secondary"
-						loading={updatingId === selected.id}
-						onclick={() => void removeCheater(selected)}
-					>
-						{t('Remove cheater label')}
-					</Button>
-				</div>
-			{:else}
-				<p class="text-secondary-400 px-4 py-6 text-sm">{t('Select a report to review it.')}</p>
-			{/if}
-		</div>
-	</div>
+<div class="border-secondary-800 flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
+	{#each statusFilters as filter (filter.id)}
+		<button
+			type="button"
+			class={tabTrigger}
+			data-state={statusFilter === filter.id ? 'active' : undefined}
+			onclick={() => {
+				statusFilter = filter.id;
+				expandedOverride = undefined;
+			}}
+		>
+			{filter.label}
+		</button>
+	{/each}
+</div>
+
+{#if !reports.loading && rows.length === 0}
+	<p class="text-secondary-400 px-4 py-6 text-sm">{t('No flagged players yet.')}</p>
+{:else}
+	<DataTable
+		data={rows}
+		{columns}
+		rowKey={(report) => report.id}
+		onRowClick={(report) => toggleExpanded(report.id)}
+		isRowExpanded={(report) => expandedId === report.id}
+		{rowWrapper}
+		loading={reports.loading && rows.length === 0}
+		skeletonRows={4}
+		striped={false}
+		empty={t('No flagged players yet.')}
+		cells={{
+			player: cell_player,
+			reporter: cell_reporter,
+			date: cell_date,
+			status: cell_status,
+			actions: cell_actions,
+			expand: cell_expand
+		}}
+	/>
 {/if}

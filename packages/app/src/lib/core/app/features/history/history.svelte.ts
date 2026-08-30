@@ -268,7 +268,9 @@ export class History extends Feature {
 			return 0;
 		}
 
-		const recentMatches = await relic.getRecentMatchHistoryForProfile(profileId);
+		const recentMatches = await relic.getRecentMatchHistoryForProfile(profileId, {
+			includeHidden: true
+		});
 		let pending = needingResults.items.length;
 
 		for (const item of needingResults.items) {

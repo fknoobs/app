@@ -12,6 +12,7 @@
 		controlBase,
 		controlDisabled,
 		controlReadonly,
+		flushInput,
 		stepperButton
 	} from '../variants';
 	import { Button } from '../button';
@@ -27,31 +28,110 @@
 		class: className,
 		leading,
 		trailing,
+		flush = false,
 		...restProps
 	}: InputProps = $props();
 	const { t } = useI18n();
 	let showPasswordToggle = $state(untrack(() => type === 'password'));
 	let hasAdornments = $derived(leading != null || trailing != null);
+	const hasExtras = $derived(
+		leading != null || trailing != null || showPasswordToggle || type === 'number'
+	);
 
 	function stepValue(direction: 1 | -1) {
 		const step = restProps.step ? parseFloat(restProps.step.toString()) : 1;
 		let next = (parseFloat(value) || 0) + direction * step;
-
 		if (restProps.max !== undefined && next > parseFloat(restProps.max?.toString() ?? '0')) {
 			next = parseFloat(restProps.max?.toString() ?? '0');
 		}
-
 		if (restProps.min !== undefined && next < parseFloat(restProps.min?.toString() ?? '0')) {
 			next = parseFloat(restProps.min?.toString() ?? '0');
 		}
-
 		value = next.toString();
 	}
 </script>
 
-{#if type === 'number'}
+{#if flush}
+	{#if hasExtras}
+		<div class={cn('flex min-w-0 flex-1 items-center gap-2', className)}>
+			{#if leading}
+				<span class="text-secondary-500 pointer-events-none shrink-0">
+					{@render leading()}
+				</span>
+			{/if}
+			<input
+				bind:value
+				{...restProps}
+				type={type === 'number' ? 'text' : type}
+				inputmode={type === 'number' ? 'numeric' : restProps.inputmode}
+				class={cn(flushInput, controlDisabled, controlReadonly)}
+				oninput={
+					type === 'number'
+						? () => {
+								value = String(value).replace(/[^0-9.-]/g, '');
+							}
+						: restProps.oninput
+				}
+			/>
+			{#if trailing}
+				<span class="text-secondary-500 shrink-0">
+					{@render trailing()}
+				</span>
+			{/if}
+			{#if type === 'number'}
+				<div class="flex shrink-0 items-center gap-1">
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon-sm"
+						class="text-secondary-400"
+						aria-label={t('Decrease value')}
+						onclick={() => stepValue(-1)}
+					>
+						<MinusIcon size={12} weight="bold" />
+					</Button>
+					<Button
+						type="button"
+						variant="ghost"
+						size="icon-sm"
+						class="text-secondary-400"
+						aria-label={t('Increase value')}
+						onclick={() => stepValue(1)}
+					>
+						<PlusIcon size={12} weight="bold" />
+					</Button>
+				</div>
+			{:else if showPasswordToggle}
+				<Button
+					variant="ghost"
+					size="icon-sm"
+					type="button"
+					class="text-secondary-400 shrink-0"
+					onclick={() => (type = type === 'password' ? 'text' : 'password')}
+				>
+					{#if type === 'password'}
+						<EyeSlashIcon />
+					{:else}
+						<EyeIcon />
+					{/if}
+				</Button>
+			{/if}
+		</div>
+	{:else}
+		<input
+			bind:value
+			{...restProps}
+			{type}
+			class={cn(flushInput, controlDisabled, controlReadonly, className)}
+		/>
+	{/if}
+{:else if type === 'number'}
 	<div
-		class={cn(hasAdornments ? cn(adornedControl, adornedControlDisabled) : 'relative w-full', className)}
+		class={cn(
+			hasAdornments ? cn(adornedControl, adornedControlDisabled) : 'relative w-full',
+			'min-w-0 flex-1',
+			className
+		)}
 	>
 		{#if leading}
 			<span class={cn(adornedLeading, 'pointer-events-none')}>
@@ -64,12 +144,12 @@
 			type="text"
 			inputmode="numeric"
 			class={cn(
-				hasAdornments ? adornedInput : cn(controlBase, 'w-full px-4 pe-[4.25rem]'),
+				hasAdornments ? adornedInput : cn(controlBase, 'w-full px-4 pe-17'),
 				controlDisabled,
 				controlReadonly
 			)}
 			oninput={() => {
-				value = value.replace(/[^0-9.-]/g, '');
+				value = String(value).replace(/[^0-9.-]/g, '');
 			}}
 		/>
 		{#if trailing}
@@ -102,7 +182,7 @@
 		</div>
 	</div>
 {:else if hasAdornments}
-	<div class={cn(adornedControl, adornedControlDisabled, className)}>
+	<div class={cn(adornedControl, adornedControlDisabled, 'min-w-0 flex-1', className)}>
 		{#if leading}
 			<span class={cn(adornedLeading, 'pointer-events-none')}>
 				{@render leading()}
@@ -136,7 +216,7 @@
 		{/if}
 	</div>
 {:else}
-	<div class={cn('relative w-full', className)}>
+	<div class={cn('relative w-full min-w-0 flex-1', className)}>
 		<input
 			bind:value
 			{...restProps}

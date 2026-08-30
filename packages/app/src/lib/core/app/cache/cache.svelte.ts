@@ -34,6 +34,10 @@ function throwIfAborted(signal?: AbortSignal) {
 export async function useQuery<T>(key: string, options: CacheOptions<T>): Promise<T> {
 	throwIfAborted(options.signal);
 
+	if (options.ttl === 0) {
+		return options.queryFn();
+	}
+
 	if (options.invalidate) {
 		await remove(key);
 	}

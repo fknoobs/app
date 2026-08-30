@@ -7,6 +7,7 @@
 	import { page } from '$app/state';
 	import { app } from '$core/app/context';
 	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
 	import { SetCrumbs } from '$lib/components/ui/breadcrumb';
 	import { cn, normalizeMapName } from '$lib/utils';
 	import { detailMetaGrid } from '$lib/components/ui/variants';
@@ -18,9 +19,20 @@
 	import ChecksIcon from 'phosphor-svelte/lib/ChecksIcon';
 	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import EyeIcon from 'phosphor-svelte/lib/Eye';
+	import EyeSlashIcon from 'phosphor-svelte/lib/EyeSlash';
+	import { confirm } from '@tauri-apps/plugin-dialog';
 	import { useI18n } from '$lib/i18n';
 	import { tabTrigger } from '$lib/components/ui/variants';
 	import { loadCheaterSteamIds } from '$core/pocketbase/anti-cheat';
+	import {
+		findHiddenMatch,
+		hideMatch,
+		listHiddenKeywordWords,
+		relicLobbyDescription,
+		titleMatchesHiddenKeyword,
+		unhideMatch
+	} from '$core/pocketbase/hidden-matches';
 
 	const { t } = useI18n();
 	const match = resource(
@@ -69,6 +81,28 @@
 	const highlightCommentId = $derived(page.url.searchParams.get('comment') || undefined);
 	const sessionId = $derived(match.current?.sessionId ?? 0);
 	let matchTab = $state('overview');
+	let hiddenRevision = $state(0);
+	let hidePending = $state(false);
+	const isStaff = $derived(app.account.isStaff);
+	const hiddenRecord = resource(
+		() => `${sessionId}:${hiddenRevision}`,
+		() => (sessionId > 0 ? findHiddenMatch(sessionId) : Promise.resolve(null))
+	);
+	const hiddenWords = resource(
+		() => `${isStaff}:${hiddenRevision}`,
+		() =>
+			isStaff
+				? listHiddenKeywordWords().catch((error) => {
+						console.warn('[HISTORY]: hidden title word lookup failed:', error);
+						return [] as string[];
+					})
+				: Promise.resolve([] as string[])
+	);
+	const isManuallyHidden = $derived(!!hiddenRecord.current);
+	const isHidden = $derived(
+		isManuallyHidden ||
+			titleMatchesHiddenKeyword(relicLobbyDescription(match.current), hiddenWords.current ?? [])
+	);
 
 	watch(
 		() => highlightCommentId,
@@ -98,6 +132,40 @@
 	function setLikeCount(count: number) {
 		if (!match.current) return;
 		match.mutate({ ...match.current, likeCount: count });
+	}
+
+	async function toggleHidden() {
+		if (!sessionId) return;
+		const currentlyHidden = isManuallyHidden;
+		const confirmed = await confirm(
+			currentlyHidden
+				? t('Show this match on public overviews again?')
+				: t('Hide this match from public overviews?'),
+			{
+				okLabel: currentlyHidden ? t('Show') : t('Hide'),
+				cancelLabel: t('Cancel'),
+				kind: 'warning'
+			}
+		);
+		if (!confirmed) return;
+		hidePending = true;
+		try {
+			if (currentlyHidden) {
+				await unhideMatch(sessionId);
+				app.toast.success(t('Match is visible again.'));
+			} else {
+				await hideMatch(sessionId, app.account.userId);
+				app.toast.success(t('Match hidden from public overviews.'));
+			}
+			hiddenRevision += 1;
+		} catch (error) {
+			console.error('[HISTORY]: hide toggle failed:', error);
+			app.toast.error(
+				currentlyHidden ? t('Could not show this match.') : t('Could not hide this match.')
+			);
+		} finally {
+			hidePending = false;
+		}
 	}
 
 	watch(
@@ -134,6 +202,9 @@
 				<div class="mb-3 flex min-w-0 items-center gap-3">
 					<Match.MapName class="font-heading min-w-0 truncate text-3xl font-bold" />
 					<Match.ProBadge />
+					{#if isStaff && isHidden}
+						<Badge variant="warning">{t('Hidden')}</Badge>
+					{/if}
 				</div>
 
 				<div class={detailMetaGrid}>
@@ -219,6 +290,22 @@
 						likeCount={match.current.likeCount ?? 0}
 						onCountChange={setLikeCount}
 					/>
+					{#if isStaff && sessionId > 0}
+						<Button
+							type="button"
+							variant="secondary"
+							loading={hidePending}
+							onclick={() => toggleHidden()}
+						>
+							{#if isManuallyHidden}
+								<EyeIcon class="size-4" />
+								{t('Show match')}
+							{:else}
+								<EyeSlashIcon class="size-4" />
+								{t('Hide match')}
+							{/if}
+						</Button>
+					{/if}
 					{#if hasReplay}
 						<span
 							class="text-secondary-400 inline-flex h-11 items-center gap-1.5 px-2 text-sm tabular-nums"
@@ -295,4 +382,11 @@
 			{/if}
 		{/if}
 	</Match.Root>
+{:else if match.error}
+	<div class="border-secondary-800 border-b px-4 py-6">
+		<h1 class="font-heading mb-1 text-xl font-bold">{t('Match not found')}</h1>
+		<p class="text-secondary-400 text-sm">
+			{t('This match is hidden or could not be found.')}
+		</p>
+	</div>
 {/if}

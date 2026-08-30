@@ -15,8 +15,11 @@ import Textarea from './textarea.svelte';
 export type InputProps = {
 	leading?: Snippet;
 	trailing?: Snippet;
+	flush?: boolean;
 } & HTMLInputAttributes;
-export type TextareaProps = {} & HTMLTextareaAttributes;
+export type TextareaProps = {
+	flush?: boolean;
+} & HTMLTextareaAttributes;
 
 export {
 	Input,

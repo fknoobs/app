@@ -14,6 +14,7 @@
 	import { flagImageUrl } from '$lib/proxy-image';
 	import { interactive, statLosses, statWins, tableHeadRow } from '$lib/variants';
 	import MapImage from '$lib/components/MapImage.svelte';
+	import PlayerLabels from '$lib/components/PlayerLabels.svelte';
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
 
 	type Props = {
@@ -152,6 +153,7 @@
 													{matchPlayer.alias}
 												</span>
 											{/if}
+											<PlayerLabels labels={matchPlayer.labels} class="shrink-0" />
 										</div>
 									</td>
 									<td class="{statWins} px-4 py-1.5 text-center font-medium">

@@ -296,14 +296,17 @@ export class Matches {
 			this.query.elo != null ||
 			this.query.duration != null ||
 			this.query.sort !== 'createdAt' ||
-			this.query.sortDir === 'asc' ||
-			!!this.query.includeSkirmish;
+			this.query.sortDir === 'asc';
 		const cacheKey = `matches-${md5(JSON.stringify({ ...this.query, page: this.page }))}`;
+
+		if (this.scope === 'community') {
+			return app.database.matches.getHistoryList(this.page, this.perPage, this.query, { signal });
+		}
 
 		return useQuery(cacheKey, {
 			queryFn: () =>
 				app.database.matches.getHistoryList(this.page, this.perPage, this.query, { signal }),
-			ttl: hasFilters ? undefined : 60,
+			ttl: hasFilters ? 15 : 60,
 			signal
 		});
 	}

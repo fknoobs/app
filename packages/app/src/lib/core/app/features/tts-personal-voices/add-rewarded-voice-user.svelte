@@ -35,12 +35,10 @@
 		dialog.close();
 	}}
 >
-	<Form.Group>
-		<Form.Label>{t('User Name')}</Form.Label>
+	<Form.Group label={t('User Name')}>
 		<Input type="text" bind:value={userName} placeholder={t('Enter the Twitch username')} />
 	</Form.Group>
-	<Form.Group>
-		<Form.Label>{t('Select voice')}</Form.Label>
+	<Form.Group label={t('Select voice')}>
 		<Selection
 			options={tts.provider.voices.map((voice) => {
 				return {
@@ -53,7 +51,7 @@
 			placeholder={t('Select voice...')}
 		/>
 	</Form.Group>
-	<Form.Group class="flex items-end">
-		<Button variant="primary" class="w-fit">{t('Add user')}</Button>
+	<Form.Group>
+		<Button variant="primary" class="w-fit" type="submit">{t('Add user')}</Button>
 	</Form.Group>
 </Form.Root>

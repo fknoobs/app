@@ -127,10 +127,11 @@
 	<tr
 		class={cn(
 			rowHeight,
-			'border-secondary-800 border-b',
+			'border-secondary-800',
+			!expanded && 'border-b',
 			stripeClass,
 			bodyRowClass,
-			clickable && 'hover:text-primary cursor-pointer transition-colors',
+			clickable && 'hover:text-primary cursor-pointer outline-none transition-colors',
 			clickable && 'hover:bg-secondary-950/60',
 			expanded && 'bg-secondary-950/60 text-primary',
 			rowClass?.(row)

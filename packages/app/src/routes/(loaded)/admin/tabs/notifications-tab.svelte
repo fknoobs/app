@@ -1,18 +1,21 @@
 <script lang="ts">
-	import * as Form from '$lib/components/ui/form';
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import { Button } from '$lib/components/ui/button';
-	import { Badge } from '$lib/components/ui/badge';
-	import { Checkbox, Input, Textarea } from '$lib/components/ui/input';
+	import * as Form from '$lib/components/ui/form';
+	import { Input, Textarea } from '$lib/components/ui/input';
+	import * as User from '$lib/components/user';
 	import { app } from '$core/app/context';
 	import { pocketbase } from '$core/pocketbase';
 	import { fetch } from '$core/http/fetch';
 	import type { NotificationRecord } from '$core/app/database/notifications';
 	import type { UsersResponse } from '$core/pocketbase/types';
 	import dayjs from '$lib/dayjs';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
+	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
+	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import { cn } from '$lib/utils';
-	import { interactive } from '$lib/components/ui/variants';
+	import { footerAction, interactive } from '$lib/components/ui/variants';
 	import { useI18n } from '$lib/i18n';
 
 	const { t } = useI18n();
@@ -55,6 +58,14 @@
 	let sentNotifications = $state<NotificationRecord[]>([]);
 	let isSubmitting = $state(false);
 	let isSearching = $state(false);
+	let searched = $state(false);
+	const canSend = $derived(
+		title.trim().length > 0 &&
+			body.trim().length > 0 &&
+			(targetAll || selectedUsers.length > 0) &&
+			!isSubmitting
+	);
+	const canSearch = $derived(userQuery.trim().length >= 2 && !isSearching);
 
 	$effect(() => {
 		if (app.account.isStaff) {
@@ -73,6 +84,7 @@
 
 		if (query.length < 2) {
 			searchResults = [];
+			searched = false;
 			return;
 		}
 
@@ -89,6 +101,7 @@
 			searchResults = response.items.filter(
 				(user) => !selectedUsers.some((selected) => selected.id === user.id)
 			);
+			searched = true;
 		} finally {
 			isSearching = false;
 		}
@@ -98,6 +111,16 @@
 		selectedUsers = [...selectedUsers, user];
 		searchResults = searchResults.filter((result) => result.id !== user.id);
 		userQuery = '';
+		searched = false;
+	};
+
+	const toggleAllUsers = () => {
+		targetAll = !targetAll;
+		if (targetAll) {
+			userQuery = '';
+			searchResults = [];
+			searched = false;
+		}
 	};
 
 	const removeUser = (userId: string) => {
@@ -132,6 +155,7 @@
 			selectedUsers = [];
 			searchResults = [];
 			userQuery = '';
+			searched = false;
 			await loadSent();
 		} catch (error) {
 			console.error('[NOTIFICATIONS]: create failed:', error);
@@ -142,99 +166,137 @@
 	};
 </script>
 
-<Form.Root class="space-y-0">
-	<div class="border-secondary-800 grid gap-4 border-b p-4 lg:grid-cols-2">
-		<Form.Group class="mb-0">
-			<Form.Label>{t('Title')}</Form.Label>
-			<Form.Description>{t('Short title that appears in the notification list.')}</Form.Description>
-			<Input bind:value={title} placeholder={t('Title')} maxlength={200} />
-		</Form.Group>
+<Form.Group
+	layout="stacked"
+	label={t('New notification')}
+	description={t('Write a title and message. Markdown is supported.')}
+>
+	<Input bind:value={title} placeholder={t('Title')} maxlength={200} aria-label={t('Title')} />
+	<Textarea
+		bind:value={body}
+		class="min-h-24 resize-none"
+		rows={5}
+		maxlength={10000}
+		placeholder={t('Write your message...')}
+		aria-label={t('Message')}
+	/>
+	{#snippet footer()}
+		<Button
+			type="button"
+			variant={targetAll ? 'primary' : 'secondary'}
+			class="w-fit"
+			aria-pressed={targetAll}
+			onclick={toggleAllUsers}
+		>
+			<UsersIcon size={16} />
+			{t('Send to all')}
+		</Button>
+		<Button
+			type="button"
+			class="w-fit"
+			disabled={!canSend}
+			loading={isSubmitting}
+			onclick={() => submit()}
+		>
+			<PaperPlaneTiltIcon size={16} />
+			{t('Send')}
+		</Button>
+	{/snippet}
+</Form.Group>
 
-		<Form.Group class="mb-0 lg:col-span-2">
-			<Form.Label>{t('Message')}</Form.Label>
-			<Form.Description>
-				{t('Full content in the modal. Markdown is supported (headings, lists, links, bold, italic).')}
-			</Form.Description>
-			<Textarea bind:value={body} rows={5} maxlength={10000} placeholder={t('Write your message...')} />
-		</Form.Group>
-	</div>
+{#if !targetAll}
+	<Form.Group
+		inputId="notification-recipients"
+		label={t('Recipients')}
+		description={t('Search by name or email, then add them.')}
+	>
+		<Input
+			id="notification-recipients"
+			bind:value={userQuery}
+			placeholder={t('Search by name or email...')}
+			aria-label={t('Recipients')}
+			onkeydown={(event) => {
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					void searchUsers();
+				}
+			}}
+		/>
+		<Button
+			type="button"
+			variant="secondary"
+			class="w-fit shrink-0"
+			disabled={!canSearch}
+			loading={isSearching}
+			onclick={() => searchUsers()}
+		>
+			<MagnifyingGlassIcon size={16} />
+			{t('Search')}
+		</Button>
+	</Form.Group>
 
-	<div class="border-secondary-800 border-b p-4">
-		<Form.Group class="mb-0">
-			<Checkbox label={t('Send to all users')} bind:checked={targetAll} />
-		</Form.Group>
+	{#if selectedUsers.length > 0}
+		<ul class="divide-secondary-800 divide-y">
+			{#each selectedUsers as user (user.id)}
+				<li class="flex min-h-11 items-stretch">
+					<div class="flex min-w-0 flex-1 items-center px-4 py-2">
+						<User.Root user={user} class="flex min-w-0 flex-col">
+							<User.Name class="font-medium" />
+							{#if user.name && user.email}
+								<span class="text-secondary-400 text-xs">{user.email}</span>
+							{/if}
+						</User.Root>
+					</div>
+					<div class="border-secondary-800 flex items-stretch border-l">
+						<Button
+							type="button"
+							variant="ghost"
+							class={cn(footerAction, 'text-secondary-400 hover:text-white', 'border-r-0')}
+							onclick={() => removeUser(user.id)}
+							aria-label={t('Remove {name}', { name: userLabel(user) })}
+						>
+							<XIcon size={16} />
+							{t('Remove')}
+						</Button>
+					</div>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 
-		{#if !targetAll}
-			<Form.Group class="mb-0 mt-4">
-				<Form.Label>{t('Recipients')}</Form.Label>
-				<Form.Description>{t('Search users by name or email and add them.')}</Form.Description>
-				<div class="flex gap-2">
-					<Input
-						bind:value={userQuery}
-						placeholder={t('Search by name or email...')}
-						onkeydown={(event) => {
-							if (event.key === 'Enter') {
-								event.preventDefault();
-								void searchUsers();
-							}
-						}}
-					/>
-					<Button type="button" variant="secondary" onclick={() => searchUsers()} loading={isSearching}>
-						{t('Search')}
-					</Button>
-				</div>
-
-				{#if searchResults.length > 0}
-					<div
-						class="border-secondary-800 divide-secondary-800 mt-3 divide-y overflow-hidden rounded-md border"
-					>
-						{#each searchResults as user (user.id)}
+	{#if searched}
+		<section>
+			<div class="border-secondary-800 border-b px-4 py-3">
+				<p class="text-secondary-300 text-xs font-semibold tracking-wide uppercase">{t('Users')}</p>
+			</div>
+			{#if searchResults.length === 0}
+				<p class="text-secondary-400 px-4 py-6 text-sm">{t('No users found.')}</p>
+			{:else}
+				<ul class="divide-secondary-800 divide-y">
+					{#each searchResults as user (user.id)}
+						<li>
 							<button
 								type="button"
 								class={cn(
 									interactive,
-									'hover:bg-secondary-950/50 flex w-full flex-col px-4 py-2.5 text-left text-sm transition-colors'
+									'hover:bg-secondary-950/50 flex w-full min-h-11 flex-col justify-center px-4 py-2 text-left transition-colors'
 								)}
 								onclick={() => addUser(user)}
 							>
-								<span class="font-medium">{userLabel(user)}</span>
-								{#if user.name && user.email}
-									<span class="text-secondary-400 text-xs">{user.email}</span>
-								{/if}
+								<User.Root user={user} class="flex min-w-0 flex-col">
+									<User.Name class="font-medium" />
+									{#if user.name && user.email}
+										<span class="text-secondary-400 text-xs">{user.email}</span>
+									{/if}
+								</User.Root>
 							</button>
-						{/each}
-					</div>
-				{/if}
-
-				{#if selectedUsers.length > 0}
-					<div class="mt-3 flex flex-wrap gap-2">
-						{#each selectedUsers as user (user.id)}
-							<Badge class="inline-flex items-center gap-2">
-								{userLabel(user)}
-								<Button
-									type="button"
-									variant="ghost"
-									size="icon-sm"
-									class="text-secondary-400 hover:text-white"
-									onclick={() => removeUser(user.id)}
-									aria-label={t('Remove {name}', { name: userLabel(user) })}
-								>
-									<XIcon size={14} />
-								</Button>
-							</Badge>
-						{/each}
-					</div>
-				{/if}
-			</Form.Group>
-		{/if}
-	</div>
-
-	<div class="border-secondary-800 border-b p-4">
-		<Button type="button" class="w-fit" onclick={() => submit()} loading={isSubmitting}>
-			{t('Send')}
-		</Button>
-	</div>
-</Form.Root>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+	{/if}
+{/if}
 
 <section>
 	<div class="border-secondary-800 border-b px-4 py-3">

@@ -2,6 +2,7 @@
 'use strict';
 
 const ratings = require(`${__hooks}/lib/player-ratings.js`);
+const playerLabels = require(`${__hooks}/lib/player-labels.js`);
 
 const RELIC_API_BASE = 'https://coh1-lobby.reliclink.com';
 const RANKED_LEADERBOARD_MIN = 4;
@@ -276,6 +277,12 @@ function loadLeaderboard(leaderboardId) {
 		if (avatarUrl) {
 			stats[i].profile.avatarUrl = avatarUrl;
 		}
+	}
+
+	const labelsBySteamId = playerLabels.loadLabelsBySteamIds(steamIds);
+	for (const stat of stats) {
+		const steamId = steamIdFromName(stat.profile.name);
+		stat.profile.labels = labelsBySteamId[steamId] ?? [];
 	}
 
 	const payload = {

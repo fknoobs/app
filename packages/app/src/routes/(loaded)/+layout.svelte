@@ -28,6 +28,7 @@
 	import CommandIcon from 'phosphor-svelte/lib/CommandIcon';
 	import BriefcaseIcon from 'phosphor-svelte/lib/BriefcaseIcon';
 	import NotificationBell from '$lib/components/notifications/notification-bell.svelte';
+	import * as User from '$lib/components/user';
 	import { useI18n } from '$lib/i18n';
 
 	import '$lib/fonts/TT Mussels/style.css';
@@ -155,7 +156,13 @@
 							data-active={page.url.pathname === '/account'}
 						>
 							<Avatar />
-							<span class="truncate">{app.account.user?.name || t('My account')}</span>
+							{#if app.account.user}
+								<User.Root user={app.account.user}>
+									<User.Name class="text-sm" />
+								</User.Root>
+							{:else}
+								<span class="truncate">{t('My account')}</span>
+							{/if}
 						</a>
 						{#if app.account.isAuthenticated}
 							<NotificationBell />

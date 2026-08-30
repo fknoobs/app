@@ -63,6 +63,7 @@
 			maps,
 			races: races.map(String),
 			matchtypes,
+			exactMatchtypes: matchtypes.length > 0,
 			playerIds,
 			includeSkirmish: dev
 		});

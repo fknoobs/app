@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { LobbyPlayer } from '@fknoobs/app';
+	import type { Snippet } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import CaptureImage from '$lib/components/anti-cheat/capture-image.svelte';
 	import CheaterAlert from '$lib/components/player/cheater-alert.svelte';
 	import { confirm } from '@tauri-apps/plugin-dialog';
@@ -17,10 +18,10 @@
 	import type { UsersResponse } from '$core/pocketbase/types';
 	import { getPlayerAlias, getPlayerProfileId } from '$lib/components/widgets/dashboard-utils';
 	import { interactive } from '$lib/components/ui/variants';
-	import dayjs from '$lib/dayjs';
 	import { cn } from '$lib/utils';
 	import { useI18n } from '$lib/i18n';
 	import { ClientResponseError } from 'pocketbase';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 
 	type ResultPlayer = {
 		steamId?: string | null;
@@ -43,6 +44,7 @@
 		steamId: string;
 		alias: string;
 		profileId?: number;
+		capturedAt: string;
 		captures: CaptureRecord[];
 	};
 
@@ -64,7 +66,7 @@
 		() => listOwnReportForMatch(account.userId, sessionId)
 	);
 
-	let selectedKey = $state<string | null>(null);
+	let expandedOverride = $state<string | null | undefined>(undefined);
 	let flaggingKey = $state<string | null>(null);
 	let extraFlagged = $state<string[]>([]);
 
@@ -96,6 +98,7 @@
 		const userId = groupCaptures[0]?.user ?? '';
 		const steamIds = steamIdsOf(groupCaptures);
 		const steamId = steamIds[0] ?? '';
+		const capturedAt = groupCaptures[0]?.captured_at || groupCaptures[0]?.created || '';
 
 		const lobbyPlayer = players.find(
 			(player) => player.steamId && steamIds.includes(player.steamId)
@@ -105,7 +108,8 @@
 				userId,
 				steamId: lobbyPlayer.steamId || steamId,
 				alias: lobbyPlayer.profile?.alias || getPlayerAlias(lobbyPlayer),
-				profileId: getPlayerProfileId(lobbyPlayer)
+				profileId: getPlayerProfileId(lobbyPlayer),
+				capturedAt
 			};
 		}
 
@@ -121,11 +125,12 @@
 				profileId:
 					resultPlayer.profile_id && resultPlayer.profile_id > 0
 						? resultPlayer.profile_id
-						: undefined
+						: undefined,
+				capturedAt
 			};
 		}
 
-		return { userId, steamId, alias: t('Player') };
+		return { userId, steamId, alias: t('Player'), capturedAt };
 	}
 
 	const groups = $derived.by((): CaptureGroup[] => {
@@ -145,14 +150,40 @@
 	const flaggedAccused = $derived(
 		new Set([...(ownReports.current ?? []).map((report) => report.accused), ...extraFlagged])
 	);
-
-	const activeGroup = $derived.by(() => {
-		if (selectedKey) {
-			const match = groups.find((group) => group.key === selectedKey);
-			if (match) return match;
-		}
-		return groups[0] ?? null;
+	const expandedId = $derived.by(() => {
+		if (expandedOverride === undefined) return groups[0]?.key ?? null;
+		return expandedOverride;
 	});
+	const columns = $derived.by((): ColumnDef<CaptureGroup>[] => [
+		{
+			id: 'player',
+			header: t('Player'),
+			width: 'w-8/24',
+			class: 'min-w-0 truncate font-medium'
+		},
+		{
+			id: 'screenshots',
+			header: t('Screenshots'),
+			width: 'w-4/24',
+			class: 'text-secondary-400 truncate text-sm'
+		},
+		{
+			id: 'date',
+			header: t('Date'),
+			width: 'w-6/24',
+			class: 'text-secondary-400 truncate text-sm'
+		},
+		{ id: 'actions', header: '', width: 'w-5/24', hideSkeleton: true },
+		{
+			id: 'expand',
+			header: '',
+			width: 'w-1/24',
+			headerCellClass: 'p-0',
+			cellClass: () => 'p-0',
+			class: 'flex w-full justify-center',
+			hideSkeleton: true
+		}
+	]);
 
 	const isSelf = (group: CaptureGroup) => {
 		if (!account.isAuthenticated) return true;
@@ -164,6 +195,21 @@
 		if (!account.isAuthenticated || isSelf(group) || !group.userId) return false;
 		return !flaggedAccused.has(group.userId);
 	};
+
+	function toggleExpanded(key: string) {
+		expandedOverride = expandedId === key ? null : key;
+	}
+
+	function formatDate(value: string) {
+		if (!value) return '';
+		return new Date(value).toLocaleDateString(undefined, {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		});
+	}
 
 	const flagPlayer = async (group: CaptureGroup) => {
 		if (!canFlag(group)) return;
@@ -201,7 +247,7 @@
 		app.modal.create({
 			component: CaptureImage,
 			title: t('Screenshot'),
-			description: dayjs(capture.captured_at || capture.created).format('D MMM YYYY HH:mm'),
+			description: formatDate(capture.captured_at || capture.created),
 			props: {
 				capture,
 				class: 'w-full max-h-[calc(100vh-9rem)] rounded-md object-contain'
@@ -212,101 +258,56 @@
 	}
 </script>
 
-{#if captures.loading}
-	<div class="grid grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-		<div class="border-secondary-800 divide-secondary-800 divide-y border-r">
-			{#each [0, 1] as row (row)}
-				<div class="flex flex-col gap-1.5 px-4 py-3">
-					<Skeleton class="h-3.5 w-24" />
-					<Skeleton class="h-3 w-16" />
-				</div>
-			{/each}
-		</div>
-		<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
-			{#each [0, 1, 2, 3] as thumb (thumb)}
-				<Skeleton class="aspect-square w-full rounded-none" />
-			{/each}
-		</div>
-	</div>
-{:else if groups.length === 0}
-	<p class="text-secondary-400 px-4 py-6 text-sm">
-		{t('No screenshots for this match. Screenshots only appear when a player used the app.')}
-	</p>
-{:else}
-	<div class="grid min-h-0 grid-cols-[minmax(0,14rem)_minmax(0,1fr)] items-stretch">
-		<nav
-			class="border-secondary-800 divide-secondary-800 flex h-full min-h-0 flex-col divide-y border-r"
-			aria-label={t('Select player')}
+{#snippet cell_player({ row }: { row: CaptureGroup })}
+	<span class="flex min-w-0 items-center gap-2">
+		{#if row.profileId}
+			<a
+				href="/players/{row.profileId}"
+				class={cn(interactive, 'text-secondary-300 hover:text-primary min-w-0 truncate font-medium')}
+			>
+				{row.alias}
+			</a>
+		{:else}
+			<span class="min-w-0 truncate">{row.alias}</span>
+		{/if}
+		{#if row.steamId && cheaters.has(row.steamId)}
+			<CheaterAlert compact />
+		{/if}
+	</span>
+{/snippet}
+{#snippet cell_screenshots({ row }: { row: CaptureGroup })}
+	{row.captures.length}
+	{row.captures.length === 1 ? t('screenshot') : t('screenshots')}
+{/snippet}
+{#snippet cell_date({ row }: { row: CaptureGroup })}
+	{formatDate(row.capturedAt)}
+{/snippet}
+{#snippet cell_actions({ row }: { row: CaptureGroup })}
+	{#if canFlag(row)}
+		<Button
+			type="button"
+			size="sm"
+			variant="destructive"
+			class="h-7 px-2.5 text-xs"
+			loading={flaggingKey === row.key}
+			onclick={() => void flagPlayer(row)}
 		>
-			{#each groups as group (group.key)}
-				{@const isSelected = activeGroup?.key === group.key}
-				<button
-					type="button"
-					class={cn(
-						interactive,
-						'flex w-full flex-col gap-1 px-4 py-2.5 text-left text-sm transition-colors',
-						isSelected
-							? 'bg-secondary-950/80 text-primary font-medium'
-							: 'text-secondary-300 hover:bg-secondary-950/50 hover:text-white'
-					)}
-					aria-current={isSelected ? 'true' : undefined}
-					onclick={() => (selectedKey = group.key)}
-				>
-					<span class="flex min-w-0 items-center gap-2">
-						<span class="min-w-0 truncate">{group.alias}</span>
-						{#if group.steamId && cheaters.has(group.steamId)}
-							<CheaterAlert compact />
-						{/if}
-					</span>
-					<span class={cn('text-xs', isSelected ? 'text-primary/70' : 'text-secondary-500')}>
-						{group.captures.length}
-						{group.captures.length === 1 ? ` ${t('screenshot')}` : ` ${t('screenshots')}`}
-					</span>
-				</button>
-			{/each}
-		</nav>
-
-		<div class="bg-secondary-950/50 min-h-0 min-w-0">
-			{#if activeGroup}
-				<div
-					class="border-secondary-800 flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5"
-				>
-					<div class="flex min-w-0 items-center gap-2">
-						{#if activeGroup.profileId}
-							<a
-								href="/players/{activeGroup.profileId}"
-								class={cn(
-									interactive,
-									'text-secondary-300 hover:text-primary truncate text-xs font-semibold tracking-wide uppercase'
-								)}
-							>
-								{activeGroup.alias}
-							</a>
-						{:else}
-							<p class="text-secondary-300 truncate text-xs font-semibold tracking-wide uppercase">
-								{activeGroup.alias}
-							</p>
-						{/if}
-						{#if activeGroup.steamId && cheaters.has(activeGroup.steamId)}
-							<CheaterAlert compact />
-						{/if}
-					</div>
-					{#if canFlag(activeGroup)}
-						<Button
-							type="button"
-							size="sm"
-							variant="destructive"
-							loading={flaggingKey === activeGroup.key}
-							onclick={() => void flagPlayer(activeGroup)}
-						>
-							{t('Flag player')}
-						</Button>
-					{:else if flaggedAccused.has(activeGroup.userId)}
-						<p class="text-secondary-500 text-sm">{t('Flagged')}</p>
-					{/if}
-				</div>
-				<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
-					{#each activeGroup.captures as capture (capture.id)}
+			{t('Flag player')}
+		</Button>
+	{:else if flaggedAccused.has(row.userId)}
+		<span class="text-secondary-500 text-sm">{t('Flagged')}</span>
+	{/if}
+{/snippet}
+{#snippet cell_expand({ row }: { row: CaptureGroup })}
+	<CaretDownIcon class={cn('size-4 transition-transform', expandedId === row.key && 'rotate-180')} />
+{/snippet}
+{#snippet rowWrapper({ row, children }: { row: CaptureGroup; children: Snippet })}
+	{@render children()}
+	{#if expandedId === row.key}
+		<tr class="border-secondary-800 border-b">
+			<td colspan={columns.length} class="p-0">
+				<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+					{#each row.captures as capture (capture.id)}
 						<button
 							type="button"
 							class={cn(
@@ -319,7 +320,33 @@
 						</button>
 					{/each}
 				</div>
-			{/if}
-		</div>
-	</div>
+			</td>
+		</tr>
+	{/if}
+{/snippet}
+
+{#if !captures.loading && groups.length === 0}
+	<p class="text-secondary-400 px-4 py-6 text-sm">
+		{t('No screenshots for this match. Screenshots only appear when a player used the app.')}
+	</p>
+{:else}
+	<DataTable
+		data={groups}
+		{columns}
+		rowKey={(group) => group.key}
+		onRowClick={(group) => toggleExpanded(group.key)}
+		isRowExpanded={(group) => expandedId === group.key}
+		{rowWrapper}
+		loading={captures.loading}
+		skeletonRows={2}
+		striped={false}
+		empty={t('No screenshots for this match. Screenshots only appear when a player used the app.')}
+		cells={{
+			player: cell_player,
+			screenshots: cell_screenshots,
+			date: cell_date,
+			actions: cell_actions,
+			expand: cell_expand
+		}}
+	/>
 {/if}

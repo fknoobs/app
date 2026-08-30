@@ -51,6 +51,7 @@ export type AppEvents = {
 	'game.logout': null;
 	'lobby.joined': Match;
 	'lobby.started': Match;
+	'lobby.gameover': Match;
 	'lobby.destroyed': {
 		match: Match;
 		replay: {
@@ -307,6 +308,7 @@ export class AppContext extends Emittery<AppEvents> {
 		this.gameLog.on('logout', () => this.#onLogout());
 		this.gameLog.on('lobby.joined', (lobby) => this.#onLobbyJoined(lobby));
 		this.gameLog.on('lobby.started', (lobby) => this.#onLobbyStarted(lobby));
+		this.gameLog.on('lobby.gameover', (lobby) => this.#onLobbyGameover(lobby));
 		this.gameLog.on('lobby.result', ({ playerId, result }) =>
 			this.#onLobbyResult(playerId, result)
 		);
@@ -416,11 +418,26 @@ export class AppContext extends Emittery<AppEvents> {
 
 		console.log('lobby started', match);
 
+		this.game.isIngame = true;
 		this.emit('lobby.started', match);
 		this.socket.publish('game.lobby.started', match);
 
 		this.#upsertLiveLobby(match);
 		this.#startLiveLobbyHeartbeat();
+	}
+
+	#onLobbyGameover(lobby: Lobby) {
+		if (!this.isReady) {
+			return;
+		}
+
+		this.game.isIngame = false;
+
+		if (this.lobby) {
+			this.lobby = { ...this.lobby, ended: true };
+		}
+
+		this.emit('lobby.gameover', this.lobby ?? lobby.toJSON());
 	}
 
 	#onLobbyResult(playerId: number, result: 'PS_WON' | 'PS_KILLED') {
@@ -450,6 +467,7 @@ export class AppContext extends Emittery<AppEvents> {
 		this.emit('lobby.destroyed', { match, replay });
 		this.socket.publish('game.lobby.destroyed', match);
 
+		this.game.isIngame = false;
 		this.#clearLiveLobbyOnGameExit();
 	}
 
@@ -498,6 +516,7 @@ export class AppContext extends Emittery<AppEvents> {
 		this.#stopLiveLobbyHeartbeat();
 		this.#publishedJoinedKey = null;
 		this.#publishedStartedKey = null;
+		this.game.isIngame = false;
 		this.lobby = null;
 		this.database.lobbiesLive
 			.removeLobby()

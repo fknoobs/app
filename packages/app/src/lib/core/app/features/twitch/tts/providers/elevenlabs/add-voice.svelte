@@ -83,8 +83,7 @@
 		}
 	}}
 >
-	<Form.Group>
-		<Form.Label>{t('Voice name')}</Form.Label>
+	<Form.Group label={t('Voice name')}>
 		<Input
 			placeholder={t('Enter voice name ...')}
 			name="name"
@@ -93,17 +92,16 @@
 			required
 		/>
 	</Form.Group>
-	<Form.Group>
-		<Form.Label>{t('Audio files')}</Form.Label>
-		<div class="grid gap-1">
+	<Form.Group label={t('Audio files')}>
+		<div class="flex w-full min-w-0 flex-col gap-2">
 			{#each voiceFiles as file, index (file.name)}
-				<span class="bg-secondary-800 grid grid-flow-col gap-4 rounded px-3 py-1">
-					<span class="truncate">{file.name}</span>
+				<span class="flex items-center gap-3">
+					<span class="min-w-0 flex-1 truncate">{file.name}</span>
 					<Button
 						type="button"
 						variant="ghost"
 						size="icon-sm"
-						class="text-destructive hover:text-destructive/80 ms-auto"
+						class="text-destructive hover:text-destructive/80"
 						onclick={() => {
 							voiceFiles = voiceFiles.filter((_, i) => i !== index);
 						}}
@@ -112,37 +110,35 @@
 					</Button>
 				</span>
 			{/each}
-		</div>
-		<Button
-			onclick={async () => {
-				files = await open({
-					multiple: true,
-					filters: [{ name: t('Audio Files'), extensions: ['mp3', 'm4a', 'ogg', 'wav'] }]
-				});
-
-				if (!files) {
-					return;
-				}
-
-				voiceFiles = await Promise.all(files.map(async (file) => await readFile(file))).then(
-					(data) => {
-						return data.map((d: Uint8Array, index: number) => {
-							const blob = new Blob([d], { type: 'audio/mpeg' });
-							return new File([blob], `voice-${index}.mp3`);
-						});
+			<Button
+				onclick={async () => {
+					files = await open({
+						multiple: true,
+						filters: [{ name: t('Audio Files'), extensions: ['mp3', 'm4a', 'ogg', 'wav'] }]
+					});
+					if (!files) {
+						return;
 					}
-				);
-			}}
-			variant="secondary"
-			class="w-fit"
-			type="button"
-		>
-			{voiceFiles.length
-				? t('Selected {count} file(s)', { count: voiceFiles.length })
-				: t('Select audio file(s)')}
-		</Button>
+					voiceFiles = await Promise.all(files.map(async (file) => await readFile(file))).then(
+						(data) => {
+							return data.map((d: Uint8Array, index: number) => {
+								const blob = new Blob([d], { type: 'audio/mpeg' });
+								return new File([blob], `voice-${index}.mp3`);
+							});
+						}
+					);
+				}}
+				variant="secondary"
+				class="w-fit"
+				type="button"
+			>
+				{voiceFiles.length
+					? t('Selected {count} file(s)', { count: voiceFiles.length })
+					: t('Select audio file(s)')}
+			</Button>
+		</div>
 	</Form.Group>
-	<Form.Group class="items-end">
+	<Form.Group>
 		<Button type="submit" class="w-fit" loading={isProcessing}>{t('Add Voice')}</Button>
 	</Form.Group>
 </Form.Root>

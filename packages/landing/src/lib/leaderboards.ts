@@ -1,4 +1,5 @@
 import type { PlayerEloMap } from './player';
+import type { PlayerLabel } from './labels';
 
 export type RelicLeaderboardProfile = {
 	profile_id: number;
@@ -6,6 +7,7 @@ export type RelicLeaderboardProfile = {
 	country: string | null;
 	name: string;
 	avatarUrl?: string;
+	labels?: PlayerLabel[];
 };
 
 export type LeaderboardStatWithProfile = {

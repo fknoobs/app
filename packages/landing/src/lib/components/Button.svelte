@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { cn } from '$lib/cn';
 	import { interactive } from '$lib/variants';
-	import type { HTMLButtonAttributes } from 'svelte/elements';
+	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
 
 	type Props = {
 		href?: string;
 		variant?: 'primary' | 'secondary';
 		class?: string;
 		download?: string;
+		target?: HTMLAnchorAttributes['target'];
+		rel?: HTMLAnchorAttributes['rel'];
 		type?: HTMLButtonAttributes['type'];
 		disabled?: boolean;
 		onclick?: HTMLButtonAttributes['onclick'];
@@ -19,11 +21,17 @@
 		variant = 'primary',
 		class: className,
 		download,
+		target,
+		rel,
 		type = 'button',
 		disabled = false,
 		onclick,
 		children
 	}: Props = $props();
+
+	const isExternal = $derived(Boolean(href?.startsWith('http://') || href?.startsWith('https://')));
+	const linkTarget = $derived(target ?? (isExternal ? '_blank' : undefined));
+	const linkRel = $derived(rel ?? (isExternal ? 'noopener noreferrer' : undefined));
 
 	const classes = $derived(
 		cn(
@@ -41,7 +49,7 @@
 </script>
 
 {#if href}
-	<a {href} {download} class={classes} target="_blank" rel="noopener noreferrer">
+	<a {href} {download} class={classes} target={linkTarget} rel={linkRel}>
 		{@render children()}
 	</a>
 {:else}

@@ -3,6 +3,7 @@
 'use strict';
 
 routerAdd('GET', '/api/history-players', (e) => {
+	const { loadUserSteamIds, userPlayedLobbyClause } = require(`${__hooks}/lib/match-history.js`);
 	const query = e.request.url.query();
 	const scope = query.get('scope') || 'user';
 	const userId = query.get('userId') || '';
@@ -32,11 +33,16 @@ routerAdd('GET', '/api/history-players', (e) => {
        LIMIT {:limit}`;
 	} else {
 		bindings.userId = userId;
+		const played = userPlayedLobbyClause(
+			'l',
+			{ steamIds: loadUserSteamIds(userId) },
+			bindings
+		);
 		sql = `SELECT DISTINCT p.profile_id AS profile_id, COALESCE(p.alias, '') AS alias
        FROM players p
        INNER JOIN lobby_player_index i ON i.profile_id = p.profile_id
        INNER JOIN lobbies l ON l.id = i.lobby
-       WHERE l.user = {:userId}
+       WHERE ${played}
          AND l.needsResult = 0
          AND l.title != 'Skirmish'
          AND ${searchClause}
@@ -59,6 +65,7 @@ routerAdd('GET', '/api/history-players', (e) => {
 });
 
 routerAdd('GET', '/api/history-maps', (e) => {
+	const { loadUserSteamIds, userPlayedLobbyClause } = require(`${__hooks}/lib/match-history.js`);
 	const query = e.request.url.query();
 	const scope = query.get('scope') || 'user';
 	const userId = query.get('userId') || '';
@@ -86,10 +93,15 @@ routerAdd('GET', '/api/history-maps', (e) => {
        LIMIT {:limit}`;
 	} else {
 		bindings.userId = userId;
+		const played = userPlayedLobbyClause(
+			'l',
+			{ steamIds: loadUserSteamIds(userId) },
+			bindings
+		);
 		sql = `SELECT DISTINCT m.map AS map, COALESCE(NULLIF(m.name, ''), m.map) AS name
        FROM maps m
        INNER JOIN lobbies l ON l.map = m.map
-       WHERE l.user = {:userId}
+       WHERE ${played}
          AND l.needsResult = 0
          AND l.title != 'Skirmish'
          AND ${searchClause}
@@ -103,20 +115,24 @@ routerAdd('GET', '/api/history-maps', (e) => {
 
 		if (rows.length === 0) {
 			const fallbackBindings = { like: `%${q}%`, limit };
-			let fallbackSql = `SELECT DISTINCT map AS map, map AS name
-         FROM lobbies
-         WHERE map IS NOT NULL AND map != ''
-           AND needsResult = 0 AND title != 'Skirmish'`;
+			let fallbackSql = `SELECT DISTINCT l.map AS map, l.map AS name
+         FROM lobbies l
+         WHERE l.map IS NOT NULL AND l.map != ''
+           AND l.needsResult = 0 AND l.title != 'Skirmish'`;
 			if (scope === 'user') {
 				fallbackBindings.userId = userId;
-				fallbackSql += ' AND user = {:userId}';
+				fallbackSql += ` AND ${userPlayedLobbyClause(
+					'l',
+					{ steamIds: loadUserSteamIds(userId) },
+					fallbackBindings
+				)}`;
 			} else {
-				fallbackSql += " AND (hasReplay = 1 OR (replay IS NOT NULL AND replay != ''))";
+				fallbackSql += " AND (l.hasReplay = 1 OR (l.replay IS NOT NULL AND l.replay != ''))";
 			}
 			if (q.length > 0) {
-				fallbackSql += ' AND map LIKE {:like}';
+				fallbackSql += ' AND l.map LIKE {:like}';
 			}
-			fallbackSql += ' ORDER BY map ASC LIMIT {:limit}';
+			fallbackSql += ' ORDER BY l.map ASC LIMIT {:limit}';
 			$app.db().newQuery(fallbackSql).bind(fallbackBindings).all(rows);
 		}
 

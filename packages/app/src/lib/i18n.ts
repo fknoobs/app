@@ -6,7 +6,7 @@ import {
 } from '@svelte-i18n/core';
 import type en from '$lib/locales/en.json';
 
-export const locales = ['en', 'es'] as const;
+export const locales = ['en', 'es', 'ko'] as const;
 export type AppLocale = (typeof locales)[number];
 export type AppDictionary = typeof en;
 export type AppI18n = I18nInstance<AppDictionary, AppLocale, AppLocale>;
@@ -14,12 +14,41 @@ export type TranslateFn = (key: string, params?: Record<string, string | number>
 
 export const localeLabels: Record<AppLocale, string> = {
 	en: 'English',
-	es: 'Español'
+	es: 'Español',
+	ko: '한국어'
 };
+
+export function isAppLocale(value: unknown): value is AppLocale {
+	return typeof value === 'string' && locales.includes(value as AppLocale);
+}
+
+/** Maps OS / browser language tags (`es-MX`) onto a supported app locale. */
+export function detectOsLocale(): AppLocale {
+	if (typeof navigator === 'undefined') {
+		return 'en';
+	}
+
+	const tags = [...(navigator.languages ?? []), navigator.language];
+
+	for (const tag of tags) {
+		if (!tag) continue;
+		const language = tag.toLowerCase().split('-')[0];
+		if (isAppLocale(language)) {
+			return language;
+		}
+	}
+
+	return 'en';
+}
+
+/** Saved settings win; otherwise the OS language, then English. */
+export function resolveAppLocale(saved?: string | null): AppLocale {
+	return isAppLocale(saved) ? saved : detectOsLocale();
+}
 
 let instance: AppI18n | null = null;
 
-export async function initI18n(locale: AppLocale = 'en'): Promise<AppI18n> {
+export async function initI18n(locale: AppLocale = detectOsLocale()): Promise<AppI18n> {
 	if (instance) {
 		return instance;
 	}
@@ -30,7 +59,8 @@ export async function initI18n(locale: AppLocale = 'en'): Promise<AppI18n> {
 		fallbackLocale: 'en',
 		dictionaries: {
 			en: async () => (await import('$lib/locales/en.json')).default,
-			es: async () => (await import('$lib/locales/es.json')).default
+			es: async () => (await import('$lib/locales/es.json')).default,
+			ko: async () => (await import('$lib/locales/ko.json')).default
 		}
 	})) as AppI18n;
 
@@ -66,10 +96,10 @@ export const t: TranslateFn = (key, params) => {
 
 export function setLocale(locale: string | string[]): void {
 	const next = Array.isArray(locale) ? locale[0] : locale;
-	if (!instance || !locales.includes(next as AppLocale)) {
+	if (!instance || !isAppLocale(next)) {
 		return;
 	}
-	instance.setLocale(next as AppLocale);
+	instance.setLocale(next);
 }
 
 export function provideI18n(i18n: () => AppI18n): AppI18n {

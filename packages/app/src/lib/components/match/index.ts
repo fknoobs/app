@@ -37,3 +37,5 @@ export {
 	MatchProBadge as ProBadge,
 	MatchScreenshots as Screenshots
 };
+
+export type { MatchListColumnId } from './match-list-columns';

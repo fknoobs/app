@@ -4,7 +4,6 @@
 	import DiscordMenu from './DiscordMenu.svelte';
 	import { latestDownload } from '$lib/download.svelte';
 	import { cn } from '$lib/cn';
-	import { headerCellAction } from '$lib/variants';
 	import DownloadSimpleIcon from 'phosphor-svelte/lib/DownloadSimpleIcon';
 	import DiscordLogoIcon from 'phosphor-svelte/lib/DiscordLogoIcon';
 </script>
@@ -19,26 +18,19 @@
 				</h1>
 				<p class="text-secondary-400 mt-3 max-w-xl text-sm leading-relaxed">
 					Replay analysis, live lobby scouting, match history, Relic leaderboards, faction
-					keybindings, and Twitch overlays — in one app next to the game.
+					keybindings, and Twitch overlays — plus fair play checks that help keep the community
+					clean of cheaters.
 				</p>
 				<p class="text-secondary-500 mt-4 text-sm">Windows and Linux · Free · Auto-updates</p>
-			</div>
-			<div class="border-secondary-800 flex h-11 items-stretch border-t">
-				<div class="border-secondary-800 flex items-stretch border-r">
-					<Button
-						href={latestDownload.url}
-						download={latestDownload.fileName}
-						class={headerCellAction}
-					>
+				<div class="mt-5 flex flex-wrap gap-3">
+					<Button href={latestDownload.url} download={latestDownload.fileName}>
 						<DownloadSimpleIcon size={18} weight="duotone" />
 						Download free
 					</Button>
-				</div>
-				<div class="border-secondary-800 flex items-stretch border-r">
 					<DiscordMenu
 						class={cn(
-							headerCellAction,
-							'inline-flex h-full items-center justify-center gap-2 px-6 text-base text-white'
+							'inline-flex h-11 items-center justify-center gap-2 rounded-md border px-6 text-base transition-colors duration-150',
+							'border-secondary-800 bg-secondary-800/30 text-white hover:border-secondary-500 hover:bg-secondary-800/80'
 						)}
 					>
 						<DiscordLogoIcon size={18} weight="duotone" />

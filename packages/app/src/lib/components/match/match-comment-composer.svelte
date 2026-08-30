@@ -2,6 +2,8 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Textarea } from '$lib/components/ui/input';
 	import { mePlayerText } from '$lib/components/ui/variants';
+	import { app } from '$core/app/context';
+	import * as User from '$lib/components/user';
 	import { useI18n } from '$lib/i18n';
 	import { cn } from '$lib/utils';
 	import {
@@ -150,9 +152,16 @@
 >
 	<div class="px-4 pt-3">
 		{#if name}
-			<span class={cn(mePlayerText, 'font-semibold')}>{name}</span>
+			{#if app.account.user}
+				<User.Root user={app.account.user}>
+					<User.Name class={cn(mePlayerText, 'font-semibold')} />
+				</User.Root>
+			{:else}
+				<span class={cn(mePlayerText, 'font-semibold')}>{name}</span>
+			{/if}
 		{/if}
 		<Textarea
+			flush
 			{@attach bindComposer}
 			bind:value
 			{rows}
@@ -163,10 +172,7 @@
 			aria-label={placeholder ?? t('Write a comment')}
 			onkeydown={onComposerKeydown}
 			oninput={grow}
-			class={cn(
-				'placeholder:text-secondary-500 min-h-14 resize-none rounded-none border-0 bg-transparent px-0 focus:border-transparent',
-				name && 'mt-1 min-h-18'
-			)}
+			class={cn('min-h-14 resize-none text-sm', name && 'mt-1 min-h-18')}
 		/>
 	</div>
 	<div class="border-secondary-800 flex items-stretch border-t">

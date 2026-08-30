@@ -12,14 +12,8 @@
 	import { getRankImageByLeaderboardId } from '$lib/ranks';
 	import { flagImageUrl } from '$lib/proxy-image';
 	import { cn } from '$lib/cn';
-	import {
-		interactive,
-		formatStreak,
-		statLosses,
-		statStreakClass,
-		statWins,
-		tableHeadRow
-	} from '$lib/variants';
+	import { interactive, formatStreak, statLosses, statStreakClass, statWins, tableHeadRow } from '$lib/variants';
+	import PlayerLabels from '$lib/components/PlayerLabels.svelte';
 
 	type Props = {
 		stats: LeaderboardStatWithProfile[];
@@ -91,6 +85,7 @@
 									/>
 								{/if}
 								<span class="truncate">{stat.profile.alias}</span>
+								<PlayerLabels labels={stat.profile.labels} class="shrink-0" />
 							</a>
 						</td>
 						<td

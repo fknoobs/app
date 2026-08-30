@@ -7,9 +7,9 @@
 		children?: Snippet;
 	} & HTMLFormAttributes;
 
-	let { children, ...restProps }: Props = $props();
+	let { children, class: className, ...restProps }: Props = $props();
 </script>
 
-<form {...restProps} class={cn('space-y-4', restProps.class)}>
+<form {...restProps} class={cn(className)}>
 	{@render children?.()}
 </form>

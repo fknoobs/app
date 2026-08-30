@@ -1,16 +1,19 @@
 ---
-description: Add a changeset after every feature, bugfix, or enhancement
+description: Add a changeset only for new unreleased user-facing work, not follow-up bugfixes
 alwaysApply: true
 ---
 
 # Changesets
 
-After every **feature**, **bugfix**, or **enhancement**, add a changeset before considering the work done. `pnpm version-packages` later consumes these files to bump versions and prepend entries to `CHANGELOG.md` (app) and each package changelog. Do **not** hand-edit `CHANGELOG.md` or run `pnpm version-packages` as part of feature work.
+Add a changeset only when it is a **new** user-facing change that is not already covered by a pending file in `.changeset/`. `pnpm version-packages` later consumes these files to bump versions and prepend entries to `CHANGELOG.md` (app) and each package changelog. Do **not** hand-edit `CHANGELOG.md` or run `pnpm version-packages` as part of feature work.
 
 ## When
 
-- Required: user-facing feat / fix / enhance / improvement / security
+- Required: first user-facing feat / fix / enhance / improvement / security that is not already covered by a pending changeset
 - Skip: formatting-only, Cursor rules, comments, tests with no product change
+- Skip: follow-up bugfixes, polish, or tweaks on work that already has a pending changeset (the feature is not released yet; a second changelog line is noise)
+
+Check `.changeset/` before writing a new file. If this session (or an unreleased branch) already added a changeset for the feature, do **not** add another one for a later bugfix on that same work. Only write a new changeset if the follow-up is a **separate** user-facing change that the existing file does not describe. If the existing summary is now wrong, edit that file instead of adding a second one.
 
 ## How
 
@@ -51,16 +54,17 @@ One line per change, lowercase after the prefix, matching existing changelog voi
 - `security; …` — security fix
 
 ```markdown
-# ❌ BAD — missing changeset, or vague / changelog hand-edit
-Updated some player UI
-(also editing CHANGELOG.md directly)
+# ❌ BAD — extra changeset for a bugfix on unreleased work, or changelog hand-edit
+.changeset/player-labels.md          ← already covers the feature
+.changeset/player-labels-color-fix.md ← do not add this
 
-# ✅ GOOD
+# ✅ GOOD — one pending changeset per unreleased change
 feat; highlight smurf accounts next to player names
 ```
 
 ## Do not
 
-- Finish a feature/fix without a changeset
+- Ship a **new** user-facing change with no changeset when none exists yet
+- Add a second changeset for a bugfix or polish pass on work that already has a pending one
 - Edit `CHANGELOG.md` or `packages/*/CHANGELOG.md` by hand (duplicates on version)
 - Bump versions in `package.json` / `tauri.conf.json` / `Cargo.toml` yourself

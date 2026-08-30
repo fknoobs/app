@@ -12,6 +12,7 @@
 	import { cn } from '$lib/cn';
 	import { interactive, formatStreak, statLosses, statStreakClass, statWins } from '$lib/variants';
 	import CrownIcon from 'phosphor-svelte/lib/CrownIcon';
+	import PlayerLabels from '$lib/components/PlayerLabels.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 
 	type Props = {
@@ -119,6 +120,7 @@
 						/>
 					{/if}
 					<span class="truncate">{stat.profile.alias}</span>
+					<PlayerLabels labels={stat.profile.labels} class="shrink-0" />
 				</div>
 				{#if elo == null}
 					<span class="text-secondary-500 text-xs">N/A</span>

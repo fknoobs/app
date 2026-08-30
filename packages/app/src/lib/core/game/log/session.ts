@@ -229,9 +229,12 @@ export class LogSession extends Emittery<SessionEvents> {
 	}
 
 	async #onGameOver(): Promise<void> {
-		if (this.lobby) {
-			await this.emitSerial('lobby.gameover', this.lobby);
+		if (!this.lobby) {
+			return;
 		}
+
+		this.lobby.ended = true;
+		await this.emitSerial('lobby.gameover', this.lobby);
 	}
 
 	async #onDestroyed(): Promise<void> {

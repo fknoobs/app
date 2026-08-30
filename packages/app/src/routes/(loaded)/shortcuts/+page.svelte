@@ -75,11 +75,11 @@
 <div class="border-secondary-800 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b p-4">
 	<ToggleGroup bind:value={scope} items={scopes} class="w-fit" />
 	<div class="flex flex-wrap gap-1">
-		<Button variant="ghost" onclick={() => shortcuts.importSettings()}>
+		<Button variant="secondary" onclick={() => shortcuts.importSettings()}>
 			<ImportIcon />
 			{t('Import')}
 		</Button>
-		<Button variant="ghost" onclick={() => shortcuts.exportSettings()}>
+		<Button variant="secondary" onclick={() => shortcuts.exportSettings()}>
 			<ExportIcon />
 			{t('Export')}
 		</Button>

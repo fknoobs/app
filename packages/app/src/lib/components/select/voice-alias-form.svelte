@@ -23,12 +23,13 @@
 		onSave(alias);
 	}}
 >
-	<Form.Group>
-		<Form.Label for="voice-alias">{t('Alias')}</Form.Label>
+	<Form.Group inputId="voice-alias" label={t('Alias')}>
 		<Input id="voice-alias" bind:value={alias} placeholder={label} />
 	</Form.Group>
-	<div class="flex justify-end gap-2">
-		<Button type="button" variant="secondary" onclick={() => dialog.close()}>{t('Cancel')}</Button>
-		<Button type="submit" variant="primary">{t('Save')}</Button>
-	</div>
+	<Form.Group>
+		<Button type="button" variant="secondary" class="w-fit" onclick={() => dialog.close()}>
+			{t('Cancel')}
+		</Button>
+		<Button type="submit" class="w-fit">{t('Save')}</Button>
+	</Form.Group>
 </Form.Root>

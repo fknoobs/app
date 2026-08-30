@@ -331,8 +331,6 @@ function reassignLoser(loserId, keeperId) {
 	reassignField('lobby_comment_likes', 'user', loserId, keeperId);
 	dropUniqueConflicts('notification_reads', 'user', loserId, keeperId, 'notification');
 	reassignField('notification_reads', 'user', loserId, keeperId);
-	dropUniqueConflicts('user_label_assignments', 'user', loserId, keeperId, 'label');
-	reassignField('user_label_assignments', 'user', loserId, keeperId);
 	reassignField('lobby_comments', 'user', loserId, keeperId);
 	reassignField('lobbies', 'user', loserId, keeperId);
 	reassignField('lobby_player_index', 'lobby_user', loserId, keeperId);
@@ -537,6 +535,11 @@ function mergeGroup(ids, preferKeepId) {
 		console.log(
 			`[user_merge] merged ${deleted.length} account(s) into ${keeper.id} lobbiesDedupe=${lobbiesRemoved} replaysDedupe=${replaysRemoved}`
 		);
+		try {
+			require(`${__hooks}/lib/anti-cheat-cheaters.js`).syncForUser(keeper.id);
+		} catch (error) {
+			console.warn('[user_merge] cheater sync', String(error?.message || error));
+		}
 		return {
 			merged: deleted.length > 0,
 			keeperId: keeper.id,
@@ -619,6 +622,7 @@ function runBatch(maxGroups) {
 module.exports = {
 	isServiceRequest,
 	steamIdsChanged,
+	loadSteamIdsForUser,
 	mergeFromUser,
 	runOnce,
 	runBatch

@@ -8,6 +8,7 @@
 	import LabelsTab from './tabs/labels-tab.svelte';
 	import FlaggedTab from './tabs/flagged-tab.svelte';
 	import DenylistTab from './tabs/denylist-tab.svelte';
+	import HiddenMatchesTab from './tabs/hidden-matches-tab.svelte';
 	import { useI18n } from '$lib/i18n';
 
 	const { t } = useI18n();
@@ -27,7 +28,7 @@
 </script>
 
 {#if app.account.isStaff}
-	<div class="border-secondary-900 overflow-clip border-b">
+	<div class="border-secondary-900 border-b">
 		<div class="border-secondary-800 border-b">
 			<div class="flex flex-wrap items-center gap-2 px-4 py-2">
 				<button
@@ -72,6 +73,14 @@
 				>
 					{t('Denylist')}
 				</button>
+				<button
+					type="button"
+					class={tabTrigger}
+					data-state={tab === 'hidden-matches' ? 'active' : undefined}
+					onclick={() => (tab = 'hidden-matches')}
+				>
+					{t('Hidden matches')}
+				</button>
 			</div>
 
 			<div class="border-secondary-800 border-t">
@@ -83,6 +92,8 @@
 					<FlaggedTab />
 				{:else if tab === 'denylist'}
 					<DenylistTab />
+				{:else if tab === 'hidden-matches'}
+					<HiddenMatchesTab />
 				{:else}
 					<NotificationsTab />
 				{/if}

@@ -14,6 +14,7 @@
 		isEliteElo
 	} from './leaderboard-utils';
 	import { useI18n } from '$lib/i18n';
+	import PlayerLabels from '$lib/components/player/player-labels.svelte';
 
 	type Props = {
 		stats: LeaderboardStatWithProfile[];
@@ -121,6 +122,9 @@
 		/>
 	{/if}
 	<span class="truncate">{row.profile?.alias}</span>
+	{#if row.profile}
+		<PlayerLabels steamId={getSteamIdFromProfile(row.profile)} class="shrink-0" />
+	{/if}
 {/snippet}
 {#snippet cell_elo({ row }: { row: LeaderboardStatWithProfile })}
 	{@const value = eloForRow(row)}

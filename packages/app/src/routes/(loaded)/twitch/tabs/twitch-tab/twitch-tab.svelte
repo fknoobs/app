@@ -98,125 +98,116 @@
 	};
 </script>
 
-<Form.Root class="space-y-0">
-	<div class="border-secondary-800 border-b p-4">
-		<Form.Group class="mb-0">
-			<Form.Label>{t('Enable twitch integration')}</Form.Label>
-			<Checkbox bind:checked={twitch.settings.enabled} label={t('Enabled')} />
-		</Form.Group>
-	</div>
+<Form.Root>
+	<Form.Group label={t('Enable twitch integration')}>
+		<Checkbox bind:checked={twitch.settings.enabled} label={t('Enabled')} />
+	</Form.Group>
 	{#if twitch.settings.enabled}
 		{#if twitch.token}
-			<div class="border-secondary-800 relative border-b p-4">
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					onclick={disconnect}
-					type="button"
-					class="text-destructive/70 hover:text-destructive absolute top-4 right-4 cursor-pointer"
-					{@attach tooltip(t('Disconnect'))}
-				>
-					<SignOutIcon size="18" />
-				</Button>
-				<Form.Group class="mb-0 max-w-3xl">
-					<Form.Label>{t('Connected account')}</Form.Label>
-					<div class="flex items-start gap-4 pt-1">
-						<div class="relative shrink-0">
-							<Avatar.Root
-								class={cn(
-									'size-16 rounded-full border-2',
-									twitch.isLive ? 'border-success' : 'border-secondary-600'
-								)}
-							>
-								<div
-									class="flex h-full w-full items-center justify-center overflow-hidden rounded-full"
-								>
-									<Avatar.Image
-										src={twitch.user?.profilePictureUrl}
-										alt={twitch.user?.displayName ?? twitch.token.userName ?? ''}
-									/>
-									<Avatar.Fallback
-										class="bg-secondary-800 flex h-full w-full items-center justify-center text-sm font-semibold"
-									>
-										{initials}
-									</Avatar.Fallback>
-								</div>
-							</Avatar.Root>
-							<span
-								class={cn(
-									'border-secondary-900 absolute -right-0.5 -bottom-0.5 size-4 rounded-full border-2',
-									twitch.isLive ? 'bg-success' : 'bg-secondary-500'
-								)}
-							></span>
-						</div>
-						<div class="flex min-w-0 flex-1 flex-col gap-2 pe-10">
-							<div class="flex flex-wrap items-center gap-2">
-								<button
-									type="button"
-									class={cn(
-										interactive,
-										'hover:text-primary flex items-center gap-1 text-left font-semibold transition-colors'
-									)}
-									onclick={openTwitchProfile}
-								>
-									{twitch.user?.displayName ?? twitch.token.userName}
-									<ArrowSquareOutIcon size="14" />
-								</button>
-								<Badge variant={twitch.isLive ? 'success' : 'default'}>
-									{twitch.isLive ? t('Live') : t('Offline')}
-								</Badge>
-								{#if broadcasterTypeLabel}
-									<Badge variant="primary">{broadcasterTypeLabel}</Badge>
-								{/if}
-							</div>
-							{#if twitch.user?.name}
-								<span class="text-secondary-400 -mt-1 text-sm">@{twitch.user.name}</span>
-							{/if}
-							{#if twitch.user?.description}
-								<p class="text-secondary-400 line-clamp-2 text-sm">{twitch.user.description}</p>
-							{/if}
+			<Form.Group label={t('Connected account')}>
+				<div class="relative flex w-full min-w-0 items-start gap-4">
+					<Button
+						variant="ghost"
+						size="icon-sm"
+						onclick={disconnect}
+						type="button"
+						class="text-destructive/70 hover:text-destructive absolute top-3 right-3 cursor-pointer"
+						{@attach tooltip(t('Disconnect'))}
+					>
+						<SignOutIcon size="18" />
+					</Button>
+					<div class="relative shrink-0">
+						<Avatar.Root
+							class={cn(
+								'size-16 rounded-full border-2',
+								twitch.isLive ? 'border-success' : 'border-secondary-600'
+							)}
+						>
 							<div
-								class="text-secondary-400 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs"
+								class="flex h-full w-full items-center justify-center overflow-hidden rounded-full"
 							>
-								{#if twitch.user?.email}
-									<span class="flex items-center gap-1.5">
-										<EnvelopeSimpleIcon size="14" />
-										{twitch.user.email}
-									</span>
-								{/if}
-								{#if twitch.user?.creationDate}
-									<span class="flex items-center gap-1.5">
-										<CalendarBlankIcon size="14" />
-										{t('Joined {date}', { date: dayjs(twitch.user.creationDate).format('D MMM YYYY') })}
-									</span>
-								{/if}
-								{#if twitch.token.expiryDate}
-									<span class="flex items-center gap-1.5">
-										<ClockIcon size="14" />
-										{t('Session expires {date}', { date: dayjs(twitch.token.expiryDate).format('D MMM YYYY HH:mm') })}
-									</span>
-								{/if}
+								<Avatar.Image
+									src={twitch.user?.profilePictureUrl}
+									alt={twitch.user?.displayName ?? twitch.token.userName ?? ''}
+								/>
+								<Avatar.Fallback
+									class="bg-secondary-800 flex h-full w-full items-center justify-center text-sm font-semibold"
+								>
+									{initials}
+								</Avatar.Fallback>
 							</div>
+						</Avatar.Root>
+						<span
+							class={cn(
+								'border-secondary-900 absolute -right-0.5 -bottom-0.5 size-4 rounded-full border-2',
+								twitch.isLive ? 'bg-success' : 'bg-secondary-500'
+							)}
+						></span>
+					</div>
+					<div class="flex min-w-0 flex-1 flex-col gap-2 pe-10">
+						<div class="flex flex-wrap items-center gap-2">
+							<button
+								type="button"
+								class={cn(
+									interactive,
+									'hover:text-primary flex items-center gap-1 text-left font-semibold transition-colors'
+								)}
+								onclick={openTwitchProfile}
+							>
+								{twitch.user?.displayName ?? twitch.token.userName}
+								<ArrowSquareOutIcon size="14" />
+							</button>
+							<Badge variant={twitch.isLive ? 'success' : 'default'}>
+								{twitch.isLive ? t('Live') : t('Offline')}
+							</Badge>
+							{#if broadcasterTypeLabel}
+								<Badge variant="primary">{broadcasterTypeLabel}</Badge>
+							{/if}
+						</div>
+						{#if twitch.user?.name}
+							<span class="text-secondary-400 -mt-1 text-sm">@{twitch.user.name}</span>
+						{/if}
+						{#if twitch.user?.description}
+							<p class="text-secondary-400 line-clamp-2 text-sm">{twitch.user.description}</p>
+						{/if}
+						<div
+							class="text-secondary-400 mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs"
+						>
+							{#if twitch.user?.email}
+								<span class="flex items-center gap-1.5">
+									<EnvelopeSimpleIcon size="14" />
+									{twitch.user.email}
+								</span>
+							{/if}
+							{#if twitch.user?.creationDate}
+								<span class="flex items-center gap-1.5">
+									<CalendarBlankIcon size="14" />
+									{t('Joined {date}', { date: dayjs(twitch.user.creationDate).format('D MMM YYYY') })}
+								</span>
+							{/if}
+							{#if twitch.token.expiryDate}
+								<span class="flex items-center gap-1.5">
+									<ClockIcon size="14" />
+									{t('Session expires {date}', { date: dayjs(twitch.token.expiryDate).format('D MMM YYYY HH:mm') })}
+								</span>
+							{/if}
 						</div>
 					</div>
-				</Form.Group>
-			</div>
+				</div>
+			</Form.Group>
 		{:else}
-			<div class="border-secondary-800 border-b p-4">
-				<Form.Group class="mb-0">
-					<Form.Label>{t('Twitch Channel')}</Form.Label>
-					<Button
-						variant="secondary"
-						type="button"
-						onclick={startOAuthFlow}
-						class="w-fit bg-[#6441a5] shadow-none"
-						loading={isStartingOAuth}
-					>
-						<TwitchIcon size="22" weight="bold" />
-						{t('Connect Twitch')}
-					</Button>
-				</Form.Group>
-			</div>
+			<Form.Group label={t('Twitch Channel')}>
+				<Button
+					variant="secondary"
+					type="button"
+					onclick={startOAuthFlow}
+					class="w-fit bg-[#6441a5] shadow-none"
+					loading={isStartingOAuth}
+				>
+					<TwitchIcon size="18" weight="bold" />
+					{t('Connect Twitch')}
+				</Button>
+			</Form.Group>
 		{/if}
 	{/if}
 </Form.Root>

@@ -9,11 +9,24 @@
 	import MapImage from '$lib/components/ui/map-image.svelte';
 	import { orderBy, sortBy } from 'lodash-es';
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
-	import Checks from 'phosphor-svelte/lib/ChecksIcon';
+	import ChecksIcon from 'phosphor-svelte/lib/ChecksIcon';
+	import EyeIcon from 'phosphor-svelte/lib/Eye';
+	import EyeSlashIcon from 'phosphor-svelte/lib/EyeSlash';
+	import { confirm } from '@tauri-apps/plugin-dialog';
 	import { app } from '$core/app/context';
 	import { tooltip } from '$lib/attachments';
 	import { resource } from 'runed';
 	import { useI18n } from '$lib/i18n';
+	import { Button } from '$lib/components/ui/button';
+	import { Badge } from '$lib/components/ui/badge';
+	import {
+		hideMatch,
+		isHiddenFromPublic,
+		listHiddenKeywordWords,
+		listHiddenSessionIds,
+		titleMatchesHiddenKeyword,
+		unhideMatch
+	} from '$core/pocketbase/hidden-matches';
 
 	type Props = {
 		matches: TransformedMatch[];
@@ -24,6 +37,33 @@
 	const { t } = useI18n();
 
 	const orderedMatches = $derived(orderBy(matches, ['completiontime'], ['desc']));
+	const isStaff = $derived(app.account.isStaff);
+	let hiddenRevision = $state(0);
+	let pendingSessionId = $state<number | null>(null);
+	const hiddenIds = resource(
+		() => hiddenRevision,
+		() =>
+			listHiddenSessionIds().catch((error) => {
+				console.warn('[MATCH-HISTORY]: hidden match lookup failed:', error);
+				return new Set<number>();
+			})
+	);
+	const hiddenWords = resource(
+		() => hiddenRevision,
+		() =>
+			listHiddenKeywordWords().catch((error) => {
+				console.warn('[MATCH-HISTORY]: hidden title word lookup failed:', error);
+				return [] as string[];
+			})
+	);
+	const visibleMatches = $derived.by(() => {
+		if (isStaff) return orderedMatches;
+		const ids = hiddenIds.current ?? new Set<number>();
+		const words = hiddenWords.current ?? [];
+		return orderedMatches.filter(
+			(match) => !ids.has(match.id) && !titleMatchesHiddenKeyword(match.description, words)
+		);
+	});
 	const sessionIdsKey = $derived(orderedMatches.map((match) => match.id).join(','));
 	const savedBySession = resource(
 		() => sessionIdsKey,
@@ -118,6 +158,38 @@
 	function getPlayerRowClass(player: MatchHistoryPlayer) {
 		return cn(player.outcome === 1 ? 'bg-success/5' : 'bg-destructive/5');
 	}
+
+	async function toggleHidden(sessionId: number, currentlyHidden: boolean) {
+		const confirmed = await confirm(
+			currentlyHidden
+				? t('Show this match on public overviews again?')
+				: t('Hide this match from public overviews?'),
+			{
+				okLabel: currentlyHidden ? t('Show') : t('Hide'),
+				cancelLabel: t('Cancel'),
+				kind: 'warning'
+			}
+		);
+		if (!confirmed) return;
+		pendingSessionId = sessionId;
+		try {
+			if (currentlyHidden) {
+				await unhideMatch(sessionId);
+				app.toast.success(t('Match is visible again.'));
+			} else {
+				await hideMatch(sessionId, app.account.userId);
+				app.toast.success(t('Match hidden from public overviews.'));
+			}
+			hiddenRevision += 1;
+		} catch (error) {
+			console.error('[MATCH-HISTORY]: hide toggle failed:', error);
+			app.toast.error(
+				currentlyHidden ? t('Could not show this match.') : t('Could not hide this match.')
+			);
+		} finally {
+			pendingSessionId = null;
+		}
+	}
 </script>
 
 {#snippet cell_team({ row }: { row: MatchHistoryPlayer })}
@@ -153,13 +225,20 @@
 	</Player.Root>
 {/snippet}
 
-{#if orderedMatches.length === 0}
+{#if visibleMatches.length === 0}
 	<p class="text-secondary-400 px-4 py-3 text-sm">{t('No recent matches found.')}</p>
 {:else}
 	<div>
-		{#each orderedMatches as match (match.id)}
+		{#each visibleMatches as match (match.id)}
 			{@const players = sortBy(match.players, ['teamid'])}
 			{@const savedId = savedBySession.current?.get(match.id)}
+			{@const isManuallyHidden = hiddenIds.current?.has(match.id) ?? false}
+			{@const isHidden = isHiddenFromPublic(
+				match.id,
+				match.description,
+				hiddenIds.current,
+				hiddenWords.current
+			)}
 			<section class="border-secondary-800 border-b">
 				<div class="border-secondary-800 flex items-center gap-4 border-b px-4 py-2">
 					<MapImage small map={match.mapname} alt={normalizeMapName(match.mapname)} />
@@ -175,6 +254,26 @@
 						</p>
 					</div>
 					<div class="flex shrink-0 items-center gap-4">
+						{#if isStaff && isHidden}
+							<Badge variant="warning">{t('Hidden')}</Badge>
+						{/if}
+						{#if isStaff}
+							<Button
+								type="button"
+								size="icon-sm"
+								variant="ghost"
+								loading={pendingSessionId === match.id}
+								onclick={() => toggleHidden(match.id, isManuallyHidden)}
+								aria-label={isManuallyHidden ? t('Show match') : t('Hide match')}
+								title={isManuallyHidden ? t('Show match') : t('Hide match')}
+							>
+								{#if isManuallyHidden}
+									<EyeIcon class="size-4" />
+								{:else}
+									<EyeSlashIcon class="size-4" />
+								{/if}
+							</Button>
+						{/if}
 						{#if savedId}
 							<a
 								href="/history/{savedId}"
@@ -183,7 +282,7 @@
 									'text-primary inline-flex items-center gap-1.5 text-sm whitespace-nowrap hover:underline'
 								)}
 							>
-								<Checks class="size-4 text-green-400" {@attach tooltip(t('Result saved'))} />
+								<ChecksIcon class="size-4 text-green-400" {@attach tooltip(t('Result saved'))} />
 								{t('View details')}
 							</a>
 						{/if}

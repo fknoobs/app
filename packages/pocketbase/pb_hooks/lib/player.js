@@ -4,6 +4,7 @@
 const ratings = require(`${__hooks}/lib/player-ratings.js`);
 const matchHistory = require(`${__hooks}/lib/match-history.js`);
 const { emptyPerformance, loadPlayerPerformance } = require(`${__hooks}/lib/player-performance.js`);
+const playerLabels = require(`${__hooks}/lib/player-labels.js`);
 
 const RELIC_API_BASE = 'https://coh1-lobby.reliclink.com';
 const STEAM_ID_REGEX = /^7656119\d{10}$/;
@@ -309,7 +310,8 @@ function fetchMatchHistory(profileId) {
 			`${RELIC_API_BASE}/community/leaderboard/getrecentmatchhistorybyprofileid` +
 			`?title=coh1&profile_id=${encodeURIComponent(String(profileId))}`;
 		const data = fetchRelicJsonInsecure(url, { profileId, upstream: 'match-history' });
-		return matchHistory.transformMatchHistory(data, profileId);
+		const matches = matchHistory.transformMatchHistory(data, profileId);
+		return require(`${__hooks}/lib/hidden-matches.js`).filterHiddenMatchHistory(matches);
 	} catch (error) {
 		logWarn('Player match history lookup failed', {
 			profileId,
@@ -460,6 +462,10 @@ function loadPlayerPage(id, options) {
 	const performance = extras ? loadCommunityPerformance(relicProfile.profile_id) : emptyPerformance();
 	const matches = extras ? fetchMatchHistory(relicProfile.profile_id) : [];
 	const smurf = extras ? loadSmurf(steamId) : null;
+	const labelsBySteamId = extras
+		? playerLabels.loadLabelsBySteamIds([steamId, ...playerLabels.steamIdsFromMatches(matches)])
+		: {};
+	const labeledMatches = extras ? playerLabels.attachLabelsToMatches(matches, labelsBySteamId) : matches;
 
 	return {
 		steamId,
@@ -476,8 +482,9 @@ function loadPlayerPage(id, options) {
 		leaderboardStats: relicProfile.leaderboardStats ?? [],
 		elo,
 		performance,
-		matchHistory: matches,
-		smurf
+		matchHistory: labeledMatches,
+		smurf,
+		labels: labelsBySteamId[steamId] ?? []
 	};
 }
 

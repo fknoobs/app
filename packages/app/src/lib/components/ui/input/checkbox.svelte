@@ -15,7 +15,7 @@
 		label,
 		...restProps
 	}: WithoutChildrenOrChild<Checkbox.RootProps> & {
-		label: string;
+		label?: string;
 		size?: 'sm' | 'md';
 	} = $props();
 
@@ -68,7 +68,9 @@
 			{/if}
 		{/snippet}
 	</Checkbox.Root>
-	<Label for={id} class={cn(size === 'sm' && 'text-xs', size === 'md' && 'text-md')}>
-		{label}
-	</Label>
+	{#if label}
+		<Label for={id} class={cn(size === 'sm' && 'text-xs', size === 'md' && 'text-md')}>
+			{label}
+		</Label>
+	{/if}
 </div>

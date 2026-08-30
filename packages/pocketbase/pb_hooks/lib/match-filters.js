@@ -48,21 +48,19 @@ function playersNeedRebuild(players) {
 }
 
 function buildUserMatchFilters(userId) {
+	const { loadUserSteamIds, userPlayedLobbyClause } = require(`${__hooks}/lib/match-history.js`);
 	const bindings = { userId };
-	const where = "needsResult = 0 AND title != 'Skirmish' AND user = {:userId}";
-	const lobbyWhere = where
-		.replace(/\bneedsResult\b/g, 'l.needsResult')
-		.replace(/\btitle\b/g, 'l.title')
-		.replace(/\buser\b/g, 'l.user');
+	const played = userPlayedLobbyClause('l', { steamIds: loadUserSteamIds(userId) }, bindings);
+	const lobbyWhere = `l.needsResult = 0 AND l.title != 'Skirmish' AND ${played}`;
 
 	const mapRows = arrayOf(new DynamicModel({ value: '' }));
 	$app
 		.db()
 		.newQuery(
-			`SELECT DISTINCT map AS value
-       FROM lobbies
-       WHERE ${where}
-         AND map IS NOT NULL
+			`SELECT DISTINCT l.map AS value
+       FROM lobbies l
+       WHERE ${lobbyWhere}
+         AND l.map IS NOT NULL
        ORDER BY value`
 		)
 		.bind(bindings)

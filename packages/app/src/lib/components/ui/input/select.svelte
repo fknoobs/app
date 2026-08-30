@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Select, type WithoutChildren } from 'bits-ui';
 	import { cn } from '$lib/utils';
-	import { controlBase, menuItem } from '../variants';
+	import { controlBase, flushSelect, menuItem } from '../variants';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
@@ -15,6 +15,7 @@
 		items: { value: string; label: string; disabled?: boolean }[];
 		contentProps?: WithoutChildren<Select.ContentProps>;
 		class?: string;
+		flush?: boolean;
 	};
 
 	let {
@@ -23,6 +24,7 @@
 		contentProps,
 		placeholder,
 		class: className,
+		flush = false,
 		type = 'single',
 		...restProps
 	}: Props = $props();
@@ -37,8 +39,12 @@ from the perspective of the consumer of this component, it will be typed appropr
 <Select.Root {...restProps} {type} bind:value={value as never}>
 	<Select.Trigger
 		class={cn(
-			controlBase,
-			'group flex w-full min-w-28 cursor-pointer items-center justify-between truncate px-4 text-left',
+			flush
+				? flushSelect
+				: cn(
+						controlBase,
+						'group flex w-full min-w-28 cursor-pointer items-center justify-between truncate px-4 text-left'
+					),
 			className
 		)}
 	>

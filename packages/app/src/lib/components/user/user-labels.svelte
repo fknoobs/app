@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
 	import { cn } from '$lib/utils';
-	import { labelColor, sortUserLabels } from '$core/pocketbase/user-labels';
+	import { labelHex, sortUserLabels } from '$core/pocketbase/user-labels';
 	import type { UserLabelsResponse } from '$core/pocketbase/types';
 	import type { HTMLAttributes } from 'svelte/elements';
 
@@ -16,7 +16,7 @@
 {#if ordered.length > 0}
 	<span {...restProps} class={cn('inline-flex min-w-0 flex-wrap items-center gap-1', className)}>
 		{#each ordered as label (label.id)}
-			<Badge variant={labelColor(label.color)}>{label.name}</Badge>
+			<Badge hex={labelHex(label.color)}>{label.name}</Badge>
 		{/each}
 	</span>
 {/if}

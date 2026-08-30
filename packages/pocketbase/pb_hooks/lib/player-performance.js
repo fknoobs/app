@@ -4,7 +4,7 @@ const MAP_LIMIT = 8;
 const FORM_LIMIT = 10;
 const JSON_FALLBACK_CAP = 1500;
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const CACHE_STORE_KEY = 'player_performance_cache_v5';
+const CACHE_STORE_KEY = 'player_performance_cache_v8';
 
 const AGGREGATE_SHAPE = { dim: '', groupKey: '', wins: 0, losses: 0 };
 const RECENT_SHAPE = { id: '', sessionId: 0, outcome: '', raceId: '', matchtypeId: '' };
@@ -81,6 +81,10 @@ function setCachedPerformance(key, value) {
 	const store = getCacheStore();
 	store[key] = { at: nowMs(), value };
 	$app.store().set(CACHE_STORE_KEY, JSON.stringify(store));
+}
+
+function invalidateAllPerformanceCache() {
+	$app.store().set(CACHE_STORE_KEY, '{}');
 }
 
 function invalidatePerformanceCache(userId, profileIds) {
@@ -175,27 +179,14 @@ function steamIdClause(steamIds, bindings) {
 
 /** Filters against the denormalized columns only, so `lobbies` stays untouched. */
 function metaFilters(scope, steamIds, bindings) {
-	const filters = ['i.counts = 1', 'i.session_id > 0', 'i.outcome IN (0, 1)'];
-
-	if (scope === 'community') {
-		filters.push('i.profile_id = {:profileId}');
-		return filters;
-	}
-
-	filters.push('i.lobby_user = {:userId}');
-	filters.push(
-		steamIds.length > 0 ? steamIdClause(steamIds, bindings) : 'i.profile_id = {:profileId}'
-	);
-
-	return filters;
-}
-
-function joinFilters(scope, steamIds, bindings) {
+	const { notHiddenSessionClause, notHiddenTitleBySessionClause } =
+		require(`${__hooks}/lib/hidden-matches.js`);
 	const filters = [
-		'l.needsResult = 0',
-		"l.title != 'Skirmish'",
-		'l.sessionId > 0',
-		'i.outcome IN (0, 1)'
+		'i.counts = 1',
+		'i.session_id > 0',
+		'i.outcome IN (0, 1)',
+		notHiddenSessionClause('i.session_id'),
+		notHiddenTitleBySessionClause('i.session_id')
 	];
 
 	if (scope === 'community') {
@@ -203,10 +194,38 @@ function joinFilters(scope, steamIds, bindings) {
 		return filters;
 	}
 
-	filters.push('l.user = {:userId}');
-	filters.push(
-		steamIds.length > 0 ? steamIdClause(steamIds, bindings) : 'i.profile_id = {:profileId}'
-	);
+	filters.push(userIndexIdentity(steamIds, bindings));
+
+	return filters;
+}
+
+function userIndexIdentity(steamIds, bindings) {
+	const parts = [];
+	if (steamIds.length > 0) {
+		parts.push(steamIdClause(steamIds, bindings));
+	}
+	parts.push('i.profile_id = {:profileId}');
+	return `(${parts.join(' OR ')})`;
+}
+
+function joinFilters(scope, steamIds, bindings) {
+	const { notHiddenSessionClause, notHiddenTitleClause, lobbyDescriptionSql } =
+		require(`${__hooks}/lib/hidden-matches.js`);
+	const filters = [
+		'l.needsResult = 0',
+		"l.title != 'Skirmish'",
+		'l.sessionId > 0',
+		'i.outcome IN (0, 1)',
+		notHiddenSessionClause('l.sessionId'),
+		notHiddenTitleClause(lobbyDescriptionSql('l'))
+	];
+
+	if (scope === 'community') {
+		filters.push('i.profile_id = {:profileId}');
+		return filters;
+	}
+
+	filters.push(userIndexIdentity(steamIds, bindings));
 
 	return filters;
 }
@@ -235,15 +254,30 @@ function joinMatchesSql(scope, steamIds, bindings) {
 		 WHERE ${joinFilters(scope, steamIds, bindings).join(' AND ')}`;
 }
 
-function jsonMatchesSql(scope, profileId, bindings) {
-	const lobbyFilters = ['l.needsResult = 0', "l.title != 'Skirmish'", 'l.sessionId > 0'];
+function jsonMatchesSql(scope, profileId, bindings, steamIds) {
+	const { notHiddenSessionClause, notHiddenTitleClause, lobbyDescriptionSql } =
+		require(`${__hooks}/lib/hidden-matches.js`);
+	const { userPlayedLobbyClause } = require(`${__hooks}/lib/match-history.js`);
+	const lobbyFilters = [
+		'l.needsResult = 0',
+		"l.title != 'Skirmish'",
+		'l.sessionId > 0',
+		notHiddenSessionClause('l.sessionId'),
+		notHiddenTitleClause(lobbyDescriptionSql('l'))
+	];
 	const playerClauses = ["CAST(json_extract(p.value, '$.profile_id') AS INTEGER) = {:profileId}"];
 
 	if (scope === 'community') {
 		bindings.csvNeedle = `%,${profileId},%`;
 		lobbyFilters.push('l.playerProfileIdsCsv LIKE {:csvNeedle}');
 	} else {
-		lobbyFilters.push('l.user = {:userId}');
+		lobbyFilters.push(
+			userPlayedLobbyClause(
+				'l',
+				{ steamIds: steamIds || [], profileIds: profileId ? [profileId] : [] },
+				bindings
+			)
+		);
 		playerClauses.push(`json_extract(p.value, '$.steamId') IN (
 			SELECT json_each.value
 			FROM json_each((SELECT steamIds FROM users WHERE id = {:userId}))
@@ -376,7 +410,7 @@ function loadAggregates(profileId, scope, userId, steamIds) {
 	} else if (capability === 'stats') {
 		matchesSql = joinMatchesSql(scope, steamIds, bindings);
 	} else {
-		matchesSql = jsonMatchesSql(scope, profileId, bindings);
+		matchesSql = jsonMatchesSql(scope, profileId, bindings, steamIds);
 	}
 
 	return mapAggregateRows(queryAll(aggregateSql(matchesSql), bindings, AGGREGATE_SHAPE));
@@ -461,6 +495,7 @@ function loadRecentMatches(profileId, scope, userId, steamIds) {
 		);
 	}
 
+	const { userPlayedLobbyClause } = require(`${__hooks}/lib/match-history.js`);
 	const bindings = { profileId, userId, lobbyLimit: 50, formLimit: FORM_LIMIT * 4 };
 	const playerClauses = [
 		"CAST(json_extract(p.value, '$.profile_id') AS INTEGER) = {:profileId}",
@@ -473,6 +508,12 @@ function loadRecentMatches(profileId, scope, userId, steamIds) {
 			FROM json_each((SELECT steamIds FROM users WHERE id = {:userId}))
 		)`
 	];
+	const hidden = require(`${__hooks}/lib/hidden-matches.js`);
+	const played = userPlayedLobbyClause(
+		's',
+		{ steamIds, profileIds: profileId ? [profileId] : [] },
+		bindings
+	);
 
 	return rowsToRecentMatches(
 		queryAll(
@@ -483,10 +524,13 @@ function loadRecentMatches(profileId, scope, userId, steamIds) {
 				 json_extract(p.value, '$.race_id') AS raceId,
 				 json_extract(l.result, '$.matchtype_id') AS matchtypeId
 			 FROM (
-				 SELECT id, sessionId, result
-				 FROM lobbies
-				 WHERE needsResult = 0 AND title != 'Skirmish' AND user = {:userId}
-				 ORDER BY sessionId DESC
+				 SELECT s.id, s.sessionId, s.result
+				 FROM lobbies s
+				 WHERE s.needsResult = 0 AND s.title != 'Skirmish'
+				   AND ${played}
+				   AND ${hidden.notHiddenSessionClause('s.sessionId')}
+				   AND ${hidden.notHiddenTitleClause(hidden.lobbyDescriptionSql('s'))}
+				 ORDER BY s.sessionId DESC
 				 LIMIT {:lobbyLimit}
 			 ) AS l,
 			 json_each(
@@ -538,7 +582,11 @@ function loadPlayerPerformance(profileId, scope, userId, timings, skipCache) {
 		);
 		const bindings = { profileId, userId };
 		data = mapAggregateRows(
-			queryAll(aggregateSql(jsonMatchesSql(scope, profileId, bindings)), bindings, AGGREGATE_SHAPE)
+			queryAll(
+				aggregateSql(jsonMatchesSql(scope, profileId, bindings, steamIds)),
+				bindings,
+				AGGREGATE_SHAPE
+			)
 		);
 	}
 
@@ -568,5 +616,6 @@ function loadPlayerPerformance(profileId, scope, userId, timings, skipCache) {
 module.exports = {
 	emptyPerformance,
 	loadPlayerPerformance,
-	invalidatePerformanceCache
+	invalidatePerformanceCache,
+	invalidateAllPerformanceCache
 };

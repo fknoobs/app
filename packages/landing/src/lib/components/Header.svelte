@@ -8,6 +8,7 @@
 	import { interactive, headerCellAction } from '$lib/variants';
 
 	const navLinks = [
+		{ href: '/#fair-play', label: 'Fair play' },
 		{ href: '/#features', label: 'Features' },
 		{ href: '/#download', label: 'Download' },
 		{ href: '/leaderboards', label: 'Leaderboards' },

@@ -141,57 +141,58 @@
 		{/if}
 
 		<Form.Root>
-			<Form.Group>
-				<Form.Label>{t('Company of Heroes warnings.log')}</Form.Label>
-				<Form.Description>
+			<Form.Group label={t('Company of Heroes warnings.log')}>
+				{#snippet description()}
 					{t('The game writes everything the app needs to this log file. It usually lives in')}
 					<code>Documents\My Games\Company of Heroes Relaunch\warnings.log</code>.
-				</Form.Description>
-				<FileSelection
-					name="pathToConfig"
-					bind:value={settings.tree.app.companyOfHeroesConfigPath}
-					filters={[{ name: 'warnings.log', extensions: ['log'] }]}
-					showStatus={false}
-				/>
-				<div
-					class="flex items-center gap-1 text-sm {logValidation.valid
-						? 'text-green-500'
-						: 'text-red-500'}"
-				>
-					{#if logValidation.valid}
-						<CheckCircleIcon weight="duotone" size={18} />
-						{t('warnings.log found')}
-					{:else}
-						<WarningCircleIcon weight="duotone" size={18} />
-						{logValidation.reason ?? t('Select your warnings.log')}
-					{/if}
+				{/snippet}
+				<div class="flex w-full min-w-0 flex-col">
+					<FileSelection
+						name="pathToConfig"
+						bind:value={settings.tree.app.companyOfHeroesConfigPath}
+						filters={[{ name: 'warnings.log', extensions: ['log'] }]}
+						showStatus={false}
+					/>
+					<div
+						class="mt-2 flex items-center gap-1 text-sm {logValidation.valid
+							? 'text-green-500'
+							: 'text-red-500'}"
+					>
+						{#if logValidation.valid}
+							<CheckCircleIcon weight="duotone" size={18} />
+							{t('warnings.log found')}
+						{:else}
+							<WarningCircleIcon weight="duotone" size={18} />
+							{logValidation.reason ?? t('Select your warnings.log')}
+						{/if}
+					</div>
 				</div>
 			</Form.Group>
-
-			<Form.Group>
-				<Form.Label>{t('Company of Heroes installation folder')}</Form.Label>
-				<Form.Description>
+			<Form.Group label={t('Company of Heroes installation folder')}>
+				{#snippet description()}
 					{t('The folder containing')} <code>RelicCOH.exe</code>, {t('usually inside your Steam library under')}
 					<code>steamapps\common\Company of Heroes Relaunch</code>.
-				</Form.Description>
-				<FileSelection
-					name="pathToInstallation"
-					directory
-					bind:value={settings.tree.app.companyOfHeroesInstallationPath}
-					showStatus={false}
-				/>
-				<div
-					class="flex items-center gap-1 text-sm {dirValidation.valid
-						? 'text-green-500'
-						: 'text-red-500'}"
-				>
-					{#if dirValidation.valid}
-						<CheckCircleIcon weight="duotone" size={18} />
-						{t('Installation found')}
-					{:else}
-						<WarningCircleIcon weight="duotone" size={18} />
-						{dirValidation.reason ?? t('Select your installation folder')}
-					{/if}
+				{/snippet}
+				<div class="flex w-full min-w-0 flex-col">
+					<FileSelection
+						name="pathToInstallation"
+						directory
+						bind:value={settings.tree.app.companyOfHeroesInstallationPath}
+						showStatus={false}
+					/>
+					<div
+						class="mt-2 flex items-center gap-1 text-sm {dirValidation.valid
+							? 'text-green-500'
+							: 'text-red-500'}"
+					>
+						{#if dirValidation.valid}
+							<CheckCircleIcon weight="duotone" size={18} />
+							{t('Installation found')}
+						{:else}
+							<WarningCircleIcon weight="duotone" size={18} />
+							{dirValidation.reason ?? t('Select your installation folder')}
+						{/if}
+					</div>
 				</div>
 			</Form.Group>
 		</Form.Root>

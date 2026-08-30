@@ -1,3 +1,7 @@
+import type { PlayerLabel } from './labels';
+
+export type { PlayerLabel } from './labels';
+
 export type LeaderboardStat = {
 	leaderboard_id: number;
 	wins: number;
@@ -46,6 +50,7 @@ export type MatchHistoryPlayer = {
 	oldrating: number;
 	newrating: number;
 	country?: string;
+	labels?: PlayerLabel[];
 };
 
 export type TransformedMatch = {
@@ -82,4 +87,5 @@ export type PlayerPageData = {
 	performance: PlayerPerformance;
 	matchHistory: TransformedMatch[];
 	smurf?: PlayerSmurf | null;
+	labels?: PlayerLabel[];
 };

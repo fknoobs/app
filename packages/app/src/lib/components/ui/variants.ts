@@ -1,13 +1,13 @@
 export type SemanticVariant = 'default' | 'destructive' | 'warning' | 'success' | 'info';
 
 export const controlBase =
-	'border-secondary-800 bg-secondary-800/30 focus:border-secondary-600 h-11 rounded-md border focus:outline-none';
+	'border-secondary-800 bg-secondary-800/30 placeholder:text-secondary-500 focus:border-secondary-600 h-11 rounded-md border text-base font-medium text-white focus:outline-none';
 
 export const adornedControl =
 	'border-secondary-800 bg-secondary-800/30 focus-within:border-secondary-600 flex h-11 w-full items-stretch overflow-hidden rounded-md border focus-within:outline-none';
 
 export const adornedInput =
-	'placeholder:text-secondary-500 min-w-0 flex-1 border-0 bg-transparent px-3 py-0 focus:outline-none focus:ring-0';
+	'placeholder:text-secondary-500 min-w-0 flex-1 border-0 bg-transparent px-3 py-0 text-base font-medium text-white focus:outline-none focus:ring-0';
 
 export const adornedLeading =
 	'text-secondary-500 border-secondary-800 flex shrink-0 items-center border-r px-3';
@@ -25,6 +25,30 @@ export const controlDisabled =
 
 export const controlReadonly =
 	'read-only:cursor-default read-only:border-secondary-800 read-only:bg-secondary-800/30 read-only:text-secondary-400 read-only:focus:border-secondary-800';
+
+export const flushInput =
+	'placeholder:text-secondary-500 min-w-40 flex-1 bg-transparent text-base font-medium text-white outline-none disabled:cursor-not-allowed disabled:text-secondary-500';
+
+export const flushTextarea =
+	'placeholder:text-secondary-500 w-full resize-y bg-transparent text-base font-medium text-white outline-none disabled:cursor-not-allowed disabled:text-secondary-500';
+
+export const flushSelect =
+	`${flushInput} group flex min-w-0 cursor-pointer items-center justify-between truncate text-left`;
+
+export const flushBand = 'border-secondary-800 bg-secondary-800/30 border-b';
+
+export const flushField = 'flex flex-wrap items-center gap-3 px-4 py-3';
+
+export const flushFooter = 'border-secondary-800 flex items-stretch border-t';
+
+export const flushHeader = 'border-secondary-800 border-b px-4 py-3';
+
+export const flushHeaderTitle = 'text-secondary-300 text-xs font-semibold tracking-wide uppercase';
+
+export const flushHeaderDescription = 'text-secondary-400 mt-1 text-sm';
+
+export const footerAction =
+	'hover:bg-primary/10 h-auto min-h-9 shrink-0 rounded-none border-y-0 border-l-0 border-r border-secondary-800 px-3';
 
 export const labelText = 'font-medium text-secondary-400';
 

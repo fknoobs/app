@@ -10,6 +10,7 @@
 	import { flagImageUrl, proxiedImageUrl } from '$lib/proxy-image';
 	import { cn } from '$lib/cn';
 	import { interactive, statLosses, statWins } from '$lib/variants';
+	import PlayerLabels from '$lib/components/PlayerLabels.svelte';
 	import SmurfAlert from '$lib/components/SmurfAlert.svelte';
 
 	type Props = {
@@ -58,6 +59,7 @@
 				/>
 			{/if}
 			<h1 class="font-heading truncate text-3xl font-bold text-white">{player.alias}</h1>
+			<PlayerLabels labels={player.labels} class="shrink-0" />
 			{#if player.smurf}
 				<SmurfAlert smurf={player.smurf} />
 			{/if}

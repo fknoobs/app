@@ -27,7 +27,7 @@ routerAdd('GET', '/api/match-filters/{scope}', (e) => {
 				return e.json(400, { message: 'userId required for user scope' });
 			}
 
-			const snapshotId = `user:${userId}`;
+			const snapshotId = `user-v2:${userId}`;
 
 			try {
 				const snapshot = $app.findRecordById('match_filter_snapshots', snapshotId);

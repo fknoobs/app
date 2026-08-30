@@ -48,7 +48,11 @@ Game logs such as `warnings.log` are read **on your device** so the app can dete
 
 The website and API publish ranked stats, match history, performance breakdowns, and (where available) Steam profile details such as avatar, alias, online/last-seen status, and playtime. That information comes from Relic and Steam public multiplayer/profile APIs and from matches recorded by the community.
 
+Staff can hide match results from those public listings (for example during a tournament), either one match at a time or by a word list that matches Relic lobby names. Hidden matches stay visible to staff in the desktop app so they can restore them or change the word list. Relic’s own APIs are unchanged and may still show the same match.
+
 We may also show smurf / related-account labels when our systems link Steam accounts that appear to be used together.
+
+Staff can attach public badges (for example Premium or Streamer) to Relic/Steam player identities. We store those assignments (Steam ID, Relic profile ID, and an alias snapshot) so the badges can be shown next to in-game names in the desktop app and on the public website.
 
 ### d) Fair play checks (desktop app)
 
@@ -56,6 +60,7 @@ Fair play checks are **on by default** and can be turned off in Settings. While 
 
 - take random screenshots of the Company of Heroes window and upload them for review and analysis (these can include other players’ in-game names and units);
 - check running process names against a denylist and report a match (process name and process id);
+- open all-chat in Company of Heroes and type a short local message (visible to other players in that match) saying the player is supervised by coh1stats.com and is not using cheats, if you leave the all-chat announce setting on. We do not upload that message; it can still appear in replays other people save;
 - store reports and a staff-maintained list of flagged Steam IDs.
 
 ### e) Settings and optional integrations
@@ -77,6 +82,8 @@ We use information to:
 - sync data across the app, website, and API;
 - operate overlays, notifications, and other features you enable;
 - review fair play reports and protect the community from abuse;
+- hide match results from public listings when staff need to (for example during a tournament), including by lobby-name word list;
+- show staff-assigned public badges next to Relic player names in the desktop app and on the website;
 - debug, maintain, and improve the Service;
 - comply with legal obligations.
 
@@ -99,9 +106,9 @@ We share information with:
 - **Twitch** — if you connect Twitch;
 - **ElevenLabs** — if you use TTS with your own API key;
 - **Cloudflare** — to host and deliver the website;
-- staff moderators who review fair play reports.
+- staff moderators who review fair play reports, who can hide match results from public listings (including by lobby-name word list), and who can attach public badges to Relic/Steam player identities;
 
-Match results, player identities, and stats may be **public** on the website and API. Replay files, comments, and similar content you post may be visible to other users of the Service.
+Match results, player identities, and stats may be **public** on the website and API, except where staff have hidden a match from those listings. Replay files, comments, and similar content you post may be visible to other users of the Service.
 
 We may also disclose information if required by law, or to protect the Service and other players.
 

@@ -43,6 +43,8 @@ export type HistoryListQuery = {
 	maps?: string[];
 	races?: string[];
 	matchtypes?: number[];
+	/** Skip player-count fallback so ranked 4v4 does not include 8-player basic matches. */
+	exactMatchtypes?: boolean;
 	/** 1-based team-interleaved lobby slots (allies 1/3/5/7, axis 2/4/6/8). */
 	slots?: number[];
 	includeSkirmish?: boolean;
@@ -140,6 +142,7 @@ export class Matches {
 			maps = [],
 			races = [],
 			matchtypes = [],
+			exactMatchtypes = false,
 			slots = [],
 			includeSkirmish = false,
 			eloOp,
@@ -184,6 +187,9 @@ export class Matches {
 
 		if (matchtypes.length > 0) {
 			query.matchtypes = matchtypes.join(',');
+			if (exactMatchtypes) {
+				query.exactMatchtypes = 'true';
+			}
 		}
 
 		if (slots.length > 0) {
@@ -346,6 +352,27 @@ export class Matches {
 		}
 
 		return new Map([...bySession].map(([sessionId, record]) => [sessionId, record.id]));
+	}
+
+	/** Loads full match rows for the given PocketBase lobby ids, preserving input order. */
+	async getByIds(ids: string[]): Promise<MatchExpanded[]> {
+		const unique = [...new Set(ids.filter(Boolean))];
+		if (unique.length === 0) {
+			return [];
+		}
+
+		const records = await pocketbase.collection('lobbies').getList<Match>(1, unique.length, {
+			filter: unique.map((id) => `id="${id}"`).join(' || '),
+			expand: DEFAULT_EXPAND,
+			fetch
+		});
+		const byId = new Map(
+			records.items.map((record) => [record.id, exp(record) as MatchExpanded] as const)
+		);
+		return unique.flatMap((id) => {
+			const match = byId.get(id);
+			return match ? [match] : [];
+		});
 	}
 
 	/** Creates a match owned by the authenticated user. */

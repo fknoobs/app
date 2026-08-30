@@ -122,54 +122,52 @@
 	}
 </script>
 
-<Form.Root class="space-y-0">
-	<div class="border-secondary-800 border-b p-4">
-		<Form.Group class="mb-0">
-			<Form.Label for="overlay-url">{t('Overlay URL')}</Form.Label>
-			<Form.Description>
-				{t('Use this URL in your streaming software to add the Opponent Bot overlay to your stream.')}
-			</Form.Description>
-			<div class="relative flex">
-				<Input
-					id="overlay-url"
-					readonly
-					value={overlayUrl}
-					placeholder={t('Log in to generate your overlay URL')}
-					class={cn(copied && 'border-success bg-success/5')}
-				/>
-				<Button
-					variant="ghost"
-					size="icon-sm"
-					type="button"
-					class={cn(
-						'text-secondary-400 absolute top-1.5 right-1.5',
-						copied && 'text-success pointer-events-none'
-					)}
-					onclick={copyToClipboard}
-					disabled={!overlayUrl}
-					title={t('Copy Overlay URL')}
-				>
-					{#if copied}
-						<CheckIcon size={20} />
-					{:else}
-						<CopyIcon size={20} />
-					{/if}
-				</Button>
-			</div>
-		</Form.Group>
-	</div>
+<Form.Root>
+	<Form.Group
+		inputId="overlay-url"
+		label={t('Overlay URL')}
+		description={t('Use this URL in your streaming software to add the Opponent Bot overlay to your stream.')}
+	>
+		<Input
+			id="overlay-url"
+			readonly
+			value={overlayUrl}
+			placeholder={t('Log in to generate your overlay URL')}
+			class={cn(copied && 'text-success')}
+		/>
+		<Button
+			variant="secondary"
+			type="button"
+			class="w-fit shrink-0"
+			onclick={copyToClipboard}
+			disabled={!overlayUrl}
+			title={t('Copy Overlay URL')}
+		>
+			{#if copied}
+				<CheckIcon size={16} />
+			{:else}
+				<CopyIcon size={16} />
+			{/if}
+			{t('Copy')}
+		</Button>
+	</Form.Group>
 </Form.Root>
 
-<div class="border-secondary-800 flex flex-wrap gap-2 border-b p-4">
-	<Button type="button" variant="secondary" onclick={openInEditor}>
-		<FolderOpenIcon size={18} />
+<Form.Group>
+	<Button type="button" variant="secondary" class="w-fit" onclick={openInEditor}>
+		<FolderOpenIcon size={16} />
 		{t('Open in editor')}
 	</Button>
-	<Button type="button" onclick={publishChanges} disabled={!canPublish}>
-		<CloudArrowUpIcon size={18} />
+	<Button
+		type="button"
+		class="w-fit"
+		onclick={publishChanges}
+		disabled={!canPublish}
+	>
+		<CloudArrowUpIcon size={16} />
 		{publishing ? t('Publishing…') : t('Publish changes to server')}
 	</Button>
-</div>
+</Form.Group>
 
 <div class="text-secondary-400 max-w-2xl space-y-2 p-4 text-sm">
 	<p>

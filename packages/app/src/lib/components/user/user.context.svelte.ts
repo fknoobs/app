@@ -11,7 +11,7 @@ import type { RelicProfile } from '@fknoobs/app';
 import { Context } from 'runed';
 
 const userContext = new Context<UserContext>('<user />');
-export const createUser = (user: UsersResponse<Record<string, any>, string[]>) =>
+export const createUser = (user: UsersResponse) =>
 	userContext.set(new UserContext(user));
 export const useUser = () => userContext.get();
 
@@ -40,14 +40,14 @@ export class UserContext {
 
 	role = $state<UsersRoleOptions>();
 
-	constructor(user: UsersResponse<Record<string, any>, string[]>) {
+	constructor(user: UsersResponse) {
 		this.id = user.id;
 		this.collectionId = user.collectionId;
 		this.collectionName = user.collectionName;
 		this.avatar = user.avatar;
 		this.name = user.name;
 		this.email = user.email;
-		this.steamIds = user.steamIds || [];
+		this.steamIds = Array.isArray(user.steamIds) ? user.steamIds.map(String) : [];
 		this.created = new Date(user.created);
 		this.updated = new Date(user.updated);
 		this.role = user.role;

@@ -48,15 +48,18 @@ migrate(
 						type: 'text'
 					},
 					{
+						autogeneratePattern: '',
 						hidden: false,
-						id: 'select_user_labels_color',
-						maxSelect: 1,
+						id: 'text_user_labels_color',
+						max: 7,
+						min: 4,
 						name: 'color',
+						pattern: '^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$',
 						presentable: true,
+						primaryKey: false,
 						required: true,
 						system: false,
-						type: 'select',
-						values: ['primary', 'default', 'warning', 'success', 'info', 'destructive']
+						type: 'text'
 					},
 					{
 						hidden: false,

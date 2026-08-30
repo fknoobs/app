@@ -24,6 +24,7 @@
 	import { upperCase } from 'lodash-es';
 	import { tooltip } from '$lib/attachments';
 	import { useI18n } from '$lib/i18n';
+	import PlayerLabels from '$lib/components/player/player-labels.svelte';
 
 	type Props = {
 		stats: LeaderboardStatWithProfile[];
@@ -164,6 +165,9 @@
 						/>
 					{/if}
 					<span class="truncate">{stat.profile?.alias}</span>
+					{#if stat.profile}
+						<PlayerLabels steamId={getSteamIdFromProfile(stat.profile)} class="shrink-0" />
+					{/if}
 				</div>
 
 				{#if elo == null}

@@ -14,38 +14,34 @@
 
 <div class={cn('border-secondary-900 overflow-clip border-b', className)}>
 	{#if widget}
-		<div
-			class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(170px,220px)_minmax(0,1fr)]"
-		>
-			<Skeleton class="aspect-square h-full min-h-0 rounded-none sm:aspect-auto" />
-			<div class="flex min-h-0 min-w-0 flex-col sm:h-full">
-				<div class="flex items-center gap-3 px-6 py-3">
-					<Skeleton class="h-7 max-w-52 flex-1" />
-					<Skeleton class="h-4 w-16 shrink-0" />
+		<div class="border-secondary-800 border-b">
+			<div class="flex items-center gap-3 px-4 py-3">
+				<Skeleton class="size-10 shrink-0 rounded-full" />
+				<div class="flex min-w-0 flex-1 items-center gap-2">
+					<Skeleton class="h-6 max-w-52 flex-1" />
+					<Skeleton class="h-5 w-16 shrink-0 rounded-md" />
+					<Skeleton class="ml-auto h-5 w-20 shrink-0 rounded-md" />
 				</div>
-				<div class="border-secondary-800 flex min-h-0 flex-1 flex-col border-t">
-					<div class="grid min-h-0 flex-1 grid-cols-6">
-						{#each Array(6) as _, index (index)}
-							<div
-								class={cn(
-									'border-secondary-800 flex h-full flex-col items-center gap-1.5 px-2 py-3',
-									index < 5 && 'border-r'
-								)}
-							>
-								<Skeleton class="h-3 w-10" />
-								<Skeleton class="h-4 w-12" />
-								<Skeleton class={index < 4 ? 'size-8' : 'h-4 w-16'} />
-							</div>
-						{/each}
+			</div>
+			<div class="border-secondary-800 grid grid-cols-6 border-t">
+				{#each Array(6) as _, index (index)}
+					<div
+						class={cn(
+							'border-secondary-800 flex flex-col items-center gap-1.5 px-2 py-3',
+							index < 5 && 'border-r'
+						)}
+					>
+						<Skeleton class="h-3 w-10" />
+						<Skeleton class="h-5 w-12" />
 					</div>
-				</div>
-				<div
-					class="border-secondary-800 divide-secondary-800 mt-auto grid grid-cols-10 divide-x overflow-clip border-t"
-				>
-					{#each Array(10) as _, index (index)}
-						<Skeleton class="h-8 rounded-none" />
-					{/each}
-				</div>
+				{/each}
+			</div>
+			<div
+				class="border-secondary-800 divide-secondary-800 grid grid-cols-10 divide-x overflow-clip border-t"
+			>
+				{#each Array(10) as _, index (index)}
+					<Skeleton class="h-8 rounded-none" />
+				{/each}
 			</div>
 		</div>
 	{:else}

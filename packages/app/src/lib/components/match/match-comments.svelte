@@ -6,11 +6,10 @@
 	import { useI18n } from '$lib/i18n';
 	import { cn } from '$lib/utils';
 	import { renderMarkdown } from '$lib/utils/markdown';
-	import { mePlayerText } from '$lib/components/ui/variants';
+	import { mePlayerText, footerAction } from '$lib/components/ui/variants';
 	import { resource, watch } from 'runed';
 	import * as User from '$lib/components/user';
-	import { loadLabelsByUserId } from '$core/pocketbase/user-labels';
-	import type { UserLabelsResponse } from '$core/pocketbase/types';
+	import type { UsersResponse } from '$core/pocketbase/types';
 	import { replaceState } from '$app/navigation';
 	import { page } from '$app/state';
 	import dayjs from '$lib/dayjs';
@@ -61,20 +60,6 @@
 	const items = $derived(comments.current ?? []);
 	const tree = $derived(buildTree(items));
 	const myName = $derived(app.account.user?.name || t('Player'));
-	const authorLabelKey = $derived(
-		[...new Set(items.map((item) => authorId(item)).filter(Boolean))].sort().join(',')
-	);
-	const authorLabels = resource(
-		() => authorLabelKey,
-		async (key): Promise<Record<string, UserLabelsResponse[]>> => {
-			if (!key) return {};
-			try {
-				return await loadLabelsByUserId(key.split(','));
-			} catch {
-				return {};
-			}
-		}
-	);
 
 	const markdownClass = cn(
 		'prose prose-sm max-w-none min-w-0 break-words text-secondary-200',
@@ -90,8 +75,6 @@
 		'prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-blockquote:my-1',
 		'[&>*:first-child]:mt-0 [&>*:last-child]:mb-0'
 	);
-	const footerAction =
-		'hover:bg-primary/10 h-auto min-h-8 shrink-0 rounded-none border-y-0 border-l-0 border-r border-secondary-800 px-3';
 
 	function parentId(comment: LobbyComment) {
 		const parent = comment.parent as unknown;
@@ -116,6 +99,14 @@
 			}));
 		}
 		return nodes('');
+	}
+
+	function authorRecord(comment: LobbyComment) {
+		const user = comment.user as unknown;
+		if (user && typeof user === 'object' && 'id' in user) {
+			return user as UsersResponse<Record<string, any>, string[]>;
+		}
+		return null;
 	}
 
 	function authorId(comment: LobbyComment) {
@@ -424,6 +415,7 @@
 {#snippet commentRow(comment: LobbyComment, nested: boolean, replies?: RepliesToggle)}
 	{@const mine = authorId(comment) === app.account.userId}
 	{@const editing = editingId === comment.id}
+	{@const author = authorRecord(comment)}
 	<div
 		id={`comment-${comment.id}`}
 		class={cn(
@@ -433,10 +425,15 @@
 	>
 		<div class={cn(nested ? 'px-3 pt-2.5 pb-1.5' : 'px-4 pt-3.5 pb-2')}>
 			<div class="flex min-w-0 flex-wrap items-center gap-2">
-				<span class={cn('shrink-0 font-semibold', mine ? mePlayerText : 'text-white')}>
-					{authorName(comment)}
-				</span>
-				<User.Labels labels={authorLabels.current?.[authorId(comment)] ?? []} />
+				{#if author}
+					<User.Root user={author}>
+						<User.Name class={cn('shrink-0 font-semibold', mine ? mePlayerText : 'text-white')} />
+					</User.Root>
+				{:else}
+					<span class={cn('shrink-0 font-semibold', mine ? mePlayerText : 'text-white')}>
+						{authorName(comment)}
+					</span>
+				{/if}
 				<time
 					class="text-secondary-500 text-xs whitespace-nowrap tabular-nums"
 					datetime={comment.created}

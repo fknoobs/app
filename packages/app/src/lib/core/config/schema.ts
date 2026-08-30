@@ -26,7 +26,7 @@ export const appSettingsSchema = z
 		autostart: z.boolean().default(true),
 		closeToTray: z.boolean().default(true),
 		isStreamer: z.boolean().default(false),
-		locale: z.string().default('en'),
+		locale: z.string().default(''),
 		companyOfHeroesConfigPath: z.string().default(''),
 		companyOfHeroesInstallationPath: z.string().default('')
 	})

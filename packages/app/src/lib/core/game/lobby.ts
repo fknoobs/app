@@ -46,6 +46,7 @@ export type Match = {
 	outcome?: string;
 	didNotify: boolean;
 	started: boolean;
+	ended?: boolean;
 	isRanked: boolean;
 	outcomeFormatted: string;
 	matchType: MatchTypeId;
@@ -69,6 +70,7 @@ export class Lobby {
 	outcome?: string;
 	didNotify = false;
 	started = false;
+	ended = false;
 	isRanked = false;
 
 	/** Steam ID of the local player, injected by the log session. */
@@ -219,6 +221,7 @@ export class Lobby {
 			outcome: this.outcome,
 			didNotify: this.didNotify,
 			started: this.started,
+			ended: this.ended,
 			isRanked: this.isRanked,
 			outcomeFormatted: this.outcomeFormatted,
 			matchType: this.matchType,

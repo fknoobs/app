@@ -33,9 +33,11 @@ export const Collections = {
 	ReplayAggregation: "replay_aggregation",
 	Replays: "replays",
 	SmurfWatch: "smurf_watch",
-	UserLabelAssignments: "user_label_assignments",
+	PlayerLabelAssignments: "player_label_assignments",
 	UserLabels: "user_labels",
 	UserOverlays: "user_overlays",
+	HiddenMatches: "hidden_matches",
+	HiddenMatchKeywords: "hidden_match_keywords",
 	Users: "users",
 } as const
 export type Collections = typeof Collections[keyof typeof Collections]
@@ -359,17 +361,8 @@ export type UsersRecord<Tmeta = unknown, TsteamIds = unknown> = {
 	verified?: boolean
 }
 
-export const UserLabelsColorOptions = {
-	"primary": "primary",
-	"default": "default",
-	"warning": "warning",
-	"success": "success",
-	"info": "info",
-	"destructive": "destructive",
-} as const
-export type UserLabelsColorOptions = typeof UserLabelsColorOptions[keyof typeof UserLabelsColorOptions]
 export type UserLabelsRecord = {
-	color: UserLabelsColorOptions
+	color: string
 	created: IsoAutoDateString
 	id: string
 	name: string
@@ -377,12 +370,30 @@ export type UserLabelsRecord = {
 	updated: IsoAutoDateString
 }
 
-export type UserLabelAssignmentsRecord = {
+export type PlayerLabelAssignmentsRecord = {
+	alias?: string
 	created: IsoAutoDateString
 	id: string
 	label: RecordIdString
+	profileId: number
+	steamId: string
 	updated: IsoAutoDateString
-	user: RecordIdString
+}
+
+export type HiddenMatchesRecord = {
+	created: IsoAutoDateString
+	hiddenBy?: RecordIdString
+	id: string
+	sessionId: number
+	updated: IsoAutoDateString
+}
+
+export type HiddenMatchKeywordsRecord = {
+	created: IsoAutoDateString
+	createdBy?: RecordIdString
+	id: string
+	updated: IsoAutoDateString
+	word: string
 }
 
 export const SmurfWatchStatusOptions = {
@@ -470,7 +481,9 @@ export type ReplaysResponse<Tmessages = unknown, Tplayers = unknown, Texpand = u
 export type SmurfWatchResponse<Texpand = unknown> = Required<SmurfWatchRecord> & BaseSystemFields<Texpand>
 export type UserOverlaysResponse<Texpand = unknown> = Required<UserOverlaysRecord> & BaseSystemFields<Texpand>
 export type UserLabelsResponse<Texpand = unknown> = Required<UserLabelsRecord> & BaseSystemFields<Texpand>
-export type UserLabelAssignmentsResponse<Texpand = unknown> = Required<UserLabelAssignmentsRecord> & BaseSystemFields<Texpand>
+export type PlayerLabelAssignmentsResponse<Texpand = unknown> = Required<PlayerLabelAssignmentsRecord> & BaseSystemFields<Texpand>
+export type HiddenMatchesResponse<Texpand = unknown> = Required<HiddenMatchesRecord> & BaseSystemFields<Texpand>
+export type HiddenMatchKeywordsResponse<Texpand = unknown> = Required<HiddenMatchKeywordsRecord> & BaseSystemFields<Texpand>
 export type UsersResponse<Tmeta = unknown, TsteamIds = unknown, Texpand = unknown> = Required<UsersRecord<Tmeta, TsteamIds>> & AuthSystemFields<Texpand>
 
 // Types containing all Records and Responses, useful for creating typing helper functions
@@ -503,9 +516,11 @@ export type CollectionRecords = {
 	replay_aggregation: ReplayAggregationRecord
 	replays: ReplaysRecord
 	smurf_watch: SmurfWatchRecord
-	user_label_assignments: UserLabelAssignmentsRecord
+	player_label_assignments: PlayerLabelAssignmentsRecord
 	user_labels: UserLabelsRecord
 	user_overlays: UserOverlaysRecord
+	hidden_matches: HiddenMatchesRecord
+	hidden_match_keywords: HiddenMatchKeywordsRecord
 	users: UsersRecord
 }
 
@@ -537,9 +552,11 @@ export type CollectionResponses = {
 	replay_aggregation: ReplayAggregationResponse
 	replays: ReplaysResponse
 	smurf_watch: SmurfWatchResponse
-	user_label_assignments: UserLabelAssignmentsResponse
+	player_label_assignments: PlayerLabelAssignmentsResponse
 	user_labels: UserLabelsResponse
 	user_overlays: UserOverlaysResponse
+	hidden_matches: HiddenMatchesResponse
+	hidden_match_keywords: HiddenMatchKeywordsResponse
 	users: UsersResponse
 }
 

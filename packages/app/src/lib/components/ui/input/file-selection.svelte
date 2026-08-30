@@ -2,6 +2,7 @@
 	import type { InputProps } from '.';
 	import CheckCircleIcon from 'phosphor-svelte/lib/CheckCircleIcon';
 	import WarningCircleIcon from 'phosphor-svelte/lib/WarningCircleIcon';
+	import FolderOpenIcon from 'phosphor-svelte/lib/FolderOpenIcon';
 	import { Button } from '../button';
 	import { open, type DialogFilter } from '@tauri-apps/plugin-dialog';
 	import { watch } from 'runed';
@@ -37,16 +38,12 @@
 			directory,
 			filters
 		});
-
 		if (!selectedPath) {
 			return;
 		}
-
 		value = selectedPath;
-
 		onSelect?.(value);
 	};
-
 	watch(
 		() => value,
 		(path) => {
@@ -69,35 +66,37 @@
 	);
 </script>
 
-<div class="grid grid-cols-[auto_120px] gap-4">
-	<div
-		class={cn(
-			controlBase,
-			'flex min-w-0 items-center truncate px-4 text-secondary-400 select-text',
-			!value && 'text-secondary-600',
-			className
-		)}
-		title={value}
-	>
-		{value || t('No path selected')}
+<div class={cn('flex w-full min-w-0 flex-col', className)}>
+	<div class="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+		<div
+			class={cn(
+				controlBase,
+				'flex min-w-0 items-center truncate px-4 select-text',
+				value ? 'text-secondary-400' : 'text-secondary-600'
+			)}
+			title={value}
+		>
+			{value || t('No path selected')}
+		</div>
+		<Button variant="secondary" type="button" onclick={selectDir} class="w-fit shrink-0">
+			<FolderOpenIcon size={16} />
+			{t('Select')}
+		</Button>
 	</div>
-	<Button variant="secondary" type="button" onclick={selectDir} class="justify-center">
-		{t('Select')}
-	</Button>
+	{#if showStatus && value}
+		<div
+			class={cn(
+				'mt-2 flex items-center gap-1 text-sm',
+				fileExists ? 'text-green-500' : 'text-red-500'
+			)}
+		>
+			{#if fileExists}
+				<CheckCircleIcon weight="duotone" size={18} />
+				{t('Path exists')}
+			{:else}
+				<WarningCircleIcon weight="duotone" size={18} />
+				{t('Path does not exist')}
+			{/if}
+		</div>
+	{/if}
 </div>
-{#if showStatus && value}
-	<div
-		class={cn(
-			'mt-1 flex items-center gap-1 text-sm',
-			fileExists ? 'text-green-500' : 'text-red-500'
-		)}
-	>
-		{#if fileExists}
-			<CheckCircleIcon weight="duotone" size={18} />
-			{t('Path exists')}
-		{:else}
-			<WarningCircleIcon weight="duotone" size={18} />
-			{t('Path does not exist')}
-		{/if}
-	</div>
-{/if}

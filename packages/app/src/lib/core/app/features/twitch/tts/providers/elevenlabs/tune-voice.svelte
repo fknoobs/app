@@ -16,15 +16,14 @@
 </script>
 
 <Form.Root>
-	<Form.Group>
-		<div class="flex items-center gap-2">
-			<Form.Label>{t('Stability')}</Form.Label>
+	<Form.Group label={t('Stability')}>
+		{#snippet hint()}
 			<PopoverInfo>
 				{t(
 					'Determines how stable the voice is and the randomness between each generation. Lower values introduce broader emotional range for the voice. Higher values can result in a monotonous voice with limited emotion.'
 				)}
 			</PopoverInfo>
-		</div>
+		{/snippet}
 		<Slider
 			min={0}
 			max={1}
@@ -32,15 +31,14 @@
 			bind:value={app.settings.elevenlabsVoiceTunings[voiceId].stability}
 		/>
 	</Form.Group>
-	<Form.Group>
-		<div class="flex items-center gap-2">
-			<Form.Label>{t('Similarity Boost')}</Form.Label>
+	<Form.Group label={t('Similarity Boost')}>
+		{#snippet hint()}
 			<PopoverInfo>
 				{t(
 					'Determines how closely the AI should adhere to the original voice when attempting to replicate it.'
 				)}
 			</PopoverInfo>
-		</div>
+		{/snippet}
 		<Slider
 			min={0}
 			max={1}
@@ -48,15 +46,14 @@
 			bind:value={app.settings.elevenlabsVoiceTunings[voiceId].similarity_boost}
 		/>
 	</Form.Group>
-	<Form.Group>
-		<div class="flex items-center gap-2">
-			<Form.Label>{t('Style')}</Form.Label>
+	<Form.Group label={t('Style')}>
+		{#snippet hint()}
 			<PopoverInfo>
 				{t(
 					'Determines the style exaggeration of the voice. This setting attempts to amplify the style of the original speaker. It does consume additional computational resources and might increase latency if set to anything other than 0.'
 				)}
 			</PopoverInfo>
-		</div>
+		{/snippet}
 		<Slider
 			min={0}
 			max={1}
@@ -64,15 +61,14 @@
 			bind:value={app.settings.elevenlabsVoiceTunings[voiceId].style}
 		/>
 	</Form.Group>
-	<Form.Group>
-		<div class="flex items-center gap-2">
-			<Form.Label>{t('Speed')}</Form.Label>
+	<Form.Group label={t('Speed')}>
+		{#snippet hint()}
 			<PopoverInfo>
 				{t(
 					'Adjusts the speed of the voice. A value of 1 is the default speed, while values less than 1 slow down the speech, and values greater than 1 speed it up.'
 				)}
 			</PopoverInfo>
-		</div>
+		{/snippet}
 		<Slider
 			min={0.7}
 			max={1.2}
@@ -80,40 +76,35 @@
 			bind:value={app.settings.elevenlabsVoiceTunings[voiceId].speed}
 		/>
 	</Form.Group>
-	<Form.Group>
-		<div class="flex items-center gap-2">
-			<Form.Label>{t('Use Speaker Boost')}</Form.Label>
+	<Form.Group label={t('Use Speaker Boost')}>
+		{#snippet hint()}
 			<PopoverInfo>
 				{t(
 					'This setting boosts the similarity to the original speaker. Using this setting requires a slightly higher computational load, which in turn increases latency.'
 				)}
 			</PopoverInfo>
-		</div>
+		{/snippet}
 		<Checkbox
-			label={t('Use speaker boost')}
+			label={t('Enabled')}
 			bind:checked={app.settings.elevenlabsVoiceTunings[voiceId].use_speaker_boost}
 		/>
 	</Form.Group>
-	<Form.Group>
-		<Form.Label>{t('Translate message')}</Form.Label>
+	<Form.Group label={t('Translate message')}>
 		<Checkbox
-			label={t('Translate message')}
+			label={t('Enabled')}
 			bind:checked={app.settings.elevenlabsVoiceTunings[voiceId].translate}
 		/>
 	</Form.Group>
 	{#if app.settings.elevenlabsVoiceTunings[voiceId].translate}
-		<Form.Group>
-			<Form.Label>{t('Translate message')}</Form.Label>
+		<Form.Group label={t('Translate message')}>
 			<Input
 				placeholder={t("Enter target language (e.g., 'en' for English, 'es' for Spanish) ...")}
 				bind:value={app.settings.elevenlabsVoiceTunings[voiceId].translate_language}
-				class="w-fit"
 			/>
 		</Form.Group>
-		<Form.Group>
-			<Form.Label>{t('Translate random words')}</Form.Label>
+		<Form.Group label={t('Translate random words')}>
 			<Checkbox
-				label={t('Translate random words')}
+				label={t('Enabled')}
 				bind:checked={app.settings.elevenlabsVoiceTunings[voiceId].translate_random_words}
 			/>
 		</Form.Group>

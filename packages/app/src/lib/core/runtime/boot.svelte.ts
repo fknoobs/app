@@ -5,7 +5,7 @@ import { settings } from '$core/config/settings.svelte';
 import type { BackupCandidate } from '$core/config/backup';
 import { account } from '$core/account';
 import { game } from '$core/game/process.svelte';
-import { setLocale, t } from '$lib/i18n';
+import { resolveAppLocale, setLocale, t } from '$lib/i18n';
 
 export type BootPhase =
 	| 'idle'
@@ -164,7 +164,11 @@ export class Boot {
 		try {
 			const result = await settings.load();
 			this.#settingsLoaded = true;
-			setLocale(app.settings.locale);
+			const locale = resolveAppLocale(app.settings.locale);
+			if (app.settings.locale !== locale) {
+				app.settings.locale = locale;
+			}
+			setLocale(locale);
 
 			if (result.source === 'legacy') {
 				console.info('[BOOT]: migrated settings from the legacy store');

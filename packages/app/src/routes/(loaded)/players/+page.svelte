@@ -3,11 +3,13 @@
 	import * as Player from '$lib/components/player';
 	import { Button } from '$lib/components/ui/button';
 	import { Alert } from '$lib/components/ui/alert';
+	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
 	import { relic } from '$lib/relic';
 	import { steam } from '$core/steam';
 	import { goto } from '$app/navigation';
 	import { isProfileId, isSteamId } from '$lib/utils';
+	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import {
 		mergeSteamProfiles,
 		PlayersSearch,
@@ -18,6 +20,7 @@
 	let playersSearch = $state(new PlayersSearch());
 	let loading = $state(false);
 	const { t } = useI18n();
+	const canSearch = $derived(playersSearch.query.trim().length > 0 && !loading);
 
 	async function search(event: SubmitEvent) {
 		event.preventDefault();
@@ -71,23 +74,26 @@
 	};
 </script>
 
-<div class="border-secondary-800 border-b p-4">
-	<p class="text-secondary-400 mb-4 text-sm">
-		{t('Search for a player by Steam ID, profile ID, or in-game name.')}
-	</p>
-
-	<form class="flex flex-wrap items-center gap-3" onsubmit={search}>
+<Form.Root onsubmit={search}>
+	<Form.Group
+		inputId="player-search"
+		label={t('Find a player')}
+		description={t('Search for a player by Steam ID, profile ID, or in-game name.')}
+	>
 		<Input
 			id="player-search"
 			type="text"
 			placeholder={t('Steam ID, profile ID, or player name')}
-			class="min-w-0 flex-1 sm:max-w-xl"
 			bind:value={playersSearch.query}
 			disabled={loading}
+			aria-label={t('Find a player')}
 		/>
-		<Button type="submit" {loading} disabled={!playersSearch.query.trim() || loading}>{t('Search')}</Button>
-	</form>
-</div>
+		<Button type="submit" variant="secondary" class="w-fit shrink-0" {loading} disabled={!canSearch}>
+			<MagnifyingGlassIcon size={16} />
+			{t('Search')}
+		</Button>
+	</Form.Group>
+</Form.Root>
 
 {#if playersSearch.error}
 	<div class="border-secondary-800 border-b px-4 py-3">

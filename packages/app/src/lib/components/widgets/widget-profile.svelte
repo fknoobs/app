@@ -1,8 +1,8 @@
 <script lang="ts">
 	import * as Profile from '$lib/components/ui/profile';
 	import * as List from '$lib/components/ui/list';
+	import * as Player from '$lib/components/player';
 	import { app } from '$core/app/context';
-	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Leaderboard } from '../leaderboard';
 	import { MatchHistory } from '../match-history';
@@ -23,9 +23,10 @@
 	>
 		<Profile.Avatar />
 		<div class="py-2">
-			<div class="grid grid-cols-[auto_1fr] items-center gap-4 truncate">
+			<div class="flex min-w-0 items-center gap-2.5">
 				<Profile.Flag class="relative -ms-0.5" />
 				<Profile.Alias class="truncate text-3xl font-bold" />
+				<Player.Labels steamId={app.game.profile.steam.steamid} class="shrink-0" />
 			</div>
 			<List.Root class="mt-2">
 				<List.Title>{t('Steam ID:')}</List.Title>

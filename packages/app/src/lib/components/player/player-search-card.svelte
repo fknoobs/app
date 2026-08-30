@@ -9,6 +9,7 @@
 	import { getPlayerRating } from '$core/pocketbase/player-ratings';
 	import { resource } from 'runed';
 	import { useI18n } from '$lib/i18n';
+	import PlayerLabels from './player-labels.svelte';
 
 	type Props = {
 		player: Profile;
@@ -50,6 +51,7 @@
 					/>
 				{/if}
 				<span class="font-heading truncate text-xl font-bold">{player.relic.alias}</span>
+				<PlayerLabels steamId={player.steam.steamid} class="shrink-0" />
 			</a>
 			<List.Root class="gap-x-4">
 				<List.Title>{t('Steam ID:')}</List.Title>

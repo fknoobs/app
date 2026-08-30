@@ -10,57 +10,55 @@
 	const { t } = useI18n();
 </script>
 
-<Form.Root class="space-y-0">
-	<div class="border-secondary-800 border-b p-4">
-		<Form.Group class="mb-0">
-			<Form.Label>{t('Enable bot')}</Form.Label>
-			<Checkbox bind:checked={twitchBot.settings.enabled} label={t('Enabled')} />
-		</Form.Group>
-	</div>
+<Form.Root>
+	<Form.Group label={t('Enable bot')}>
+		<Checkbox bind:checked={twitchBot.settings.enabled} label={t('Enabled')} />
+	</Form.Group>
 	{#if twitchBot.enabled}
-		<div class="border-secondary-800 border-b p-4">
-			<Form.Group class="mb-0">
-				<Form.Label>{t('Send player stats to chat')}</Form.Label>
-				<Form.Description>
-					{t('When enabled, the bot will send player stats (like rank etc.) to the Twitch chat.')}
-				</Form.Description>
-				<Checkbox bind:checked={twitchBot.settings.enablePlayerStats} label={t('Enabled')} />
-			</Form.Group>
-		</div>
-		<div class="border-secondary-800 border-b p-4">
-			<Form.Group class="mb-0">
-				<Form.Label>{t('Custom bot messages')}</Form.Label>
-				{#if twitchBot.settings.messages.length === 0}
-					<p class="text-secondary-400 mb-4 text-sm">{t('No messages configured yet, create your first message!')}</p>
-				{:else}
-					<div class="grid grid-cols-[1fr_8rem_50px] items-center gap-2">
-						<Form.Label>{t('Message')}</Form.Label>
-						<Form.Label>{t('Interval (s)')}</Form.Label>
-						<div></div>
-					</div>
-					{#each twitchBot.settings.messages as message, index (message)}
-						<div class="grid grid-cols-[1fr_8rem_50px] items-center gap-2">
-							<Input bind:value={message.text} placeholder={t('Enter bot message')} />
-							<Input type="number" bind:value={message.interval} min="5" placeholder={t('Interval (s)')} />
-							<Button
-								variant="destructive"
-								onclick={() => twitchBot.settings.messages.splice(index, 1)}
-								class="h-full w-full justify-center p-0"
-							>
-								<TrashIcon />
-							</Button>
-						</div>
-					{/each}
-				{/if}
+		<Form.Group
+			label={t('Send player stats to chat')}
+			description={t('When enabled, the bot will send player stats (like rank etc.) to the Twitch chat.')}
+		>
+			<Checkbox bind:checked={twitchBot.settings.enablePlayerStats} label={t('Enabled')} />
+		</Form.Group>
+		<Form.Group
+			label={t('Custom bot messages')}
+			description={twitchBot.settings.messages.length === 0
+				? t('No messages configured yet, create your first message!')
+				: undefined}
+			layout="stacked"
+		>
+			{#each twitchBot.settings.messages as message, index (message)}
+				<div class="flex min-w-0 items-center gap-3">
+					<Input bind:value={message.text} placeholder={t('Enter bot message')} />
+					<Input
+						type="number"
+						bind:value={message.interval}
+						min="5"
+						placeholder={t('Interval (s)')}
+						class="w-24 min-w-24 flex-none"
+					/>
+					<Button
+						variant="secondary"
+						size="icon-sm"
+						type="button"
+						onclick={() => twitchBot.settings.messages.splice(index, 1)}
+					>
+						<TrashIcon size={16} />
+					</Button>
+				</div>
+			{/each}
+			{#snippet footer()}
 				<Button
-					class="mt-2 w-fit"
 					variant="secondary"
+					type="button"
+					class="w-fit"
 					onclick={() => twitchBot.settings.messages.push({ interval: 5, text: '' })}
 				>
-					<PlusIcon />
+					<PlusIcon size={16} />
 					{t('Add message')}
 				</Button>
-			</Form.Group>
-		</div>
+			{/snippet}
+		</Form.Group>
 	{/if}
 </Form.Root>

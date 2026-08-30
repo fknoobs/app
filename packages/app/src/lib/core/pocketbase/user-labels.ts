@@ -1,43 +1,45 @@
 import { fetch } from '$core/http/fetch';
 import { pocketbase } from '$core/pocketbase';
-import type { SemanticVariant } from '$lib/components/ui/variants';
-import type {
-	Create,
-	UserLabelAssignmentsResponse,
-	UserLabelsColorOptions,
-	UserLabelsResponse
-} from './types';
+import type { Create, PlayerLabelAssignmentsResponse, UserLabelsResponse } from './types';
 
 export type UserLabel = UserLabelsResponse;
-export type UserLabelAssignment = UserLabelAssignmentsResponse<{ label?: UserLabelsResponse }>;
+export type PlayerLabelAssignment = PlayerLabelAssignmentsResponse<{ label?: UserLabelsResponse }>;
 
-const LABEL_COLORS = [
-	'primary',
-	'default',
-	'warning',
-	'success',
-	'info',
-	'destructive'
-] as const satisfies readonly UserLabelsColorOptions[];
+export const DEFAULT_LABEL_HEX = '#F8C630';
 
-export const userLabelColors: readonly UserLabelsColorOptions[] = LABEL_COLORS;
+const TOKEN_HEX: Record<string, string> = {
+	primary: '#F8C630',
+	default: '#A3A3A8',
+	warning: '#E5B84C',
+	success: '#3DBA63',
+	info: '#3B8FD9',
+	destructive: '#E5484D'
+};
+
+export const labelColorSwatches = [
+	TOKEN_HEX.primary,
+	TOKEN_HEX.default,
+	TOKEN_HEX.warning,
+	TOKEN_HEX.success,
+	TOKEN_HEX.info,
+	TOKEN_HEX.destructive
+];
 
 function escapeFilter(value: string): string {
 	return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-export function labelColor(color?: string): SemanticVariant | 'primary' {
-	if (
-		color === 'primary' ||
-		color === 'default' ||
-		color === 'warning' ||
-		color === 'success' ||
-		color === 'info' ||
-		color === 'destructive'
-	) {
-		return color;
+export function labelHex(color?: string | null): string {
+	if (!color) return DEFAULT_LABEL_HEX;
+	if (TOKEN_HEX[color]) return TOKEN_HEX[color];
+	if (/^#[0-9A-Fa-f]{8}$/.test(color)) {
+		return color.slice(0, 7);
 	}
-	return 'primary';
+	if (/^#[0-9A-Fa-f]{6}$/.test(color)) return color;
+	if (/^#[0-9A-Fa-f]{3}$/.test(color)) {
+		return `#${color[1]}${color[1]}${color[2]}${color[2]}${color[3]}${color[3]}`;
+	}
+	return DEFAULT_LABEL_HEX;
 }
 
 export function sortUserLabels(labels: UserLabelsResponse[]): UserLabelsResponse[] {
@@ -51,54 +53,67 @@ export async function listUserLabels(): Promise<UserLabelsResponse[]> {
 	});
 }
 
-export async function listAssignmentsForUsers(userIds: string[]): Promise<UserLabelAssignment[]> {
-	const ids = [...new Set(userIds.filter(Boolean))];
+export async function listAssignmentsForSteamIds(steamIds: string[]): Promise<PlayerLabelAssignment[]> {
+	const ids = [...new Set(steamIds.filter(Boolean))];
 	if (ids.length === 0) return [];
-	const assignments: UserLabelAssignment[] = [];
+	const assignments: PlayerLabelAssignment[] = [];
 	const size = 40;
 	for (let i = 0; i < ids.length; i += size) {
 		const chunk = ids.slice(i, i + size);
-		const rows = await pocketbase.collection('user_label_assignments').getFullList<UserLabelAssignment>({
-			filter: chunk.map((id) => `user = "${escapeFilter(id)}"`).join(' || '),
-			expand: 'label',
-			fetch
-		});
+		const rows = await pocketbase
+			.collection('player_label_assignments')
+			.getFullList<PlayerLabelAssignment>({
+				filter: chunk.map((id) => `steamId = "${escapeFilter(id)}"`).join(' || '),
+				expand: 'label',
+				fetch
+			});
 		assignments.push(...rows);
 	}
 	return assignments;
 }
 
-export function labelsByUserId(assignments: UserLabelAssignment[]): Record<string, UserLabelsResponse[]> {
-	const byUser: Record<string, UserLabelsResponse[]> = {};
+export function labelsBySteamId(
+	assignments: PlayerLabelAssignment[]
+): Record<string, UserLabelsResponse[]> {
+	const bySteam: Record<string, UserLabelsResponse[]> = {};
 	for (const assignment of assignments) {
-		const userId = typeof assignment.user === 'string' ? assignment.user : '';
+		const steamId = assignment.steamId;
 		const label = assignment.expand?.label;
-		if (!userId || !label) continue;
-		const current = byUser[userId] ?? [];
+		if (!steamId || !label) continue;
+		const current = bySteam[steamId] ?? [];
 		current.push(label);
-		byUser[userId] = current;
+		bySteam[steamId] = current;
 	}
-	for (const userId of Object.keys(byUser)) {
-		byUser[userId] = sortUserLabels(byUser[userId]);
+	for (const steamId of Object.keys(bySteam)) {
+		bySteam[steamId] = sortUserLabels(bySteam[steamId]);
 	}
-	return byUser;
+	return bySteam;
 }
 
-export async function loadLabelsByUserId(userIds: string[]): Promise<Record<string, UserLabelsResponse[]>> {
-	return labelsByUserId(await listAssignmentsForUsers(userIds));
+export async function loadLabelsBySteamId(
+	steamIds: string[]
+): Promise<Record<string, UserLabelsResponse[]>> {
+	return labelsBySteamId(await listAssignmentsForSteamIds(steamIds));
 }
 
-export async function assignUserLabel(userId: string, labelId: string): Promise<UserLabelAssignment> {
-	const data: Create<'user_label_assignments'> = {
-		user: userId,
-		label: labelId
+export async function assignPlayerLabel(data: {
+	steamId: string;
+	profileId: number;
+	alias?: string;
+	labelId: string;
+}): Promise<PlayerLabelAssignment> {
+	const record: Create<'player_label_assignments'> = {
+		steamId: data.steamId,
+		profileId: data.profileId,
+		alias: data.alias,
+		label: data.labelId
 	};
-	return pocketbase.collection('user_label_assignments').create<UserLabelAssignment>(data, {
+	return pocketbase.collection('player_label_assignments').create<PlayerLabelAssignment>(record, {
 		expand: 'label',
 		fetch
 	});
 }
 
-export async function unassignUserLabel(assignmentId: string): Promise<void> {
-	await pocketbase.collection('user_label_assignments').delete(assignmentId, { fetch });
+export async function unassignPlayerLabel(assignmentId: string): Promise<void> {
+	await pocketbase.collection('player_label_assignments').delete(assignmentId, { fetch });
 }

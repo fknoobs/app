@@ -2,11 +2,11 @@
 	import type { HTMLInputAttributes } from 'svelte/elements';
 	import { type Snippet } from 'svelte';
 	import { Command, Dialog } from 'bits-ui';
-	import { Button } from '../button';
 	import { cn } from '$lib/utils';
-	import { interactive, overlayBackdrop, surfaceModal, controlBase, menuItem } from '../variants';
+	import { interactive, overlayBackdrop, surfaceModal, controlBase, flushInput, menuItem } from '../variants';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import { selectionPicker } from './selection-picker';
 	import { useI18n } from '$lib/i18n';
@@ -248,12 +248,22 @@
 {/if}
 
 {#if !hideTrigger}
-	<Button type="button" onclick={() => (open = true)} class={cn('w-fit max-w-48', className)} variant="secondary">
+	<button
+		type="button"
+		onclick={() => (open = true)}
+		class={cn(
+			controlBase,
+			interactive,
+			'group flex w-fit max-w-64 min-w-40 items-center justify-between truncate px-4 text-left',
+			className
+		)}
+	>
 		{#if icon}
-			<span class="size-fit">{@render icon()}</span>
+			<span class="size-fit shrink-0">{@render icon()}</span>
 		{/if}
-		<span class="truncate">{displayText}</span>
-	</Button>
+		<span class="min-w-0 flex-1 truncate text-left">{displayText}</span>
+		<CaretDownIcon class="ms-2 shrink-0" />
+	</button>
 {/if}
 
 <Dialog.Root bind:open>
@@ -276,11 +286,7 @@
 				>
 					<Command.Input
 						bind:value={search}
-						class={cn(
-							controlBase,
-							'focus:border-secondary-800 rounded-none border-0 border-b bg-transparent px-4 text-sm focus:ring-0',
-							'placeholder:text-secondary-500'
-						)}
+						class={cn(flushInput, 'px-4 py-3 text-sm')}
 						placeholder={t('Search...')}
 					/>
 					<Command.List class="max-h-60 overflow-x-hidden overflow-y-auto">
