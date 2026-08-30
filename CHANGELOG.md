@@ -1,3 +1,7 @@
+### v0.59.2
+
+- fix; typo
+
 ### v0.59.1
 
 - fix; send the fair-play all-chat announce immediately at match start and pause hotkeys while typing it
