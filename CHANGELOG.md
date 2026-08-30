@@ -1,3 +1,7 @@
+### v0.58.1
+
+- fix; skip blank CoH screenshots and recapture from the visible screen
+
 ### v0.58.0
 
 - enhance; make dashboard widgets collapsible
