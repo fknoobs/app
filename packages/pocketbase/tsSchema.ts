@@ -760,6 +760,13 @@ export interface LobbiesLive {
      */
     isRanked: boolean
     /**
+     * |        |         |
+     * | ------ | ------- |
+     * | type   | `bool`  |
+     * | hidden | `false` |
+     */
+    isReplay: boolean
+    /**
      * |          |          |
      * | -------- | -------- |
      * | type     | `number` |

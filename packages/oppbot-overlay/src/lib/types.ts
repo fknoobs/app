@@ -46,10 +46,11 @@ export interface MatchHistoryEntry {
 export interface Player {
 	index: number;
 	playerId: number;
-	profile: PlayerProfile;
+	name?: string;
+	profile?: PlayerProfile;
 	race: 0 | 1 | 2 | 3;
-	ranking: number;
-	steamId: string;
+	ranking?: number;
+	steamId?: string;
 	team: number;
 	type: number;
 	matchHistory?: MatchHistoryEntry[];
@@ -62,6 +63,7 @@ export interface Team {
 export interface LobbyData {
 	didNotify?: boolean;
 	isRanked?: boolean;
+	isReplay?: boolean;
 	isSkirmish?: boolean;
 	map?: string;
 	mapName?: string;
@@ -77,6 +79,7 @@ export interface LiveLobbyRecord {
 	id: string;
 	user: string;
 	isRanked?: boolean;
+	isReplay?: boolean;
 	sessionId: number;
 	map: string;
 	players: Player[];

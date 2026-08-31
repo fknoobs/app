@@ -25,6 +25,29 @@ export const MATCH_TYPES = {
 
 export type MatchTypeId = keyof typeof MATCH_TYPES;
 
+const LIVE_GAME_FORMS = new Set(['AutoMatchForm', 'GameSetupForm']);
+
+export function isLiveGameForm(form: string): boolean {
+	return LIVE_GAME_FORMS.has(form);
+}
+
+/** Negative, non-zero id so replay upserts satisfy sessionId without colliding with Relic ids. */
+export function syntheticReplaySessionId(startedAt: string | null | undefined): number {
+	const source = startedAt?.trim() || 'replay';
+	let hash = 2166136261;
+	for (let i = 0; i < source.length; i++) {
+		hash ^= source.charCodeAt(i);
+		hash = Math.imul(hash, 16777619);
+	}
+	return -((hash >>> 0) % 1_000_000_000 || 1);
+}
+
+export function currentLogTimestamp(): string {
+	const now = new Date();
+	const pad = (value: number) => String(value).padStart(2, '0');
+	return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}.00`;
+}
+
 /** Stable per-match id for deduping lobby.joined / lobby.started publishes. */
 export function lobbyPublishKey(lobby: {
 	sessionId?: number | null;
@@ -48,6 +71,7 @@ export type Match = {
 	started: boolean;
 	ended?: boolean;
 	isRanked: boolean;
+	isReplay?: boolean;
 	outcomeFormatted: string;
 	matchType: MatchTypeId;
 	isSkirmish: boolean;
@@ -72,13 +96,15 @@ export class Lobby {
 	started = false;
 	ended = false;
 	isRanked = false;
+	isReplay = false;
 
 	/** Steam ID of the local player, injected by the log session. */
 	localSteamId: string | undefined;
 
-	constructor(startedAt: string, isRanked: boolean) {
+	constructor(startedAt: string, isRanked: boolean, isReplay = false) {
 		this.startedAt = startedAt;
 		this.isRanked = isRanked;
+		this.isReplay = isReplay;
 	}
 
 	get outcomeFormatted(): string {
@@ -223,6 +249,7 @@ export class Lobby {
 			started: this.started,
 			ended: this.ended,
 			isRanked: this.isRanked,
+			isReplay: this.isReplay,
 			outcomeFormatted: this.outcomeFormatted,
 			matchType: this.matchType,
 			isSkirmish: this.isSkirmish,

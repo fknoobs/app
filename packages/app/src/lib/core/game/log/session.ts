@@ -1,6 +1,6 @@
 import Emittery from 'emittery';
 import type { TransformedMatch } from '@fknoobs/app';
-import { Lobby } from '../lobby';
+import { currentLogTimestamp, isLiveGameForm, Lobby, syntheticReplaySessionId } from '../lobby';
 import type { TriggerEvent, TriggerEvents } from './parser';
 
 /**
@@ -104,21 +104,35 @@ export class LogSession extends Emittery<SessionEvents> {
 		}
 	}
 
-	async #onPopulating({
-		startedAt,
-		isRanked
-	}: TriggerEvents['LOG:LOBBY:POPULATING']): Promise<void> {
+	async #onPopulating({ startedAt, form }: TriggerEvents['LOG:LOBBY:POPULATING']): Promise<void> {
 		const time = startedAt.trim();
+		const isReplay = !isLiveGameForm(form);
 
 		if (this.#isSameLobby(time)) {
 			return;
 		}
 
-		this.lobby = new Lobby(time, isRanked === 'AutoMatchForm');
+		if (this.lobby && !this.lobby.started && !this.lobby.startedAt) {
+			this.lobby.startedAt = time;
+			this.lobby.isRanked = form === 'AutoMatchForm';
+			this.lobby.isReplay = isReplay;
+			this.lobby.sessionId = this.sessionId;
+			this.lobby.localSteamId = this.localSteamId;
+
+			if (!isReplay) {
+				await this.emitSerial('lobby.joined', this.lobby);
+			}
+
+			return;
+		}
+
+		this.lobby = new Lobby(time, form === 'AutoMatchForm', isReplay);
 		this.lobby.localSteamId = this.localSteamId;
 		this.lobby.sessionId = this.sessionId;
 
-		await this.emitSerial('lobby.joined', this.lobby);
+		if (!isReplay) {
+			await this.emitSerial('lobby.joined', this.lobby);
+		}
 	}
 
 	#isSameLobby(startedAt: string): boolean {
@@ -137,14 +151,35 @@ export class LogSession extends Emittery<SessionEvents> {
 		);
 	}
 
-	#onPlayer(data: TriggerEvents['LOG:LOBBY:POPULATING:PLAYER']): void {
-		this.lobby?.addPlayer({
+	#ensureLobby(): Lobby {
+		if (!this.lobby) {
+			this.lobby = new Lobby('', false, true);
+			this.lobby.localSteamId = this.localSteamId;
+			this.lobby.sessionId = this.sessionId;
+		}
+
+		return this.lobby;
+	}
+
+	async #refreshStartedReplay(lobby: Lobby): Promise<void> {
+		if (!lobby.started || !lobby.isReplay) {
+			return;
+		}
+
+		await this.emitSerial('lobby.started', lobby);
+	}
+
+	async #onPlayer(data: TriggerEvents['LOG:LOBBY:POPULATING:PLAYER']): Promise<void> {
+		const lobby = this.#ensureLobby();
+		lobby.addPlayer({
 			index: data.index,
 			playerId: data.playerId,
 			type: data.type,
 			race: data.race,
-			team: data.team
+			team: data.team,
+			name: data.name?.trim() || undefined
 		});
+		await this.#refreshStartedReplay(lobby);
 	}
 
 	#onPlayerSteam({
@@ -161,10 +196,10 @@ export class LogSession extends Emittery<SessionEvents> {
 		}
 	}
 
-	#onMap({ map }: TriggerEvents['LOG:LOBBY:POPULATING:MAP']): void {
-		if (this.lobby) {
-			this.lobby.map = map;
-		}
+	async #onMap({ map }: TriggerEvents['LOG:LOBBY:POPULATING:MAP']): Promise<void> {
+		const lobby = this.#ensureLobby();
+		lobby.map = map;
+		await this.#refreshStartedReplay(lobby);
 	}
 
 	#onSessionId({ sessionId }: TriggerEvents['LOG:LOBBY:SESSIONID']): void {
@@ -172,19 +207,27 @@ export class LogSession extends Emittery<SessionEvents> {
 	}
 
 	async #onStarted(): Promise<void> {
-		await this.emitSerial('lobby.missionStarting', this.lobby);
+		const lobby = this.#ensureLobby();
 
-		if (!this.lobby || this.lobby.started) return;
+		await this.emitSerial('lobby.missionStarting', lobby);
 
-		const lobby = this.lobby;
+		if (lobby.started) return;
+
+		if (!lobby.startedAt) {
+			lobby.startedAt = currentLogTimestamp();
+		}
+
+		lobby.sessionId = this.sessionId ?? lobby.sessionId;
+		if (!lobby.sessionId) {
+			lobby.sessionId = syntheticReplaySessionId(lobby.startedAt);
+		}
+
 		const profileIds = lobby.getPlayerIds();
-
-		lobby.sessionId = this.sessionId;
 		lobby.started = true;
 
 		await this.emitSerial('lobby.started', lobby);
 
-		if (profileIds.length === 0) return;
+		if (lobby.isReplay || profileIds.length === 0) return;
 
 		void this.#enrichStartedLobby(lobby, profileIds);
 	}

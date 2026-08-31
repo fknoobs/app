@@ -10,7 +10,7 @@ type LiveLobbyRecord = LobbiesLiveResponse<
 >;
 
 export function liveLobbyToMatch(record: LiveLobbyRecord): Match {
-	const instance = new Lobby(record.createdAt, record.isRanked ?? false);
+	const instance = new Lobby(record.createdAt, record.isRanked ?? false, record.isReplay ?? false);
 	instance.sessionId = record.sessionId;
 	instance.startedAt = record.createdAt;
 	instance.map = record.map;

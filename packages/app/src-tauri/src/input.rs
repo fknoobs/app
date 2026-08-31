@@ -349,17 +349,95 @@ fn type_ascii_and_send(message: &str) -> Result<(), String> {
 }
 
 #[cfg(target_os = "windows")]
-fn map_ascii_key(c: char) -> Result<(VIRTUAL_KEY, bool), String> {
-    use windows::Win32::UI::Input::KeyboardAndMouse::VkKeyScanW;
-
-    let mapped = unsafe { VkKeyScanW(c as u16) };
-    if mapped < 0 {
+#[cfg(target_os = "windows")]
+fn map_ascii_key(c: char) -> Result<(u16, bool), String> {
+    // DirectInput uses US QWERTY scancodes. VkKeyScanW follows the OS layout,
+    // so `[` is AltGr+8 on German and types `8` unless we pin US scans.
+    let mapped = match c {
+        'a'..='z' => Some((us_letter_scan(c), false)),
+        'A'..='Z' => Some((us_letter_scan(c.to_ascii_lowercase()), true)),
+        '1' => Some((0x02, false)),
+        '2' => Some((0x03, false)),
+        '3' => Some((0x04, false)),
+        '4' => Some((0x05, false)),
+        '5' => Some((0x06, false)),
+        '6' => Some((0x07, false)),
+        '7' => Some((0x08, false)),
+        '8' => Some((0x09, false)),
+        '9' => Some((0x0A, false)),
+        '0' => Some((0x0B, false)),
+        ' ' => Some((0x39, false)),
+        '-' => Some((0x0C, false)),
+        '=' => Some((0x0D, false)),
+        '[' => Some((0x1A, false)),
+        ']' => Some((0x1B, false)),
+        ';' => Some((0x27, false)),
+        '\'' => Some((0x28, false)),
+        '`' => Some((0x29, false)),
+        '\\' => Some((0x2B, false)),
+        ',' => Some((0x33, false)),
+        '.' => Some((0x34, false)),
+        '/' => Some((0x35, false)),
+        '!' => Some((0x02, true)),
+        '@' => Some((0x03, true)),
+        '#' => Some((0x04, true)),
+        '$' => Some((0x05, true)),
+        '%' => Some((0x06, true)),
+        '^' => Some((0x07, true)),
+        '&' => Some((0x08, true)),
+        '*' => Some((0x09, true)),
+        '(' => Some((0x0A, true)),
+        ')' => Some((0x0B, true)),
+        '_' => Some((0x0C, true)),
+        '+' => Some((0x0D, true)),
+        '{' => Some((0x1A, true)),
+        '}' => Some((0x1B, true)),
+        ':' => Some((0x27, true)),
+        '"' => Some((0x28, true)),
+        '~' => Some((0x29, true)),
+        '|' => Some((0x2B, true)),
+        '<' => Some((0x33, true)),
+        '>' => Some((0x34, true)),
+        '?' => Some((0x35, true)),
+        _ => None,
+    };
+    mapped.ok_or_else(|| {
         let _ = release_chat_modifiers();
-        return Err(format!("Cannot map {c:?} to a virtual key"));
+        format!("Cannot map {c:?} to a US scancode")
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn us_letter_scan(c: char) -> u16 {
+    match c {
+        'a' => 0x1E,
+        'b' => 0x30,
+        'c' => 0x2E,
+        'd' => 0x20,
+        'e' => 0x12,
+        'f' => 0x21,
+        'g' => 0x22,
+        'h' => 0x23,
+        'i' => 0x17,
+        'j' => 0x24,
+        'k' => 0x25,
+        'l' => 0x26,
+        'm' => 0x32,
+        'n' => 0x31,
+        'o' => 0x18,
+        'p' => 0x19,
+        'q' => 0x10,
+        'r' => 0x13,
+        's' => 0x1F,
+        't' => 0x14,
+        'u' => 0x16,
+        'v' => 0x2F,
+        'w' => 0x11,
+        'x' => 0x2D,
+        'y' => 0x15,
+        'z' => 0x2C,
+        _ => 0,
     }
-    let vk = VIRTUAL_KEY((mapped as u16) & 0xFF);
-    let need_shift = (mapped as u16) & 0x100 != 0;
-    Ok((vk, need_shift))
 }
 
 #[cfg(target_os = "windows")]
@@ -368,7 +446,7 @@ fn append_char_events(
     shift_down: &mut bool,
     events: &mut Vec<INPUT>,
 ) -> Result<(), String> {
-    let (vk, need_shift) = map_ascii_key(c)?;
+    let (scan, need_shift) = map_ascii_key(c)?;
     if need_shift && !*shift_down {
         events.push(vk_input(VK_SHIFT, true, false));
         *shift_down = true;
@@ -376,14 +454,14 @@ fn append_char_events(
         events.push(vk_input(VK_SHIFT, false, false));
         *shift_down = false;
     }
-    events.push(vk_input(vk, true, false));
-    events.push(vk_input(vk, false, false));
+    events.push(scan_input(scan, true));
+    events.push(scan_input(scan, false));
     Ok(())
 }
 
 #[cfg(target_os = "windows")]
 fn type_one_char(c: char, shift_down: &mut bool) -> Result<(), String> {
-    let (vk, need_shift) = map_ascii_key(c)?;
+    let (scan, need_shift) = map_ascii_key(c)?;
     if need_shift && !*shift_down {
         send_inputs(&[vk_input(VK_SHIFT, true, false)])?;
         *shift_down = true;
@@ -393,9 +471,9 @@ fn type_one_char(c: char, shift_down: &mut bool) -> Result<(), String> {
         *shift_down = false;
         precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
     }
-    send_inputs(&[vk_input(vk, true, false)])?;
+    send_inputs(&[scan_input(scan, true)])?;
     precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
-    send_inputs(&[vk_input(vk, false, false)])
+    send_inputs(&[scan_input(scan, false)])
 }
 
 #[cfg(target_os = "windows")]
@@ -442,6 +520,32 @@ fn vk_input(vk: VIRTUAL_KEY, down: bool, extended: bool) -> INPUT {
         Anonymous: INPUT_0 {
             ki: KEYBDINPUT {
                 wVk: vk,
+                wScan: scan,
+                dwFlags: flags,
+                time: 0,
+                dwExtraInfo: 0,
+            },
+        },
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn scan_input(scan: u16, down: bool) -> INPUT {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE,
+        VIRTUAL_KEY,
+    };
+
+    let mut flags = KEYEVENTF_SCANCODE;
+    if !down {
+        flags |= KEYEVENTF_KEYUP;
+    }
+
+    INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki: KEYBDINPUT {
+                wVk: VIRTUAL_KEY(0),
                 wScan: scan,
                 dwFlags: flags,
                 time: 0,

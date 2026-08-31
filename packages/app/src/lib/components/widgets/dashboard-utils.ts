@@ -62,6 +62,7 @@ export function getPlayerRowKey(player: LobbyPlayer, rowIndex = 0): string {
 
 export function getPlayerAlias(player: LobbyPlayer): string {
 	if (player.profile?.alias) return player.profile.alias;
+	if (player.name?.trim()) return player.name.trim();
 	if (player.index != null) return t('Player {n}', { n: player.index + 1 });
 	const profileId = getPlayerProfileId(player);
 	if (profileId != null) return t('Player {n}', { n: profileId });
@@ -111,7 +112,7 @@ export function getAxisPlayers(players: LobbyPlayer[] = []): LobbyPlayer[] {
 }
 
 export function liveLobbyToMatch(lobby: LiveLobby): Match {
-	const instance = new Lobby(lobby.createdAt, lobby.isRanked ?? false);
+	const instance = new Lobby(lobby.createdAt, lobby.isRanked ?? false, lobby.isReplay ?? false);
 	instance.sessionId = lobby.sessionId;
 	instance.startedAt = lobby.createdAt;
 	instance.map = lobby.map;

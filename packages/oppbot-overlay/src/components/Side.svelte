@@ -7,9 +7,10 @@
 		index: number;
 		matchType: number;
 		meId?: number;
+		isReplay?: boolean;
 	}
 
-	let { team, index, matchType, meId }: Props = $props();
+	let { team, index, matchType, meId, isReplay = false }: Props = $props();
 </script>
 
 <aside class="side side-{index}">
@@ -20,6 +21,7 @@
 				{matchType}
 				teamIndex={index}
 				isMe={meId != null && player.playerId === meId}
+				{isReplay}
 			/>
 		{/each}
 	</div>

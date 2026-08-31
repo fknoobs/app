@@ -109,10 +109,12 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			app.on('lobby.joined', () => {
 				this.#resetChatAnnounce();
 			}),
-			app.on('lobby.missionStarting', () => {
+			app.on('lobby.missionStarting', (match) => {
+				if (match?.isReplay) return;
 				void this.#announceChatNow();
 			}),
 			app.on('lobby.started', (match) => {
+				if (match.isReplay) return;
 				void this.#startSession(match);
 			}),
 			app.on('lobby.gameover', () => {
@@ -150,7 +152,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			);
 		});
 
-		if (app.lobby?.started && !app.lobby.ended) {
+		if (app.lobby?.started && !app.lobby.ended && !app.lobby.isReplay) {
 			void this.#startSession(app.lobby);
 		}
 	}
@@ -175,6 +177,10 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 
 		if (!account.isAuthenticated) {
 			console.warn('[ANTI-CHEAT]: skip session, not authenticated');
+			return;
+		}
+
+		if (match.isReplay) {
 			return;
 		}
 

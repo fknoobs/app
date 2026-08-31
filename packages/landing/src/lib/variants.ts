@@ -4,6 +4,16 @@ export const controlBase =
 export const pageShell =
 	'border-secondary-800 mx-auto flex min-h-screen max-w-6xl flex-col border-x';
 
+export const overlayBackdrop = 'bg-gray-950/80 backdrop-blur-md';
+
+export const surfaceModal = 'border-secondary-800 bg-gray-950 rounded-lg border shadow-lg';
+
+export const flushInput =
+	'placeholder:text-secondary-500 min-w-0 flex-1 bg-transparent text-base font-medium text-white outline-none';
+
+export const menuItem =
+	'cursor-pointer rounded px-4 py-2 text-secondary-200 transition-colors hover:bg-secondary-800 hover:text-white';
+
 export const interactive = 'cursor-pointer disabled:cursor-not-allowed';
 
 export const headerCellAction =

@@ -13,10 +13,11 @@ export type TriggerEvents = {
 	'LOG:ENDED': undefined;
 	'LOG:FOUND:PROFILE': { steamId: string };
 	'LOG:LOBBY:JOINED': undefined;
-	'LOG:LOBBY:POPULATING': { startedAt: string; isRanked: string };
+	'LOG:LOBBY:POPULATING': { startedAt: string; form: string };
 	'LOG:LOBBY:POPULATING:MAP': { map: string };
 	'LOG:LOBBY:POPULATING:PLAYER': {
 		index: number;
+		name?: string;
 		playerId: number;
 		type: number;
 		team: number;
@@ -52,12 +53,7 @@ export const triggers: Record<TriggerName, RegExp> = {
 		oneOrMore(char)
 			.groupedAs('startedAt')
 			.and(oneOrMore(whitespace))
-			.and(
-				exactly('AutoMatchForm')
-					.or(exactly('GameSetupForm'))
-					.groupedAs('isRanked')
-					.and(exactly(' - Starting game'))
-			)
+			.and(oneOrMore(char).and(exactly('Form')).groupedAs('form').and(exactly(' - Starting game')))
 	),
 	'LOG:LOBBY:POPULATING:MAP': createRegExp(
 		exactly('GAME -- *** Beginning mission ').and(oneOrMore(char).before(' (').groupedAs('map'))
@@ -66,6 +62,8 @@ export const triggers: Record<TriggerName, RegExp> = {
 		oneOrMore(digit)
 			.after('PopulateGameInfoInternal - Player #')
 			.groupedAs('index')
+			.and(exactly(', Name '))
+			.and(oneOrMore(char).before(', Id ').groupedAs('name'))
 			.and(oneOrMore(char))
 			.and(oneOrMore(digit).or('-1').after('Id ').groupedAs('playerId'))
 			.and(oneOrMore(char))
@@ -114,7 +112,7 @@ export const triggers: Record<TriggerName, RegExp> = {
 };
 
 /** Keys that must remain strings (e.g. Steam IDs exceed Number.MAX_SAFE_INTEGER). */
-const STRING_KEYS = new Set(['steamId', 'startedAt', 'isRanked', 'map', 'result']);
+const STRING_KEYS = new Set(['steamId', 'startedAt', 'form', 'name', 'map', 'result']);
 
 function coerce(value: string): string | number {
 	const parsed = Number(value);

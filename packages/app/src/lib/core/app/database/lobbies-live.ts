@@ -32,6 +32,11 @@ export function lobbiesLiveFreshFilter(now = Date.now()): string {
 	return `updatedAt > "${since}"`;
 }
 
+/** Public live-match list: hide replay playback rows. Overlay still polls by user. */
+export function lobbiesLivePublicFilter(now = Date.now()): string {
+	return `(${lobbiesLiveFreshFilter(now)}) && isReplay != true`;
+}
+
 export function isLiveLobbyFresh(
 	lobby: Pick<LiveLobby, 'updatedAt'> | { updatedAt?: string },
 	now = Date.now()
@@ -39,6 +44,13 @@ export function isLiveLobbyFresh(
 	if (!lobby.updatedAt) return false;
 	const updatedAt = new Date(lobby.updatedAt).getTime();
 	return Number.isFinite(updatedAt) && updatedAt > now - LOBBIES_LIVE_STALE_MS;
+}
+
+export function isPublicLiveLobby(
+	lobby: Pick<LiveLobby, 'updatedAt' | 'isReplay'> | { updatedAt?: string; isReplay?: boolean },
+	now = Date.now()
+): boolean {
+	return isLiveLobbyFresh(lobby, now) && !lobby.isReplay;
 }
 
 /**
@@ -49,7 +61,7 @@ export function isLiveLobbyFresh(
 export class LobbiesLive {
 	async getList(page = 1, perPage = 20): Promise<ListResult<LiveLobby>> {
 		const response = await pocketbase.collection('lobbies_live').getList(page, perPage, {
-			filter: lobbiesLiveFreshFilter(),
+			filter: lobbiesLivePublicFilter(),
 			sort: '-updatedAt',
 			expand: 'user',
 			fetch
@@ -116,6 +128,7 @@ export class LobbiesLive {
 		const data = {
 			user,
 			isRanked: match.isRanked,
+			isReplay: match.isReplay ?? false,
 			sessionId: match.sessionId,
 			map: match.map,
 			// Keep matchHistory: the stream overlay reads ELO from it over realtime.

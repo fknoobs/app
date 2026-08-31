@@ -44,9 +44,11 @@ To provide match history, scouting, leaderboards, and player pages we store:
 
 Game logs such as `warnings.log` are read **on your device** so the app can detect matches. We store the match data that results, not the full log file, unless you explicitly upload a file.
 
-### c) Public player pages and leaderboards
+### c) Public player pages, leaderboards, and replays
 
-The website and API publish ranked stats, match history, performance breakdowns, and (where available) Steam profile details such as avatar, alias, online/last-seen status, and playtime. That information comes from Relic and Steam public multiplayer/profile APIs and from matches recorded by the community.
+The website and API publish ranked stats, match history, performance breakdowns, community replays, and (where available) Steam profile details such as avatar, alias, online/last-seen status, and playtime. That information comes from Relic and Steam public multiplayer/profile APIs and from matches recorded by the community.
+
+On the website we show community matches that include a replay file: map and player metadata, in-game chat parsed from the replay, action timelines, and a download of the `.rec` file. Public downloads of those files are counted and shown on replay pages. To keep those counts honest we store a one-way hash of the download request (network address and an anonymous browser token in local storage) and ignore repeat clicks from the same visitor. We do not use that hash to identify you. We also limit how often a network address can fetch replay files so the Service stays available. We do not publish personal playback-folder libraries. Hidden matches stay off those public listings.
 
 Staff can hide match results from those public listings (for example during a tournament), either one match at a time or by a word list that matches Relic lobby names. Hidden matches stay visible to staff in the desktop app so they can restore them or change the word list. Relic’s own APIs are unchanged and may still show the same match.
 
@@ -78,7 +80,7 @@ We keep basic operational data such as app version, authentication/session token
 We use information to:
 
 - create and manage accounts, and keep you signed in;
-- provide match tracking, history, replays, leaderboards, and player pages;
+- provide match tracking, history, replays (including the public community replay browser), leaderboards, and player pages;
 - sync data across the app, website, and API;
 - operate overlays, notifications, and other features you enable;
 - review fair play reports and protect the community from abuse;

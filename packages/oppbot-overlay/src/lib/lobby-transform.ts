@@ -59,6 +59,7 @@ export function liveLobbyToLobbyData(
 
 	return {
 		isRanked: record.isRanked,
+		isReplay: record.isReplay,
 		isSkirmish: matchType === 14,
 		map: record.map,
 		mapName: formatMapName(record.map),

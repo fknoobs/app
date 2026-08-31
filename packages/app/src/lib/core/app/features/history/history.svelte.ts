@@ -68,10 +68,12 @@ export class History extends Feature {
 
 		this.#unsubscribers.push(
 			app.on('lobby.destroyed', ({ match, replay }) => {
+				if (match.isReplay) return;
 				void this.saveLobbyResult(match, replay?.file ?? null);
 				this.#scheduleProfileRefresh(PROFILE_REFRESH_DELAYS_MS);
 			}),
 			app.on('lobby.started', (match) => {
+				if (match.isReplay) return;
 				void this.#harvestPlayerRatings(match);
 			}),
 			app.on('game.login', () => {
@@ -137,7 +139,7 @@ export class History extends Feature {
 
 	/** Persists a finished lobby as a match (with replay when available). */
 	async saveLobbyResult(lobby: Match, replayFile: File | null = null): Promise<void> {
-		if (!lobby.sessionId || !app.isReady) {
+		if (lobby.isReplay || !lobby.sessionId || !app.isReady) {
 			return;
 		}
 

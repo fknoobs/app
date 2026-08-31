@@ -21,7 +21,7 @@
 		class={cn('hover:text-primary min-w-0 truncate transition-colors', isMe && mePlayerText)}
 		href={href ?? `/players/${player.playerId}`}
 	>
-		{player.profile?.alias ?? t('CPU')}
+		{player.profile?.alias ?? player.name ?? t('CPU')}
 	</a>
 	<PlayerLabels steamId={player.steamId} class="shrink-0" />
 </span>

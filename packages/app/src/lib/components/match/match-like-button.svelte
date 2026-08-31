@@ -67,12 +67,12 @@
 	aria-pressed={liked}
 	aria-label={liked ? t('Unlike') : t('Like')}
 	class={cn(
-		'h-11 px-3',
+		'h-11 gap-1.5 px-3 text-sm',
 		liked
 			? 'text-primary hover:text-primary'
 			: 'text-secondary-400 hover:text-white'
 	)}
 >
-	<HeartIcon size={18} weight={liked ? 'fill' : 'duotone'} />
+	<HeartIcon size={16} weight={liked ? 'fill' : 'duotone'} />
 	<span class="tabular-nums">{count}</span>
 </Button>

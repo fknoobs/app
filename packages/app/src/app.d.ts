@@ -119,6 +119,7 @@ declare module '@fknoobs/app' {
 		type: number;
 		team: number;
 		race: number;
+		name?: string;
 		ranking?: number;
 		slot?: number;
 		steamId?: string;

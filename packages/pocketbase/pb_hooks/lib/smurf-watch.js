@@ -164,6 +164,10 @@ function enqueueLobbyMatchRecord(e) {
 }
 
 function enqueueLobbyLiveRecord(e) {
+	if (e.record.get('isReplay')) {
+		return;
+	}
+
 	const players = parsePlayers(e.record.get('players'));
 	enqueueLobbyPlayers(players, 'lobby_live');
 }

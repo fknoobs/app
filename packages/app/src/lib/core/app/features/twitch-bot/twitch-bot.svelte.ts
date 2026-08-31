@@ -114,7 +114,7 @@ export class TwitchBot extends Feature<TwitchBotSettings> {
 	}
 
 	async #announcePlayerStats(lobby: Match, signal: AbortSignal) {
-		if (this.#sentStatsSessionId === lobby.sessionId) {
+		if (lobby.isReplay || this.#sentStatsSessionId === lobby.sessionId) {
 			return;
 		}
 

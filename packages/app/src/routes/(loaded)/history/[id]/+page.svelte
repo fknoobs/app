@@ -285,11 +285,6 @@
 							{t('Download replay')}
 						</Button>
 					{/if}
-					<Match.LikeButton
-						lobbyId={matchId}
-						likeCount={match.current.likeCount ?? 0}
-						onCountChange={setLikeCount}
-					/>
 					{#if isStaff && sessionId > 0}
 						<Button
 							type="button"
@@ -306,9 +301,14 @@
 							{/if}
 						</Button>
 					{/if}
+					<Match.LikeButton
+						lobbyId={matchId}
+						likeCount={match.current.likeCount ?? 0}
+						onCountChange={setLikeCount}
+					/>
 					{#if hasReplay}
 						<span
-							class="text-secondary-400 inline-flex h-11 items-center gap-1.5 px-2 text-sm tabular-nums"
+							class="text-secondary-400 inline-flex h-11 items-center gap-1.5 px-3 text-sm tabular-nums"
 							title={t('Downloads')}
 						>
 							<DownloadIcon size={16} weight="duotone" />

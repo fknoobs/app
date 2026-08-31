@@ -378,6 +378,7 @@ export class AppContext extends Emittery<AppEvents> {
 		}
 
 		if (
+			!lobby.isReplay &&
 			this.game.isRunning &&
 			lobby.startedAt &&
 			!lobby.didNotify &&
@@ -474,10 +475,12 @@ export class AppContext extends Emittery<AppEvents> {
 		const match = this.lobby;
 		let replay: { file: File; replay: ReplayData } | null = null;
 
-		try {
-			replay = await this.features.history.getLastMatchReplay();
-		} catch (error) {
-			console.warn('[APP]: Could not read last match replay:', error);
+		if (!match.isReplay) {
+			try {
+				replay = await this.features.history.getLastMatchReplay();
+			} catch (error) {
+				console.warn('[APP]: Could not read last match replay:', error);
+			}
 		}
 
 		this.emit('lobby.destroyed', { match, replay });

@@ -218,6 +218,7 @@ export type LobbiesLiveRecord<Tplayers = unknown> = {
 	createdAt: IsoAutoDateString
 	id: string
 	isRanked?: boolean
+	isReplay?: boolean
 	map: string
 	players: null | Tplayers
 	sessionId: number

@@ -12,12 +12,14 @@
 		{ href: '/#features', label: 'Features' },
 		{ href: '/#download', label: 'Download' },
 		{ href: '/leaderboards', label: 'Leaderboards' },
+		{ href: '/replays', label: 'Replays' },
 		{ href: '/players', label: 'Players' }
 	];
 
 	function isActive(href: string) {
 		if (href === '/players') return page.url.pathname.startsWith('/players');
 		if (href === '/leaderboards') return page.url.pathname.startsWith('/leaderboards');
+		if (href === '/replays') return page.url.pathname.startsWith('/replays');
 		if (href.startsWith('/#')) {
 			return page.url.pathname === '/' && page.url.hash === href.slice(1);
 		}

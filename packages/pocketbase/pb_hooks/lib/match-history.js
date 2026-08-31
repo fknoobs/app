@@ -1,7 +1,5 @@
 'use strict';
 
-const { SESSION_PARTITION_SQL } = require(`${__hooks}/lib/lobbies-dedupe.js`);
-
 function parseLobbyPlayersField(raw) {
 	if (Array.isArray(raw)) {
 		return raw;
@@ -243,20 +241,80 @@ function countFilteredMatches(hasPlayerFilter, numericPlayerIds, whereClause, bi
 	const extra = joinExtra ? ` ${joinExtra}` : '';
 
 	if (hasPlayerFilter) {
-		countSql = `SELECT COUNT(DISTINCT ${SESSION_PARTITION_SQL}) AS total
+		countSql = `SELECT COUNT(*) AS total
        FROM lobby_player_index i
        INNER JOIN lobbies l ON l.id = i.lobby
        WHERE i.profile_id IN (${numericPlayerIds.join(', ')})
          ${extra}
          AND ${whereClause}`;
 	} else {
-		countSql = `SELECT COUNT(DISTINCT ${SESSION_PARTITION_SQL}) AS total FROM lobbies l WHERE ${whereClause}`;
+		countSql = `SELECT COUNT(*) AS total FROM lobbies l WHERE ${whereClause}`;
 	}
 
 	const countRow = new DynamicModel({ total: 0 });
 	$app.db().newQuery(countSql).bind(bindings).one(countRow);
 
 	return Number(countRow.total) || 0;
+}
+
+function readCommunityMatchCount() {
+	try {
+		const row = new DynamicModel({ matchCount: 0 });
+		$app.db().newQuery("SELECT matchCount FROM match_filter_snapshots WHERE id = 'community'").one(row);
+		const value = Number(row.matchCount);
+		return Number.isFinite(value) && value > 0 ? value : null;
+	} catch {
+		return null;
+	}
+}
+
+function saveCommunityMatchCount(totalItems) {
+	try {
+		$app
+			.db()
+			.newQuery(
+				"UPDATE match_filter_snapshots SET matchCount = {:total} WHERE id = 'community'"
+			)
+			.bind({ total: Number(totalItems) || 0 })
+			.execute();
+	} catch (error) {
+		console.warn('[match-history] matchCount cache write failed', String(error?.message || error));
+	}
+}
+
+function ensureCommunityReplayIndex() {
+	try {
+		const existing = new DynamicModel({ sql: '' });
+		try {
+			$app
+				.db()
+				.newQuery(
+					"SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_lobbies_community_replays'"
+				)
+				.one(existing);
+		} catch {
+			existing.sql = '';
+		}
+
+		const sql = String(existing.sql || '');
+		if (sql.includes('sessionId')) {
+			return;
+		}
+
+		if (sql) {
+			$app.db().newQuery('DROP INDEX IF EXISTS `idx_lobbies_community_replays`').execute();
+		}
+
+		// Include title + sessionId so COUNT can stay covering (no fat result blobs).
+		$app
+			.db()
+			.newQuery(
+				'CREATE INDEX IF NOT EXISTS `idx_lobbies_community_replays` ON `lobbies` (`createdAt`, `title`, `sessionId`) WHERE `hasReplay` = 1 AND `needsResult` = 0'
+			)
+			.execute();
+	} catch (error) {
+		console.warn('[match-history] community index', String(error?.message || error));
+	}
 }
 
 const COMPARE_OPS = {
@@ -268,6 +326,15 @@ const COMPARE_OPS = {
 
 function parseCompareOp(raw) {
 	return COMPARE_OPS[raw] ? raw : '';
+}
+
+/** `Number('')` is 0, so missing query params must not count as a real filter. */
+function parseOptionalNumber(raw) {
+	if (raw == null || raw === '') {
+		return NaN;
+	}
+	const value = Number(raw);
+	return Number.isFinite(value) ? value : NaN;
 }
 
 function compareClause(column, op, bindingKey, value, bindings) {
@@ -762,6 +829,10 @@ module.exports = {
 	loadPlayersByLobbyIds,
 	resolvePlayersForRow,
 	countFilteredMatches,
+	readCommunityMatchCount,
+	saveCommunityMatchCount,
+	ensureCommunityReplayIndex,
+	parseOptionalNumber,
 	buildRaceFilterClause,
 	buildIndexPlayerConditions,
 	buildProFilterClause,

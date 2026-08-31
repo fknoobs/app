@@ -22,17 +22,29 @@
 		result?: TransformedMatch | null;
 		smurfs?: Record<number, SmurfAlertState>;
 		cheaters?: Set<string>;
+		hideStats?: boolean;
 	};
 
-	let { players, matchType, highlightPlayerId, result = null, smurfs, cheaters }: Props = $props();
+	let {
+		players,
+		matchType,
+		highlightPlayerId,
+		result = null,
+		smurfs,
+		cheaters,
+		hideStats = false
+	}: Props = $props();
 	const { t } = useI18n();
 
 	const orderedPlayers = $derived(orderLobbyPlayersByTeam(players, result));
 	const allies = $derived(orderLobbyPlayersByTeam(getAlliesPlayers(orderedPlayers), result));
 	const axis = $derived(orderLobbyPlayersByTeam(getAxisPlayers(orderedPlayers), result));
 
-	const playerGrid =
-		'grid grid-cols-[minmax(0,1fr)_5.5rem_4rem_3rem_3.25rem_3.25rem_3.25rem] items-center gap-2';
+	const playerGrid = $derived(
+		hideStats
+			? 'grid grid-cols-[minmax(0,1fr)] items-center gap-2'
+			: 'grid grid-cols-[minmax(0,1fr)_5.5rem_4rem_3rem_3.25rem_3.25rem_3.25rem] items-center gap-2'
+	);
 
 	function playerStats(player: LobbyPlayer) {
 		if (result) {
@@ -93,21 +105,23 @@
 					<Player.CheaterAlert compact />
 				{/if}
 			</div>
-			<div class="flex items-center justify-center gap-2.5 tabular-nums">
-				<Player.RatingChange />
-				<Player.Rating
-					class="text-sm font-semibold"
-					matchType={result?.matchtype_id ?? matchType}
-				/>
-			</div>
-			<div class="flex items-center justify-center gap-1">
-				<Player.Rank class="h-5 w-5" />
-				<Player.Level class="text-sm font-medium tabular-nums" />
-			</div>
-			<Player.Position class="text-center text-sm font-medium tabular-nums" />
-			<Player.Wins class="text-center text-sm font-medium tabular-nums" />
-			<Player.Losses class="text-center text-sm font-medium tabular-nums" />
-			<Player.Streak class="text-center text-sm font-medium tabular-nums" />
+			{#if !hideStats}
+				<div class="flex items-center justify-center gap-2.5 tabular-nums">
+					<Player.RatingChange />
+					<Player.Rating
+						class="text-sm font-semibold"
+						matchType={result?.matchtype_id ?? matchType}
+					/>
+				</div>
+				<div class="flex items-center justify-center gap-1">
+					<Player.Rank class="h-5 w-5" />
+					<Player.Level class="text-sm font-medium tabular-nums" />
+				</div>
+				<Player.Position class="text-center text-sm font-medium tabular-nums" />
+				<Player.Wins class="text-center text-sm font-medium tabular-nums" />
+				<Player.Losses class="text-center text-sm font-medium tabular-nums" />
+				<Player.Streak class="text-center text-sm font-medium tabular-nums" />
+			{/if}
 		</div>
 	</Player.Root>
 {/snippet}
@@ -121,12 +135,14 @@
 			)}
 		>
 			<span>{label}</span>
-			<span class="text-center">{t('ELO')}</span>
-			<span class="text-center">{t('Level')}</span>
-			<span class="text-center">{t('Pos')}</span>
-			<span class="text-center">{t('W')}</span>
-			<span class="text-center">{t('L')}</span>
-			<span class="text-center">{t('Streak')}</span>
+			{#if !hideStats}
+				<span class="text-center">{t('ELO')}</span>
+				<span class="text-center">{t('Level')}</span>
+				<span class="text-center">{t('Pos')}</span>
+				<span class="text-center">{t('W')}</span>
+				<span class="text-center">{t('L')}</span>
+				<span class="text-center">{t('Streak')}</span>
+			{/if}
 		</div>
 		{#each teamPlayers as player, rowIndex (getPlayerRowKey(player, rowIndex))}
 			{@render playerRow(player, rowIndex)}

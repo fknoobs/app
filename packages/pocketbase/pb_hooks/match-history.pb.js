@@ -12,10 +12,13 @@ routerAdd('GET', '/api/match-history', (e) => {
 		resolvePlayersForRow,
 		parseResultField,
 		countFilteredMatches,
+		readCommunityMatchCount,
+		saveCommunityMatchCount,
 		buildIndexPlayerConditions,
 		buildProFilterClause,
 		buildSortClause,
 		parseCompareOp,
+		parseOptionalNumber,
 		compareClause,
 		loadUserSteamIds,
 		userPlayedLobbyClause
@@ -67,13 +70,17 @@ routerAdd('GET', '/api/match-history', (e) => {
 	const includeSkirmish = query.get('includeSkirmish') === 'true';
 
 	let eloOp = parseCompareOp(query.get('eloOp') || '');
-	let eloValue = Number(query.get('elo') || '');
-	if (!eloOp && Number.isFinite(Number(query.get('minElo')))) {
-		eloOp = 'gte';
-		eloValue = Number(query.get('minElo'));
-	} else if (!eloOp && Number.isFinite(Number(query.get('maxElo')))) {
-		eloOp = 'lte';
-		eloValue = Number(query.get('maxElo'));
+	let eloValue = parseOptionalNumber(query.get('elo'));
+	if (!eloOp) {
+		const minElo = parseOptionalNumber(query.get('minElo'));
+		const maxElo = parseOptionalNumber(query.get('maxElo'));
+		if (Number.isFinite(minElo)) {
+			eloOp = 'gte';
+			eloValue = minElo;
+		} else if (Number.isFinite(maxElo)) {
+			eloOp = 'lte';
+			eloValue = maxElo;
+		}
 	}
 	if (!Number.isFinite(eloValue)) {
 		eloOp = '';
@@ -81,13 +88,17 @@ routerAdd('GET', '/api/match-history', (e) => {
 	}
 
 	let durationOp = parseCompareOp(query.get('durationOp') || '');
-	let durationSeconds = Number(query.get('duration') || query.get('minDuration') || '');
-	if (!durationOp && Number.isFinite(Number(query.get('minDuration')))) {
-		durationOp = 'gte';
-		durationSeconds = Number(query.get('minDuration'));
-	} else if (!durationOp && Number.isFinite(Number(query.get('maxDuration')))) {
-		durationOp = 'lte';
-		durationSeconds = Number(query.get('maxDuration'));
+	let durationSeconds = parseOptionalNumber(query.get('duration') || query.get('minDuration'));
+	if (!durationOp) {
+		const minDuration = parseOptionalNumber(query.get('minDuration'));
+		const maxDuration = parseOptionalNumber(query.get('maxDuration'));
+		if (Number.isFinite(minDuration)) {
+			durationOp = 'gte';
+			durationSeconds = minDuration;
+		} else if (Number.isFinite(maxDuration)) {
+			durationOp = 'lte';
+			durationSeconds = maxDuration;
+		}
 	}
 	if (!Number.isFinite(durationSeconds) || durationSeconds < 0) {
 		durationOp = '';
@@ -109,11 +120,10 @@ routerAdd('GET', '/api/match-history', (e) => {
 
 	if (!includeHidden) {
 		lobbyFilters.push(notHiddenSessionClause('l.sessionId'));
-		lobbyFilters.push(notHiddenTitleClause(lobbyDescriptionSql('l')));
 	}
 
 	if (scope === 'community') {
-		lobbyFilters.push("(l.hasReplay = 1 OR (l.replay IS NOT NULL AND l.replay != ''))");
+		lobbyFilters.push('l.hasReplay = 1');
 	} else {
 		if (!userId) {
 			return e.json(400, { message: 'userId required for user scope' });
@@ -286,22 +296,17 @@ routerAdd('GET', '/api/match-history', (e) => {
 		let totalItems = null;
 
 		if (canUseCommunityCountCache) {
-			try {
-				const snapshot = $app.findRecordById('match_filter_snapshots', 'community');
-				const matchCount = snapshot.get('matchCount');
-
-				if (matchCount != null && Number(matchCount) > 0) {
-					totalItems = Number(matchCount);
-				}
-			} catch {
-				// snapshot not ready
-			}
+			totalItems = readCommunityMatchCount();
 		}
 
 		const whereClause = lobbyFilters.join(' AND ');
 		// Skip the correlated preferred-lobby subquery: it made LIMIT ignore
 		// createdAt and drop newest community rows. Duplicates are blocked on create.
-		const selectWhere = whereClause;
+		// Hidden-title LIKE on json_extract(result) is applied only to the page rows —
+		// putting it in COUNT scanned every result blob (~13s on the local DB).
+		const selectWhere = includeHidden
+			? whereClause
+			: `${whereClause} AND ${notHiddenTitleClause(lobbyDescriptionSql('l'))}`;
 
 		if (totalItems === null) {
 			totalItems = countFilteredMatches(
@@ -311,15 +316,8 @@ routerAdd('GET', '/api/match-history', (e) => {
 				bindings,
 				joinExtra
 			);
-
 			if (canUseCommunityCountCache) {
-				try {
-					const snapshot = $app.findRecordById('match_filter_snapshots', 'community');
-					snapshot.set('matchCount', totalItems);
-					$app.save(snapshot);
-				} catch {
-					// cache write failed
-				}
+				saveCommunityMatchCount(totalItems);
 			}
 		}
 
@@ -414,4 +412,9 @@ routerAdd('GET', '/api/match-history', (e) => {
 	} catch (error) {
 		return e.json(400, { message: String(error?.message || error) });
 	}
+});
+
+$app.onServe().bindFunc((e) => {
+	e.next();
+	require(`${__hooks}/lib/match-history.js`).ensureCommunityReplayIndex();
 });

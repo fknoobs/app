@@ -68,6 +68,7 @@
 					{index}
 					matchType={lobbyData.matchType}
 					meId={lobbyData.me?.playerId}
+					isReplay={!!lobbyData.isReplay}
 				/>
 			{/each}
 		</div>
@@ -91,7 +92,9 @@
 
 {#if debugPoll}
 	<div class="debug-poll">
-		poll: {pollStatus.count ?? 0} • last: {pollStatus.last ? new Date(pollStatus.last).toLocaleTimeString() : '—'}
+		poll: {pollStatus.count ?? 0} • last: {pollStatus.last
+			? new Date(pollStatus.last).toLocaleTimeString()
+			: '—'}
 	</div>
 {/if}
 

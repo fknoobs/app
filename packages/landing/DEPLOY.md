@@ -68,6 +68,7 @@ pnpm --filter @company-of-heroes/landing preview
 | Variable | Where | Purpose |
 |----------|-------|---------|
 | `PUBLIC_API_URL` | `.env` / Cloudflare Worker vars | PocketBase API base URL (default: `https://api.coh1stats.com`) |
+| `REPLAY_PROXY_SECRET` | PocketBase `.env` and Cloudflare Worker vars (optional) | Shared secret so the website can fetch replay files without sharing one IP quota with every visitor |
 
 For local player card API testing, create `packages/landing/.env`:
 

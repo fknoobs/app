@@ -106,6 +106,7 @@ export const lobbiesLiveSchema = z.object({
     id: z.string().regex(/^[a-z0-9]+$/).length(15).optional(),
     user: z.string().regex(/^[a-z0-9]+$/).length(15),
     isRanked: z.boolean().optional(),
+    isReplay: z.boolean().optional(),
     sessionId: z.number().refine((n) => n !== 0),
     map: z.string().min(1).max(5000),
     players: z.unknown(),

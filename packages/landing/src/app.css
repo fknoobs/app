@@ -2,6 +2,9 @@
 @import '@fontsource/nunito-sans/400.css';
 @import '@fontsource/nunito-sans/800.css';
 
+@source inline('w-{1..24}/24');
+@source '../node_modules/layerchart/dist';
+
 @theme {
 	--default-font-family: 'TT Mussels';
 	--font-heading: 'Nunito Sans';
@@ -64,11 +67,17 @@
 	--shadow-md: 0 6px 16px oklch(0% 0 0 / 0.4), 0 2px 6px oklch(0% 0 0 / 0.25);
 	--shadow-lg: 0 12px 24px oklch(0% 0 0 / 0.45), 0 4px 8px oklch(0% 0 0 / 0.3);
 	--shadow-xl: 0 20px 40px oklch(0% 0 0 / 0.5), 0 8px 16px oklch(0% 0 0 / 0.35);
+
+	--color-surface-100: var(--color-secondary-800);
+	--color-surface-200: var(--color-secondary-900);
+	--color-surface-300: var(--color-secondary-950);
+	--color-surface-content: var(--color-gray-100);
 }
 
 html {
 	font-size: 18px;
 	scroll-behavior: smooth;
+	color-scheme: dark;
 }
 
 html,
@@ -87,6 +96,23 @@ h5,
 h6 {
 	font-family: var(--font-heading);
 	font-weight: 700;
+}
+
+::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+::-webkit-scrollbar-track {
+	background: var(--color-secondary-950);
+}
+
+::-webkit-scrollbar-thumb {
+	background: var(--color-gray-900);
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #555;
 }
 
 @utility skeleton-shimmer {

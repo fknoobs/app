@@ -49,7 +49,7 @@
 </script>
 
 {#if href}
-	<a {href} {download} class={classes} target={linkTarget} rel={linkRel}>
+	<a {href} {download} {onclick} class={classes} target={linkTarget} rel={linkRel}>
 		{@render children()}
 	</a>
 {:else}

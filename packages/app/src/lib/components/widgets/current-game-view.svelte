@@ -32,10 +32,12 @@
 	const humanPlayers = $derived(lobby.players.filter((player) => player.playerId !== -1).length);
 	const mapLabel = $derived(normalizeMapName(lobby.map));
 	const ratingsKey = $derived(
-		lobby.players
-			.map((player) => player.steamId)
-			.filter(isValidSteamId)
-			.join(',')
+		lobby.isReplay
+			? ''
+			: lobby.players
+					.map((player) => player.steamId)
+					.filter(isValidSteamId)
+					.join(',')
 	);
 	const ratings = resource(
 		() => ratingsKey,
@@ -54,12 +56,14 @@
 	});
 	const humans = $derived(players.filter((player) => player.playerId !== -1));
 	const smurfKey = $derived(
-		humans
-			.map((player) => {
-				const profileId = getPlayerProfileId(player) ?? 0;
-				return `${profileId}:${player.steamId ?? ''}`;
-			})
-			.join('|')
+		lobby.isReplay
+			? ''
+			: humans
+					.map((player) => {
+						const profileId = getPlayerProfileId(player) ?? 0;
+						return `${profileId}:${player.steamId ?? ''}`;
+					})
+					.join('|')
 	);
 
 	async function loadSmurfs(source: LobbyPlayer[]): Promise<SmurfMap> {
@@ -139,7 +143,9 @@
 				<List.Title>{t('Session')}</List.Title>
 				<List.Value class="tabular-nums">{lobby.sessionId}</List.Value>
 				<List.Title>{t('Match type')}</List.Title>
-				<List.Value>{lobby.isRanked ? t('Ranked') : t('Custom')}</List.Value>
+				<List.Value>
+					{lobby.isReplay ? t('Replay') : lobby.isRanked ? t('Ranked') : t('Custom')}
+				</List.Value>
 
 				<List.Title>{t('Game mode')}</List.Title>
 				<List.Value>{lobby.type}</List.Value>
@@ -153,7 +159,7 @@
 					>{t('{allies} vs {axis}', { allies: allies.length, axis: axis.length })}</List.Value
 				>
 
-				{#if humanPlayers > 0}
+				{#if humanPlayers > 0 && !lobby.isReplay}
 					<List.Title>{t('Allies ELO')}</List.Title>
 					<List.Value>
 						{@render eloValue(matchup.allies.avg)}
@@ -178,8 +184,9 @@
 			{players}
 			matchType={lobby.matchType}
 			highlightPlayerId={lobby.me?.playerId}
-			smurfs={humanPlayers > 0 ? smurfs : undefined}
-			cheaters={cheaters.current ?? undefined}
+			smurfs={humanPlayers > 0 && !lobby.isReplay ? smurfs : undefined}
+			cheaters={lobby.isReplay ? undefined : (cheaters.current ?? undefined)}
+			hideStats={!!lobby.isReplay}
 		/>
 	</div>
 </div>

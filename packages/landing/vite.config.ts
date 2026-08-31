@@ -8,6 +8,9 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
 export default defineConfig({
 	plugins: [sveltekit(), tailwindcss()],
+	ssr: {
+		noExternal: ['bits-ui', 'layerchart']
+	},
 	server: {
 		port: 5174,
 		fs: {
