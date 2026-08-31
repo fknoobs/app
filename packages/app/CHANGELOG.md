@@ -1,5 +1,9 @@
 # @company-of-heroes/app
 
+## 0.59.4
+
+- fix; display fair play message sooner
+
 ## 0.59.3
 
 - fix; open Company of Heroes all-chat with shift+enter instead of team chat
