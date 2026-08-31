@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { beforeNavigate, goto } from '$app/navigation';
 	import { navigating } from '$app/state';
 	import Pagination from '$lib/components/Pagination.svelte';
 	import ReplayFilters from '$lib/components/ReplayFilters.svelte';
@@ -7,6 +7,7 @@
 	import ReplayListSkeleton from '$lib/components/ReplayListSkeleton.svelte';
 	import {
 		REPLAYS_PER_PAGE,
+		rememberReplaysListHref,
 		replaysHref,
 		type HistoryMapOption,
 		type HistorySortField,
@@ -19,6 +20,10 @@
 
 	const query = $derived(data.query);
 	const switching = $derived(navigating.to?.url.pathname === '/replays');
+
+	beforeNavigate(() => {
+		rememberReplaysListHref(replaysHref(query));
+	});
 
 	function apply(patch: Partial<ReplaysQuery>) {
 		const next: ReplaysQuery = {

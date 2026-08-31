@@ -1,7 +1,8 @@
-import type { Match } from '$core/game/lobby';
-import type { LobbyPlayer } from '@fknoobs/app';
+import { isOccupiedLobbySlot, type Match } from '$core/game/lobby';
+import type { LobbyPlayer, TransformedMatch } from '@fknoobs/app';
 import type { LobbiesLiveResponse, UsersResponse } from '$core/pocketbase/types';
 import { exp, pocketbase } from '$core/pocketbase';
+import { getPlayerRatings, type PlayerRatingRecord } from '$core/pocketbase/player-ratings';
 import { fetch } from '$core/http/fetch';
 import {
 	ClientResponseError,
@@ -125,14 +126,15 @@ export class LobbiesLive {
 			return;
 		}
 
+		const occupied = match.players.filter(isOccupiedLobbySlot);
+		const players = match.isReplay ? occupied : await withOverlayEloSources(occupied);
 		const data = {
 			user,
 			isRanked: match.isRanked,
 			isReplay: match.isReplay ?? false,
 			sessionId: match.sessionId,
 			map: match.map,
-			// Keep matchHistory: the stream overlay reads ELO from it over realtime.
-			players: match.players
+			players
 		};
 
 		try {
@@ -180,4 +182,44 @@ export class LobbiesLive {
 			throw error;
 		}
 	}
+}
+
+/** Overlay only needs ratings + match type; drop Relic counters / aliases. */
+function slimMatchHistoryForOverlay(
+	history: TransformedMatch[] | undefined
+): TransformedMatch[] | undefined {
+	if (!history?.length) return history;
+	return history.map((match) => ({
+		matchtype_id: match.matchtype_id,
+		completiontime: match.completiontime,
+		startgametime: match.startgametime,
+		players: (match.players ?? []).map((member) => ({
+			profile_id: member.profile_id,
+			newrating: member.newrating,
+			oldrating: member.oldrating,
+			race_id: member.race_id
+		}))
+	})) as TransformedMatch[];
+}
+
+async function withOverlayEloSources(players: LobbyPlayer[]): Promise<LobbyPlayer[]> {
+	const steamIds = players
+		.map((player) => player.steamId)
+		.filter((steamId): steamId is string => Boolean(steamId));
+	let ratings = new Map<string, PlayerRatingRecord>();
+	try {
+		ratings = await getPlayerRatings(steamIds);
+	} catch (error) {
+		console.warn('[LOBBIES_LIVE]: player ratings lookup failed', error);
+	}
+
+	return players.map((player) => {
+		const storedElo =
+			player.storedElo ?? (player.steamId ? ratings.get(player.steamId)?.elo : undefined);
+		return {
+			...player,
+			storedElo,
+			matchHistory: slimMatchHistoryForOverlay(player.matchHistory)
+		};
+	});
 }

@@ -1,4 +1,4 @@
-import { getLeaderboardStat, getPlayerEloFromMatchHistory, getRacePrefix } from './helpers';
+import { getLeaderboardStat, getRacePrefix, resolvePlayerElo } from './helpers';
 import type { CombatRecord, LobbyData, Player } from './types';
 
 export const FACTION = ['US', 'WM', 'UK', 'PE'] as const;
@@ -124,7 +124,7 @@ export function getEloTextShadow(elo: number | null | undefined): string | undef
 
 export function getCombatRecord(type: number, player: Player): CombatRecord {
 	const stat = getLeaderboardStat(type, player);
-	const eloValue = getPlayerEloFromMatchHistory(type, player);
+	const eloValue = resolvePlayerElo(type, player);
 	const elo = formatElo(eloValue);
 
 	if (!stat) {
@@ -143,6 +143,15 @@ export function getCombatRecord(type: number, player: Player): CombatRecord {
 export function formatStreak(streak: number): string | null {
 	if (!streak) return null;
 	return streak > 0 ? `+${streak}` : `${streak}`;
+}
+
+export function getPlayerDisplayName(player: Player): string {
+	const alias = player.profile?.alias?.trim();
+	if (alias) return alias;
+	const name = player.name?.trim();
+	if (name) return name;
+	if (player.playerId === -1) return 'CPU';
+	return `Player ${(player.index ?? 0) + 1}`;
 }
 
 export function getPlayerCount(data: LobbyData): number {

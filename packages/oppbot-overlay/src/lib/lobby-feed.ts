@@ -1,13 +1,29 @@
 import PocketBase from 'pocketbase';
 import { liveLobbyToLobbyData } from './lobby-transform';
-import type { LiveLobbyRecord, LobbyData } from './types';
+import type { LiveLobbyRecord, LobbyData, Player } from './types';
 
-const PB_URL = import.meta.env.VITE_PB_URL ?? 'https://api.coh1stats.com';
 const USER_ID_PATTERN = /^[a-z0-9]{15}$/;
 
 export function getUserIdFromPath(): string | null {
-	const match = window.location.pathname.match(/^\/overlay\/([a-z0-9]{15})/);
-	return match?.[1] ?? null;
+	const fromPath = window.location.pathname.match(/^\/overlay\/([a-z0-9]{15})/);
+	if (fromPath?.[1]) return fromPath[1];
+	const fromQuery = new URLSearchParams(window.location.search).get('user');
+	if (fromQuery && USER_ID_PATTERN.test(fromQuery)) return fromQuery;
+	return null;
+}
+
+function pocketBaseUrl(): string {
+	const injected = (window as Window & { __OPP_PB_URL?: string }).__OPP_PB_URL;
+	if (typeof injected === 'string' && injected) return injected.replace(/\/$/, '');
+	const fromEnv = import.meta.env.VITE_PB_URL;
+	if (typeof fromEnv === 'string' && fromEnv) return fromEnv;
+	if (window.location.pathname.startsWith('/overlay/')) {
+		return window.location.origin;
+	}
+	const host = window.location.hostname;
+	if (host === '127.0.0.1' || host === 'localhost') return 'http://127.0.0.1:8090';
+	if (import.meta.env.DEV) return 'http://127.0.0.1:8090';
+	return 'https://api.coh1stats.com';
 }
 
 async function loadSteamIds(pb: PocketBase, userId: string): Promise<string[] | undefined> {
@@ -25,12 +41,54 @@ export function connectLobby(userId: string, onLobby: (data: LobbyData | null) =
 		return () => {};
 	}
 
-	const pb = new PocketBase(PB_URL);
+	const pb = new PocketBase(pocketBaseUrl());
 	let active = true;
 	let steamIds: string[] | undefined;
 	let currentRecord: LiveLobbyRecord | null = null;
 	let pollTimer: number | null = null;
-	const debugPoll = new URLSearchParams(window.location.search).has('debugPoll');
+	const debugPoll =
+		new URLSearchParams(window.location.search).has('debugPoll') ||
+		new URLSearchParams(window.location.search).has('preview');
+
+	const eloBySteamId = new Map<string, Player['storedElo']>();
+	const fetchedSteamIds = new Set<string>();
+
+	async function withStoredElo(record: LiveLobbyRecord): Promise<LiveLobbyRecord> {
+		const players = record.players ?? [];
+		const missing = [
+			...new Set(
+				players
+					.filter(
+						(player) => player.steamId && !player.storedElo && !fetchedSteamIds.has(player.steamId)
+					)
+					.map((player) => player.steamId as string)
+			)
+		];
+		if (missing.length > 0) {
+			try {
+				const filter = missing.map((id) => `steamId="${id}"`).join('||');
+				const rows = await pb.collection('player_ratings').getFullList<{
+					steamId: string;
+					elo?: Player['storedElo'];
+				}>({ filter });
+				for (const row of rows) {
+					if (row.elo) eloBySteamId.set(row.steamId, row.elo);
+				}
+			} catch {
+				// overlay can still use matchHistory
+			}
+			for (const id of missing) fetchedSteamIds.add(id);
+		}
+
+		return {
+			...record,
+			players: players.map((player) => {
+				if (player.storedElo || !player.steamId) return player;
+				const storedElo = eloBySteamId.get(player.steamId);
+				return storedElo ? { ...player, storedElo } : player;
+			})
+		};
+	}
 
 	const applyRecord = (record: LiveLobbyRecord | null) => {
 		if (!active) return;
@@ -53,8 +111,10 @@ export function connectLobby(userId: string, onLobby: (data: LobbyData | null) =
 			w.__oppbotPollCount = (typeof w.__oppbotPollCount === 'number' ? w.__oppbotPollCount : 0) + 1;
 		}
 		try {
-			const record = await pb.collection('lobbies_live').getFirstListItem<LiveLobbyRecord>(`user="${userId}"`);
-			applyRecord(record);
+			const record = await pb
+				.collection('lobbies_live')
+				.getFirstListItem<LiveLobbyRecord>(`user="${userId}"`);
+			applyRecord(await withStoredElo(record));
 		} catch {
 			if (currentRecord) applyRecord(null);
 		}

@@ -203,6 +203,32 @@ export function replaysHref(query: ReplaysQuery): string {
 	return search ? `/replays?${search}` : '/replays';
 }
 
+const REPLAYS_LIST_HREF_KEY = 'coh1stats.replaysListHref';
+
+function isReplaysListHref(href: string): boolean {
+	return href === '/replays' || href.startsWith('/replays?');
+}
+
+export function rememberReplaysListHref(href: string) {
+	if (typeof sessionStorage === 'undefined' || !isReplaysListHref(href)) return;
+	try {
+		sessionStorage.setItem(REPLAYS_LIST_HREF_KEY, href);
+	} catch {
+		// Private mode or quota.
+	}
+}
+
+export function rememberedReplaysListHref(): string {
+	if (typeof sessionStorage === 'undefined') return '/replays';
+	try {
+		const href = sessionStorage.getItem(REPLAYS_LIST_HREF_KEY);
+		if (href && isReplaysListHref(href)) return href;
+	} catch {
+		// Private mode.
+	}
+	return '/replays';
+}
+
 function splitCsv(value: string | null): string[] {
 	if (!value) return [];
 	return value

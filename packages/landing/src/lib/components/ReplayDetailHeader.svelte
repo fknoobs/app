@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { afterNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import Button from '$lib/components/Button.svelte';
 	import MapImage from '$lib/components/MapImage.svelte';
@@ -7,6 +8,8 @@
 		formatMatchDate,
 		isProGameplayMatch,
 		matchDurationSeconds,
+		rememberReplaysListHref,
+		rememberedReplaysListHref,
 		type CommunityMatchDetail,
 		type ParsedReplay
 	} from '$lib/replays';
@@ -32,6 +35,7 @@
 	let extraDownloads = $state(0);
 	let counting = $state(false);
 	let countedHere = $state(false);
+	let listHref = $state('/replays');
 	let downloadCount = $derived((match.downloadCount ?? 0) + extraDownloads);
 
 	const mapName = $derived(
@@ -47,6 +51,16 @@
 
 	onMount(() => {
 		countedHere = hasCountedReplayDownload(match.id);
+	});
+
+	afterNavigate(({ from }) => {
+		if (from?.url.pathname === '/replays') {
+			const href = `${from.url.pathname}${from.url.search}`;
+			rememberReplaysListHref(href);
+			listHref = href;
+			return;
+		}
+		listHref = rememberedReplaysListHref();
 	});
 
 	async function recordDownload() {
@@ -80,7 +94,7 @@
 <div class="border-secondary-800 border-b">
 	<div class="border-secondary-800 flex items-center gap-3 border-b px-4 py-3">
 		<a
-			href="/replays"
+			href={listHref}
 			aria-label="Back to replays"
 			class={cn(
 				interactive,
@@ -92,7 +106,7 @@
 		<nav aria-label="Breadcrumb" class="font-heading min-w-0 text-sm font-bold">
 			<ol class="flex items-center">
 				<li>
-					<a href="/replays" class={cn(interactive, 'text-secondary-400 hover:text-primary')}>
+					<a href={listHref} class={cn(interactive, 'text-secondary-400 hover:text-primary')}>
 						Replays
 					</a>
 				</li>

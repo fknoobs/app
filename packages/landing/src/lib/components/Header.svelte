@@ -1,10 +1,12 @@
 <script lang="ts">
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import logo from '@assets/logo-transparent-bg.png';
 	import Button from '$lib/components/Button.svelte';
 	import DiscordMenu from '$lib/components/DiscordMenu.svelte';
 	import { cn } from '$lib/cn';
 	import { latestDownload } from '$lib/download.svelte';
+	import { rememberedReplaysListHref } from '$lib/replays';
 	import { interactive, headerCellAction } from '$lib/variants';
 
 	const navLinks = [
@@ -15,6 +17,19 @@
 		{ href: '/replays', label: 'Replays' },
 		{ href: '/players', label: 'Players' }
 	];
+
+	let replaysListHref = $state('/replays');
+
+	afterNavigate(() => {
+		replaysListHref = rememberedReplaysListHref();
+	});
+
+	function navHref(href: string) {
+		if (href === '/replays' && page.url.pathname.startsWith('/replays/')) {
+			return replaysListHref;
+		}
+		return href;
+	}
 
 	function isActive(href: string) {
 		if (href === '/players') return page.url.pathname.startsWith('/players');
@@ -49,7 +64,7 @@
 	<nav class="ms-auto hidden items-center gap-6 px-4 md:flex">
 		{#each navLinks as link (link.href)}
 			<a
-				href={link.href}
+				href={navHref(link.href)}
 				class={cn(
 					interactive,
 					'text-sm font-medium transition-colors',

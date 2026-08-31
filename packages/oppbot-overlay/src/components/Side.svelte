@@ -15,7 +15,7 @@
 
 <aside class="side side-{index}">
 	<div class="side__units">
-		{#each team.players as player, i (player.playerId || i)}
+		{#each team.players as player, i (player.index ?? i)}
 			<Unit
 				{player}
 				{matchType}

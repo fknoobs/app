@@ -1,6 +1,14 @@
 import Emittery from 'emittery';
 import type { TransformedMatch } from '@fknoobs/app';
-import { currentLogTimestamp, isLiveGameForm, Lobby, syntheticReplaySessionId } from '../lobby';
+import {
+	currentLogTimestamp,
+	isLiveGameForm,
+	Lobby,
+	mapFromScenarioPath,
+	raceFromLogFaction,
+	syntheticReplaySessionId,
+	teamFromRace
+} from '../lobby';
 import type { TriggerEvent, TriggerEvents } from './parser';
 
 /**
@@ -42,6 +50,9 @@ export class LogSession extends Emittery<SessionEvents> {
 	localSteamId: string | undefined;
 
 	#deps: SessionDeps;
+	#pendingReplayPlayers = new Map<number, { index: number; race: number; team: number }>();
+	#pendingScenario: string | undefined;
+	#didEnrichLiveHistory = false;
 
 	constructor(deps: SessionDeps) {
 		super();
@@ -52,6 +63,8 @@ export class LogSession extends Emittery<SessionEvents> {
 	reset(): void {
 		this.lobby = undefined;
 		this.sessionId = null;
+		this.#didEnrichLiveHistory = false;
+		this.#clearReplayBuffer();
 	}
 
 	async handle(event: TriggerEvent): Promise<void> {
@@ -62,6 +75,12 @@ export class LogSession extends Emittery<SessionEvents> {
 				return this.#onPopulating(event.data);
 			case 'LOG:LOBBY:POPULATING:PLAYER':
 				return this.#onPlayer(event.data);
+			case 'LOG:LOBBY:POPULATING:PLAYER:RACE':
+				return this.#onPlayerRace(event.data);
+			case 'LOG:LOBBY:POPULATING:SCENARIO':
+				return this.#onScenario(event.data);
+			case 'LOG:LOBBY:PLAYBACK':
+				return this.#onPlayback();
 			case 'LOG:LOBBY:POPULATING:PLAYER:STEAM':
 				return this.#onPlayerSteam(event.data);
 			case 'LOG:LOBBY:POPULATING:MAP':
@@ -108,7 +127,11 @@ export class LogSession extends Emittery<SessionEvents> {
 		const time = startedAt.trim();
 		const isReplay = !isLiveGameForm(form);
 
-		if (this.#isSameLobby(time)) {
+		if (this.lobby && this.#isSameLobby(time)) {
+			this.lobby.isReplay = isReplay;
+			this.lobby.isRanked = form === 'AutoMatchForm';
+			if (!this.lobby.startedAt) this.lobby.startedAt = time;
+			this.#resetLiveRoster(isReplay);
 			return;
 		}
 
@@ -118,6 +141,7 @@ export class LogSession extends Emittery<SessionEvents> {
 			this.lobby.isReplay = isReplay;
 			this.lobby.sessionId = this.sessionId;
 			this.lobby.localSteamId = this.localSteamId;
+			this.#resetLiveRoster(isReplay);
 
 			if (!isReplay) {
 				await this.emitSerial('lobby.joined', this.lobby);
@@ -153,12 +177,47 @@ export class LogSession extends Emittery<SessionEvents> {
 
 	#ensureLobby(): Lobby {
 		if (!this.lobby) {
-			this.lobby = new Lobby('', false, true);
+			this.lobby = new Lobby('', false, false);
 			this.lobby.localSteamId = this.localSteamId;
 			this.lobby.sessionId = this.sessionId;
 		}
 
 		return this.lobby;
+	}
+
+	/**
+	 * Replay support calls `#ensureLobby()` on pre-start `PopulateGameInfo` lines.
+	 * Custom lobbies log closed slots there (often a 4p default map). Live
+	 * `Starting game` used to keep that roster; drop it so the following
+	 * player lines are the match that actually launched.
+	 */
+	#resetLiveRoster(isReplay: boolean): void {
+		if (isReplay || !this.lobby || this.lobby.started) return;
+		this.lobby.players = [];
+		this.#didEnrichLiveHistory = false;
+	}
+
+	#clearReplayBuffer(): void {
+		this.#pendingReplayPlayers.clear();
+		this.#pendingScenario = undefined;
+	}
+
+	#applyPendingReplayPlayers(lobby: Lobby): void {
+		for (const pending of this.#pendingReplayPlayers.values()) {
+			lobby.addPlayer({
+				index: pending.index,
+				playerId: 0,
+				type: 0,
+				race: pending.race,
+				team: pending.team,
+				name: `Player ${pending.index + 1}`
+			});
+		}
+	}
+
+	#applyPendingMap(lobby: Lobby): void {
+		if (lobby.map || !this.#pendingScenario) return;
+		lobby.map = mapFromScenarioPath(this.#pendingScenario);
 	}
 
 	async #refreshStartedReplay(lobby: Lobby): Promise<void> {
@@ -180,19 +239,52 @@ export class LogSession extends Emittery<SessionEvents> {
 			name: data.name?.trim() || undefined
 		});
 		await this.#refreshStartedReplay(lobby);
+		await this.#enrichLiveIfNeeded(lobby);
 	}
 
-	#onPlayerSteam({
+	#onPlayerRace({ index, faction }: TriggerEvents['LOG:LOBBY:POPULATING:PLAYER:RACE']): void {
+		const label = faction.trim();
+		if (/^\d+$/.test(label)) return;
+		const race = raceFromLogFaction(label);
+		if (race == null) return;
+		this.#pendingReplayPlayers.set(index, { index, race, team: teamFromRace(race) });
+		if (!this.lobby?.isReplay) return;
+		this.#applyPendingReplayPlayers(this.lobby);
+		void this.#refreshStartedReplay(this.lobby);
+	}
+
+	async #onScenario({ scenario }: TriggerEvents['LOG:LOBBY:POPULATING:SCENARIO']): Promise<void> {
+		this.#pendingScenario = scenario;
+		if (!this.lobby) return;
+		this.#applyPendingMap(this.lobby);
+		await this.#refreshStartedReplay(this.lobby);
+	}
+
+	#onPlayback(): void {
+		const lobby = this.#ensureLobby();
+		lobby.isReplay = true;
+		if (!lobby.startedAt) {
+			lobby.startedAt = currentLogTimestamp();
+		}
+		this.#applyPendingReplayPlayers(lobby);
+		this.#applyPendingMap(lobby);
+	}
+
+	async #onPlayerSteam({
 		ranking,
 		slot,
 		steamId
-	}: TriggerEvents['LOG:LOBBY:POPULATING:PLAYER:STEAM']): void {
+	}: TriggerEvents['LOG:LOBBY:POPULATING:PLAYER:STEAM']): Promise<void> {
 		const player = this.lobby?.getPlayerBySlot(slot);
 
-		if (player) {
-			player.steamId = steamId.toString();
-			player.ranking = ranking;
-			player.slot = slot;
+		if (!player) return;
+
+		player.steamId = steamId.toString();
+		player.ranking = ranking;
+		player.slot = slot;
+
+		if (this.lobby?.started && !this.lobby.isReplay) {
+			await this.emitSerial('lobby.started', this.lobby);
 		}
 	}
 
@@ -209,6 +301,12 @@ export class LogSession extends Emittery<SessionEvents> {
 	async #onStarted(): Promise<void> {
 		const lobby = this.#ensureLobby();
 
+		if (lobby.isReplay && lobby.players.length === 0 && this.#pendingReplayPlayers.size > 0) {
+			this.#applyPendingReplayPlayers(lobby);
+		}
+		this.#applyPendingMap(lobby);
+		lobby.pruneEmptySlots();
+
 		await this.emitSerial('lobby.missionStarting', lobby);
 
 		if (lobby.started) return;
@@ -222,17 +320,26 @@ export class LogSession extends Emittery<SessionEvents> {
 			lobby.sessionId = syntheticReplaySessionId(lobby.startedAt);
 		}
 
-		const profileIds = lobby.getPlayerIds();
+		const profileIds = lobby.getPlayerIds().filter((id) => id > 0);
 		lobby.started = true;
 
+		if (!lobby.isReplay && profileIds.length > 0) {
+			await this.#enrichStartedLobby(lobby, profileIds);
+			return;
+		}
+
 		await this.emitSerial('lobby.started', lobby);
+	}
 
-		if (lobby.isReplay || profileIds.length === 0) return;
-
-		void this.#enrichStartedLobby(lobby, profileIds);
+	async #enrichLiveIfNeeded(lobby: Lobby): Promise<void> {
+		if (!lobby.started || lobby.isReplay || this.#didEnrichLiveHistory) return;
+		const profileIds = lobby.getPlayerIds().filter((id) => id > 0);
+		if (profileIds.length === 0) return;
+		await this.#enrichStartedLobby(lobby, profileIds);
 	}
 
 	async #enrichStartedLobby(lobby: Lobby, profileIds: number[]): Promise<void> {
+		this.#didEnrichLiveHistory = true;
 		try {
 			const profiles = await this.#deps.getProfileByIds(profileIds);
 
@@ -255,7 +362,7 @@ export class LogSession extends Emittery<SessionEvents> {
 	}
 
 	async #attachMatchHistory(lobby: Lobby): Promise<void> {
-		if (!lobby) {
+		if (!lobby || lobby.isReplay) {
 			return;
 		}
 
@@ -298,6 +405,8 @@ export class LogSession extends Emittery<SessionEvents> {
 
 		this.lobby = undefined;
 		this.sessionId = null;
+		this.#didEnrichLiveHistory = false;
+		this.#clearReplayBuffer();
 	}
 
 	async #onEnded(): Promise<void> {

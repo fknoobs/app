@@ -1,12 +1,16 @@
 import type { MatchExpanded } from '$core/app/database/matches';
-import type { Match } from '$core/game/lobby';
+import {
+	replayHeaderMatchesLobby,
+	type Match,
+	type ReplayHeaderPlayer
+} from '$core/game/lobby';
 import { app } from '$core/app/context';
 import { account } from '$core/account';
 import { Feature } from '../feature.svelte';
 import { relic, relicLeaderboardFingerprint } from '$lib/relic';
 import { join } from '@tauri-apps/api/path';
-import { exists, readFile } from '@tauri-apps/plugin-fs';
-import { parseReplay } from '@fknoobs/replay-parser';
+import { exists, readDir, readFile, stat } from '@tauri-apps/plugin-fs';
+import { parseHeader, parseReplay } from '@fknoobs/replay-parser';
 import { download } from '@tauri-apps/plugin-upload';
 import { Matches } from './matches.svelte';
 import { extractPlayerRatingSnapshotsFromLobby, type PlayerEloMap } from '$lib/utils/player-elo';
@@ -19,6 +23,7 @@ import { t } from '$lib/i18n';
 const POLL_INITIAL_MS = 10_000;
 const POLL_MAX_MS = 60_000;
 const PROFILE_REFRESH_DELAYS_MS = [15_000, 30_000, 45_000, 60_000, 90_000, 120_000];
+const REPLAY_NAME_SCAN_LIMIT = 50;
 
 /**
  * Saves finished matches (with replay) and fills in their results from the
@@ -317,6 +322,102 @@ export class History extends Feature {
 		}
 
 		return pending;
+	}
+
+	/**
+	 * Finds player names for an in-game replay. Relic GameHistory logs have
+	 * factions and map but no aliases; those live in the `.rec` header.
+	 */
+	async findReplayHeaderPlayers(lobby: {
+		map?: string;
+		players: { race: number }[];
+	}): Promise<ReplayHeaderPlayer[] | null> {
+		if (!lobby.map || lobby.players.length === 0) return null;
+		const fromDisk = await this.#findLocalReplayHeader(lobby);
+		if (fromDisk) return fromDisk;
+		return this.#findStoredReplayHeader(lobby);
+	}
+
+	async #findLocalReplayHeader(lobby: {
+		map?: string;
+		players: { race: number }[];
+	}): Promise<ReplayHeaderPlayer[] | null> {
+		let playbackDir: string;
+		try {
+			playbackDir = await app.paths.cohPlaybackDir();
+		} catch (error) {
+			console.warn('[HISTORY]: could not resolve playback folder', error);
+			return null;
+		}
+
+		let names: string[] = [];
+		try {
+			const entries = await readDir(playbackDir);
+			const recs: { name: string; mtime: number }[] = [];
+			for (const entry of entries) {
+				if (!entry.isFile || !entry.name.toLowerCase().endsWith('.rec')) continue;
+				const path = await join(playbackDir, entry.name);
+				let mtime = 0;
+				try {
+					const info = await stat(path);
+					mtime = info.mtime?.getTime() ?? info.birthtime?.getTime() ?? 0;
+				} catch {
+					mtime = 0;
+				}
+				recs.push({ name: entry.name, mtime });
+			}
+			recs.sort((a, b) => b.mtime - a.mtime);
+			names = recs.slice(0, REPLAY_NAME_SCAN_LIMIT).map((rec) => rec.name);
+		} catch (error) {
+			console.warn('[HISTORY]: could not list playback folder', error);
+			return null;
+		}
+
+		for (const name of names) {
+			try {
+				const bytes = await readFile(await join(playbackDir, name));
+				const header = parseHeader(new Uint8Array(bytes));
+				if (replayHeaderMatchesLobby(lobby, header)) {
+					return header.players;
+				}
+			} catch (error) {
+				console.warn('[HISTORY]: skipped replay header', name, error);
+			}
+		}
+
+		return null;
+	}
+
+	async #findStoredReplayHeader(lobby: {
+		map?: string;
+		players: { race: number }[];
+	}): Promise<ReplayHeaderPlayer[] | null> {
+		const mapKey = lobby.map?.trim();
+		const userId = account.userId;
+		if (!mapKey || !userId) return null;
+		const escapedMap = mapKey.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+		const escapedUser = userId.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+		try {
+			const result = await app.database.replays.getPaginated(1, 30, {
+				filter: `createdBy = "${escapedUser}" && mapFilename ~ "${escapedMap}"`,
+				sort: '-gameDate',
+				fields: ['id', 'mapFilename', 'players', 'gameDate']
+			});
+			for (const record of result.items) {
+				const recPlayers = (record.players ?? []) as ReplayHeaderPlayer[];
+				if (
+					replayHeaderMatchesLobby(lobby, {
+						mapFileName: record.mapFilename,
+						players: recPlayers
+					})
+				) {
+					return recPlayers;
+				}
+			}
+		} catch (error) {
+			console.warn('[HISTORY]: stored replay lookup failed', error);
+		}
+		return null;
 	}
 
 	/** Reads the replay of the last finished match from the playback folder. */

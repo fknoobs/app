@@ -15,7 +15,9 @@
 	let devScenario = $state<DevScenario>(import.meta.env.DEV ? getDevScenarioFromUrl() : '4v4');
 	const userId = getUserIdFromPath();
 	const isDevPreview = import.meta.env.DEV && !userId;
-	const debugPoll = $derived(new URLSearchParams(window.location.search).has('debugPoll'));
+	const params = new URLSearchParams(window.location.search);
+	const isBrowserPreview = params.has('preview');
+	const debugPoll = params.has('debugPoll') || isBrowserPreview;
 	let pollStatus = $state<{ last?: number; count?: number }>({});
 
 	if (userId) {
@@ -29,9 +31,10 @@
 	);
 
 	$effect(() => {
-		if (!isDevPreview) return;
-		document.documentElement.style.background = '#fff';
-		document.body.style.background = '#fff';
+		if (!isDevPreview && !isBrowserPreview) return;
+		const background = isBrowserPreview ? '#1a1714' : '#fff';
+		document.documentElement.style.background = background;
+		document.body.style.background = background;
 		return () => {
 			document.documentElement.style.background = '';
 			document.body.style.background = '';
@@ -73,6 +76,8 @@
 			{/each}
 		</div>
 	</div>
+{:else if userId && isBrowserPreview}
+	<p class="waiting">Waiting for a match…</p>
 {/if}
 
 {#if isDevPreview}
@@ -140,5 +145,11 @@
 		color: #111;
 		font: 500 12px/1.2 var(--font-data);
 		border: 1px solid rgba(0, 0, 0, 0.15);
+	}
+
+	.waiting {
+		margin: 24px;
+		color: #ece6d8;
+		font: 500 14px/1.4 var(--font-data);
 	}
 </style>

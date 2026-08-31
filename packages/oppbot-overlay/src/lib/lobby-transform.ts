@@ -9,6 +9,12 @@ const MATCH_TYPES: Record<number, string> = {
 	14: 'Comp Stomp'
 };
 
+/** Closed Relic slots are Id -1 with Type 3/6. Real AI is Type 1. */
+function isOccupiedLobbySlot(player: Player): boolean {
+	if (player.playerId === -1) return player.type === 1;
+	return true;
+}
+
 function groupByTeam(players: Player[]) {
 	const grouped = new Map<number, Player[]>();
 	for (const player of players) {
@@ -54,7 +60,7 @@ export function liveLobbyToLobbyData(
 	record: LiveLobbyRecord,
 	steamIds?: string[] | null
 ): LobbyData {
-	const players = record.players ?? [];
+	const players = (record.players ?? []).filter(isOccupiedLobbySlot);
 	const matchType = getMatchType(players, record.isRanked);
 
 	return {

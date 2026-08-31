@@ -31,6 +31,127 @@ export function isLiveGameForm(form: string): boolean {
 	return LIVE_GAME_FORMS.has(form);
 }
 
+const LOG_FACTION_RACE: Record<string, number> = {
+	allies: 0,
+	axis: 1,
+	allies_commonwealth: 2,
+	axis_panzer_elite: 3
+};
+
+/** Maps `MOD - Setting player (N) race to: allies` (and sibling faction names) to Race 0–3. */
+export function raceFromLogFaction(faction: string): number | null {
+	const race = LOG_FACTION_RACE[faction.trim().toLowerCase()];
+	return race == null ? null : race;
+}
+
+/** Allies / Commonwealth → team 0, Axis / Panzer Elite → team 1. */
+export function teamFromRace(race: number): number {
+	return race === 0 || race === 2 ? 0 : 1;
+}
+
+/**
+ * Relic logs closed/empty slots as Id -1 with Type 3 or 6.
+ * Real skirmish AI is Id -1 with Type 1. Replay placeholders use Id 0.
+ */
+export function isOccupiedLobbySlot(player: { playerId: number; type: number }): boolean {
+	if (player.playerId === -1) return player.type === 1;
+	return true;
+}
+
+/** Last path segment of `DATA:scenarios\mp\classic\4p_duclair\4p_duclair`. */
+export function mapFromScenarioPath(scenario: string): string {
+	const trimmed = scenario.replace(/^['"]|['"]$/g, '').trim();
+	const parts = trimmed.split(/[/\\]/);
+	return parts[parts.length - 1] || trimmed;
+}
+
+export type ReplayHeaderPlayer = {
+	name: string;
+	faction: string;
+	steamId?: string;
+};
+
+function normalizeMapKey(value: string): string {
+	return value.toLowerCase().replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** True when the log only had a slot label (`Player 1`) and no rec/Relic name. */
+export function isPlaceholderPlayerName(name: string | undefined): boolean {
+	if (!name?.trim()) return true;
+	return /^player\s+\d+$/i.test(name.trim());
+}
+
+export function replayMapsMatch(lobbyMap: string | undefined, recMapFileName: string): boolean {
+	if (!lobbyMap?.trim() || !recMapFileName?.trim()) return false;
+	const lobbyKey = normalizeMapKey(mapFromScenarioPath(lobbyMap));
+	if (!lobbyKey) return false;
+	const recKey = normalizeMapKey(mapFromScenarioPath(recMapFileName));
+	return recKey === lobbyKey || normalizeMapKey(recMapFileName).includes(lobbyKey);
+}
+
+function raceFromRecFaction(faction: string): number | null {
+	return raceFromLogFaction(faction);
+}
+
+export function replayFactionsMatch(
+	lobbyPlayers: { race: number }[],
+	recPlayers: ReplayHeaderPlayer[]
+): boolean {
+	if (lobbyPlayers.length === 0 || lobbyPlayers.length !== recPlayers.length) return false;
+	const lobbyRaces = lobbyPlayers.map((player) => player.race).sort((a, b) => a - b);
+	const recRaces: number[] = [];
+	for (const player of recPlayers) {
+		const race = raceFromRecFaction(player.faction);
+		if (race == null) return false;
+		recRaces.push(race);
+	}
+	recRaces.sort((a, b) => a - b);
+	return lobbyRaces.every((race, i) => race === recRaces[i]);
+}
+
+export function replayHeaderMatchesLobby(
+	lobby: { map?: string; players: { race: number }[] },
+	rec: { mapFileName: string; players: ReplayHeaderPlayer[] }
+): boolean {
+	return replayMapsMatch(lobby.map, rec.mapFileName) && replayFactionsMatch(lobby.players, rec.players);
+}
+
+/** Copies rec names onto log placeholder slots, matching race then index. */
+export function assignReplayNames(
+	lobbyPlayers: { index: number; race: number; name?: string; steamId?: string }[],
+	recPlayers: ReplayHeaderPlayer[]
+): boolean {
+	if (!replayFactionsMatch(lobbyPlayers, recPlayers)) return false;
+	const used = new Set<number>();
+	const slots = [...lobbyPlayers].sort((a, b) => a.index - b.index);
+	for (const player of slots) {
+		const byIndex = recPlayers[player.index];
+		let recIndex = -1;
+		if (
+			byIndex &&
+			!used.has(player.index) &&
+			raceFromRecFaction(byIndex.faction) === player.race
+		) {
+			recIndex = player.index;
+		} else {
+			recIndex = recPlayers.findIndex(
+				(rec, i) => !used.has(i) && raceFromRecFaction(rec.faction) === player.race
+			);
+		}
+		if (recIndex < 0) return false;
+		used.add(recIndex);
+		const rec = recPlayers[recIndex];
+		const recName = rec.name?.trim();
+		if (recName && isPlaceholderPlayerName(player.name)) {
+			player.name = recName;
+		}
+		if (rec.steamId && !player.steamId) {
+			player.steamId = rec.steamId;
+		}
+	}
+	return true;
+}
+
 /** Negative, non-zero id so replay upserts satisfy sessionId without colliding with Relic ids. */
 export function syntheticReplaySessionId(startedAt: string | null | undefined): number {
 	const source = startedAt?.trim() || 'replay';
@@ -194,11 +315,35 @@ export class Lobby {
 	}
 
 	addPlayer(player: LobbyPlayer) {
-		if (this.players.some((p) => p.index === player.index)) {
+		if (!isOccupiedLobbySlot(player)) {
+			this.removePlayer(player.index);
+			return;
+		}
+
+		const existing = this.players.find((p) => p.index === player.index);
+		if (existing) {
+			if (existing.playerId !== player.playerId) {
+				existing.profile = undefined;
+				existing.matchHistory = undefined;
+				existing.steamId = undefined;
+			}
+			existing.playerId = player.playerId;
+			existing.type = player.type;
+			existing.race = player.race;
+			existing.team = player.team;
+			if (player.name) existing.name = player.name;
 			return;
 		}
 
 		this.players.push(player);
+	}
+
+	removePlayer(index: number) {
+		this.players = this.players.filter((player) => player.index !== index);
+	}
+
+	pruneEmptySlots() {
+		this.players = this.players.filter(isOccupiedLobbySlot);
 	}
 
 	/**
@@ -235,6 +380,10 @@ export class Lobby {
 
 	getPlayerById(playerId: number): LobbyPlayer | undefined {
 		return this.players.find((player) => player.playerId === playerId);
+	}
+
+	applyReplayPlayerNames(recPlayers: ReplayHeaderPlayer[]): boolean {
+		return assignReplayNames(this.players, recPlayers);
 	}
 
 	toJSON(): Match {

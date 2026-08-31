@@ -8,6 +8,7 @@
 		getEloColor,
 		getEloTextShadow,
 		getFlagImage,
+		getPlayerDisplayName,
 		getRaceImage,
 		getRankImage,
 		isEliteElo
@@ -24,7 +25,7 @@
 
 	let { player, matchType, teamIndex, isMe = false, isReplay = false }: Props = $props();
 
-	const alias = $derived(player.profile?.alias ?? player.name ?? 'CPU');
+	const alias = $derived(getPlayerDisplayName(player));
 	const country = $derived(player.profile?.country);
 	const rec = $derived(getCombatRecord(matchType, player));
 	const streak = $derived(formatStreak(rec.streak));

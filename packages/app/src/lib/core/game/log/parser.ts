@@ -23,6 +23,9 @@ export type TriggerEvents = {
 		team: number;
 		race: number;
 	};
+	'LOG:LOBBY:POPULATING:PLAYER:RACE': { index: number; faction: string };
+	'LOG:LOBBY:POPULATING:SCENARIO': { scenario: string };
+	'LOG:LOBBY:PLAYBACK': undefined;
 	'LOG:LOBBY:POPULATING:PLAYER:COUNT': { count: number };
 	'LOG:LOBBY:POPULATING:PLAYER:STEAM': { steamId: string; slot: number; ranking: number };
 	'LOG:LOBBY:POPULATING:MATCH:TYPE': { type: number };
@@ -58,21 +61,21 @@ export const triggers: Record<TriggerName, RegExp> = {
 	'LOG:LOBBY:POPULATING:MAP': createRegExp(
 		exactly('GAME -- *** Beginning mission ').and(oneOrMore(char).before(' (').groupedAs('map'))
 	),
-	'LOG:LOBBY:POPULATING:PLAYER': createRegExp(
+	'LOG:LOBBY:POPULATING:PLAYER':
+		/PopulateGameInfoInternal - Player #(?<index>\d+)(?:, Name (?<name>.+?))?(?:, Id | - \[Id )(?<playerId>-?\d+), Type (?<type>\d+), Team (?<team>\d+), Race (?<race>\d+)/,
+	'LOG:LOBBY:POPULATING:PLAYER:RACE': createRegExp(
 		oneOrMore(digit)
-			.after('PopulateGameInfoInternal - Player #')
+			.after('MOD - Setting player (')
 			.groupedAs('index')
-			.and(exactly(', Name '))
-			.and(oneOrMore(char).before(', Id ').groupedAs('name'))
-			.and(oneOrMore(char))
-			.and(oneOrMore(digit).or('-1').after('Id ').groupedAs('playerId'))
-			.and(oneOrMore(char))
-			.and(oneOrMore(digit).after('Type ').groupedAs('type'))
-			.and(oneOrMore(char))
-			.and(oneOrMore(digit).after('Team ').groupedAs('team'))
-			.and(oneOrMore(char))
-			.and(oneOrMore(digit).after('Race ').groupedAs('race'))
+			.and(exactly(') race to: '))
+			.and(oneOrMore(char).groupedAs('faction'))
 	),
+	'LOG:LOBBY:POPULATING:SCENARIO': createRegExp(
+		exactly("MOD -- Locating MOD for scenario '").and(
+			oneOrMore(char).before("'").groupedAs('scenario')
+		)
+	),
+	'LOG:LOBBY:PLAYBACK': createRegExp(exactly('GAME -- Beginning playback')),
 	'LOG:LOBBY:POPULATING:PLAYER:COUNT': createRegExp(
 		oneOrMore(digit).after('GetMaxFrameTimeFromProfile: players=').groupedAs('count')
 	),
@@ -112,7 +115,16 @@ export const triggers: Record<TriggerName, RegExp> = {
 };
 
 /** Keys that must remain strings (e.g. Steam IDs exceed Number.MAX_SAFE_INTEGER). */
-const STRING_KEYS = new Set(['steamId', 'startedAt', 'form', 'name', 'map', 'result']);
+const STRING_KEYS = new Set([
+	'steamId',
+	'startedAt',
+	'form',
+	'name',
+	'map',
+	'result',
+	'faction',
+	'scenario'
+]);
 
 function coerce(value: string): string | number {
 	const parsed = Number(value);
@@ -137,6 +149,7 @@ export function parseLogLine(line: string): TriggerEvent | null {
 		const data: Record<string, string | number> = {};
 
 		for (const [key, value] of Object.entries(match.groups)) {
+			if (value == null || value === '') continue;
 			data[key] = STRING_KEYS.has(key) ? value : coerce(value);
 		}
 

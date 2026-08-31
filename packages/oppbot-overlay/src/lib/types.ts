@@ -54,6 +54,7 @@ export interface Player {
 	team: number;
 	type: number;
 	matchHistory?: MatchHistoryEntry[];
+	storedElo?: Record<string, Record<string, { rating: number }>>;
 }
 
 export interface Team {

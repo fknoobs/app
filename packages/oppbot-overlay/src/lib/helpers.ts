@@ -75,6 +75,21 @@ export function getLeaderboardStat(
 	return statGroup ?? null;
 }
 
+export function getStoredEloRating(
+	elo: Player['storedElo'],
+	matchType: number,
+	race: number
+): number | null {
+	const rating = elo?.[String(matchType)]?.[String(race)]?.rating;
+	if (typeof rating !== 'number' || rating < 1) return null;
+	return rating;
+}
+
+function eloTypesToTry(matchType: number): number[] {
+	if (matchType === 0 || matchType === 14) return [matchType, 1, 2, 3, 4];
+	return [matchType];
+}
+
 export function getPlayerEloFromMatchHistory(matchType: number, player: Player): number | null {
 	const history = player.matchHistory;
 	if (!history?.length) return null;
@@ -101,4 +116,15 @@ export function getPlayerEloFromMatchHistory(matchType: number, player: Player):
 	}
 
 	return elo;
+}
+
+/** Custom / skirmish overlays look up type 0/14 first, then 1v1–4v4 and stored ratings. */
+export function resolvePlayerElo(matchType: number, player: Player): number | null {
+	for (const type of eloTypesToTry(matchType)) {
+		const fromHistory = getPlayerEloFromMatchHistory(type, player);
+		if (fromHistory != null) return fromHistory;
+		const fromStored = getStoredEloRating(player.storedElo, type, player.race);
+		if (fromStored != null) return fromStored;
+	}
+	return null;
 }

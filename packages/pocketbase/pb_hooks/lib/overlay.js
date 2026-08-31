@@ -53,17 +53,48 @@ function normalizeRelativePath(relPath) {
 	return normalized || 'index.html';
 }
 
-function resolveOverlayFile(userId, relPath) {
+function requestHost(e) {
+	const header = String(e.request.header.get('Host') || '')
+		.split(':')[0]
+		.toLowerCase();
+	if (header) return header;
+	try {
+		const host = e.request.url?.host;
+		if (host) return String(host).split(':')[0].toLowerCase();
+	} catch {
+		// ignore
+	}
+	return '';
+}
+
+function preferDefaultOverlay(e) {
+	const host = requestHost(e);
+	return (
+		host === '127.0.0.1' ||
+		host === 'localhost' ||
+		host === '::1' ||
+		host === '0.0.0.0'
+	);
+}
+
+function resolveOverlayFile(userId, relPath, useDefaultFirst) {
 	const normalized = normalizeRelativePath(relPath);
 	const userPath = `${userOverlayDir(userId)}/${normalized}`;
-
-	if (fileExists(userPath)) {
-		return { root: userOverlayDir(userId), path: normalized };
-	}
-
 	const defaultPath = `${defaultBuildRoot()}/${normalized}`;
-	if (fileExists(defaultPath)) {
-		return { root: defaultBuildRoot(), path: normalized };
+	const roots = useDefaultFirst
+		? [
+				{ root: defaultBuildRoot(), path: defaultPath },
+				{ root: userOverlayDir(userId), path: userPath }
+			]
+		: [
+				{ root: userOverlayDir(userId), path: userPath },
+				{ root: defaultBuildRoot(), path: defaultPath }
+			];
+
+	for (const candidate of roots) {
+		if (fileExists(candidate.path)) {
+			return { root: candidate.root, path: normalized };
+		}
 	}
 
 	return null;
@@ -74,7 +105,7 @@ function serveOverlayFile(e, userId, relPath) {
 		throw new BadRequestError('Invalid user id');
 	}
 
-	const resolved = resolveOverlayFile(userId, relPath);
+	const resolved = resolveOverlayFile(userId, relPath, preferDefaultOverlay(e));
 	if (!resolved) {
 		throw new NotFoundError('File not found');
 	}
@@ -95,6 +126,13 @@ function serveOverlayFile(e, userId, relPath) {
 
 		if (!content.includes('<base ')) {
 			content = content.replace('<head>', `<head>\n\t\t<base href="${baseHref}" />`);
+		}
+
+		if (!content.includes('__OPP_PB_URL')) {
+			content = content.replace(
+				'<head>',
+				'<head>\n\t\t<script>window.__OPP_PB_URL=location.origin;</script>'
+			);
 		}
 
 		return e.string(200, content);

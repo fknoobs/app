@@ -24,7 +24,12 @@ import type { AppSettings } from '$core/config/schema';
 import { account } from '$core/account';
 import { game } from '$core/game/process.svelte';
 import { GameLogService } from '$core/game/log/index.svelte';
-import { Lobby, lobbyPublishKey, type Match } from '$core/game/lobby';
+import {
+	isPlaceholderPlayerName,
+	Lobby,
+	lobbyPublishKey,
+	type Match
+} from '$core/game/lobby';
 import { database } from '$core/app/database';
 import { LOBBIES_LIVE_HEARTBEAT_MS } from '$core/app/database/lobbies-live';
 import { SocketManager, SocketState } from '$core/app/socket.svelte';
@@ -133,6 +138,8 @@ export class AppContext extends Emittery<AppEvents> {
 	#publishedJoinedKey: string | null = null;
 	/** Last published `game.lobby.started` match key (once per match). */
 	#publishedStartedKey: string | null = null;
+	/** Avoids rescanning playback recs for the same replay lobby. */
+	#replayNameAttachKey: string | null = null;
 
 	constructor() {
 		super();
@@ -423,8 +430,12 @@ export class AppContext extends Emittery<AppEvents> {
 		// Always refresh local lobby (covers post-start profile/history enrichment).
 		this.lobby = match;
 
+		const waitingForReplayNames =
+			lobby.isReplay && lobby.players.some((player) => isPlaceholderPlayerName(player.name));
+
 		if (!isFirstPublish) {
-			this.#upsertLiveLobby(match);
+			if (!waitingForReplayNames) this.#upsertLiveLobby(match);
+			if (lobby.isReplay) void this.#attachReplayPlayerNames(lobby);
 			return;
 		}
 
@@ -440,6 +451,27 @@ export class AppContext extends Emittery<AppEvents> {
 
 		this.#upsertLiveLobby(match);
 		this.#startLiveLobbyHeartbeat();
+		if (lobby.isReplay) void this.#attachReplayPlayerNames(lobby);
+	}
+
+	async #attachReplayPlayerNames(lobby: Lobby): Promise<void> {
+		if (!lobby.isReplay || !lobby.map) return;
+		if (!lobby.players.some((player) => isPlaceholderPlayerName(player.name))) return;
+		const key = lobbyPublishKey(lobby);
+		if (!key || this.#replayNameAttachKey === key) return;
+		this.#replayNameAttachKey = key;
+		try {
+			const recPlayers = await this.features.history.findReplayHeaderPlayers(lobby);
+			if (this.gameLog.lobby !== lobby) return;
+			if (recPlayers?.length) {
+				lobby.applyReplayPlayerNames(recPlayers);
+			}
+			const match = lobby.toJSON();
+			this.lobby = match;
+			this.#upsertLiveLobby(match);
+		} catch (error) {
+			console.warn('[APP]: failed to attach replay player names:', error);
+		}
 	}
 
 	#onLobbyGameover(lobby: Lobby) {
@@ -536,6 +568,7 @@ export class AppContext extends Emittery<AppEvents> {
 		this.#stopLiveLobbyHeartbeat();
 		this.#publishedJoinedKey = null;
 		this.#publishedStartedKey = null;
+		this.#replayNameAttachKey = null;
 		this.game.isIngame = false;
 		this.lobby = null;
 		this.database.lobbiesLive
