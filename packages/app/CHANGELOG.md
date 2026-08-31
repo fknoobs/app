@@ -1,5 +1,9 @@
 # @company-of-heroes/app
 
+## 0.59.5
+
+- fix; prevent desktop screenshots during fair play
+
 ## 0.59.4
 
 - fix; display fair play message sooner
