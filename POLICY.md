@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective date:** August 30, 2026
+**Effective date:** August 31, 2026
 
 This Privacy Policy explains how **Code IT** (“we”, “us”) collects, uses, shares, and protects information when you use **Company of Heroes Companion** (also called the FKNOOBS App), the website at [https://coh1stats.com](https://coh1stats.com), and the API at [https://api.coh1stats.com](https://api.coh1stats.com) (together, the “Service”).
 
@@ -58,7 +58,7 @@ Staff can attach public badges (for example Premium or Streamer) to Relic/Steam 
 
 Fair play checks are **on by default** and can be turned off in Settings. While they are enabled, during a match the app may:
 
-- take random screenshots of the Company of Heroes window and upload them for review and analysis (these can include other players’ in-game names and units);
+- take random screenshots of the Company of Heroes window **only while that window is in the foreground**, and upload them for review and analysis (these can include other players’ in-game names and units). We do not capture the Windows desktop, the taskbar, or other applications;
 - check running process names against a denylist and report a match (process name and process id);
 - open all-chat in Company of Heroes and type a short local message (visible to other players in that match) saying the player is supervised by coh1stats.com and is not using cheats, if you leave the all-chat announce setting on. We do not upload that message; it can still appear in replays other people save;
 - store reports and a staff-maintained list of flagged Steam IDs.

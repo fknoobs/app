@@ -213,7 +213,7 @@
 	"Downloading update...": "업데이트를 다운로드하는 중...",
 	"Downloads": "다운로드",
 	"Duration": "시간",
-	"During a match the app takes random screenshots of the Company of Heroes window and checks for known cheat processes. These are uploaded for review and later analysis.": "매치 중 앱이 Company of Heroes 창의 무작위 스크린샷을 찍고 알려진 치트 프로세스를 확인합니다. 검토와 이후 분석을 위해 업로드됩니다.",
+	"During a match the app takes random screenshots of the Company of Heroes window (only while it is in front, never your desktop) and checks for known cheat processes. These are uploaded for review and later analysis.": "매치 중 앱이 Company of Heroes 창이 앞에 있을 때만(데스크톱은 절대 촬영하지 않음) 무작위 스크린샷을 찍고 알려진 치트 프로세스를 확인합니다. 검토와 이후 분석을 위해 업로드됩니다.",
 	"Edit alias": "별칭 편집",
 	"Edit Option": "옵션 편집",
 	"Edit Svelte/CSS in src/": "src/에서 Svelte/CSS 편집",

@@ -352,6 +352,12 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			return;
 		}
 
+		if (!app.game.isWindowFocused) {
+			console.info('[ANTI-CHEAT]: skip capture, game is not focused');
+			this.#retryCapture(attempts);
+			return;
+		}
+
 		try {
 			const capture = await invoke<GameWindowCapture>('capture_game_window');
 			if (!this.#isLiveMatch()) {

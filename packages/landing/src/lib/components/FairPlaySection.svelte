@@ -18,7 +18,7 @@
 			id: 'screenshots',
 			title: 'Match screenshots',
 			description:
-				'During a match the app takes random screenshots of the Company of Heroes window and uploads them for review.',
+				'During a match the app takes random screenshots of the Company of Heroes window (only while it is in front, never your desktop) and uploads them for review.',
 			icon: CameraIcon
 		},
 		{

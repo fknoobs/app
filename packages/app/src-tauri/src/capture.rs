@@ -4,6 +4,7 @@ const MAX_WIDTH: u32 = 1920;
 const JPEG_QUALITY: u8 = 70;
 const MIN_WINDOW_WIDTH: u32 = 400;
 const MIN_WINDOW_HEIGHT: u32 = 300;
+const FULLSCREEN_COVERAGE_PCT: u64 = 99;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,20 +35,28 @@ fn capture_game_window_sync() -> Result<GameWindowCapture, String> {
     use image::codecs::jpeg::JpegEncoder;
     use image::{DynamicImage, ExtendedColorType};
 
-    let window = pick_coh_window()?;
+    let coh_pid = relic_coh_pid().ok_or_else(|| "Company of Heroes is not running".to_string())?;
+    ensure_coh_foreground(coh_pid)?;
+
+    let window = pick_coh_window(coh_pid)?;
     let mut rgba = window.capture_image().map_err(|error| error.to_string())?;
 
-    // PrintWindow/GDI often returns a uniform black frame for DirectX games.
-    // If the game is focused, capture the pixels actually on screen instead.
-    if is_blank_frame(&rgba) && window.is_focused().unwrap_or(false) {
-        if let Ok(visible) = capture_visible_window(&window) {
-            rgba = visible;
+    // PrintWindow/GDI is often a black frame for DirectX. Recapture the monitor
+    // only when CoH is still in front and covering that monitor — never crop a
+    // windowed/alt-tabbed desktop into the upload.
+    if is_blank_frame(&rgba) {
+        ensure_coh_foreground(coh_pid)?;
+        if is_fullscreen_on_its_monitor(&window) {
+            rgba = capture_fullscreen_game(&window)?;
+            ensure_coh_foreground(coh_pid)?;
         }
     }
 
     if is_blank_frame(&rgba) {
         return Err("Company of Heroes capture was blank".into());
     }
+
+    ensure_coh_foreground(coh_pid)?;
 
     let mut image = DynamicImage::ImageRgba8(rgba);
     if image.width() > MAX_WIDTH {
@@ -77,13 +86,12 @@ fn capture_game_window_sync() -> Result<GameWindowCapture, String> {
 }
 
 #[cfg(windows)]
-fn pick_coh_window() -> Result<xcap::Window, String> {
+fn pick_coh_window(coh_pid: u32) -> Result<xcap::Window, String> {
     let windows = xcap::Window::all().map_err(|error| error.to_string())?;
-    let coh_pid = relic_coh_pid();
     let mut best: Option<(u64, xcap::Window)> = None;
 
     for window in windows {
-        if !is_coh_window(&window, coh_pid) {
+        if window.pid().ok() != Some(coh_pid) {
             continue;
         }
         if window.is_minimized().unwrap_or(true) {
@@ -138,7 +146,29 @@ fn is_blank_frame(image: &image::RgbaImage) -> bool {
 }
 
 #[cfg(windows)]
-fn capture_visible_window(window: &xcap::Window) -> Result<image::RgbaImage, String> {
+fn is_fullscreen_on_its_monitor(window: &xcap::Window) -> bool {
+    let Ok(monitor) = window.current_monitor() else {
+        return false;
+    };
+    let mw = u64::from(monitor.width().unwrap_or(0));
+    let mh = u64::from(monitor.height().unwrap_or(0));
+    let ww = u64::from(window.width().unwrap_or(0));
+    let wh = u64::from(window.height().unwrap_or(0));
+    if mw == 0 || mh == 0 || ww == 0 || wh == 0 {
+        return false;
+    }
+    let mx = monitor.x().unwrap_or(0);
+    let my = monitor.y().unwrap_or(0);
+    let wx = window.x().unwrap_or(i32::MIN);
+    let wy = window.y().unwrap_or(i32::MIN);
+    if (wx - mx).abs() > 4 || (wy - my).abs() > 4 {
+        return false;
+    }
+    ww.saturating_mul(wh).saturating_mul(100) >= mw.saturating_mul(mh).saturating_mul(FULLSCREEN_COVERAGE_PCT)
+}
+
+#[cfg(windows)]
+fn capture_fullscreen_game(window: &xcap::Window) -> Result<image::RgbaImage, String> {
     use image::DynamicImage;
 
     let monitor = window
@@ -185,15 +215,25 @@ fn relic_coh_pid() -> Option<u32> {
 }
 
 #[cfg(windows)]
-fn is_coh_window(window: &xcap::Window, coh_pid: Option<u32>) -> bool {
-    if let Some(pid) = coh_pid {
-        if window.pid().ok() == Some(pid) {
-            return true;
-        }
-    }
+fn foreground_pid() -> Option<u32> {
+    use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
 
-    window
-        .title()
-        .map(|title| title.to_lowercase().contains("company of heroes"))
-        .unwrap_or(false)
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.0 == 0 {
+            return None;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        (pid != 0).then_some(pid)
+    }
+}
+
+#[cfg(windows)]
+fn ensure_coh_foreground(coh_pid: u32) -> Result<(), String> {
+    if foreground_pid() == Some(coh_pid) {
+        Ok(())
+    } else {
+        Err("Company of Heroes is not in the foreground".into())
+    }
 }

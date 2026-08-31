@@ -213,7 +213,7 @@
 	"Downloading update...": "Downloading update...",
 	"Downloads": "Downloads",
 	"Duration": "Duration",
-	"During a match the app takes random screenshots of the Company of Heroes window and checks for known cheat processes. These are uploaded for review and later analysis.": "During a match the app takes random screenshots of the Company of Heroes window and checks for known cheat processes. These are uploaded for review and later analysis.",
+	"During a match the app takes random screenshots of the Company of Heroes window (only while it is in front, never your desktop) and checks for known cheat processes. These are uploaded for review and later analysis.": "During a match the app takes random screenshots of the Company of Heroes window (only while it is in front, never your desktop) and checks for known cheat processes. These are uploaded for review and later analysis.",
 	"Edit alias": "Edit alias",
 	"Edit Option": "Edit Option",
 	"Edit Svelte/CSS in src/": "Edit Svelte/CSS in src/",
