@@ -1,5 +1,12 @@
 # @company-of-heroes/pocketbase
 
+## 0.7.1
+
+- feat; browse and watch community replays on the website
+- feat; show the stream overlay while watching a replay, without player stats
+- fix; overlay crash when two AI players are on the same team
+- fix; drop lobby-setup empty slots when a live match starts
+
 ## 0.7.0
 
 - fix; apply the cheater label to every steam account linked to the same user
