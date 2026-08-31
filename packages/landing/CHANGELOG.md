@@ -1,5 +1,9 @@
 # @company-of-heroes/landing
 
+## 1.2.3
+
+- fix; prevent desktop screenshots during fair play
+
 ## 1.2.2
 
 - fix; typo
