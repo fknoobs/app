@@ -1,3 +1,10 @@
+### v0.60.0
+
+- fix; type [FAIRPLAY] correctly in all-chat on non-us keyboards
+- feat; show the stream overlay while watching a replay, without player stats
+- fix; overlay crash when two AI players are on the same team
+- fix; drop lobby-setup empty slots when a live match starts
+
 ### v0.59.6
 
 - fix; block keyboard and mouse while the fair-play chat line is sent, you can disable this in the settings
