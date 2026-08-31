@@ -1,5 +1,13 @@
 # @company-of-heroes/app
 
+## 0.59.6
+
+- fix; block keyboard and mouse while the fair-play chat line is sent, you can disable this in the settings
+- enhance; keep form labels, descriptions, and inputs in one visual group
+- enhance; match settings game-path fields to the setup screen
+- enhance; make form section headers larger than field labels
+- fix; allow the main window to close when close-to-tray is off
+
 ## 0.59.5
 
 - fix; prevent desktop screenshots during fair play
