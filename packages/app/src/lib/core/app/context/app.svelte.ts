@@ -51,6 +51,7 @@ export type AppEvents = {
 	'game.logout': null;
 	'lobby.joined': Match;
 	'lobby.started': Match;
+	'lobby.missionStarting': Match | null;
 	'lobby.gameover': Match;
 	'lobby.destroyed': {
 		match: Match;
@@ -308,6 +309,7 @@ export class AppContext extends Emittery<AppEvents> {
 		this.gameLog.on('logout', () => this.#onLogout());
 		this.gameLog.on('lobby.joined', (lobby) => this.#onLobbyJoined(lobby));
 		this.gameLog.on('lobby.started', (lobby) => this.#onLobbyStarted(lobby));
+		this.gameLog.on('lobby.missionStarting', (lobby) => this.#onLobbyMissionStarting(lobby));
 		this.gameLog.on('lobby.gameover', (lobby) => this.#onLobbyGameover(lobby));
 		this.gameLog.on('lobby.result', ({ playerId, result }) =>
 			this.#onLobbyResult(playerId, result)
@@ -394,6 +396,14 @@ export class AppContext extends Emittery<AppEvents> {
 
 		this.emit('lobby.joined', lobby.toJSON());
 		this.socket.publish('game.lobby.joined', lobby.toJSON());
+	}
+
+	#onLobbyMissionStarting(lobby: Lobby | undefined) {
+		if (!this.isReady) {
+			return;
+		}
+
+		this.emit('lobby.missionStarting', lobby ? lobby.toJSON() : this.lobby);
 	}
 
 	#onLobbyStarted(lobby: Lobby) {

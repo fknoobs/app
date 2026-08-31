@@ -30,6 +30,7 @@ export type SessionEvents = {
 	logout: undefined;
 	'lobby.joined': Lobby;
 	'lobby.started': Lobby;
+	'lobby.missionStarting': Lobby | undefined;
 	'lobby.gameover': Lobby;
 	'lobby.destroyed': Lobby;
 	'lobby.result': { playerId: number; result: 'PS_WON' | 'PS_KILLED' };
@@ -171,22 +172,28 @@ export class LogSession extends Emittery<SessionEvents> {
 	}
 
 	async #onStarted(): Promise<void> {
+		await this.emitSerial('lobby.missionStarting', this.lobby);
+
 		if (!this.lobby || this.lobby.started) return;
 
-		const profileIds = this.lobby.getPlayerIds();
+		const lobby = this.lobby;
+		const profileIds = lobby.getPlayerIds();
 
-		this.lobby.sessionId = this.sessionId;
-		this.lobby.started = true;
+		lobby.sessionId = this.sessionId;
+		lobby.started = true;
 
-		// Emit immediately so the UI can redirect; enrich players afterwards.
-		await this.emitSerial('lobby.started', this.lobby);
+		await this.emitSerial('lobby.started', lobby);
 
 		if (profileIds.length === 0) return;
 
+		void this.#enrichStartedLobby(lobby, profileIds);
+	}
+
+	async #enrichStartedLobby(lobby: Lobby, profileIds: number[]): Promise<void> {
 		try {
 			const profiles = await this.#deps.getProfileByIds(profileIds);
 
-			this.lobby.players.forEach((player) => {
+			lobby.players.forEach((player) => {
 				player.profile = profiles.find(
 					(profile) => profile.profile_id === player.playerId
 				) as typeof player.profile;
@@ -195,18 +202,22 @@ export class LogSession extends Emittery<SessionEvents> {
 			console.error('[LOG]: Failed to resolve lobby player profiles:', error);
 		}
 
-		await this.#attachMatchHistory();
-		// Second emit refreshes app.lobby with profiles/history (deduped at App).
-		await this.emitSerial('lobby.started', this.lobby);
+		await this.#attachMatchHistory(lobby);
+
+		if (this.lobby !== lobby) {
+			return;
+		}
+
+		await this.emitSerial('lobby.started', lobby);
 	}
 
-	async #attachMatchHistory(): Promise<void> {
-		if (!this.lobby) {
+	async #attachMatchHistory(lobby: Lobby): Promise<void> {
+		if (!lobby) {
 			return;
 		}
 
 		await Promise.all(
-			this.lobby.players.map(async (player) => {
+			lobby.players.map(async (player) => {
 				const profileId = player.profile?.profile_id;
 
 				if (!profileId) {

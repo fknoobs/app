@@ -44,6 +44,7 @@ export class GameLogService extends Emittery<GameLogEvents> {
 		});
 
 		this.#tailer = new LogTailer({
+			intervalMs: 100,
 			onLines: async (lines) => {
 				for (const line of lines) {
 					const event = parseLogLine(line);
@@ -124,6 +125,7 @@ export class GameLogService extends Emittery<GameLogEvents> {
 			}
 
 			if (lobby.started) {
+				void this.emitSerial('lobby.missionStarting', lobby);
 				void this.emitSerial('lobby.started', lobby);
 				return;
 			}

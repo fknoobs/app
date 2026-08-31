@@ -45,8 +45,9 @@ const CAPTURE_RETRY_MIN_MS = 5_000;
 const CAPTURE_RETRY_MAX_MS = 15_000;
 const MAX_CAPTURE_RETRIES = 20;
 const CHAT_ANNOUNCE_MESSAGE = '[FAIRPLAY] Supervised by coh1stats.com';
-const CHAT_ANNOUNCE_RETRY_MS = 3_000;
-const CHAT_ANNOUNCE_RETRY_WINDOW_MS = 60_000;
+const CHAT_ANNOUNCE_RETRY_MS = 200;
+const CHAT_ANNOUNCE_RETRY_WINDOW_MS = 15_000;
+const CHAT_ANNOUNCE_DEDUP_MS = 10_000;
 
 function randomInt(min: number, max: number): number {
 	return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -88,20 +89,32 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 	#disposeWatchers: (() => void) | null = null;
 	#captureTimers: ReturnType<typeof setTimeout>[] = [];
 	#processTimer: ReturnType<typeof setTimeout> | null = null;
+	#chatRetryTimer: ReturnType<typeof setTimeout> | null = null;
 	#session: ActiveSession | null = null;
 	#sessionToken = 0;
 	#denylist: AntiCheatProcessDenylistResponse[] = [];
 	#reportedHits = new Set<string>();
+	#chatAnnounced = false;
+	#chatAnnounceInFlight = false;
+	#lastChatAnnounceAt = 0;
 
 	enable() {
 		this.#unsubscribers.push(
+			app.on('lobby.joined', () => {
+				this.#resetChatAnnounce();
+			}),
+			app.on('lobby.missionStarting', () => {
+				void this.#announceChatNow();
+			}),
 			app.on('lobby.started', (match) => {
 				void this.#startSession(match);
 			}),
 			app.on('lobby.gameover', () => {
+				this.#resetChatAnnounce();
 				this.#stopSession();
 			}),
 			app.on('lobby.destroyed', () => {
+				this.#resetChatAnnounce();
 				this.#stopSession();
 			})
 		);
@@ -111,6 +124,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 				() => app.game.isRunning,
 				(running) => {
 					if (!running) {
+						this.#resetChatAnnounce();
 						this.#stopSession();
 					}
 				}
@@ -123,6 +137,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 	}
 
 	disable() {
+		this.#resetChatAnnounce();
 		this.#stopSession();
 		this.#disposeWatchers?.();
 		this.#disposeWatchers = null;
@@ -160,7 +175,6 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			map: match.map || match.mapName || 'Unknown'
 		};
 		this.#reportedHits.clear();
-		void this.#announceChatNow();
 		await this.#refreshDenylist();
 		if (token !== this.#sessionToken || !this.#session) {
 			return;
@@ -192,6 +206,20 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 
 	#trackTimer(timer: ReturnType<typeof setTimeout>): void {
 		this.#captureTimers.push(timer);
+	}
+
+	#resetChatAnnounce(): void {
+		this.#chatAnnounced = false;
+		this.#chatAnnounceInFlight = false;
+		this.#lastChatAnnounceAt = 0;
+		if (this.#chatRetryTimer) {
+			clearTimeout(this.#chatRetryTimer);
+			this.#chatRetryTimer = null;
+		}
+	}
+
+	#recentlyAnnouncedChat(): boolean {
+		return this.#chatAnnounced && Date.now() - this.#lastChatAnnounceAt < CHAT_ANNOUNCE_DEDUP_MS;
 	}
 
 	#isLiveMatch(): boolean {
@@ -251,16 +279,30 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 	}
 
 	async #announceChatNow(): Promise<void> {
+		if (this.#chatAnnounceInFlight || this.#recentlyAnnouncedChat()) {
+			return;
+		}
+
 		if (!this.#shouldAnnounceChat()) {
 			console.info('[ANTI-CHEAT]: skip chat announce, disabled in settings');
 			return;
 		}
 
+		if (!app.game.isRunning) {
+			console.info('[ANTI-CHEAT]: skip chat announce, game is not running');
+			return;
+		}
+
+		console.info('[ANTI-CHEAT]: chat announce on Starting mission');
 		await this.#announceChatWithRetry(Date.now() + CHAT_ANNOUNCE_RETRY_WINDOW_MS);
 	}
 
 	async #announceChatWithRetry(deadlineMs: number): Promise<void> {
-		if (!this.#isLiveMatch() || !this.#shouldAnnounceChat()) {
+		if (this.#chatAnnounceInFlight || this.#recentlyAnnouncedChat()) {
+			return;
+		}
+
+		if (!app.game.isRunning || !this.#shouldAnnounceChat()) {
 			return;
 		}
 
@@ -269,12 +311,12 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			return;
 		}
 
+		this.#chatAnnounceInFlight = true;
 		await shortcuts.suspendBindings();
 		try {
 			await invoke('send_game_chat', { message: CHAT_ANNOUNCE_MESSAGE });
-			if (!this.#isLiveMatch()) {
-				return;
-			}
+			this.#chatAnnounced = true;
+			this.#lastChatAnnounceAt = Date.now();
 			console.info('[ANTI-CHEAT]: chat announce sent');
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
@@ -284,19 +326,24 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			}
 			console.warn('[ANTI-CHEAT]: chat announce failed:', error);
 		} finally {
+			this.#chatAnnounceInFlight = false;
 			shortcuts.resumeBindings();
 		}
 	}
 
 	#retryChatAnnounce(reason: string, deadlineMs: number): void {
-		if (!this.#isLiveMatch() || !this.#shouldAnnounceChat() || Date.now() >= deadlineMs) {
+		if (!app.game.isRunning || !this.#shouldAnnounceChat() || Date.now() >= deadlineMs) {
 			console.info('[ANTI-CHEAT]: skip chat announce,', reason);
 			return;
 		}
 
-		this.#trackTimer(
-			setTimeout(() => void this.#announceChatWithRetry(deadlineMs), CHAT_ANNOUNCE_RETRY_MS)
-		);
+		if (this.#chatRetryTimer) {
+			clearTimeout(this.#chatRetryTimer);
+		}
+		this.#chatRetryTimer = setTimeout(() => {
+			this.#chatRetryTimer = null;
+			void this.#announceChatWithRetry(deadlineMs);
+		}, CHAT_ANNOUNCE_RETRY_MS);
 	}
 
 	async #captureWithRetry(attempts: number): Promise<void> {
