@@ -394,6 +394,7 @@ export class AppContext extends Emittery<AppEvents> {
 			this.audio.pause();
 		}
 
+		this.game.closeIngameChatOpen();
 		this.emit('lobby.joined', lobby.toJSON());
 		this.socket.publish('game.lobby.joined', lobby.toJSON());
 	}
@@ -403,6 +404,10 @@ export class AppContext extends Emittery<AppEvents> {
 			return;
 		}
 
+		// Enter in the lobby toggles this flag; CoH closes that chat when the
+		// mission starts. A leftover true would block shortcuts and used to skip
+		// the fair-play announce.
+		this.game.closeIngameChatOpen();
 		this.emit('lobby.missionStarting', lobby ? lobby.toJSON() : this.lobby);
 	}
 
@@ -442,6 +447,7 @@ export class AppContext extends Emittery<AppEvents> {
 		}
 
 		this.game.isIngame = false;
+		this.game.closeIngameChatOpen();
 
 		if (this.lobby) {
 			this.lobby = { ...this.lobby, ended: true };
@@ -478,6 +484,7 @@ export class AppContext extends Emittery<AppEvents> {
 		this.socket.publish('game.lobby.destroyed', match);
 
 		this.game.isIngame = false;
+		this.game.closeIngameChatOpen();
 		this.#clearLiveLobbyOnGameExit();
 	}
 

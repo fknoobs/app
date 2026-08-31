@@ -62,6 +62,8 @@ pub fn run() {
             input::release_all_held_keys,
             input::shortcut_modifiers_match,
             input::send_game_chat,
+            input::lock_game_input,
+            input::unlock_game_input,
             hold_bindings::sync_hold_bindings,
             window::get_active_window_title,
             steam::get_steam_install_path

@@ -20,7 +20,7 @@ export class Game extends Emittery {
 	profile = $state<{ relic: RelicProfile; steam: SteamPlayerSummary }>();
 	isWindowFocused = $state<boolean>(false);
 
-	/** True while the in-game chat input is open (Enter toggles open/send). */
+	/** Best-effort: Enter toggles open/send. Resets on lobby transitions because CoH can close chat without Escape. */
 	isIngameChatOpen = $state(false);
 
 	/** Prevents duplicate "game started" notifications per session. */

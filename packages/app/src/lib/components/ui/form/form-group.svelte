@@ -5,9 +5,9 @@
 	import {
 		flushBand,
 		flushFooter,
-		flushHeader,
 		flushHeaderDescription,
-		flushHeaderTitle
+		flushHeaderTitle,
+		flushSectionTitle
 	} from '../variants';
 
 	type Layout = 'field' | 'band' | 'stacked';
@@ -38,18 +38,19 @@
 	const descriptionSnippet = $derived(typeof description === 'function' ? description : undefined);
 	const hasHeader = $derived(!!label || !!description || !!hint);
 	const hasBody = $derived(!!children || !!footer);
+	const titleClass = $derived(hasBody ? flushHeaderTitle : flushSectionTitle);
 </script>
 
-<div {...restProps} class={cn(className)}>
+<div {...restProps} class={cn('border-secondary-800 border-b', className)}>
 	{#if hasHeader}
-		<div class={flushHeader}>
+		<div class={hasBody ? 'px-4 pt-3' : 'px-4 py-4'}>
 			{#if label || hint}
 				<div class="flex items-center gap-2">
 					{#if label}
 						{#if inputId}
-							<label for={inputId} class={flushHeaderTitle}>{label}</label>
+							<label for={inputId} class={titleClass}>{label}</label>
 						{:else}
-							<p class={flushHeaderTitle}>{label}</p>
+							<p class={titleClass}>{label}</p>
 						{/if}
 					{/if}
 					{@render hint?.()}
@@ -76,7 +77,7 @@
 			{/if}
 		</div>
 	{:else if hasBody}
-		<div class="px-4 py-3">
+		<div class={hasHeader ? 'px-4 pt-2 pb-3' : 'px-4 py-3'}>
 			{#if children}
 				<div
 					class={layout === 'stacked'

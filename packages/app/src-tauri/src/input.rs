@@ -186,13 +186,16 @@ pub fn shortcut_modifiers_match(trigger: String) -> Result<bool, String> {
 #[cfg(target_os = "windows")]
 const CHAT_MAX_CHARS: usize = 80;
 #[cfg(target_os = "windows")]
-const CHAT_OPEN_DELAY_MS: u64 = 60;
+const CHAT_OPEN_DELAY_MS: u64 = 8;
 #[cfg(target_os = "windows")]
 const CHAT_KEY_HOLD_US: u64 = 1000;
+/// A 40-char dump lost the second half; 20 is the largest single poll that survived.
 #[cfg(target_os = "windows")]
-const CHAT_CHAR_GAP_US: u64 = 1000;
+const CHAT_CHUNK_CHARS: usize = 20;
 #[cfg(target_os = "windows")]
-const CHAT_SEND_DELAY_MS: u64 = 10;
+const CHAT_CHUNK_DRAIN_MS: u64 = 5;
+#[cfg(target_os = "windows")]
+const CHAT_SEND_DELAY_MS: u64 = 3;
 #[cfg(target_os = "windows")]
 const CHAT_NOT_FOCUSED: &str = "Company of Heroes is not focused";
 
@@ -213,6 +216,34 @@ pub async fn send_game_chat(message: String) -> Result<(), String> {
     }
 }
 
+/// Blocks physical keyboard/mouse for `duration_ms` (default 1000), capped at 2s total.
+#[command]
+pub fn lock_game_input(duration_ms: Option<u64>) -> Result<(), String> {
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = duration_ms;
+        Ok(())
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if !is_company_of_heroes_foreground() {
+            crate::coh_chat::unlock_user_input();
+            return Ok(());
+        }
+        crate::coh_chat::arm_user_input_lock(time::Duration::from_millis(
+            duration_ms.unwrap_or(1000).clamp(1, 2000),
+        ));
+        Ok(())
+    }
+}
+
+#[command]
+pub fn unlock_game_input() -> Result<(), String> {
+    crate::coh_chat::unlock_user_input();
+    Ok(())
+}
+
 #[cfg(target_os = "windows")]
 fn send_game_chat_sync(message: &str) -> Result<(), String> {
     let char_count = message.chars().count();
@@ -231,9 +262,13 @@ fn send_game_chat_sync(message: &str) -> Result<(), String> {
 
     println!("[ANTI-CHEAT] sending all-chat ({} chars)", char_count);
 
+    // Swallow physical keyboard/mouse so Space etc. cannot abort typing.
+    // Always released when this returns, and after 1s even if inject hangs.
+    let _input_lock = crate::coh_chat::lock_user_input(time::Duration::from_secs(2));
     let _ = release_chat_modifiers();
 
-    // DirectInput (CoH) ignores KEYEVENTF_UNICODE. Inject scan codes like hardware keys.
+    // DirectInput ignores UNICODE and Ctrl+V. Dump Stream Deck-sized scancode
+    // bursts, then wait one poll — stacking bursts overflows and types slowly.
     if let Err(error) = open_all_chat_scancode() {
         let _ = click_vk(VK_ESCAPE, false);
         return Err(error);
@@ -257,13 +292,15 @@ fn send_game_chat_sync(message: &str) -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn open_all_chat_scancode() -> Result<(), String> {
-    send_inputs(&[vk_input(VK_SHIFT, true, false)])?;
+    send_inputs(&[
+        vk_input(VK_SHIFT, true, false),
+        vk_input(VK_RETURN, true, false),
+    ])?;
     precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
-    send_inputs(&[vk_input(VK_RETURN, true, false)])?;
-    precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
-    send_inputs(&[vk_input(VK_RETURN, false, false)])?;
-    precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
-    send_inputs(&[vk_input(VK_SHIFT, false, false)])?;
+    send_inputs(&[
+        vk_input(VK_RETURN, false, false),
+        vk_input(VK_SHIFT, false, false),
+    ])?;
     Ok(())
 }
 
@@ -278,29 +315,27 @@ fn release_chat_modifiers() -> Result<(), String> {
 
 #[cfg(target_os = "windows")]
 fn type_ascii_and_send(message: &str) -> Result<(), String> {
-    use windows::Win32::UI::Input::KeyboardAndMouse::VkKeyScanW;
+    let chars: Vec<char> = message.chars().collect();
+    let Some((first, rest)) = chars.split_first() else {
+        return Ok(());
+    };
 
     let mut shift_down = false;
+    // First key after Shift+Enter is dropped if it shares a burst; click it
+    // on its own so `[FAIRPLAY]` does not become `AIRPLAY]`.
+    type_one_char(*first, &mut shift_down)?;
+    precise_sleep(time::Duration::from_millis(CHAT_CHUNK_DRAIN_MS));
 
-    for c in message.chars() {
-        let mapped = unsafe { VkKeyScanW(c as u16) };
-        if mapped < 0 {
-            let _ = release_chat_modifiers();
-            return Err(format!("Cannot map {c:?} to a virtual key"));
+    let chunks: Vec<&[char]> = rest.chunks(CHAT_CHUNK_CHARS).collect();
+    for (index, chunk) in chunks.iter().enumerate() {
+        let mut events = Vec::with_capacity(chunk.len() * 4 + 4);
+        for c in *chunk {
+            append_char_events(*c, &mut shift_down, &mut events)?;
         }
-        let vk = VIRTUAL_KEY((mapped as u16) & 0xFF);
-        let need_shift = (mapped as u16) & 0x100 != 0;
-
-        if need_shift != shift_down {
-            send_inputs(&[vk_input(VK_SHIFT, need_shift, false)])?;
-            shift_down = need_shift;
-            precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
+        send_inputs(&events)?;
+        if index + 1 < chunks.len() {
+            precise_sleep(time::Duration::from_millis(CHAT_CHUNK_DRAIN_MS));
         }
-
-        send_inputs(&[vk_input(vk, true, false)])?;
-        precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
-        send_inputs(&[vk_input(vk, false, false)])?;
-        precise_sleep(time::Duration::from_micros(CHAT_CHAR_GAP_US));
     }
 
     if shift_down {
@@ -311,6 +346,56 @@ fn type_ascii_and_send(message: &str) -> Result<(), String> {
     send_inputs(&[vk_input(VK_RETURN, true, false)])?;
     precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
     send_inputs(&[vk_input(VK_RETURN, false, false)])
+}
+
+#[cfg(target_os = "windows")]
+fn map_ascii_key(c: char) -> Result<(VIRTUAL_KEY, bool), String> {
+    use windows::Win32::UI::Input::KeyboardAndMouse::VkKeyScanW;
+
+    let mapped = unsafe { VkKeyScanW(c as u16) };
+    if mapped < 0 {
+        let _ = release_chat_modifiers();
+        return Err(format!("Cannot map {c:?} to a virtual key"));
+    }
+    let vk = VIRTUAL_KEY((mapped as u16) & 0xFF);
+    let need_shift = (mapped as u16) & 0x100 != 0;
+    Ok((vk, need_shift))
+}
+
+#[cfg(target_os = "windows")]
+fn append_char_events(
+    c: char,
+    shift_down: &mut bool,
+    events: &mut Vec<INPUT>,
+) -> Result<(), String> {
+    let (vk, need_shift) = map_ascii_key(c)?;
+    if need_shift && !*shift_down {
+        events.push(vk_input(VK_SHIFT, true, false));
+        *shift_down = true;
+    } else if !need_shift && *shift_down {
+        events.push(vk_input(VK_SHIFT, false, false));
+        *shift_down = false;
+    }
+    events.push(vk_input(vk, true, false));
+    events.push(vk_input(vk, false, false));
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn type_one_char(c: char, shift_down: &mut bool) -> Result<(), String> {
+    let (vk, need_shift) = map_ascii_key(c)?;
+    if need_shift && !*shift_down {
+        send_inputs(&[vk_input(VK_SHIFT, true, false)])?;
+        *shift_down = true;
+        precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
+    } else if !need_shift && *shift_down {
+        send_inputs(&[vk_input(VK_SHIFT, false, false)])?;
+        *shift_down = false;
+        precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
+    }
+    send_inputs(&[vk_input(vk, true, false)])?;
+    precise_sleep(time::Duration::from_micros(CHAT_KEY_HOLD_US));
+    send_inputs(&[vk_input(vk, false, false)])
 }
 
 #[cfg(target_os = "windows")]

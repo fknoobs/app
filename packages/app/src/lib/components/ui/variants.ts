@@ -45,6 +45,9 @@ export const flushHeader = 'border-secondary-800 border-b px-4 py-3';
 
 export const flushHeaderTitle = 'text-secondary-300 text-xs font-semibold tracking-wide uppercase';
 
+export const flushSectionTitle =
+	'text-secondary-200 text-sm font-bold tracking-wider uppercase';
+
 export const flushHeaderDescription = 'text-secondary-400 mt-1 text-sm';
 
 export const footerAction =
