@@ -1,5 +1,9 @@
 # @company-of-heroes/landing
 
+## 1.3.0
+
+- feat; browse and watch community replays on the website
+
 ## 1.2.3
 
 - fix; prevent desktop screenshots during fair play
