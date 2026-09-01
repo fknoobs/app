@@ -1,3 +1,7 @@
+### v0.60.1
+
+- enhance; leave the fair play all-chat announce off until you turn it on
+
 ### v0.60.0
 
 - fix; type [FAIRPLAY] correctly in all-chat on non-us keyboards
