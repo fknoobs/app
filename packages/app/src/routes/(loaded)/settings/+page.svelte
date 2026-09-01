@@ -274,7 +274,7 @@
 	<Form.Group
 		label={t('All-chat announce')}
 		description={t(
-			'At the start of a match the app posts a short all-chat message so other players can see that fair play is on.'
+			'Off by default. At the start of a match the app posts a short all-chat message so other players can see that fair play is on.'
 		)}
 	>
 		<Checkbox

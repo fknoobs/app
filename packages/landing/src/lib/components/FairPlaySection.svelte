@@ -32,7 +32,7 @@
 			id: 'all-chat',
 			title: 'All-chat announce',
 			description:
-				'At the start of a match the app posts "[FAIRPLAY] Supervised by coh1stats.com" so other players can see fair play is on.',
+				'Optional and off by default. If you turn it on in Settings, the app posts "[FAIRPLAY] Supervised by coh1stats.com" at match start so other players can see fair play is on.',
 			icon: ChatTextIcon
 		}
 	];
@@ -43,8 +43,8 @@
 		<p class="text-primary mb-1 text-xs font-medium">Fair play</p>
 		<h2 class="font-heading text-xl font-bold text-white">Keep the community clean</h2>
 		<p class="text-secondary-400 mt-1 text-sm">
-			The companion helps catch cheaters so matches stay fair. Checks are on by default; you can
-			turn them off in Settings.
+			The companion helps catch cheaters so matches stay fair. Screenshot and process checks are on
+			by default; the all-chat announce is off until you turn it on in Settings.
 		</p>
 	</div>
 	<div class="grid md:grid-cols-3">

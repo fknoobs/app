@@ -82,8 +82,8 @@ function base64ToJpegFile(base64: string): File {
 
 /**
  * Takes random screenshots of the CoH window during a live match, reports
- * known cheat processes from a server denylist, and posts a one-time all-chat
- * announce so other players can see that fair play is on.
+ * known cheat processes from a server denylist, and can post a one-time
+ * all-chat announce so other players can see that fair play is on.
  */
 export class AntiCheat extends Feature<AntiCheatSettings> {
 	name = 'anti-cheat';
@@ -168,8 +168,24 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 		this.#unsubscribers = [];
 	}
 
+	async register(): Promise<this> {
+		await super.register();
+		this.#applyChatAnnounceDefaultOff();
+		return this;
+	}
+
 	defaultSettings(): AntiCheatSettings {
-		return { enabled: true, announceInChat: true };
+		return { enabled: true, announceInChat: false };
+	}
+
+	/** Previous default was on; turn it off once so existing installs become opt-in. */
+	#applyChatAnnounceDefaultOff(): void {
+		const settings = this.settings as AntiCheatSettings & {
+			chatAnnounceDefaultOff?: boolean;
+		};
+		if (settings.chatAnnounceDefaultOff) return;
+		this.settings.announceInChat = false;
+		settings.chatAnnounceDefaultOff = true;
 	}
 
 	async #startSession(match: Match): Promise<void> {

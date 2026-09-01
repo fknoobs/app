@@ -83,7 +83,7 @@
 	"Announce fair play in all-chat": "Anunciar juego limpio en el chat general",
 	"Announce user": "Anunciar usuario",
 	"as {faction}": "como {faction}",
-	"At the start of a match the app posts a short all-chat message so other players can see that fair play is on.": "Al empezar una partida, la app envía un mensaje corto al chat general para que los demás jugadores vean que el juego limpio está activo.",
+	"Off by default. At the start of a match the app posts a short all-chat message so other players can see that fair play is on.": "Desactivado por defecto. Al empezar una partida, la app envía un mensaje corto al chat general para que los demás jugadores vean que el juego limpio está activo.",
 	"Audio files": "Archivos de audio",
 	"Audio Files": "Archivos de audio",
 	"Automatic backups": "Respaldos automáticos",

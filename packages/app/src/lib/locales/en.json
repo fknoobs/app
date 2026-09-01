@@ -83,7 +83,7 @@
 	"Announce fair play in all-chat": "Announce fair play in all-chat",
 	"Announce user": "Announce user",
 	"as {faction}": "as {faction}",
-	"At the start of a match the app posts a short all-chat message so other players can see that fair play is on.": "At the start of a match the app posts a short all-chat message so other players can see that fair play is on.",
+	"Off by default. At the start of a match the app posts a short all-chat message so other players can see that fair play is on.": "Off by default. At the start of a match the app posts a short all-chat message so other players can see that fair play is on.",
 	"Audio files": "Audio files",
 	"Audio Files": "Audio Files",
 	"Automatic backups": "Automatic backups",
