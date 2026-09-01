@@ -1,5 +1,9 @@
 # @company-of-heroes/app
 
+## 0.60.1
+
+- enhance; leave the fair play all-chat announce off until you turn it on
+
 ## 0.60.0
 
 - fix; type [FAIRPLAY] correctly in all-chat on non-us keyboards

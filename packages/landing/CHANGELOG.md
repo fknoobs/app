@@ -1,5 +1,9 @@
 # @company-of-heroes/landing
 
+## 1.3.1
+
+- enhance; leave the fair play all-chat announce off until you turn it on
+
 ## 1.3.0
 
 - feat; browse and watch community replays on the website
