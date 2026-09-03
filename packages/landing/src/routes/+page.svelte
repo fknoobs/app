@@ -58,7 +58,11 @@
 <main>
 	<Hero />
 	<HomePlayerSearch />
-	<HomeLiveLobbies lobbies={data.liveLobbies} />
+	{#await data.liveLobbies}
+		<HomeLiveLobbies lobbies={[]} loading />
+	{:then lobbies}
+		<HomeLiveLobbies {lobbies} />
+	{/await}
 	<HomeRecentMatches matches={data.recentMatches} />
 	<HomeLiveStreams streams={data.streams} />
 	<DownloadSection />

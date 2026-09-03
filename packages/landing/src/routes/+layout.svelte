@@ -6,6 +6,7 @@
 	import I18nBoot from '$lib/components/i18n/i18n-boot.svelte';
 	import { loadLatestDownload } from '$lib/site/download.svelte';
 	import { pageShell } from '$lib/utils/variants';
+	import { building } from '$app/environment';
 	import { page } from '$app/state';
 	import { SITE_URL } from '$lib/site/urls';
 	import {
@@ -29,7 +30,8 @@
 
 	function localizedUrl(next: AppLocale) {
 		const path = unlocalizedPath(page.url.pathname);
-		return `${SITE_URL}${localizeHref(path, next)}${page.url.search}`;
+		const search = building ? '' : page.url.search;
+		return `${SITE_URL}${localizeHref(path, next)}${search}`;
 	}
 
 	$effect(() => {

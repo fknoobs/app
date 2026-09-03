@@ -13,9 +13,10 @@
 
 	type Props = {
 		lobbies: LiveLobbyRecord[];
+		loading?: boolean;
 	};
 
-	let { lobbies }: Props = $props();
+	let { lobbies, loading = false }: Props = $props();
 	const { t } = useI18n();
 
 	const rows = $derived(lobbies.map((lobby) => toLiveLobby(lobby, t)));
@@ -35,10 +36,13 @@
 				{t('Matches that companion users are in right now.')}
 			</p>
 		</div>
-		<span class="text-secondary-400 text-sm">{t('{count} active', { count: rows.length })}</span>
+		{#if !loading}
+			<span class="text-secondary-400 text-sm">{t('{count} active', { count: rows.length })}</span>
+		{/if}
 	</div>
 	<LiveLobbiesTable
 		lobbies={rows}
+		{loading}
 		{resolveMapSrc}
 		{resolveFallbackSrc}
 		{resolveFactionFlag}

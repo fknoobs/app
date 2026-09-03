@@ -11,31 +11,14 @@ $app.onServe().bindFunc((e) => {
 	cronAdd('lobbies_live_cleanup', '* * * * *', () => {
 		const { LOBBIES_LIVE_STALE_MS } = require(`${__hooks}/lib/lobbies-live.js`);
 		const threshold = new Date(Date.now() - LOBBIES_LIVE_STALE_MS).toISOString().replace('T', ' ');
-		const records = $app.findRecordsByFilter(
-			'lobbies_live',
-			'updatedAt < {:threshold}',
-			'',
-			200,
-			0,
-			{ threshold }
-		);
-
-		if (!records.length) {
-			return;
-		}
-
-		let deleted = 0;
-		for (const record of records) {
-			try {
-				$app.delete(record);
-				deleted += 1;
-			} catch (error) {
-				console.warn('[lobbies_live] cleanup delete failed:', record.id, error);
-			}
-		}
-
-		if (deleted > 0) {
-			console.log(`[lobbies_live] cleaned ${deleted} stale row(s)`);
+		try {
+			$app
+				.db()
+				.newQuery('DELETE FROM lobbies_live WHERE updatedAt < {:threshold}')
+				.bind({ threshold })
+				.execute();
+		} catch (error) {
+			console.warn('[lobbies_live] cleanup failed:', error);
 		}
 	});
 });

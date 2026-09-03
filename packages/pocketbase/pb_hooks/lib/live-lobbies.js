@@ -123,7 +123,7 @@ function hostName(userId) {
 	}
 }
 
-function toPublicItem(record) {
+function toPublicItem(record, host) {
 	return {
 		id: record.id,
 		sessionId: String(record.get('sessionId') || ''),
@@ -131,7 +131,7 @@ function toPublicItem(record) {
 		isRanked: Boolean(record.get('isRanked')),
 		createdAt: String(record.get('createdAt') || ''),
 		updatedAt: String(record.get('updatedAt') || ''),
-		hostName: hostName(record.get('user')),
+		hostName: host,
 		players: slimPlayers(record.get('players'))
 	};
 }
@@ -157,28 +157,63 @@ function getPublicLobby(id) {
 		return null;
 	}
 
-	return toPublicItem(record);
+	return toPublicItem(record, hostName(record.get('user')));
 }
 
 function listPublicLobbies() {
 	const since = new Date(Date.now() - LOBBIES_LIVE_STALE_MS).toISOString().replace('T', ' ');
-	const records = $app.findRecordsByFilter(
-		'lobbies_live',
-		'updatedAt > {:since} && isReplay != true',
-		'-updatedAt',
-		LIST_LIMIT,
-		0,
-		{ since }
+	const rows = arrayOf(
+		new DynamicModel({
+			id: '',
+			sessionId: 0,
+			map: '',
+			isRanked: false,
+			createdAt: '',
+			updatedAt: '',
+			hostName: '',
+			players: null
+		})
 	);
+	$app
+		.db()
+		.newQuery(
+			`SELECT
+         l.id AS id,
+         l.sessionId AS sessionId,
+         l.map AS map,
+         l.isRanked AS isRanked,
+         l.createdAt AS createdAt,
+         l.updatedAt AS updatedAt,
+         COALESCE(u.name, '') AS hostName,
+         l.players AS players
+       FROM lobbies_live l
+       LEFT JOIN users u ON u.id = l.user
+       WHERE l.updatedAt > {:since} AND IFNULL(l.isReplay, 0) = 0
+       ORDER BY l.updatedAt DESC
+       LIMIT {:limit}`
+		)
+		.bind({ since, limit: LIST_LIMIT })
+		.all(rows);
+
 	const seen = {};
 	const items = [];
-	for (const record of records) {
-		const sessionId = String(record.get('sessionId') || '');
+	for (let i = 0; i < rows.length; i++) {
+		const row = rows[i];
+		const sessionId = String(row.sessionId || '');
 		if (!sessionId || seen[sessionId]) {
 			continue;
 		}
 		seen[sessionId] = true;
-		items.push(toPublicItem(record));
+		items.push({
+			id: row.id,
+			sessionId,
+			map: String(row.map || ''),
+			isRanked: Boolean(row.isRanked),
+			createdAt: String(row.createdAt || ''),
+			updatedAt: String(row.updatedAt || ''),
+			hostName: String(row.hostName || '').trim(),
+			players: slimPlayers(row.players)
+		});
 	}
 	return items;
 }
