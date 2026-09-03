@@ -1,5 +1,19 @@
 # @company-of-heroes/pocketbase
 
+## 0.8.0
+
+- feat; mention users with @ in match comments and link to their profile
+- feat; mark comments as deleted instead of removing them
+- feat; comment avatars and up/down votes
+- enhance; flatten comment replies to one indent and @mention the parent author
+- enhance; sort comments by vote score
+- feat; match website replay details to the app and let staff hide matches on the site
+- feat; reposition coh1stats.com as a Company of Heroes 1 stats home with player search, live lobbies, recent matches, and livestreams
+- feat; expand live lobby rows and open player details on coh1stats.com
+- feat; up/down votes on replays instead of a like toggle
+- feat; award account reputation for comments, votes, downloads, and played matches
+- feat; configure reputation scores by trigger in Management
+
 ## 0.7.1
 
 - feat; browse and watch community replays on the website

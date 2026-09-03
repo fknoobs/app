@@ -1,5 +1,22 @@
 # @company-of-heroes/app
 
+## 0.61.0
+
+- feat; mention users with @ in match comments and link to their profile
+- feat; mark comments as deleted instead of removing them
+- feat; comment avatars and up/down votes
+- enhance; flatten comment replies to one indent and @mention the parent author
+- enhance; sort comments by vote score
+- fix; update the hide/show match button after toggling visibility
+- fix; make the fairplay capture more reliable
+- feat; up/down votes on replays instead of a like toggle
+- feat; shared `@company-of-heroes/ui` component library for app and landing (Turborepo task graph, unified buttons, leaderboards, replays, player performance)
+- enhance; sort replays by comment count in a dedicated column
+- feat; award account reputation for comments, votes, downloads, and played matches
+- feat; configure reputation scores by trigger in Management
+- feat; log in and create an account on coh1stats.com; edit login credentials in the app account settings; log in on the website with the desktop app when it is running
+- feat; show a what's-new popup with markdown highlights after updates
+
 ## 0.60.1
 
 - enhance; leave the fair play all-chat announce off until you turn it on
