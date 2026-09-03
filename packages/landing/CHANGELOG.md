@@ -1,5 +1,23 @@
 # @company-of-heroes/landing
 
+## 1.4.0
+
+- feat; mark comments as deleted instead of removing them
+- feat; comment avatars and up/down votes
+- enhance; flatten comment replies to one indent and @mention the parent author
+- enhance; sort comments by vote score
+- fix; make the fairplay capture more reliable
+- feat; language switcher and localized website routes for Spanish and Korean
+- feat; show comments and likes on community replay pages
+- feat; match website replay details to the app and let staff hide matches on the site
+- feat; reposition coh1stats.com as a Company of Heroes 1 stats home with player search, live lobbies, recent matches, and livestreams
+- feat; expand live lobby rows and open player details on coh1stats.com
+- fix; match community replay loading skeletons to the list and detail layouts
+- feat; up/down votes on replays instead of a like toggle
+- feat; shared `@company-of-heroes/ui` component library for app and landing (Turborepo task graph, unified buttons, leaderboards, replays, player performance)
+- enhance; sort replays by comment count in a dedicated column
+- feat; log in and create an account on coh1stats.com; edit login credentials in the app account settings; log in on the website with the desktop app when it is running
+
 ## 1.3.1
 
 - enhance; leave the fair play all-chat announce off until you turn it on
