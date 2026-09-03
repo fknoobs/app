@@ -1,0 +1,30 @@
+---
+description: PocketBase JSVM hooks — thin .pb.js routers, logic in lib/, CommonJS require
+globs: packages/pocketbase/pb_hooks/**
+alwaysApply: false
+---
+
+# PocketBase hooks
+
+JSVM (not Node ESM). `*.pb.js` files only wire routes/events. Implementation lives in `pb_hooks/lib/*.js`.
+
+```javascript
+/// <reference path="../pb_data/types.d.ts" />
+'use strict';
+
+routerAdd('GET', '/api/player/{id}', (e) => {
+	return require(`${__hooks}/lib/player.js`).handleGet(e);
+});
+```
+
+```javascript
+// lib/player.js — CommonJS, require(`${__hooks}/lib/…`)
+function handleGet(e) { /* … */ }
+module.exports = { handleGet };
+```
+
+- Always `require(\`${__hooks}/lib/…\`)` — never `import` / relative ESM.
+- Keep `onServe` non-blocking (`e.next()` first). Heavy work = cron backfill (see `pocketbase-backfill-cron.mdc`).
+- Public APIs used by landing must CORS-allow `https://coh1stats.com` and local landing (`localhost:5174`).
+- After collection/field changes: schema-only migration, then `pnpm --filter pocketbase typegen`. Do not hand-edit `packages/app/src/lib/core/pocketbase/types.ts`.
+- Do not edit `pb_hooks/public/overlay-default/` by hand.

@@ -2,7 +2,7 @@
 	import type { Snippet } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { cn } from '$lib/utils';
-	import { interactive } from '$lib/components/ui/variants';
+	import { tableHeadText, tableSortHeader } from '$lib/components/ui/variants';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDownIcon';
 	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
@@ -200,7 +200,8 @@
 			<thead class={headerClass}>
 				<tr
 					class={cn(
-						'bg-secondary-950/90 text-secondary-300 border-secondary-800 border-b text-left text-xs font-semibold tracking-wide uppercase',
+						'bg-secondary-950/90 border-secondary-800 border-b text-left',
+						tableHeadText,
 						headerRowClass
 					)}
 				>
@@ -220,8 +221,7 @@
 								<button
 									type="button"
 									class={cn(
-										interactive,
-										'flex w-full min-w-0 items-center bg-transparent p-0 text-inherit select-none',
+										tableSortHeader,
 										typeof header === 'string' && 'gap-1',
 										column.headerClass
 									)}

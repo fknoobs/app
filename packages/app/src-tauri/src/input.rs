@@ -745,6 +745,7 @@ fn parse_key(k: &str) -> Option<Key> {
         "f10" => Some(Key::F10),
         "f11" => Some(Key::F11),
         "f12" => Some(Key::F12),
+        "printscreen" | "printscr" | "prtscn" | "snapshot" => Some(Key::PrintScr),
         c if c.len() == 1 => Some(Key::Unicode(c.chars().next().unwrap())),
         _ => None,
     }

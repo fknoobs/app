@@ -1,0 +1,43 @@
+---
+description: setContext / runed Context.set only during component init, never in $effect or after await
+globs: **/*.{svelte,svelte.ts}
+alwaysApply: true
+---
+
+# setContext Only at Init
+
+`experimental.async` is on. `setContext` / `runed` `Context.set` / `createX(...)` must run during first init. Calling them in `$effect`, `watch`, or after `await` throws `set_context_after_init`.
+
+To keep children in sync when props change, **set once** and pass a **getter**. Do not re-set context.
+
+```svelte
+<script lang="ts">
+	let { user, children }: Props = $props();
+
+	// ✅ once at init — getter tracks later prop updates
+	createUser(() => user);
+</script>
+```
+
+```typescript
+const context = new Context<() => User>('<user />');
+export const createUser = (user: () => User) => context.set(user);
+export const useUser = () => context.get()();
+```
+
+```svelte
+<script lang="ts">
+	let { user }: Props = $props();
+
+	// ❌ $effect re-calls setContext after init
+	$effect(() => {
+		createUser(user);
+	});
+
+	// ❌ await first — setContext is then "after init"
+	const extra = await load();
+	createUser(() => user);
+</script>
+```
+
+If you need data from `await`, set context **before** the await, or move the `await` into a child that does not call `setContext`.

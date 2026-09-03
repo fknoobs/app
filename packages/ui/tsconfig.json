@@ -1,0 +1,13 @@
+{
+	"compilerOptions": {
+		"moduleResolution": "bundler",
+		"module": "ESNext",
+		"target": "ESNext",
+		"strict": true,
+		"skipLibCheck": true,
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"noEmit": true
+	},
+	"include": ["src/**/*.ts", "src/**/*.svelte"]
+}

@@ -168,32 +168,34 @@
 							<NotificationBell />
 						{/if}
 					</div>
-					<span class="flex items-center gap-2 px-4 py-4">
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							class="bg-secondary-800 text-secondary-400 hover:text-primary hover:bg-secondary-700"
-							onclick={() => openUrl('https://discord.gg/Cc69hbDnPD')}
-						>
-							<DiscordLogoIcon weight="duotone" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							class="bg-secondary-800 text-secondary-400 hover:text-primary hover:bg-secondary-700"
-							onclick={() => openUrl('https://www.twitch.tv/fknoobscoh')}
-						>
-							<TwitchLogoIcon weight="duotone" />
-						</Button>
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							class="bg-secondary-800 text-secondary-400 hover:text-primary hover:bg-secondary-700"
-							onclick={() => openUrl('https://github.com/fknoobs/app')}
-						>
-							<GithubLogoIcon weight="duotone" />
-						</Button>
-						<span class="text-secondary-400 ms-auto flex items-center gap-2 text-sm">
+					<div class="flex flex-col gap-2 px-4 py-4">
+						<div class="flex items-center gap-2">
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								class="bg-secondary-800 text-secondary-400 hover:text-primary hover:bg-secondary-700"
+								onclick={() => openUrl('https://discord.gg/Cc69hbDnPD')}
+							>
+								<DiscordLogoIcon weight="duotone" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								class="bg-secondary-800 text-secondary-400 hover:text-primary hover:bg-secondary-700"
+								onclick={() => openUrl('https://www.twitch.tv/fknoobscoh')}
+							>
+								<TwitchLogoIcon weight="duotone" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon-sm"
+								class="bg-secondary-800 text-secondary-400 hover:text-primary hover:bg-secondary-700"
+								onclick={() => openUrl('https://github.com/fknoobs/app')}
+							>
+								<GithubLogoIcon weight="duotone" />
+							</Button>
+						</div>
+						<div class="text-secondary-400 flex flex-wrap items-center gap-2 text-sm">
 							<Button
 								variant="link"
 								size="sm"
@@ -207,12 +209,20 @@
 								variant="link"
 								size="sm"
 								class="px-0"
+								onclick={() => app.features.updater.previewWhatsNew()}
+							>
+								{t("What's New")}
+							</Button>
+							<Button
+								variant="link"
+								size="sm"
+								class="px-0"
 								onclick={() => app.features.updater.openChangelog()}
 							>
 								v{app.features.updater.currentVersionFormatted}
 							</Button>
-						</span>
-					</span>
+						</div>
+					</div>
 				</div>
 			</Nav.Root>
 		</div>

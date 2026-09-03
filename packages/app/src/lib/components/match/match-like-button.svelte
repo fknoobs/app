@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { app } from '$core/app/context';
-	import { Button } from '$lib/components/ui/button';
-	import { cn } from '$lib/utils';
+	import {
+		CommentVote,
+		nextCommentScore,
+		nextCommentVote,
+		type CommentVoteValue
+	} from '@company-of-heroes/ui/comment';
 	import { useI18n } from '$lib/i18n';
 	import { resource, watch } from 'runed';
-	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
 
 	type Props = {
 		lobbyId: string;
@@ -14,65 +17,69 @@
 
 	let { lobbyId, likeCount = 0, onCountChange }: Props = $props();
 	const { t } = useI18n();
-	const myLike = resource(
+	const myVote = resource(
 		() => lobbyId,
-		(id) => app.database.matchSocial.getMyLike(id)
+		(id) => app.database.matchSocial.getMyVote(id)
 	);
 
-	let liked = $state(false);
+	let vote = $state<CommentVoteValue>(0);
 	let count = $state(0);
-	let toggling = $state(false);
+	let voting = $state(false);
 
 	watch(
-		() => myLike.current,
-		(like) => {
-			if (toggling) return;
-			liked = !!like;
+		() => myVote.current,
+		(current) => {
+			if (voting) {
+				return;
+			}
+
+			vote = current ?? 0;
 		}
 	);
 
 	watch(
 		() => likeCount,
 		(value) => {
-			if (toggling) return;
+			if (voting) {
+				return;
+			}
+
 			count = value ?? 0;
 		}
 	);
 
-	async function toggle() {
-		if (toggling) return;
-		const nextLiked = !liked;
-		liked = nextLiked;
-		count = Math.max(0, count + (nextLiked ? 1 : -1));
+	async function setVote(value: 1 | -1) {
+		if (voting) {
+			return;
+		}
+
+		const prevVote = vote;
+		const prevCount = count;
+		vote = nextCommentVote(prevVote, value);
+		count = nextCommentScore(prevCount, prevVote, value);
 		onCountChange?.(count);
-		toggling = true;
+		voting = true;
 		try {
-			const result = await app.database.matchSocial.toggleLike(lobbyId);
-			liked = result.liked;
-		} catch {
-			liked = !nextLiked;
-			count = Math.max(0, count + (nextLiked ? -1 : 1));
+			const result = await app.database.matchSocial.setLobbyVote(lobbyId, value);
+			vote = result.vote;
+			count = result.likeCount;
 			onCountChange?.(count);
-			app.toast.error(t('Failed to update like.'));
+		} catch {
+			vote = prevVote;
+			count = prevCount;
+			onCountChange?.(count);
+			app.toast.error(t('Failed to update vote.'));
 		} finally {
-			toggling = false;
+			voting = false;
 		}
 	}
 </script>
 
-<Button
-	variant="ghost"
-	onclick={toggle}
-	disabled={toggling}
-	aria-pressed={liked}
-	aria-label={liked ? t('Unlike') : t('Like')}
-	class={cn(
-		'h-11 gap-1.5 px-3 text-sm',
-		liked
-			? 'text-primary hover:text-primary'
-			: 'text-secondary-400 hover:text-white'
-	)}
->
-	<HeartIcon size={16} weight={liked ? 'fill' : 'duotone'} />
-	<span class="tabular-nums">{count}</span>
-</Button>
+<CommentVote
+	score={count}
+	{vote}
+	disabled={voting}
+	upvoteLabel={t('Upvote')}
+	downvoteLabel={t('Downvote')}
+	onvote={(value) => void setVote(value)}
+/>

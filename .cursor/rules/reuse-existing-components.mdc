@@ -1,19 +1,20 @@
 ---
 description: Prefer existing $lib/components over custom HTML markup
-globs: packages/app/src/**/*.{svelte,svelte.ts}
+globs: packages/{app,landing}/src/**/*.{svelte,svelte.ts}
 alwaysApply: true
 ---
 
 # Reuse Existing Components
 
-Before writing any UI markup, search `$lib/components` for an existing component. Do **not** invent custom HTML when a shared primitive or domain component already covers the need.
+Before writing any UI markup, search shared UI and existing components. Do **not** invent custom HTML when a primitive or domain component already covers the need.
 
 ## Checklist (before new markup)
 
-1. Check **`packages/app/src/lib/components/ui/`** — Button, Box, Input, Dialog, Modal, Tabs, Table, Badge, Alert, Skeleton, List, Form, Avatar, Profile, Popover, Dropdown, …
-2. Check domain folders — `match/`, `player/`, `lobby/`, `replay/`, `match-history/`, `widgets/`, …
-3. Prefer extending via props / snippets over copying markup
-4. Only write raw HTML when no existing component fits — and keep it minimal
+1. Check **`@company-of-heroes/ui`** — Button, Skeleton, Pagination, MapImage, Leaderboard, Player, Replay, PlayerPerformance, …
+2. Check **`packages/app/src/lib/components/ui/`** (re-exports + app-only: Avatar, Breadcrumb, Table, Profile, …)
+3. Check domain folders — `match/`, `player/`, `lobby/`, `replay/`, `match-history/`, `widgets/`, …
+4. Prefer extending via props / snippets over copying markup
+5. Only write raw HTML when no existing component fits — and keep it minimal
 
 ## Prefer
 

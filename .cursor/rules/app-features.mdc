@@ -1,0 +1,32 @@
+---
+description: Desktop features extend Feature, register in +layout.ts, settings live in the central tree
+globs: packages/app/src/lib/core/app/features/**
+alwaysApply: false
+---
+
+# App features
+
+Optional desktop capabilities extend `Feature` from `$features/feature.svelte.ts`. Settings are the `features.<name>` slice of the central tree — not a second store.
+
+```typescript
+export class History extends Feature {
+	name = 'history';
+	enable() { /* start watchers */ }
+	disable() { /* unsubscribe, clear timers */ }
+	defaultSettings() {
+		return { enabled: true };
+	}
+}
+
+export const history = new History();
+```
+
+Wire it in three places:
+
+1. Singleton export (above)
+2. `app.register('history', history)` in `packages/app/src/routes/+layout.ts`
+3. `Features` in `packages/app/src/app.d.ts`
+
+Boot calls `feature.register()` (isolated errors). Auth is **not** a feature — use `app.features.auth` / `account`.
+
+Do not start feature logic in a route `onMount` if it belongs in `enable()`. Do not persist feature settings outside `defaultSettings` + the central tree.

@@ -79,7 +79,7 @@
 				races.join(','),
 				matchtypes.join(',')
 			] as const,
-		async ([nextProfileId, nextScope, nextUserId, nextMaps, nextRaces, nextMatchtypes]) => {
+		([nextProfileId, nextScope, nextUserId, nextMaps, nextRaces, nextMatchtypes]) => {
 			page = 1;
 			allMatches = [];
 			totalItems = 0;
@@ -95,15 +95,17 @@
 				return;
 			}
 
-			try {
-				const result = await fetchMatches(1);
-				allMatches = result.items;
-				totalItems = result.totalItems;
-			} catch (error) {
-				console.warn('[player-performance] matches failed:', error);
-			} finally {
-				initialLoading = false;
-			}
+			void (async () => {
+				try {
+					const result = await fetchMatches(1);
+					allMatches = result.items;
+					totalItems = result.totalItems;
+				} catch (error) {
+					console.warn('[player-performance] matches failed:', error);
+				} finally {
+					initialLoading = false;
+				}
+			})();
 		}
 	);
 

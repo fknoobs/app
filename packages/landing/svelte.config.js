@@ -11,13 +11,21 @@ const config = {
 				persist: false
 			}
 		}),
+		experimental: {
+			remoteFunctions: true
+		},
 		prerender: {
-			entries: ['/', '/privacy']
+			entries: ['/privacy', '/es/privacy', '/ko/privacy']
 		},
 		alias: {
 			'@assets': '../shared-assets',
 			'@tt-mussels': '../app/src/lib/fonts/TT Mussels',
 			'@maps': '../app/src/lib/files/maps'
+		}
+	},
+	compilerOptions: {
+		experimental: {
+			async: true
 		}
 	}
 };

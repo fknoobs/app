@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
+	import { dropdownHeader } from '@company-of-heroes/ui/variants';
 	import { Popover } from '$lib/components/ui/popover';
 	import { Button } from '$lib/components/ui/button';
 	import { Badge } from '$lib/components/ui/badge';
@@ -33,7 +34,7 @@
 	{onOpenChange}
 	side="right"
 	align="center"
-	sideOffset={12}
+	sideOffset={18}
 	contentClass="w-[360px] overflow-hidden p-0"
 >
 	{#snippet trigger({ props })}
@@ -50,7 +51,7 @@
 					app.notifications.unreadCount > 9 ? '9+' : String(app.notifications.unreadCount)}
 				<span
 					class={cn(
-						'bg-primary text-secondary-950 absolute -top-1 -right-1 flex items-center justify-center rounded-full text-[10px] font-bold leading-none tabular-nums',
+						'bg-primary text-secondary-950 absolute -top-1 -right-1 flex items-center justify-center rounded-full text-[10px] leading-none font-bold tabular-nums',
 						badgeLabel.length > 1 ? 'h-4 min-w-4 px-1' : 'size-4'
 					)}
 				>
@@ -59,7 +60,7 @@
 			{/if}
 		</Button>
 	{/snippet}
-	<div class="border-secondary-800 flex items-center justify-between border-b px-4 py-3">
+	<div class={dropdownHeader}>
 		<h2 class="text-secondary-300 text-xs font-semibold tracking-wide uppercase">
 			{t('Notifications')}
 		</h2>
@@ -85,7 +86,9 @@
 				{/each}
 			</div>
 		{:else if app.notifications.items.length === 0}
-			<div class="text-secondary-400 flex flex-col items-center gap-2 px-4 py-8 text-center text-sm">
+			<div
+				class="text-secondary-400 flex flex-col items-center gap-2 px-4 py-8 text-center text-sm"
+			>
 				<BellIcon size={28} weight="duotone" class="text-secondary-600" />
 				<p>{t('No notifications')}</p>
 			</div>
@@ -97,10 +100,8 @@
 							type="button"
 							class={cn(
 								interactive,
-								'flex w-full flex-col border-l-2 px-4 py-2.5 text-left transition-colors hover:bg-secondary-950/50',
-								notification.read
-									? 'border-transparent'
-									: 'bg-secondary-950/80 border-primary'
+								'hover:bg-secondary-800/40 flex w-full flex-col border-l-2 px-4 py-2.5 text-left transition-colors',
+								notification.read ? 'border-transparent' : 'bg-secondary-950/80 border-primary'
 							)}
 							onclick={() => openNotification(notification)}
 						>

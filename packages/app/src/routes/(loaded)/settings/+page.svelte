@@ -258,7 +258,7 @@
 	<Form.Group label={t('Fair play checks')}>
 		{#snippet description()}
 			{t(
-				'During a match the app takes random screenshots of the Company of Heroes window and checks for known cheat processes. These are uploaded for review and later analysis.'
+				'During a match the app captures the game window (never your Windows desktop) and checks for known cheat processes. These are uploaded for review and later analysis.'
 			)}
 			<Button
 				variant="link"

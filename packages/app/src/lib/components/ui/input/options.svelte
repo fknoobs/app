@@ -4,7 +4,7 @@
 	import ArrowRightIcon from 'phosphor-svelte/lib/ArrowRightIcon';
 	import { dialog } from '$lib/components/ui/dialog';
 	import { Label } from '../label';
-	import Input from './input.svelte';
+	import { Input } from '@company-of-heroes/ui/input';
 	import { Button } from '../button';
 	import { findKey, isArray } from 'lodash-es';
 	import { useI18n } from '$lib/i18n';

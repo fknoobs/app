@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { useMatch } from '.';
+	import { scoreClassName } from '@company-of-heroes/ui/comment';
+	import { cn } from '$lib/utils';
 	import { useI18n } from '$lib/i18n';
-	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
+	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
 	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
 
 	const match = useMatch();
@@ -12,8 +14,11 @@
 </script>
 
 <div class="text-secondary-400 flex items-center justify-end gap-3 text-sm tabular-nums">
-	<span class="inline-flex items-center gap-1.5" title={t('Likes')}>
-		<HeartIcon size={16} weight="duotone" />
+	<span
+		class={cn('inline-flex items-center gap-1.5', scoreClassName(likeCount, 'text-secondary-400'))}
+		title={t('Likes')}
+	>
+		<CaretUpIcon size={16} weight="fill" />
 		{likeCount}
 	</span>
 	{#if showDownload}

@@ -1,0 +1,239 @@
+<script lang="ts">
+	import type { Component } from 'svelte';
+	import MapImage from '../ui/map-image.svelte';
+	import { cn } from '@company-of-heroes/ui/cn';
+	import { interactive, tableHeadRow, tableSortHeader } from '@company-of-heroes/ui/variants';
+	import type { CommunityMatch, CommunityPlayer, HistorySortDir, HistorySortField } from './types';
+	import {
+		formatDurationSeconds,
+		formatMatchDate,
+		matchDurationSeconds,
+		teamOutcome,
+		teamPlayers
+	} from './utils';
+	import { scoreClassName } from '../comment/vote';
+	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
+	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
+	import RankingIcon from 'phosphor-svelte/lib/RankingIcon';
+	import ChatCircleIcon from 'phosphor-svelte/lib/ChatCircleIcon';
+	import ArrowDownIcon from 'phosphor-svelte/lib/ArrowDownIcon';
+	import ArrowUpIcon from 'phosphor-svelte/lib/ArrowUpIcon';
+	import ArrowsDownUpIcon from 'phosphor-svelte/lib/ArrowsDownUpIcon';
+
+	type Props = {
+		matches: CommunityMatch[];
+		highlightedPlayers?: string[];
+		sort: HistorySortField;
+		sortDir: HistorySortDir;
+		onSort: (field: HistorySortField) => void;
+		replayHref: (matchId: string) => string;
+		playerHref: (player: CommunityPlayer) => string | null;
+		resolveMapSrc: (map: string | undefined) => string | undefined;
+		resolveFallbackSrc?: () => string | undefined;
+		resolveFactionFlag: (race: number) => string;
+		formatMapName: (map: string) => string;
+		emptyMessage?: string;
+		locale?: string;
+		mapLabel?: string;
+		alliesLabel?: string;
+		axisLabel?: string;
+		durationLabel?: string;
+		likesLabel?: string;
+		commentsLabel?: string;
+		downloadsLabel?: string;
+		dateLabel?: string;
+		sortByLabel?: string;
+	};
+
+	let {
+		matches,
+		highlightedPlayers = [],
+		sort,
+		sortDir,
+		onSort,
+		replayHref,
+		playerHref,
+		resolveMapSrc,
+		resolveFallbackSrc,
+		resolveFactionFlag,
+		formatMapName,
+		emptyMessage = 'No community replays found.',
+		locale,
+		mapLabel = 'Map',
+		alliesLabel = 'Allies',
+		axisLabel = 'Axis',
+		durationLabel = 'Duration',
+		likesLabel = 'Likes',
+		commentsLabel = 'Comments',
+		downloadsLabel = 'Downloads',
+		dateLabel = 'Date',
+		sortByLabel = 'Sort by {label}'
+	}: Props = $props();
+
+	function outcomeClass(outcome: 'win' | 'loss' | null) {
+		if (outcome === 'win') {
+			return 'bg-green-500/5';
+		}
+
+		if (outcome === 'loss') {
+			return 'bg-red-500/5';
+		}
+
+		return '';
+	}
+
+	function sortIcon(field: HistorySortField) {
+		if (sort !== field) {
+			return 'none' as const;
+		}
+
+		return sortDir;
+	}
+
+	function sortAria(field: HistorySortField) {
+		if (sort !== field) {
+			return 'none' as const;
+		}
+
+		return sortDir === 'asc' ? 'ascending' : 'descending';
+	}
+</script>
+
+{#snippet sortHeader(field: HistorySortField, label: string)}
+	<th class="w-2/24 px-4 py-2" aria-sort={sortAria(field)}>
+		<button
+			type="button"
+			class={cn(tableSortHeader, 'justify-end gap-1')}
+			aria-label={sortByLabel.replace('{label}', label)}
+			onclick={() => onSort(field)}
+		>
+			{label}
+			{#if sortIcon(field) === 'desc'}
+				<ArrowDownIcon size={14} class="shrink-0" weight="duotone" />
+			{:else if sortIcon(field) === 'asc'}
+				<ArrowUpIcon size={14} class="shrink-0" weight="duotone" />
+			{:else}
+				<ArrowsDownUpIcon size={14} class="shrink-0" weight="duotone" />
+			{/if}
+		</button>
+	</th>
+{/snippet}
+
+{#snippet playerFlag(player: CommunityPlayer, className: string)}
+	<img
+		src={resolveFactionFlag(player.race ?? 0)}
+		alt={player.profile.alias}
+		title={player.profile.alias}
+		class={className}
+	/>
+{/snippet}
+
+{#snippet teamCell(match: CommunityMatch, team: 'allies' | 'axis')}
+	<td class={cn('px-4 py-0', outcomeClass(teamOutcome(match, team)))}>
+		<div class="flex items-center gap-1.5">
+			{#each teamPlayers(match, team) as player (player.profile.profile_id)}
+				{@const href = playerHref(player)}
+				{@const highlighted = highlightedPlayers.includes(String(player.profile.profile_id))}
+				{#if href}
+					<a
+						{href}
+						title={player.profile.alias}
+						class={cn(
+							interactive,
+							'ring-secondary-800 shrink-0 rounded-full ring-3',
+							highlighted && 'ring-primary-100'
+						)}
+					>
+						{@render playerFlag(player, 'size-5 rounded-full object-cover')}
+					</a>
+				{:else}
+					{@render playerFlag(player, 'size-6 shrink-0 rounded-full object-cover opacity-70')}
+				{/if}
+			{/each}
+		</div>
+	</td>
+{/snippet}
+
+{#snippet scoreCell(count: number)}
+	<td class="px-4 py-0 text-right tabular-nums">
+		<span
+			class={cn(
+				'inline-flex items-center justify-end gap-1.5',
+				scoreClassName(count, 'text-secondary-400')
+			)}
+		>
+			<CaretUpIcon size={16} weight="fill" />
+			{count}
+		</span>
+	</td>
+{/snippet}
+
+{#snippet countCell(count: number, Icon: Component)}
+	<td class="text-secondary-400 px-4 py-0 text-right tabular-nums">
+		<span class="inline-flex items-center justify-end gap-1.5">
+			<Icon size={16} weight="duotone" />
+			{count}
+		</span>
+	</td>
+{/snippet}
+
+{#if matches.length === 0}
+	<p class="text-secondary-400 px-4 py-3 text-sm">{emptyMessage}</p>
+{:else}
+	<div class="overflow-x-auto">
+		<table class="w-full table-fixed border-collapse text-sm">
+			<thead class="border-secondary-800 border-b">
+				<tr class="{tableHeadRow} text-left">
+					<th class="w-6/24 px-4 py-2">{mapLabel}</th>
+					<th class="w-3/24 px-4 py-2">{alliesLabel}</th>
+					<th class="w-3/24 px-4 py-2">{axisLabel}</th>
+					<th class="w-2/24 px-4 py-2">{durationLabel}</th>
+					{@render sortHeader('likeCount', likesLabel)}
+					{@render sortHeader('commentCount', commentsLabel)}
+					{@render sortHeader('downloadCount', downloadsLabel)}
+					<th class="w-4/24 px-4 py-2 text-end">{dateLabel}</th>
+				</tr>
+			</thead>
+			<tbody>
+				{#each matches as match (match.id)}
+					<tr class="border-secondary-800/70 hover:bg-secondary-950/50 h-11 border-t text-white">
+						<td class="overflow-clip py-0 pr-0 pl-4">
+							<a
+								href={replayHref(match.id)}
+								class={cn(interactive, 'flex h-11 min-w-0 items-center gap-0')}
+							>
+								<MapImage
+									map={match.map}
+									{resolveMapSrc}
+									{resolveFallbackSrc}
+									alt={formatMapName(match.map)}
+									small
+									flush
+								/>
+								<div class="flex min-w-0 items-center gap-2 px-4">
+									<span class="min-w-0 truncate font-medium">{formatMapName(match.map)}</span>
+									{#if match.isRanked}
+										<RankingIcon class="text-primary-100 shrink-0" weight="duotone" />
+									{/if}
+								</div>
+							</a>
+						</td>
+						{@render teamCell(match, 'allies')}
+						{@render teamCell(match, 'axis')}
+						<td class="text-secondary-400 px-4 py-0 tabular-nums">
+							<a href={replayHref(match.id)} class={cn(interactive, 'hover:text-white')}>
+								{formatDurationSeconds(matchDurationSeconds(match))}
+							</a>
+						</td>
+						{@render scoreCell(match.likeCount ?? 0)}
+						{@render countCell(match.commentCount ?? 0, ChatCircleIcon)}
+						{@render countCell(match.downloadCount ?? 0, DownloadIcon)}
+						<td class="text-secondary-400 px-4 py-0 text-end text-sm tabular-nums">
+							{formatMatchDate(match.createdAt, locale)}
+						</td>
+					</tr>
+				{/each}
+			</tbody>
+		</table>
+	</div>
+{/if}

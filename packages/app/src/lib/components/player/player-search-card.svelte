@@ -22,7 +22,7 @@
 	const statsCount = $derived(player.relic.leaderboardStats?.length ?? 0);
 	const storedRating = resource(
 		() => (statsExpanded ? player.steam.steamid : null),
-		(steamId) => (steamId ? getPlayerRating(steamId) : null)
+		(steamId) => (steamId ? getPlayerRating(steamId) : Promise.resolve(null))
 	);
 </script>
 

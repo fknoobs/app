@@ -1,4 +1,5 @@
-import type { LobbyPlayer, Match } from '@fknoobs/app';
+import type { LobbyPlayer } from '@fknoobs/app';
+import type { Match } from '$core/game/lobby';
 import type { LobbiesLiveResponse, UsersResponse } from '$core/pocketbase/types';
 import { Lobby } from '$core/game/lobby';
 
@@ -28,11 +29,9 @@ export function toPersistablePlayers(players: LobbyPlayer[]): LobbyPlayer[] {
 	return players.map(({ matchHistory, storedElo, ...player }) => player);
 }
 
-function resolveMe(players: LobbyPlayer[], steamIds?: string[] | null) {
+function resolveMe(players: LobbyPlayer[], steamIds?: string[] | null): LobbyPlayer | undefined {
 	if (!steamIds?.length) return undefined;
-	const me = players.find((player) => player.steamId && steamIds.includes(player.steamId));
-	if (!me) return undefined;
-	return { playerId: me.playerId, index: me.index };
+	return players.find((player) => player.steamId && steamIds.includes(player.steamId));
 }
 
 export function liveLobbyToLobbyData(record: LiveLobbyRecord): Match {

@@ -1,0 +1,59 @@
+<script lang="ts">
+	import type { ButtonProps } from '.';
+	import { cn } from '@company-of-heroes/ui/cn';
+	import LoadingIcon from 'phosphor-svelte/lib/SpinnerIcon';
+
+	let {
+		children,
+		variant = 'primary',
+		size = 'md',
+		loading = $bindable(false),
+		href,
+		download,
+		target,
+		rel,
+		...restProps
+	}: ButtonProps = $props();
+</script>
+
+<svelte:element
+	this={href ? 'a' : 'button'}
+	{...restProps}
+	{href}
+	{download}
+	{target}
+	{rel}
+	class={cn(
+		'inline-flex items-center gap-2 transition-colors duration-150',
+		'cursor-pointer rounded-md px-6',
+		'disabled:cursor-not-allowed disabled:opacity-60',
+		variant !== 'ghost' && variant !== 'link' && 'border border-transparent',
+		size === 'sm' && 'h-8 px-3 text-sm',
+		size === 'md' && 'h-11 px-6 text-base',
+		size === 'lg' && 'h-14 px-8 text-lg',
+		size === 'icon' && 'size-11 justify-center p-0',
+		size === 'icon-sm' && 'size-8 justify-center p-0 text-sm',
+		variant === 'primary' &&
+			'bg-primary/5 border-primary/20 hover:border-primary/80 hover:bg-primary/20 text-white',
+		variant === 'secondary' &&
+			'border-secondary-800 bg-secondary-800/30 hover:border-secondary-500 hover:bg-secondary-800/80 text-white hover:opacity-100',
+		variant === 'destructive' &&
+			'bg-destructive/5 border-destructive/20 hover:border-destructive/80 hover:bg-destructive/20 text-white',
+		variant === 'success' &&
+			'bg-success/5 border-success/20 hover:border-success/80 hover:bg-success/20 text-white',
+		variant === 'warning' &&
+			'bg-warning/5 border-warning/20 hover:border-warning/80 hover:bg-warning/20 text-white',
+		variant === 'ghost' && 'border-0 active:bg-secondary-950/40 hover:opacity-100',
+		variant === 'link' &&
+			'text-primary hover:text-primary-600 border-0 bg-transparent font-medium hover:opacity-100',
+		restProps.class
+	)}
+	disabled={loading || restProps.disabled}
+>
+	{#if loading}
+		<LoadingIcon size="20" class="animate-[spin_1500ms_linear_infinite]" />
+	{/if}
+	{#if !loading || (size !== 'icon' && size !== 'icon-sm')}
+		{@render children()}
+	{/if}
+</svelte:element>

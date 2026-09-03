@@ -27,12 +27,12 @@ let color = type === 'danger' ? 'red' : 'green';
 
 - **`.svelte.ts` modules** for reactive classes and services (`updater.svelte.ts`, `app.svelte.ts`)
 - **Feature classes** extend `Feature` from `$features/feature.svelte.ts`; settings live in the central tree
-- **Scoped context** via `runed` `Context` — not module-level singletons for UI state:
+- **Scoped context** via `runed` `Context` — not module-level singletons for UI state. Call `createX` **once at init** with a getter; never in `$effect` or after `await` (`set_context_after_init` — see `set-context-init.mdc`):
 
 ```typescript
-const context = new Context<Match>('<lobby />');
-export const createLobby = (match: () => Match) => context.set(match());
-export const useLobby = () => context.get();
+const context = new Context<() => Match>('<match />');
+export const createMatch = (match: () => Match) => context.set(match);
+export const useMatch = () => context.get()();
 ```
 
 - Use `watch` from `runed` for reacting to state changes with side effects (toasts, navigation)
@@ -50,7 +50,7 @@ export const useLobby = () => context.get();
 ## Project Conventions
 
 - Path aliases: `$core/*`, `$features/*`, `$workers/*`
-- Tauri APIs for FS, dialogs, HTTP — use `{ fetch }` from `@tauri-apps/plugin-http` with PocketBase
+- Tauri FS/dialogs via plugins; HTTP via `fetch` from `$core/http/fetch` (not global `fetch` or `@tauri-apps/plugin-http` directly). PocketBase client is already wired to that fetch.
 - Async expressions are enabled (`experimental.async` in `svelte.config.js`)
 
 ## Before Submitting Svelte Changes

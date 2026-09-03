@@ -6,6 +6,9 @@ use tokio::sync::mpsc;
 use warp::ws::{Message, WebSocket, Ws};
 use warp::Filter;
 
+use crate::browser_login::{BrowserLoginQuery, BrowserLoginState, handle_browser_login};
+use tauri::AppHandle;
+
 type Clients = Arc<DashMap<String, Client>>;
 type Topics = Arc<DashMap<String, Vec<String>>>;
 
@@ -35,9 +38,12 @@ enum WsMessage {
     },
 }
 
-/// Starts a lightweight WebSocket server on port 9842
-pub async fn start_ws_server() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Starting WebSocket server on ws://localhost:9842/ws");
+/// Starts a lightweight local server on port 9842 (WebSocket + browser login).
+pub async fn start_ws_server(
+    app: AppHandle,
+    browser_login: BrowserLoginState,
+) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Starting local server on http://127.0.0.1:9842");
 
     let clients: Clients = Arc::new(DashMap::new());
     let topics: Topics = Arc::new(DashMap::new());
@@ -45,7 +51,6 @@ pub async fn start_ws_server() -> Result<(), Box<dyn std::error::Error>> {
     let clients_filter = warp::any().map(move || clients.clone());
     let topics_filter = warp::any().map(move || topics.clone());
 
-    // WebSocket route
     let ws_route = warp::path("ws")
         .and(warp::ws())
         .and(clients_filter)
@@ -54,15 +59,26 @@ pub async fn start_ws_server() -> Result<(), Box<dyn std::error::Error>> {
             ws.on_upgrade(move |socket| handle_client(socket, clients, topics))
         });
 
-    // Add CORS headers
+    let browser_login_route = warp::path("auth")
+        .and(warp::path("browser-login"))
+        .and(warp::query::<BrowserLoginQuery>())
+        .and(warp::any().map(move || app.clone()))
+        .and(warp::any().map(move || browser_login.clone()))
+        .and_then(
+            |query: BrowserLoginQuery, app: AppHandle, state: BrowserLoginState| async move {
+                Ok::<warp::reply::Response, std::convert::Infallible>(
+                    handle_browser_login(query, app, state).await,
+                )
+            },
+        );
+
     let cors = warp::cors()
         .allow_any_origin()
         .allow_methods(vec!["GET", "POST", "OPTIONS"])
         .allow_headers(vec!["Content-Type"]);
 
-    let routes = ws_route.with(cors);
+    let routes = ws_route.or(browser_login_route).with(cors);
 
-    // Start the server on port 9842
     warp::serve(routes).run(([127, 0, 0, 1], 9842)).await;
 
     Ok(())
@@ -73,15 +89,12 @@ async fn handle_client(ws: WebSocket, clients: Clients, topics: Topics) {
     let (mut ws_tx, mut ws_rx) = ws.split();
     let (tx, mut rx) = mpsc::unbounded_channel();
 
-    // Generate unique client ID
     let client_id = uuid::Uuid::new_v4().to_string();
     let client = Client { sender: tx };
 
-    // Store the client
     clients.insert(client_id.clone(), client);
     println!("Client connected: {}", client_id);
 
-    // Task to send messages to the client
     let send_task = tokio::spawn(async move {
         while let Some(message) = rx.recv().await {
             if ws_tx.send(message).await.is_err() {
@@ -90,7 +103,6 @@ async fn handle_client(ws: WebSocket, clients: Clients, topics: Topics) {
         }
     });
 
-    // Handle incoming messages from the client
     while let Some(result) = ws_rx.next().await {
         match result {
             Ok(msg) => {
@@ -105,13 +117,11 @@ async fn handle_client(ws: WebSocket, clients: Clients, topics: Topics) {
         }
     }
 
-    // Client disconnected - cleanup
     println!("Client disconnected: {}", client_id);
     cleanup_client(&client_id, &clients, &topics);
     send_task.abort();
 }
 
-/// Handles individual messages from a client
 async fn handle_message(
     msg: Message,
     client_id: &str,
@@ -166,7 +176,6 @@ async fn handle_message(
     Ok(())
 }
 
-/// Subscribe a client to a topic
 fn subscribe_to_topic(client_id: &str, topic: &str, topics: &Topics) {
     topics
         .entry(topic.to_string())
@@ -174,14 +183,12 @@ fn subscribe_to_topic(client_id: &str, topic: &str, topics: &Topics) {
         .push(client_id.to_string());
 }
 
-/// Unsubscribe a client from a topic
 fn unsubscribe_from_topic(client_id: &str, topic: &str, topics: &Topics) {
     if let Some(mut subscribers) = topics.get_mut(topic) {
         subscribers.retain(|id| id != client_id);
     }
 }
 
-/// Broadcast a message to all subscribers of a topic
 async fn broadcast_to_topic(
     topic: &str,
     data: &serde_json::Value,
@@ -206,7 +213,6 @@ async fn broadcast_to_topic(
     }
 }
 
-/// Send a message to a specific client
 fn send_to_client(client_id: &str, clients: &Clients, msg: WsMessage) {
     if let Some(client) = clients.get(client_id) {
         if let Ok(json) = serde_json::to_string(&msg) {
@@ -215,27 +221,22 @@ fn send_to_client(client_id: &str, clients: &Clients, msg: WsMessage) {
     }
 }
 
-/// Clean up client subscriptions when they disconnect
 fn cleanup_client(client_id: &str, clients: &Clients, topics: &Topics) {
-    // Remove client from all topics
     for mut entry in topics.iter_mut() {
         entry.value_mut().retain(|id| id != client_id);
     }
 
-    // Remove empty topics
     topics.retain(|_, subscribers| !subscribers.is_empty());
 
-    // Remove client
     clients.remove(client_id);
 }
 
-/// Spawns the WebSocket server in a background thread with its own runtime
-pub fn spawn_ws_server() {
+pub fn spawn_ws_server(app: AppHandle, browser_login: BrowserLoginState) {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().expect("Failed to create Tokio runtime");
         rt.block_on(async move {
-            if let Err(e) = start_ws_server().await {
-                eprintln!("WebSocket server error: {}", e);
+            if let Err(e) = start_ws_server(app, browser_login).await {
+                eprintln!("Local server error: {}", e);
             }
         });
     });

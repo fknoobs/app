@@ -1,0 +1,60 @@
+---
+description: Landing services return neverthrow Result; loads unwrap to Kit errors
+globs: packages/landing/src/**/*.{ts,svelte}
+alwaysApply: false
+---
+
+# neverthrow
+
+Landing server I/O lives in **services** and returns `Result` / `ResultAsync` from `neverthrow`. Do not throw for expected HTTP failures (404, 400, 429, upstream 500).
+
+## Services
+
+Map failures to `AppError` (`status` + user-facing `message`) via `ok` / `err` / `errAsync` / `ResultAsync.fromPromise`. Use `fetchJson` for JSON GETs.
+
+```typescript
+// ❌ BAD — try/catch that returns a string
+async function login(email: string, password: string): Promise<string | null> {
+	try {
+		await pb.collection('users').authWithPassword(email, password);
+		return null;
+	} catch (error) {
+		return 'Invalid email or password.';
+	}
+}
+
+// ✅ GOOD
+login(email: string, password: string): ResultAsync<AuthUser, AppError> {
+	return ResultAsync.fromPromise(
+		this.pocketbase.collection('users').authWithPassword(email.trim(), password),
+		toLoginError
+	).map((auth) => auth.record as AuthUser);
+}
+```
+
+## Loads, actions, and remotes
+
+- **Loads:** `unwrap` / `unwrapAsync` — turns `err` into `error(status, message)` (expected Kit error → `+error.svelte`).
+- **Form actions:** `failFrom(error)` / `fail(status, { message })` — stay on the form, do not use the 500 page.
+- **Remote commands/queries:** same unwrap as loads; call `locals.services.*()` via `getRequestEvent()`.
+- Call services from `locals.services.auth()` (factory), not inline `fetch` in `+page.server.ts` or `$lib/remote/*.remote.ts`.
+
+```typescript
+// ❌ BAD
+export const load = async ({ fetch }) => {
+	const response = await fetch(`${API_URL}/api/player/${id}`);
+	if (!response.ok) throw new Error('Failed to load player');
+	return { player: await response.json() };
+};
+
+// ✅ GOOD
+export const load = ({ locals, params }) => ({
+	player: unwrapAsync(locals.services.players().get(params.id))
+});
+```
+
+## Do not
+
+- Catch PocketBase / `fetch` errors and return `string | null`
+- Throw raw `Error` from a service or load for a known status
+- Leak `Result` into `+page.svelte` — unwrap on the server (loads, remotes)

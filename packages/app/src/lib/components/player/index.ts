@@ -19,6 +19,12 @@ import PlayerLabelEditor from './player-label-editor.svelte';
 import SmurfAlert from './smurf-alert.svelte';
 import CheaterAlert from './cheater-alert.svelte';
 import PlayerScreenshots from './player-screenshots.svelte';
+import {
+	PlayerProfileHeader,
+	PlayerStatsTable,
+	PlayerMatchHistory,
+	PlayerProfileSkeleton as SharedProfileSkeleton
+} from '@company-of-heroes/ui/player';
 
 export {
 	createPlayer,
@@ -42,5 +48,9 @@ export {
 	PlayerLabelEditor as LabelEditor,
 	SmurfAlert,
 	CheaterAlert,
-	PlayerScreenshots as Screenshots
+	PlayerScreenshots as Screenshots,
+	PlayerProfileHeader as ProfileHeader,
+	PlayerStatsTable as StatsTable,
+	PlayerMatchHistory as MatchHistory,
+	SharedProfileSkeleton as SharedProfileSkeleton
 };

@@ -1,0 +1,22 @@
+{
+	"name": "@company-of-heroes/i18n",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./locales/en.json": "./locales/en.json",
+		"./locales/es.json": "./locales/es.json",
+		"./locales/ko.json": "./locales/ko.json"
+	},
+	"dependencies": {
+		"@svelte-i18n/core": "^3.0.1"
+	},
+	"peerDependencies": {
+		"svelte": "^5.57.0"
+	},
+	"devDependencies": {
+		"svelte": "^5.57.0",
+		"typescript": "~5.6.3"
+	}
+}

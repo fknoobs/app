@@ -1,0 +1,85 @@
+<script lang="ts">
+	import type { Snippet } from 'svelte';
+	import { DropdownMenu, type WithoutChildren } from 'bits-ui';
+	import { cn } from '@company-of-heroes/ui/cn';
+	import { dropdownPanel } from '../../variants';
+
+	type Props = {
+		trigger?: Snippet<[{ props: DropdownMenu.TriggerProps }]>;
+		children: Snippet;
+		class?: string;
+		side?: DropdownMenu.ContentProps['side'];
+		align?: DropdownMenu.ContentProps['align'];
+		sideOffset?: number;
+		alignOffset?: number;
+		customAnchor?: DropdownMenu.ContentProps['customAnchor'];
+		preventAutoFocus?: boolean;
+		trapFocus?: boolean;
+		preventScroll?: boolean;
+		onInteractOutside?: DropdownMenu.ContentProps['onInteractOutside'];
+	} & WithoutChildren<DropdownMenu.RootProps>;
+
+	let {
+		trigger,
+		children,
+		class: className,
+		side = 'bottom',
+		align = 'start',
+		sideOffset = 8,
+		alignOffset = 0,
+		customAnchor = null,
+		preventAutoFocus = false,
+		trapFocus = true,
+		preventScroll = true,
+		onInteractOutside,
+		...restProps
+	}: Props = $props();
+
+	function onOpenAutoFocus(event: Event) {
+		if (preventAutoFocus) {
+			event.preventDefault();
+		}
+	}
+
+	function onCloseAutoFocus(event: Event) {
+		if (preventAutoFocus) {
+			event.preventDefault();
+		}
+	}
+</script>
+
+<DropdownMenu.Root {...restProps}>
+	<DropdownMenu.Trigger>
+		{#snippet child({ props })}
+			{#if trigger}
+				{@render trigger({ props })}
+			{:else}
+				<button {...props} type="button" tabindex="-1" class="sr-only" aria-hidden="true"></button>
+			{/if}
+		{/snippet}
+	</DropdownMenu.Trigger>
+	<DropdownMenu.Portal>
+		<DropdownMenu.Content
+			{side}
+			{align}
+			{sideOffset}
+			{customAnchor}
+			{onInteractOutside}
+			{trapFocus}
+			{preventScroll}
+			onOpenAutoFocus={onOpenAutoFocus}
+			onCloseAutoFocus={onCloseAutoFocus}
+			{alignOffset}
+			class={cn(
+				dropdownPanel,
+				'w-[229px]',
+				'data-[state=open]:animate-in data-[state=open]:fade-in-0',
+				'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
+				'duration-150',
+				className
+			)}
+		>
+			{@render children?.()}
+		</DropdownMenu.Content>
+	</DropdownMenu.Portal>
+</DropdownMenu.Root>

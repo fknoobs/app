@@ -286,11 +286,11 @@ export class Matches {
 
 	getMatches(signal?: AbortSignal) {
 		const hasFilters =
-			this.query.playerIds.length > 0 ||
-			this.query.maps.length > 0 ||
-			this.query.races.length > 0 ||
-			this.query.matchtypes.length > 0 ||
-			this.query.slots?.length > 0 ||
+			(this.query.playerIds?.length ?? 0) > 0 ||
+			(this.query.maps?.length ?? 0) > 0 ||
+			(this.query.races?.length ?? 0) > 0 ||
+			(this.query.matchtypes?.length ?? 0) > 0 ||
+			(this.query.slots?.length ?? 0) > 0 ||
 			this.query.ranked ||
 			this.query.pro ||
 			this.query.elo != null ||

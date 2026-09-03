@@ -1,3 +1,1 @@
-import Meter from './meter.svelte';
-
-export { Meter };
+export * from '@company-of-heroes/ui/meter';

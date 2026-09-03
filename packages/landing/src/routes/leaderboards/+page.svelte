@@ -1,24 +1,36 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { navigating } from '$app/state';
-	import LeaderboardList from '$lib/components/LeaderboardList.svelte';
-	import LeaderboardPodium from '$lib/components/LeaderboardPodium.svelte';
-	import LeaderboardSkeleton from '$lib/components/LeaderboardSkeleton.svelte';
+	import {
+		LeaderboardList,
+		LeaderboardPodium,
+		LeaderboardSkeleton
+	} from '@company-of-heroes/ui/leaderboard';
+	import {
+		flagImageUrl,
+		getCountryDisplayName,
+		getRankImageByLeaderboardId,
+		getSteamIdFromName,
+		profileHref,
+		proxiedImageUrl
+	} from '$lib/utils/resolvers';
 	import {
 		boardIdForMode,
 		getModeForBoard,
 		LEADERBOARD_MODES,
 		type LeaderboardPageData
 	} from '$lib/leaderboards';
-	import { getRaceLabel } from '$lib/player-format';
-	import { getFactionFlagByRace } from '$lib/ranks';
-	import { SITE_URL } from '$lib/urls';
-	import { cn } from '$lib/cn';
-	import { controlBase, tabTrigger } from '$lib/variants';
+	import { getRaceLabel } from '$lib/utils/player/format';
+	import { getFactionFlagByRace } from '$lib/utils/media/ranks';
+	import { href, unlocalizedPath, useI18n } from '$lib/i18n';
+	import { SITE_URL } from '$lib/site/urls';
+	import { cn } from '$lib/utils/cn';
+	import { controlBase, tabTrigger } from '$lib/utils/variants';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	const { t } = useI18n();
 
 	let searchInput = $state('');
 	let debouncedSearch = $state('');
@@ -26,10 +38,12 @@
 
 	const boardId = $derived(data.boardId);
 	const activeMode = $derived(getModeForBoard(boardId));
-	const switching = $derived(Boolean(navigating.to?.url.pathname.startsWith('/leaderboards')));
+	const switching = $derived(
+		Boolean(unlocalizedPath(navigating.to?.url.pathname ?? '').startsWith('/leaderboards'))
+	);
 	const activeModeLabel = $derived.by(() => {
 		const faction = activeMode.factions.find((entry) => entry.value === boardId);
-		return `${activeMode.label} · ${getRaceLabel(faction?.race ?? 0)}`;
+		return `${t(activeMode.label)} · ${t(getRaceLabel(faction?.race ?? 0))}`;
 	});
 
 	function onSearchInput() {
@@ -43,7 +57,7 @@
 		if (id === boardId) return;
 		searchInput = '';
 		debouncedSearch = '';
-		void goto(`/leaderboards?board=${id}`, {
+		void goto(href(`/leaderboards?board=${id}`), {
 			keepFocus: true,
 			noScroll: true,
 			replaceState: true
@@ -67,13 +81,13 @@
 </script>
 
 <svelte:head>
-	<title>Leaderboards | Company of Heroes - Companion</title>
+	<title>{t('Leaderboards')} | {t('Company of Heroes 1 Stats')}</title>
 	<meta
 		name="description"
-		content="Relic Company of Heroes leaderboards by mode and faction, with companion ELO."
+		content={t('Relic Company of Heroes leaderboards by mode and faction, with companion ELO.')}
 	/>
-	<meta property="og:url" content="{SITE_URL}/leaderboards" />
-	<meta property="og:title" content="CoH Leaderboards" />
+	<meta property="og:url" content="{SITE_URL}{href('/leaderboards')}" />
+	<meta property="og:title" content={t('CoH Leaderboards')} />
 </svelte:head>
 
 <div class="border-secondary-800 border-b px-4 py-3">
@@ -87,7 +101,7 @@
 						data-state={activeMode.value === mode.value ? 'active' : undefined}
 						onclick={() => selectMode(mode.value)}
 					>
-						{mode.label}
+						{t(mode.label)}
 					</button>
 				{/each}
 			</div>
@@ -97,7 +111,7 @@
 						type="button"
 						class={cn(tabTrigger, 'px-2')}
 						data-state={boardId === faction.value ? 'active' : undefined}
-						aria-label={faction.label}
+						aria-label={t(faction.label)}
 						onclick={() => selectBoard(faction.value)}
 					>
 						<img
@@ -114,7 +128,7 @@
 			<MagnifyingGlassIcon class="text-secondary-500 ml-3 size-4 shrink-0" />
 			<input
 				type="search"
-				placeholder="Search player..."
+				placeholder={t('Search player...')}
 				bind:value={searchInput}
 				oninput={onSearchInput}
 				class="placeholder:text-secondary-500 min-w-0 flex-1 bg-transparent px-3 text-sm text-white focus:outline-none"
@@ -134,13 +148,26 @@
 		{@const podiumStats = searching ? [] : filtered.slice(0, 3)}
 		{@const listStats = searching ? filtered : filtered.slice(3)}
 		{#if podiumStats.length > 0}
-			<LeaderboardPodium stats={podiumStats} eloBySteamId={board.eloBySteamId} />
+			<LeaderboardPodium
+				stats={podiumStats}
+				eloBySteamId={board.eloBySteamId}
+				{getSteamIdFromName}
+				{getCountryDisplayName}
+				{getRankImageByLeaderboardId}
+				{flagImageUrl}
+				playerHref={profileHref}
+				resolveAvatarUrl={proxiedImageUrl}
+			/>
 		{/if}
-		<LeaderboardList stats={listStats} eloBySteamId={board.eloBySteamId} />
-	{:catch error}
-		<div class="px-4 py-3">
-			<h1 class="font-heading mb-1 text-xl font-bold text-white">Could not load leaderboard</h1>
-			<p class="text-secondary-400 text-sm">{error.message}</p>
-		</div>
+		<LeaderboardList
+			stats={listStats}
+			eloBySteamId={board.eloBySteamId}
+			{getSteamIdFromName}
+			{getCountryDisplayName}
+			{getRankImageByLeaderboardId}
+			{flagImageUrl}
+			playerHref={profileHref}
+			emptyMessage={t('No players found.')}
+		/>
 	{/await}
 {/if}

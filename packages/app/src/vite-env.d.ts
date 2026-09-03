@@ -9,3 +9,7 @@ declare module '*.md' {
 	const content: string;
 	export default content;
 }
+
+declare module 'virtual:whats-new' {
+	export const whatsNewFiles: { name: string; url: string }[];
+}

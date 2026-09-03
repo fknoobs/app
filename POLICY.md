@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective date:** September 1, 2026
+**Effective date:** September 2, 2026
 
 This Privacy Policy explains how **Code IT** (“we”, “us”) collects, uses, shares, and protects information when you use **Company of Heroes Companion** (also called the FKNOOBS App), the website at [https://coh1stats.com](https://coh1stats.com), and the API at [https://api.coh1stats.com](https://api.coh1stats.com) (together, the “Service”).
 
@@ -15,21 +15,25 @@ Everything else we keep is game data (Steam IDs, in-game aliases, match stats, r
 It applies to:
 
 - people who install or use the desktop app;
+- people who create an account or log in on the website;
 - people who visit the website or call the public API;
 - Company of Heroes players whose public multiplayer identity appears in match data, leaderboards, or player pages, even if they never installed the app.
 
 ## 2. Information we collect
 
-### a) App accounts
+### a) App and website accounts
 
-When you use the desktop app we create or restore an account so your match history can sync. That account may include:
+When you use the desktop app we create or restore an account so your match history can sync. You can also **create an account or log in on the website** with the same email and password. That account may include:
 
 - a display name and avatar (optional);
 - one or more Steam IDs;
 - an email address — by default a random `@fknoobs.com` placeholder, or your real email **only if you change it**;
 - a password hash;
 - last login time and the app version;
-- staff role, if we grant you one.
+- staff role, if we grant you one;
+- a reputation score derived from comments, votes, replay downloads, and matches you play. We store that score per action type so we can moderate accounts and grant rewards later. These scores are not shown on public player pages.
+
+Website login keeps you signed in with a PocketBase session cookie in your browser.
 
 ### b) Match, replay, and community data
 
@@ -39,18 +43,18 @@ To provide match history, scouting, leaderboards, and player pages we store:
 - player identities seen in those matches (Steam ID, Relic profile ID, in-game alias, country when Relic provides it);
 - community ELO and performance stats we derive from matches;
 - replay files you upload, including metadata and in-game chat captured in the replay;
-- comments, likes, and similar social actions on matches;
+- comments, likes, up/down votes on comments and replays, and similar social actions on matches, including @mentions of other app users by display name;
 - overlay and notification data needed to run those features.
 
 Game logs such as `warnings.log` are read **on your device** so the app can detect matches. We store the match data that results, not the full log file, unless you explicitly upload a file.
 
 ### c) Public player pages, leaderboards, and replays
 
-The website and API publish ranked stats, match history, performance breakdowns, community replays, and (where available) Steam profile details such as avatar, alias, online/last-seen status, and playtime. That information comes from Relic and Steam public multiplayer/profile APIs and from matches recorded by the community.
+The website and API publish ranked stats, match history, performance breakdowns, community replays, live matches that companion users are in, a public catalog of Company of Heroes Twitch streams, and (where available) Steam profile details such as avatar, alias, online/last-seen status, and playtime. That information comes from Relic and Steam public multiplayer/profile APIs, from matches recorded by the community, from the desktop companion while a user is in a game, and from Twitch’s public stream API.
 
-On the website we show community matches that include a replay file: map and player metadata, in-game chat parsed from the replay, action timelines, and a download of the `.rec` file. Public downloads of those files are counted and shown on replay pages. To keep those counts honest we store a one-way hash of the download request (network address and an anonymous browser token in local storage) and ignore repeat clicks from the same visitor. We do not use that hash to identify you. We also limit how often a network address can fetch replay files so the Service stays available. We do not publish personal playback-folder libraries. Hidden matches stay off those public listings.
+The homepage lists those live companion lobbies (map, players, and host display name) and current CoH streams. On the website we also show community matches that include a replay file: map and player metadata, in-game chat parsed from the replay, action timelines, and a download of the `.rec` file. Public downloads of those files are counted and shown on replay pages. Those pages also show community comments and up/down votes; posting a comment, voting on a comment, or voting on a replay requires an account. If you delete a comment we keep it for moderation: other users no longer see the text (they may see “Comment has been deleted” when replies remain). Staff can still see the original comment, a staff-only deleted badge, and, when a moderator removed it, the reason they entered. To keep those counts honest we store a one-way hash of the download request (network address and an anonymous browser token in local storage) and ignore repeat clicks from the same visitor. We do not use that hash to identify you. We also limit how often a network address can fetch replay files so the Service stays available. We do not publish personal playback-folder libraries. Hidden matches stay off those public listings.
 
-Staff can hide match results from those public listings (for example during a tournament), either one match at a time or by a word list that matches Relic lobby names. Hidden matches stay visible to staff in the desktop app so they can restore them or change the word list. Relic’s own APIs are unchanged and may still show the same match.
+Staff can hide match results from those public listings (for example during a tournament), either one match at a time or by a word list that matches Relic lobby names. Hidden matches stay visible to staff in the desktop app and on the website so they can restore them or change the word list. Relic’s own APIs are unchanged and may still show the same match.
 
 We may also show smurf / related-account labels when our systems link Steam accounts that appear to be used together.
 
@@ -60,7 +64,7 @@ Staff can attach public badges (for example Premium or Streamer) to Relic/Steam 
 
 Fair play checks are **on by default** and can be turned off in Settings. While they are enabled, during a match the app may:
 
-- take random screenshots of the Company of Heroes window **only while that window is in the foreground**, and upload them for review and analysis (these can include other players’ in-game names and units). We do not capture the Windows desktop, the taskbar, or other applications;
+- capture the Company of Heroes game window **only while the game is in the foreground**, then upload that image for review and analysis (these can include other players’ in-game names and units). We do not capture the Windows desktop, the clipboard, the taskbar, or other applications;
 - check running process names against a denylist and report a match (process name and process id);
 - open all-chat in Company of Heroes and type a short local message (visible to other players in that match) saying the player is supervised by coh1stats.com and is not using cheats, **only if you turn on** the all-chat announce setting (off by default). We do not upload that message; it can still appear in replays other people save;
 - store reports and a staff-maintained list of flagged Steam IDs.
@@ -80,10 +84,11 @@ We keep basic operational data such as app version, authentication/session token
 We use information to:
 
 - create and manage accounts, and keep you signed in;
-- provide match tracking, history, replays (including the public community replay browser), leaderboards, and player pages;
+- provide match tracking, history, replays (including the public community replay browser), live companion lobbies, Twitch stream listings, leaderboards, and player pages;
 - sync data across the app, website, and API;
-- operate overlays, notifications, and other features you enable;
+- operate overlays, notifications (including comment, reply, and @mention alerts), and other features you enable;
 - review fair play reports and protect the community from abuse;
+- keep comments that users or staff remove so moderators can review the text and the reason it was deleted;
 - hide match results from public listings when staff need to (for example during a tournament), including by lobby-name word list;
 - show staff-assigned public badges next to Relic player names in the desktop app and on the website;
 - debug, maintain, and improve the Service;
@@ -105,12 +110,12 @@ Publishing Relic/Steam multiplayer stats is how the website works. If you want a
 We share information with:
 
 - **Steam (Valve)** and **Relic Entertainment / SEGA** — to look up profiles, ranks, and match history;
-- **Twitch** — if you connect Twitch;
+- **Twitch** — if you connect Twitch, and to list public Company of Heroes streams on the website;
 - **ElevenLabs** — if you use TTS with your own API key;
 - **Cloudflare** — to host and deliver the website;
-- staff moderators who review fair play reports, who can hide match results from public listings (including by lobby-name word list), and who can attach public badges to Relic/Steam player identities;
+- staff moderators who review fair play reports, who can hide match results from public listings (including by lobby-name word list), who can attach public badges to Relic/Steam player identities, and who can see comments marked as deleted together with the reason a moderator entered;
 
-Match results, player identities, and stats may be **public** on the website and API, except where staff have hidden a match from those listings. Replay files, comments, and similar content you post may be visible to other users of the Service.
+Match results, player identities, and stats may be **public** on the website and API, except where staff have hidden a match from those listings. Replay files, comments, and similar content you post may be visible to other users of the Service. Comments you or staff remove stay stored for moderation and are hidden from the public view.
 
 We may also disclose information if required by law, or to protect the Service and other players.
 
@@ -118,7 +123,7 @@ We may also disclose information if required by law, or to protect the Service a
 
 We keep account, match, replay, and stats data for as long as the Service needs them, including for history, leaderboards, security, and legal reasons.
 
-You can ask us to delete or correct your **account** data. Match records that include other players, public leaderboard rows, and fair play evidence may be retained or only partly removed so history for everyone else stays accurate.
+You can ask us to delete or correct your **account** data. Match records that include other players, public leaderboard rows, and fair play evidence may be retained or only partly removed so history for everyone else stays accurate. Comments marked as deleted are kept so staff can review them and the reason they were removed.
 
 Local settings are stored on your device until you clear app data. External backups the app writes on your computer stay under your control.
 

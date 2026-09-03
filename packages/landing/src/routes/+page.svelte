@@ -1,50 +1,65 @@
 <script lang="ts">
-	import Hero from '$lib/components/Hero.svelte';
-	import FairPlaySection from '$lib/components/FairPlaySection.svelte';
-	import FeatureSection from '$lib/components/FeatureSection.svelte';
-	import DownloadSection from '$lib/components/DownloadSection.svelte';
-	import { features } from '$lib/features';
-	import { SITE_URL } from '$lib/urls';
+	import Hero from '$lib/components/home/hero.svelte';
+	import HomePlayerSearch from '$lib/components/home/home-player-search.svelte';
+	import HomeLiveLobbies from '$lib/components/home/home-live-lobbies.svelte';
+	import HomeRecentMatches from '$lib/components/home/home-recent-matches.svelte';
+	import HomeLiveStreams from '$lib/components/home/home-live-streams.svelte';
+	import DownloadSection from '$lib/components/home/download-section.svelte';
+	import { SITE_URL } from '$lib/site/urls';
+	import { href, useI18n } from '$lib/i18n';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
+	const { t } = useI18n();
+
+	const title = $derived(t('Company of Heroes 1 Stats'));
+	const description = $derived(
+		t(
+			'Company of Heroes 1 player stats, Relic leaderboards, community replays, live companion lobbies, and Twitch streams. Free desktop companion for scouting and fair play.'
+		)
+	);
+	const canonical = $derived(`${SITE_URL}${href('/')}`);
+	const searchUrl = $derived(`${SITE_URL}${href('/players')}?q={search_term_string}`);
+	const jsonLd = $derived(
+		JSON.stringify({
+			'@context': 'https://schema.org',
+			'@type': 'WebSite',
+			name: 'coh1stats',
+			alternateName: title,
+			url: canonical,
+			description,
+			potentialAction: {
+				'@type': 'SearchAction',
+				target: {
+					'@type': 'EntryPoint',
+					urlTemplate: searchUrl
+				},
+				'query-input': 'required name=search_term_string'
+			}
+		})
+	);
 </script>
 
 <svelte:head>
-	<title>Company of Heroes - Companion | coh1stats.com</title>
-	<meta
-		name="description"
-		content="Free desktop companion for Company of Heroes 1 — replay analysis, live lobby scouting, match history, Relic leaderboards, Twitch overlays, and fair play checks that help keep the community clean of cheaters."
-	/>
+	<title>{title} | coh1stats.com</title>
+	<meta name="description" content={description} />
 	<meta property="og:type" content="website" />
-	<meta property="og:url" content="{SITE_URL}/" />
-	<meta property="og:title" content="Company of Heroes - Companion" />
-	<meta
-		property="og:description"
-		content="Desktop companion for Company of Heroes 1. Replay analysis, live lobby scouting, match history, Relic leaderboards, Twitch overlays, and fair play checks that help keep the community clean of cheaters."
-	/>
+	<meta property="og:url" content={canonical} />
+	<meta property="og:title" content={title} />
+	<meta property="og:description" content={description} />
 	<meta property="og:image" content="{SITE_URL}/og-image.png" />
 	<meta name="twitter:card" content="summary_large_image" />
-	<meta name="twitter:title" content="Company of Heroes - Companion" />
-	<meta
-		name="twitter:description"
-		content="Desktop companion for Company of Heroes 1. Replay analysis, live lobby scouting, match history, Relic leaderboards, Twitch overlays, and fair play checks that help keep the community clean of cheaters."
-	/>
+	<meta name="twitter:title" content={title} />
+	<meta name="twitter:description" content={description} />
 	<meta name="twitter:image" content="{SITE_URL}/og-image.png" />
+	{@html `<script type="application/ld+json">${jsonLd}</script>`}
 </svelte:head>
 
 <main>
 	<Hero />
-	<FairPlaySection />
-	<section id="features">
-		<div class="border-secondary-800 border-b px-4 py-3">
-			<p class="text-primary mb-1 text-xs font-medium">Features</p>
-			<h2 class="font-heading text-xl font-bold text-white">What the companion does</h2>
-			<p class="text-secondary-400 mt-1 text-sm">
-				Parse replays, scout the current lobby, browse community match history, and look up Relic
-				ranks — plus hotkeys and stream overlays.
-			</p>
-		</div>
-		{#each features as feature, index (feature.id)}
-			<FeatureSection {feature} reversed={index % 2 === 1} />
-		{/each}
-	</section>
+	<HomePlayerSearch />
+	<HomeLiveLobbies lobbies={data.liveLobbies} />
+	<HomeRecentMatches matches={data.recentMatches} />
+	<HomeLiveStreams streams={data.streams} />
 	<DownloadSection />
 </main>

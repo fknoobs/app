@@ -104,7 +104,7 @@
 			</Button>
 		{/snippet}
 		{#if labels.length === 0}
-			<div class="text-secondary-400 px-3 py-2 text-sm">{t('No labels yet.')}</div>
+			<div class="text-secondary-400 px-4 py-2.5 text-sm">{t('No labels yet.')}</div>
 		{:else}
 			{#each labels as label (label.id)}
 				<Dropdown.Item

@@ -38,6 +38,9 @@ export const Collections = {
 	UserOverlays: "user_overlays",
 	HiddenMatches: "hidden_matches",
 	HiddenMatchKeywords: "hidden_match_keywords",
+	ReputationTypes: "reputation_types",
+	UserReputation: "user_reputation",
+	UserReputationTotals: "user_reputation_totals",
 	Users: "users",
 } as const
 export type Collections = typeof Collections[keyof typeof Collections]
@@ -262,6 +265,10 @@ export type NotificationsRecord = {
 
 export type LobbyCommentsRecord = {
 	created: IsoAutoDateString
+	deleted?: boolean
+	deletedAt?: IsoDateString
+	deletedBy?: RecordIdString
+	deletedNote?: string
 	id: string
 	likeCount?: number
 	lobby: RecordIdString
@@ -277,6 +284,7 @@ export type LobbyCommentLikesRecord = {
 	id: string
 	updated: IsoAutoDateString
 	user: RecordIdString
+	value?: number
 }
 
 export type LobbyDownloadsRecord = {
@@ -293,6 +301,7 @@ export type LobbyLikesRecord = {
 	lobby: RecordIdString
 	updated: IsoAutoDateString
 	user: RecordIdString
+	value?: number
 }
 
 export type MapsRecord = {
@@ -356,6 +365,7 @@ export type UsersRecord<Tmeta = unknown, TsteamIds = unknown> = {
 	name?: string
 	password: string
 	role?: UsersRoleOptions
+	reputation?: number
 	steamIds?: null | TsteamIds
 	tokenKey: string
 	updated: IsoAutoDateString
@@ -395,6 +405,51 @@ export type HiddenMatchKeywordsRecord = {
 	id: string
 	updated: IsoAutoDateString
 	word: string
+}
+
+export const ReputationTypesTriggerOptions = {
+	"comment_created": "comment_created",
+	"comment_received_upvote": "comment_received_upvote",
+	"comment_received_downvote": "comment_received_downvote",
+	"comment_cast_upvote": "comment_cast_upvote",
+	"comment_cast_downvote": "comment_cast_downvote",
+	"replay_received_upvote": "replay_received_upvote",
+	"replay_received_downvote": "replay_received_downvote",
+	"replay_cast_upvote": "replay_cast_upvote",
+	"replay_cast_downvote": "replay_cast_downvote",
+	"replay_received_download": "replay_received_download",
+	"replay_cast_download": "replay_cast_download",
+	"match_played": "match_played",
+} as const
+export type ReputationTypesTriggerOptions = typeof ReputationTypesTriggerOptions[keyof typeof ReputationTypesTriggerOptions]
+export type ReputationTypesRecord = {
+	created: IsoAutoDateString
+	enabled?: boolean
+	id: string
+	name: string
+	score: number
+	sort?: number
+	trigger: ReputationTypesTriggerOptions
+	updated: IsoAutoDateString
+}
+
+export type UserReputationRecord = {
+	amount: number
+	created: IsoAutoDateString
+	id: string
+	source: string
+	type: RecordIdString
+	updated: IsoAutoDateString
+	user: RecordIdString
+}
+
+export type UserReputationTotalsRecord = {
+	created: IsoAutoDateString
+	id: string
+	total: number
+	type: RecordIdString
+	updated: IsoAutoDateString
+	user: RecordIdString
 }
 
 export const SmurfWatchStatusOptions = {
@@ -485,6 +540,9 @@ export type UserLabelsResponse<Texpand = unknown> = Required<UserLabelsRecord> &
 export type PlayerLabelAssignmentsResponse<Texpand = unknown> = Required<PlayerLabelAssignmentsRecord> & BaseSystemFields<Texpand>
 export type HiddenMatchesResponse<Texpand = unknown> = Required<HiddenMatchesRecord> & BaseSystemFields<Texpand>
 export type HiddenMatchKeywordsResponse<Texpand = unknown> = Required<HiddenMatchKeywordsRecord> & BaseSystemFields<Texpand>
+export type ReputationTypesResponse<Texpand = unknown> = Required<ReputationTypesRecord> & BaseSystemFields<Texpand>
+export type UserReputationResponse<Texpand = unknown> = Required<UserReputationRecord> & BaseSystemFields<Texpand>
+export type UserReputationTotalsResponse<Texpand = unknown> = Required<UserReputationTotalsRecord> & BaseSystemFields<Texpand>
 export type UsersResponse<Tmeta = unknown, TsteamIds = unknown, Texpand = unknown> = Required<UsersRecord<Tmeta, TsteamIds>> & AuthSystemFields<Texpand>
 
 // Types containing all Records and Responses, useful for creating typing helper functions
@@ -522,6 +580,9 @@ export type CollectionRecords = {
 	user_overlays: UserOverlaysRecord
 	hidden_matches: HiddenMatchesRecord
 	hidden_match_keywords: HiddenMatchKeywordsRecord
+	reputation_types: ReputationTypesRecord
+	user_reputation: UserReputationRecord
+	user_reputation_totals: UserReputationTotalsRecord
 	users: UsersRecord
 }
 
@@ -558,6 +619,9 @@ export type CollectionResponses = {
 	user_overlays: UserOverlaysResponse
 	hidden_matches: HiddenMatchesResponse
 	hidden_match_keywords: HiddenMatchKeywordsResponse
+	reputation_types: ReputationTypesResponse
+	user_reputation: UserReputationResponse
+	user_reputation_totals: UserReputationTotalsResponse
 	users: UsersResponse
 }
 

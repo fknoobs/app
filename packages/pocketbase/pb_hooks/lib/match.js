@@ -8,8 +8,8 @@ const {
 	loadPlayersByLobbyIds,
 	resolvePlayersForRow
 } = require(`${__hooks}/lib/match-history.js`);
-const { isHiddenLobby } = require(`${__hooks}/lib/hidden-matches.js`);
-const { limitCountRequest, TOO_MANY } = require(`${__hooks}/lib/download-rate-limit.js`);
+const { isHiddenLobby, isHiddenByTitle, isStaffAuth } = require(`${__hooks}/lib/hidden-matches.js`);
+const { clientIp, limitCountRequest, TOO_MANY } = require(`${__hooks}/lib/download-rate-limit.js`);
 
 const HTTP_CACHE_CONTROL = 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
 
@@ -24,10 +24,15 @@ function applyCors(e) {
 	const origin = e.request.header.get('Origin');
 	if (origin && ALLOWED_ORIGINS.includes(origin)) {
 		e.response.header().set('Access-Control-Allow-Origin', origin);
-		e.response.header().set('Vary', 'Origin');
+		e.response.header().set('Vary', 'Origin, Authorization');
+	} else {
+		e.response.header().set('Vary', 'Authorization');
 	}
 	e.response.header().set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-	e.response.header().set('Access-Control-Allow-Headers', 'Content-Type, X-Download-Visitor');
+	e.response.header().set(
+		'Access-Control-Allow-Headers',
+		'Content-Type, X-Download-Visitor, Authorization'
+	);
 }
 
 function jsonWithCors(e, status, body) {
@@ -64,7 +69,79 @@ function durationFromRecord(record, result) {
 	return null;
 }
 
-function loadMatchPage(id) {
+function userSteamIds(user) {
+	const raw = user.get('steamIds');
+	if (!raw) {
+		return [];
+	}
+	if (Array.isArray(raw)) {
+		return raw.map(String).filter(Boolean);
+	}
+	if (typeof raw === 'string') {
+		try {
+			const parsed = JSON.parse(raw);
+			if (Array.isArray(parsed)) {
+				return parsed.map(String).filter(Boolean);
+			}
+		} catch {
+			return raw ? [raw] : [];
+		}
+	}
+	return [];
+}
+
+function playerSteamId(player) {
+	if (!player) {
+		return '';
+	}
+	const steam = String(player.steamId || '');
+	if (steam) {
+		return steam;
+	}
+	const name = String(player.name || '');
+	if (name.startsWith('/steam/')) {
+		return name.slice(7);
+	}
+	return '';
+}
+
+function submittedByFromRecord(record, result) {
+	const userRef = record.get('user');
+	const userId = userRef && typeof userRef === 'object' ? userRef.id : userRef;
+	if (!userId) {
+		return null;
+	}
+
+	let user;
+	try {
+		user = $app.findRecordById('users', String(userId));
+	} catch {
+		return null;
+	}
+
+	const steamIds = userSteamIds(user);
+	if (!steamIds.length) {
+		return null;
+	}
+
+	const players = result?.players || [];
+	for (let i = 0; i < players.length; i++) {
+		const player = players[i];
+		const steam = playerSteamId(player);
+		if (steam && steamIds.indexOf(steam) !== -1) {
+			return {
+				alias: String(player.alias || '').trim() || String(player.name || '').trim(),
+				profileId: Number(player.profile_id) || 0,
+				steamId: steam
+			};
+		}
+	}
+
+	return null;
+}
+
+function loadMatchPage(id, options) {
+	const includeHidden = !!(options && options.includeHidden);
 	let record;
 	try {
 		record = $app.findRecordById('lobbies', id);
@@ -74,7 +151,7 @@ function loadMatchPage(id) {
 		throw error;
 	}
 
-	if (!hasReplayFile(record) || isHiddenLobby(record)) {
+	if (!hasReplayFile(record) || (!includeHidden && isHiddenLobby(record))) {
 		const error = new Error('Match not found');
 		error.status = 404;
 		throw error;
@@ -102,6 +179,10 @@ function loadMatchPage(id) {
 		likeCount: Number(record.get('likeCount')) || 0,
 		downloadCount: Number(record.get('downloadCount')) || 0,
 		replay: record.get('replay') || '',
+		sessionId: Number(record.get('sessionId')) || 0,
+		hidden: isHiddenLobby(record),
+		hiddenByKeyword: isHiddenByTitle(record),
+		submittedBy: submittedByFromRecord(record, result),
 		players,
 		result
 	};
@@ -118,8 +199,14 @@ function handleGet(e) {
 		return jsonWithCors(e, 400, { message: 'id is required' });
 	}
 
+	const includeHidden = isStaffAuth(e.auth);
 	try {
-		return jsonWithCors(e, 200, loadMatchPage(id));
+		const body = loadMatchPage(id, { includeHidden });
+		if (includeHidden) {
+			return jsonNoStore(e, 200, body);
+		}
+
+		return jsonWithCors(e, 200, body);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		const status = error?.status || 500;
@@ -129,24 +216,6 @@ function handleGet(e) {
 		console.warn('[match] failed to load', id, message);
 		return jsonWithCors(e, 500, { message: 'Failed to load match' });
 	}
-}
-
-function isIp(value) {
-	return typeof value === 'string' && value.length > 0 && value.length <= 45 && /^[0-9a-fA-F.:]+$/.test(value);
-}
-
-function clientIp(e) {
-	const cf = String(e.request.header.get('CF-Connecting-IP') || '').trim();
-	if (isIp(cf)) return cf;
-	try {
-		if (typeof e.realIP === 'function') {
-			const ip = String(e.realIP() || '').trim();
-			if (isIp(ip)) return ip;
-		}
-	} catch {
-		// fall through
-	}
-	return '';
 }
 
 function visitorIdFromRequest(e) {
@@ -186,6 +255,7 @@ function fingerprintExists(lobbyId, fingerprint) {
 function saveFingerprints(lobbyId, fingerprints) {
 	const collection = $app.findCollectionByNameOrId('lobby_download_fingerprints');
 	let saved = 0;
+	let firstId = '';
 	for (const fingerprint of fingerprints) {
 		try {
 			const record = new Record(collection);
@@ -193,11 +263,14 @@ function saveFingerprints(lobbyId, fingerprints) {
 			record.set('fingerprint', fingerprint);
 			$app.save(record);
 			saved += 1;
+			if (!firstId) {
+				firstId = record.id;
+			}
 		} catch {
 			// Unique index — another request stored this fingerprint first.
 		}
 	}
-	return saved;
+	return { saved, firstId };
 }
 
 function currentDownloadCount(id) {
@@ -217,7 +290,7 @@ function handleDownload(e) {
 	}
 
 	try {
-		loadMatchPage(id);
+		loadMatchPage(id, { includeHidden: isStaffAuth(e.auth) });
 	} catch (error) {
 		const status = error?.status || 500;
 		if (status === 404) {
@@ -236,13 +309,25 @@ function handleDownload(e) {
 		if (fingerprints.some((fingerprint) => fingerprintExists(id, fingerprint))) {
 			return jsonNoStore(e, 200, { downloadCount: count, counted: false });
 		}
-		if (!saveFingerprints(id, fingerprints)) {
+		const saved = saveFingerprints(id, fingerprints);
+		if (!saved.saved) {
 			return jsonNoStore(e, 200, { downloadCount: currentDownloadCount(id), counted: false });
 		}
 		const lobby = $app.findRecordById('lobbies', id);
 		const next = (Number(lobby.get('downloadCount')) || 0) + 1;
 		lobby.set('downloadCount', next);
 		$app.save(lobby);
+		if (saved.firstId) {
+			try {
+				require(`${__hooks}/lib/reputation.js`).awardReplayDownload({
+					uploaderId: lobby.get('user'),
+					downloaderId: '',
+					sourceId: saved.firstId
+				});
+			} catch (error) {
+				console.warn('[match] reputation download', String(error?.message || error));
+			}
+		}
 		return jsonNoStore(e, 200, { downloadCount: next, counted: true });
 	} catch (error) {
 		console.warn('[match] failed to save download count', id, String(error?.message || error));

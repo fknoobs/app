@@ -6,6 +6,7 @@
 	import NotificationsTab from './tabs/notifications-tab.svelte';
 	import UsersTab from './tabs/users-tab.svelte';
 	import LabelsTab from './tabs/labels-tab.svelte';
+	import ReputationTab from './tabs/reputation-tab.svelte';
 	import FlaggedTab from './tabs/flagged-tab.svelte';
 	import DenylistTab from './tabs/denylist-tab.svelte';
 	import HiddenMatchesTab from './tabs/hidden-matches-tab.svelte';
@@ -21,6 +22,7 @@
 				if (!app.account.isImpersonating) {
 					app.toast.error(t('You do not have access to this page.'));
 				}
+
 				void goto('/');
 			}
 		}
@@ -56,6 +58,14 @@
 					>
 						{t('Labels')}
 					</button>
+					<button
+						type="button"
+						class={tabTrigger}
+						data-state={tab === 'reputation' ? 'active' : undefined}
+						onclick={() => (tab = 'reputation')}
+					>
+						{t('Reputation')}
+					</button>
 				{/if}
 				<button
 					type="button"
@@ -88,6 +98,8 @@
 					<UsersTab />
 				{:else if tab === 'labels' && app.account.isAdmin}
 					<LabelsTab />
+				{:else if tab === 'reputation' && app.account.isAdmin}
+					<ReputationTab />
 				{:else if tab === 'flagged'}
 					<FlaggedTab />
 				{:else if tab === 'denylist'}

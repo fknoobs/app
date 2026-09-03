@@ -3,6 +3,7 @@ use tauri::Manager;
 #[cfg(target_os = "macos")]
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 
+mod browser_login;
 mod capture;
 mod coh_chat;
 mod global_shortcuts;
@@ -65,6 +66,7 @@ pub fn run() {
             input::lock_game_input,
             input::unlock_game_input,
             hold_bindings::sync_hold_bindings,
+            browser_login::complete_browser_login,
             window::get_active_window_title,
             steam::get_steam_install_path
         ])
@@ -96,7 +98,10 @@ pub fn run() {
             apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
                 .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
 
-            ws_server::spawn_ws_server();
+            let browser_login = browser_login::BrowserLoginState::new();
+            app.manage(browser_login.clone());
+
+            ws_server::spawn_ws_server(app.handle().clone(), browser_login);
 
             coh_chat::start_listener(app.handle());
 

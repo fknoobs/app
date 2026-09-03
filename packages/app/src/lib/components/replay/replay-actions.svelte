@@ -114,9 +114,11 @@
 	let target = $state<HTMLElement>();
 	let isInViewport = new IsInViewport(() => target);
 
-	const sectionTitle = flush
-		? 'text-secondary-300 text-xs font-semibold tracking-wide uppercase'
-		: 'text-secondary-300';
+	const sectionTitle = $derived(
+		flush
+			? 'text-secondary-300 text-xs font-semibold tracking-wide uppercase'
+			: 'text-secondary-300'
+	);
 </script>
 
 {#snippet group(title: string, type: string, color: string)}

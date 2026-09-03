@@ -1,0 +1,27 @@
+---
+description: New native capabilities go through Tauri commands, invoke, and capabilities
+globs: packages/app/{src-tauri,src}/**
+alwaysApply: false
+---
+
+# Tauri native
+
+OS / process / window / zip / input work lives in Rust under `packages/app/src-tauri`. The frontend calls `invoke` from `@tauri-apps/api/core`.
+
+## Checklist for a new command
+
+1. `#[tauri::command]` in a `src-tauri/src/*.rs` module
+2. Register in `generate_handler![]` in `src-tauri/src/lib.rs`
+3. Call with **camelCase** args: `invoke('unzip_file', { zipPath, destination })` (Rust params stay snake_case)
+4. Allow the plugin/URL in `src-tauri/capabilities/default.json` (`http:default`, `opener:allow-open-url`, fs paths, …)
+
+```typescript
+// ❌ BAD — Node fs, or invoke without registering the command / capability
+await fetch('https://new-api.example.com');
+
+// ✅ GOOD
+import { invoke } from '@tauri-apps/api/core';
+await invoke('is_running', { processName: 'RelicCOH' });
+```
+
+Do not add `+server.ts` in the app to work around native access. Do not call `@tauri-apps/plugin-http` `fetch` directly — use `$core/http/fetch`.

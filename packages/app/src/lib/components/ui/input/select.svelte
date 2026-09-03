@@ -16,6 +16,7 @@
 		contentProps?: WithoutChildren<Select.ContentProps>;
 		class?: string;
 		flush?: boolean;
+		empty?: string;
 	};
 
 	let {
@@ -26,9 +27,11 @@
 		class: className,
 		flush = false,
 		type = 'single',
+		empty,
 		...restProps
 	}: Props = $props();
 	const selectedLabel = $derived(items.find((item) => item.value === value)?.label);
+	const emptyLabel = $derived(empty ?? t('No results found.'));
 </script>
 
 <!--
@@ -36,7 +39,7 @@ TypeScript Discriminated Unions + destructing (required for "bindable") do not
 get along, so we shut typescript up by casting `value` to `never`, however,
 from the perspective of the consumer of this component, it will be typed appropriately.
 -->
-<Select.Root {...restProps} {type} bind:value={value as never}>
+<Select.Root {...restProps} type={type as never} bind:value={value as never}>
 	<Select.Trigger
 		class={cn(
 			flush
@@ -70,21 +73,32 @@ from the perspective of the consumer of this component, it will be typed appropr
 				<CaretUpIcon />
 			</Select.ScrollUpButton>
 			<Select.Viewport>
-				{#each items as { value, label, disabled } (value)}
+				{#if items.length === 0}
 					<Select.Item
-						{value}
-						{label}
-						{disabled}
-						class={cn(menuItem, 'flex w-full items-center gap-4')}
+						value="__empty__"
+						label={emptyLabel}
+						disabled
+						class={cn(menuItem, 'text-secondary-400 cursor-default disabled:cursor-not-allowed')}
 					>
-						{#snippet children({ selected })}
-							{label}
-							{#if selected}
-								<CheckIcon class="ms-auto" weight="bold" />
-							{/if}
-						{/snippet}
+						{emptyLabel}
 					</Select.Item>
-				{/each}
+				{:else}
+					{#each items as { value, label, disabled } (value)}
+						<Select.Item
+							{value}
+							{label}
+							{disabled}
+							class={cn(menuItem, 'flex w-full items-center gap-4')}
+						>
+							{#snippet children({ selected }: any)}
+								{label}
+								{#if selected}
+									<CheckIcon class="ms-auto" weight="bold" />
+								{/if}
+							{/snippet}
+						</Select.Item>
+					{/each}
+				{/if}
 			</Select.Viewport>
 			<Select.ScrollDownButton class="flex items-center justify-center py-1">
 				<CaretDownIcon />

@@ -1,10 +1,12 @@
 use serde::Serialize;
+use std::sync::mpsc;
+use std::time::Duration;
 
 const MAX_WIDTH: u32 = 1920;
 const JPEG_QUALITY: u8 = 70;
 const MIN_WINDOW_WIDTH: u32 = 400;
 const MIN_WINDOW_HEIGHT: u32 = 300;
-const FULLSCREEN_COVERAGE_PCT: u64 = 99;
+const CAPTURE_TIMEOUT: Duration = Duration::from_secs(4);
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,6 +16,8 @@ pub struct GameWindowCapture {
     pub height: u32,
 }
 
+/// Captures the Company of Heroes window via Windows Graphics Capture.
+/// Never injects Print Screen and never captures the desktop monitor.
 #[tauri::command]
 pub async fn capture_game_window() -> Result<GameWindowCapture, String> {
     #[cfg(not(windows))]
@@ -39,23 +43,10 @@ fn capture_game_window_sync() -> Result<GameWindowCapture, String> {
     ensure_coh_foreground(coh_pid)?;
 
     let window = pick_coh_window(coh_pid)?;
-    let mut rgba = window.capture_image().map_err(|error| error.to_string())?;
-
-    // PrintWindow/GDI is often a black frame for DirectX. Recapture the monitor
-    // only when CoH is still in front and covering that monitor — never crop a
-    // windowed/alt-tabbed desktop into the upload.
-    if is_blank_frame(&rgba) {
-        ensure_coh_foreground(coh_pid)?;
-        if is_fullscreen_on_its_monitor(&window) {
-            rgba = capture_fullscreen_game(&window)?;
-            ensure_coh_foreground(coh_pid)?;
-        }
-    }
-
+    let rgba = capture_window_frame(window)?;
     if is_blank_frame(&rgba) {
         return Err("Company of Heroes capture was blank".into());
     }
-
     ensure_coh_foreground(coh_pid)?;
 
     let mut image = DynamicImage::ImageRgba8(rgba);
@@ -86,26 +77,119 @@ fn capture_game_window_sync() -> Result<GameWindowCapture, String> {
 }
 
 #[cfg(windows)]
-fn pick_coh_window(coh_pid: u32) -> Result<xcap::Window, String> {
-    let windows = xcap::Window::all().map_err(|error| error.to_string())?;
-    let mut best: Option<(u64, xcap::Window)> = None;
+struct OneFrame {
+    tx: Option<mpsc::Sender<Result<image::RgbaImage, String>>>,
+}
 
+#[cfg(windows)]
+impl windows_capture::capture::GraphicsCaptureApiHandler for OneFrame {
+    type Flags = mpsc::Sender<Result<image::RgbaImage, String>>;
+    type Error = String;
+
+    fn new(ctx: windows_capture::capture::Context<Self::Flags>) -> Result<Self, Self::Error> {
+        Ok(Self {
+            tx: Some(ctx.flags),
+        })
+    }
+
+    fn on_frame_arrived(
+        &mut self,
+        frame: &mut windows_capture::frame::Frame,
+        capture_control: windows_capture::graphics_capture_api::InternalCaptureControl,
+    ) -> Result<(), Self::Error> {
+        let result = frame_to_rgba(frame);
+        if let Some(tx) = self.tx.take() {
+            let _ = tx.send(result);
+        }
+        capture_control.stop();
+        Ok(())
+    }
+}
+
+#[cfg(windows)]
+fn frame_to_rgba(frame: &mut windows_capture::frame::Frame) -> Result<image::RgbaImage, String> {
+    let buffer = frame.buffer().map_err(|error| error.to_string())?;
+    let width = buffer.width();
+    let height = buffer.height();
+    let mut unpacked = Vec::new();
+    let pixels = buffer.as_nopadding_buffer(&mut unpacked).to_vec();
+    image::RgbaImage::from_raw(width, height, pixels)
+        .ok_or_else(|| "Company of Heroes capture buffer was invalid".into())
+}
+
+#[cfg(windows)]
+fn capture_window_frame(
+    window: windows_capture::window::Window,
+) -> Result<image::RgbaImage, String> {
+    match capture_window_frame_with(window, windows_capture::settings::SecondaryWindowSettings::Exclude)
+    {
+        Ok(image) => Ok(image),
+        Err(error) if error.to_ascii_lowercase().contains("secondary") => {
+            capture_window_frame_with(
+                window,
+                windows_capture::settings::SecondaryWindowSettings::Default,
+            )
+        }
+        Err(error) => Err(error),
+    }
+}
+
+#[cfg(windows)]
+fn capture_window_frame_with(
+    window: windows_capture::window::Window,
+    secondary: windows_capture::settings::SecondaryWindowSettings,
+) -> Result<image::RgbaImage, String> {
+    use windows_capture::capture::GraphicsCaptureApiHandler;
+    use windows_capture::settings::{
+        ColorFormat, CursorCaptureSettings, DirtyRegionSettings, DrawBorderSettings,
+        MinimumUpdateIntervalSettings, Settings,
+    };
+
+    let (tx, rx) = mpsc::channel();
+    let settings = Settings::new(
+        window,
+        CursorCaptureSettings::WithoutCursor,
+        DrawBorderSettings::WithoutBorder,
+        secondary,
+        MinimumUpdateIntervalSettings::Default,
+        DirtyRegionSettings::Default,
+        ColorFormat::Rgba8,
+        tx,
+    );
+    let control = OneFrame::start_free_threaded(settings).map_err(|error| error.to_string())?;
+    match rx.recv_timeout(CAPTURE_TIMEOUT) {
+        Ok(result) => {
+            let _ = control.stop();
+            result
+        }
+        Err(_) => {
+            let _ = control.stop();
+            Err("Game window capture timed out".into())
+        }
+    }
+}
+
+#[cfg(windows)]
+fn pick_coh_window(coh_pid: u32) -> Result<windows_capture::window::Window, String> {
+    use windows_capture::window::Window;
+
+    let windows = Window::enumerate().map_err(|error| error.to_string())?;
+    let mut best: Option<(u64, Window)> = None;
     for window in windows {
-        if window.pid().ok() != Some(coh_pid) {
+        if window.process_id().ok() != Some(coh_pid) {
             continue;
         }
-        if window.is_minimized().unwrap_or(true) {
+        if !window.is_valid() {
             continue;
         }
-        let width = window.width().unwrap_or(0);
-        let height = window.height().unwrap_or(0);
+        let width = window.width().unwrap_or(0).max(0) as u32;
+        let height = window.height().unwrap_or(0).max(0) as u32;
         if width < MIN_WINDOW_WIDTH || height < MIN_WINDOW_HEIGHT {
             continue;
         }
-        let focused = u64::from(window.is_focused().unwrap_or(false));
-        let score = focused.saturating_mul(1_000_000_000) + u64::from(width) * u64::from(height);
-        if best.as_ref().is_none_or(|(best_score, _)| score > *best_score) {
-            best = Some((score, window));
+        let area = u64::from(width) * u64::from(height);
+        if best.as_ref().is_none_or(|(best_area, _)| area > *best_area) {
+            best = Some((area, window));
         }
     }
 
@@ -113,7 +197,7 @@ fn pick_coh_window(coh_pid: u32) -> Result<xcap::Window, String> {
         .ok_or_else(|| "Company of Heroes window not found".to_string())
 }
 
-/// GDI/PrintWindow blank frames are uniformly black. Real CoH shots still have
+/// GDI/engine blank frames are uniformly black. Real CoH shots still have
 /// HUD/minimap variance even when the map itself is dark.
 #[cfg(windows)]
 fn is_blank_frame(image: &image::RgbaImage) -> bool {
@@ -143,58 +227,6 @@ fn is_blank_frame(image: &image::RgbaImage) -> bool {
     let mean = sum as f64 / count as f64;
     let variance = (sum_sq as f64 / count as f64) - mean * mean;
     dark * 100 / count >= 98 && variance < 80.0
-}
-
-#[cfg(windows)]
-fn is_fullscreen_on_its_monitor(window: &xcap::Window) -> bool {
-    let Ok(monitor) = window.current_monitor() else {
-        return false;
-    };
-    let mw = u64::from(monitor.width().unwrap_or(0));
-    let mh = u64::from(monitor.height().unwrap_or(0));
-    let ww = u64::from(window.width().unwrap_or(0));
-    let wh = u64::from(window.height().unwrap_or(0));
-    if mw == 0 || mh == 0 || ww == 0 || wh == 0 {
-        return false;
-    }
-    let mx = monitor.x().unwrap_or(0);
-    let my = monitor.y().unwrap_or(0);
-    let wx = window.x().unwrap_or(i32::MIN);
-    let wy = window.y().unwrap_or(i32::MIN);
-    if (wx - mx).abs() > 4 || (wy - my).abs() > 4 {
-        return false;
-    }
-    ww.saturating_mul(wh).saturating_mul(100) >= mw.saturating_mul(mh).saturating_mul(FULLSCREEN_COVERAGE_PCT)
-}
-
-#[cfg(windows)]
-fn capture_fullscreen_game(window: &xcap::Window) -> Result<image::RgbaImage, String> {
-    use image::DynamicImage;
-
-    let monitor = window
-        .current_monitor()
-        .map_err(|error| error.to_string())?;
-    let screenshot = monitor.capture_image().map_err(|error| error.to_string())?;
-    let mx = monitor.x().unwrap_or(0);
-    let my = monitor.y().unwrap_or(0);
-    let wx = window.x().map_err(|error| error.to_string())?;
-    let wy = window.y().map_err(|error| error.to_string())?;
-    let ww = window.width().map_err(|error| error.to_string())?;
-    let wh = window.height().map_err(|error| error.to_string())?;
-    let x = (wx - mx).max(0) as u32;
-    let y = (wy - my).max(0) as u32;
-    if x >= screenshot.width() || y >= screenshot.height() {
-        return Err("Company of Heroes window is off-screen".into());
-    }
-    let width = ww.min(screenshot.width().saturating_sub(x));
-    let height = wh.min(screenshot.height().saturating_sub(y));
-    if width < MIN_WINDOW_WIDTH || height < MIN_WINDOW_HEIGHT {
-        return Err("Company of Heroes window is too small to capture".into());
-    }
-
-    Ok(DynamicImage::ImageRgba8(screenshot)
-        .crop(x, y, width, height)
-        .to_rgba8())
 }
 
 #[cfg(windows)]

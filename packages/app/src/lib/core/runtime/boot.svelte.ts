@@ -4,6 +4,7 @@ import { app } from '$core/app/context';
 import { settings } from '$core/config/settings.svelte';
 import type { BackupCandidate } from '$core/config/backup';
 import { account } from '$core/account';
+import { registerBrowserHandoffGlobal } from '$core/account/browser-handoff-global';
 import { game } from '$core/game/process.svelte';
 import { resolveAppLocale, setLocale, t } from '$lib/i18n';
 
@@ -206,6 +207,8 @@ export class Boot {
 				this.#startPromise = null;
 				return false;
 			}
+
+			registerBrowserHandoffGlobal();
 
 			// Services
 			this.phase = 'services';

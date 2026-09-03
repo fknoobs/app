@@ -11,6 +11,7 @@ vite.config.ts.timestamp-*
 .svelte-kit
 build/
 dist/
+.turbo
 
 binaries/*
 src-tauri/binaries/fknoobs-x86_64-pc-windows-msvc.exe

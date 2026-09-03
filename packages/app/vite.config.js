@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { base64 } from 'vite-plugin-base64';
-import { readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -26,6 +26,53 @@ function base64Plugin() {
 					return null;
 				}
 			}
+		}
+	};
+}
+
+function whatsNewPlugin() {
+	const dir = path.resolve(__dirname, 'static/whats-new');
+	const virtualId = 'virtual:whats-new';
+	const resolvedId = `\0${virtualId}`;
+
+	function list() {
+		if (!existsSync(dir)) {
+			return [];
+		}
+
+		return readdirSync(dir)
+			.filter((name) => /^v.+\.md$/i.test(name))
+			.map((name) => ({
+				name,
+				url: `/whats-new/${name}`
+			}));
+	}
+
+	return {
+		name: 'whats-new',
+		resolveId(id) {
+			if (id === virtualId) {
+				return resolvedId;
+			}
+		},
+		load(id) {
+			if (id === resolvedId) {
+				return `export const whatsNewFiles = ${JSON.stringify(list())};`;
+			}
+		},
+		configureServer(server) {
+			server.watcher.add(dir);
+			server.watcher.on('all', (_event, file) => {
+				const resolved = path.resolve(file);
+				if (!resolved.startsWith(dir) || !resolved.endsWith('.md')) {
+					return;
+				}
+
+				const mod = server.moduleGraph.getModuleById(resolvedId);
+				if (mod) {
+					void server.reloadModule(mod);
+				}
+			});
 		}
 	};
 }
@@ -54,7 +101,7 @@ export default defineConfig(({ mode }) => {
 				)
 			}
 		},
-		plugins: [base64Plugin(), sveltekit(), tailwindcss(), base64()],
+		plugins: [base64Plugin(), whatsNewPlugin(), sveltekit(), tailwindcss(), base64()],
 		// Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
 		//
 		// 1. prevent vite from obscuring rust errors

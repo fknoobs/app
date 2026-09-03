@@ -14,26 +14,14 @@ Pagination, tabs, dialogs, popovers, combobox/select, command palettes, and simi
 
 ## How
 
-Wrap bits-ui in a thin local component. Style with `cn()` plus `tabTrigger`, `controlBase`, and related tokens. Add `cursor-pointer` via `interactive` / `tabTrigger`.
+Wrap bits-ui in **`packages/ui`**, not per-app copies. Import from `@company-of-heroes/ui/*` in app and landing.
 
 ```svelte
 <script lang="ts">
-	import { Pagination } from 'bits-ui';
-	import { cn } from '$lib/cn';
-	import { tabTrigger } from '$lib/variants';
+	import { Pagination } from '@company-of-heroes/ui/pagination';
 </script>
 
-<Pagination.Root {count} {perPage} {page} onPageChange={onPage}>
-	{#snippet children({ pages })}
-		<Pagination.Page class={cn(tabTrigger, 'size-9')} page={pageItem}>{pageItem.value}</Pagination.Page>
-	{/snippet}
-</Pagination.Root>
+<Pagination {page} {count} {perPage} onPage={setPage} />
 ```
 
-```svelte
-<!-- ❌ BAD — custom Prev/1/2/Next buttons, raw tab buttons -->
-<button onclick={() => page = page + 1}>Next</button>
-<button data-state={tab === 'chat' ? 'active' : undefined}>Chat</button>
-```
-
-Landing must not import app `$lib/components`. Duplicate a thin wrapper in `packages/landing/src/lib/components` when needed.
+Host-specific label strings (i18n) pass as optional props; English defaults live in the shared component.

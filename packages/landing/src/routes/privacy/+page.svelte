@@ -1,8 +1,12 @@
 <script lang="ts">
-	import { privacyPolicy, type InlineSpan } from '$lib/privacy';
-	import { cn } from '$lib/cn';
-	import { interactive } from '$lib/variants';
-	import { PRIVACY_URL, SITE_URL } from '$lib/urls';
+	import { privacyPolicy, type InlineSpan } from '$lib/site/privacy';
+	import { cn } from '$lib/utils/cn';
+	import { interactive } from '$lib/utils/variants';
+	import { SITE_URL } from '$lib/site/urls';
+	import { href, useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
+	const canonical = $derived(`${SITE_URL}${href('/privacy')}`);
 
 	const linkClass = cn(
 		interactive,
@@ -17,13 +21,15 @@
 </script>
 
 <svelte:head>
-	<title>Privacy Policy | Company of Heroes - Companion</title>
+	<title>{t('Privacy Policy')} | {t('Company of Heroes 1 Stats')}</title>
 	<meta
 		name="description"
-		content="How Company of Heroes Companion and coh1stats.com collect, use, and share data — including match stats, player pages, and fair play checks."
+		content={t(
+			'How Company of Heroes Companion and coh1stats.com collect, use, and share data — including match stats, player pages, and fair play checks.'
+		)}
 	/>
-	<meta property="og:url" content={PRIVACY_URL} />
-	<meta property="og:title" content="Privacy Policy — Company of Heroes Companion" />
+	<meta property="og:url" content={canonical} />
+	<meta property="og:title" content={t('Privacy Policy — Company of Heroes Companion')} />
 </svelte:head>
 
 {#snippet inline(spans: InlineSpan[])}
@@ -40,10 +46,12 @@
 
 <div class="border-secondary-800 border-b">
 	<div class="px-4 py-3">
-		<p class="text-primary mb-1 text-xs font-medium">Legal</p>
+		<p class="text-primary mb-1 text-xs font-medium">{t('Legal')}</p>
 		<h1 class="font-heading mb-1 text-xl font-bold text-white">{privacyPolicy.title}</h1>
 		{#if privacyPolicy.effectiveDate}
-			<p class="text-secondary-400 text-sm">Effective date: {privacyPolicy.effectiveDate}</p>
+			<p class="text-secondary-400 text-sm">
+				{t('Effective date: {date}', { date: privacyPolicy.effectiveDate })}
+			</p>
 		{/if}
 	</div>
 </div>

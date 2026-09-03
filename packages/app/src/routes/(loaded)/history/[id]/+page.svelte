@@ -40,8 +40,6 @@
 		() => app.database.matches.getById(page.params.id!)
 	);
 
-	$inspect(match.current);
-
 	const STATUS_POLL_MS = 10_000;
 	const hasReplay = $derived(!!(match.current?.hasReplay || match.current?.replay));
 	const pendingResult = $derived(!!match.current?.needsResult);
@@ -81,15 +79,14 @@
 	const highlightCommentId = $derived(page.url.searchParams.get('comment') || undefined);
 	const sessionId = $derived(match.current?.sessionId ?? 0);
 	let matchTab = $state('overview');
-	let hiddenRevision = $state(0);
 	let hidePending = $state(false);
 	const isStaff = $derived(app.account.isStaff);
 	const hiddenRecord = resource(
-		() => `${sessionId}:${hiddenRevision}`,
+		() => sessionId,
 		() => (sessionId > 0 ? findHiddenMatch(sessionId) : Promise.resolve(null))
 	);
 	const hiddenWords = resource(
-		() => `${isStaff}:${hiddenRevision}`,
+		() => isStaff,
 		() =>
 			isStaff
 				? listHiddenKeywordWords().catch((error) => {
@@ -152,12 +149,12 @@
 		try {
 			if (currentlyHidden) {
 				await unhideMatch(sessionId);
+				hiddenRecord.mutate(null);
 				app.toast.success(t('Match is visible again.'));
 			} else {
-				await hideMatch(sessionId, app.account.userId);
+				hiddenRecord.mutate(await hideMatch(sessionId, app.account.userId));
 				app.toast.success(t('Match hidden from public overviews.'));
 			}
-			hiddenRevision += 1;
 		} catch (error) {
 			console.error('[HISTORY]: hide toggle failed:', error);
 			app.toast.error(
@@ -192,13 +189,19 @@
 {#if match.current}
 	<Match.Root match={match.current} class="border-secondary-900 overflow-clip border-b">
 		<div
-			class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]"
+			class="border-secondary-800 grid grid-cols-1 gap-6 border-b sm:grid-cols-[minmax(220px,280px)_auto_minmax(0,1fr)]"
 		>
-			<div class="border-secondary-800 aspect-square sm:aspect-auto sm:h-full sm:border-r">
+			<div class="aspect-square sm:aspect-auto sm:h-full">
 				<Match.MapImage flush alt={normalizeMapName(match.current.map)} />
 			</div>
-
-			<div class="min-w-0 px-6 py-4">
+			<div class="flex items-start justify-center px-6 sm:px-0 sm:py-4">
+				<Match.LikeButton
+					lobbyId={matchId}
+					likeCount={match.current.likeCount ?? 0}
+					onCountChange={setLikeCount}
+				/>
+			</div>
+			<div class="min-w-0 px-6 py-4 sm:pl-0">
 				<div class="mb-3 flex min-w-0 items-center gap-3">
 					<Match.MapName class="font-heading min-w-0 truncate text-3xl font-bold" />
 					<Match.ProBadge />
@@ -244,7 +247,7 @@
 					{/if}
 				</div>
 
-				<div class="mt-4 flex flex-wrap items-center gap-2">
+				<div class="mt-4 flex flex-wrap items-center gap-3">
 					{#if hasReplay}
 						<Button
 							onclick={() => {
@@ -301,11 +304,6 @@
 							{/if}
 						</Button>
 					{/if}
-					<Match.LikeButton
-						lobbyId={matchId}
-						likeCount={match.current.likeCount ?? 0}
-						onCountChange={setLikeCount}
-					/>
 					{#if hasReplay}
 						<span
 							class="text-secondary-400 inline-flex h-11 items-center gap-1.5 px-3 text-sm tabular-nums"

@@ -1,3 +1,1 @@
-import Pagination from './pagination.svelte';
-
-export { Pagination };
+export * from '@company-of-heroes/ui/pagination';

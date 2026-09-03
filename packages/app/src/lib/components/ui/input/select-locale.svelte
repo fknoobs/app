@@ -53,7 +53,7 @@
 						label={item.label}
 						class={cn(menuItem, 'flex w-full items-center gap-4')}
 					>
-						{#snippet children({ selected })}
+						{#snippet children({ selected }: any)}
 							{item.label}
 							{#if selected}
 								<CheckIcon class="ms-auto" weight="bold" />

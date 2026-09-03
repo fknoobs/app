@@ -15,10 +15,12 @@ onRecordUpdate((e) => {
 
 onRecordAfterCreateSuccess((e) => {
 	require(`${__hooks}/lib/lobby-players.js`).syncLobbyPlayerIndexForRecord(e);
+	require(`${__hooks}/lib/reputation.js`).awardMatchPlayed(e.record.id);
 }, 'lobbies');
 
 onRecordAfterUpdateSuccess((e) => {
 	require(`${__hooks}/lib/lobby-players.js`).syncLobbyPlayerIndexForRecord(e);
+	require(`${__hooks}/lib/reputation.js`).awardMatchPlayed(e.record.id);
 }, 'lobbies');
 
 $app.onServe().bindFunc((e) => {

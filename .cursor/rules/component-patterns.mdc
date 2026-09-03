@@ -1,19 +1,20 @@
 ---
-description: Reuse and build components from $lib/components with runed and bits-ui
-globs: packages/app/src/**/*.{svelte,svelte.ts}
+description: Reuse and build components from shared UI and $lib/components with runed and bits-ui
+globs: packages/{ui,app,landing}/src/**/*.{svelte,svelte.ts}
 alwaysApply: false
 ---
 
 # Component Library
 
-Before building UI, check **`packages/app/src/lib/components`** (`$lib/components`). Prefer existing primitives and domain components over duplicating markup or behavior.
+Before building UI, check **`@company-of-heroes/ui`** then **`packages/app/src/lib/components`**. Prefer existing primitives and domain components over duplicating markup or behavior.
 
 ## Reuse First
 
 | Layer      | Path                                            | Use for                         |
 | ---------- | ----------------------------------------------- | ------------------------------- |
-| Primitives | `ui/` — Button, Dialog, Popover, Tabs, Input, … | Generic, styled building blocks |
-| Domain     | `match/`, `player/`, `lobby/`, `replay/`, …     | Feature-specific but shared UI  |
+| Shared     | `@company-of-heroes/ui/*`                       | Primitives + presentational domain UI used by app and landing |
+| Primitives | `ui/` — Button, Dialog, Popover, Tabs, Input, … | Generic building blocks (app re-exports shared) |
+| Domain     | `match/`, `player/`, `lobby/`, `replay/`, …     | App-only or host adapters (fetch, i18n, Tauri) |
 | Widgets    | `widgets/`                                      | Dashboard / status surfaces     |
 
 Import from barrel `index.ts` files when available. Extend an existing component with props or snippets before copying its markup.
@@ -28,7 +29,7 @@ Match existing patterns in this repo:
 
 1. **Svelte 5 runes** — `$props()`, `$derived`, `{#snippet}` / `{@render}` (see `svelte-patterns.mdc`)
 2. **bits-ui** for interactive primitives — Dialog, Popover, Tabs, Select, etc.; style with `cn()` and project tokens
-3. **runed** for shared state — `Context` + `createX` / `useX` for component trees; `watch` for side effects in `.svelte.ts` modules
+3. **runed** for shared state — `Context` + `createX` / `useX` for component trees; `watch` for side effects in `.svelte.ts` modules. `createX` only at init (never `$effect` / after `await`; see `set-context-init.mdc`)
 4. **Types** — export `XxxProps` from `index.ts`; spread `...restProps` onto the root element
 5. **Barrel export** — `index.ts` re-exports public API; keep implementation files co-located
 
@@ -57,4 +58,4 @@ export const useMatch = () => context.get()();
 </Popover.Root>
 ```
 
-Place new files in the folder that matches scope: generic → `ui/`, feature-specific → the feature folder (e.g. `match/`).
+Place new shared files in **`packages/ui`** (see `component-naming.mdc`). App-only pieces stay under `$lib/components` by scope.

@@ -13,6 +13,8 @@ This project uses **Prettier** with `formatOnSave`. Never write code with a blan
 - **Imports**: consecutive imports with no blank lines between them; one blank line after the import block
 - **Functions**: one blank line between top-level functions; no blank lines between every line inside a function body
 - **Blocks**: one blank line between logical sections (imports → state → functions → markup), not between each line
+- **Braces**: always wrap `if` / `for` / `while` bodies in `{ }` on their own lines (`prettier-plugin-curly`). Never write `if (x) return;`
+- **After `if`**: always a blank line after the closing `}` when another statement follows. Not between `if` / `else if` / `else`, and not when the `if` is the last statement in the block
 - **Before finishing**: scan edited files for double-spacing; remove stray blank lines so output matches existing project files
 
 ## Examples
@@ -48,7 +50,11 @@ let x = $state(0);
 async function run() {
 	event.preventDefault();
 	const value = x.trim();
-	if (!value) return;
+	if (!value) {
+		return;
+	}
+
+	submit(value);
 }
 ```
 

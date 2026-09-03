@@ -1,4 +1,4 @@
-import { API_URL } from '$lib/urls';
+import { API_URL } from '$lib/site/urls';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, fetch }) => {

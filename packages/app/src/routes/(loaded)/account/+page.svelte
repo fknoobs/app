@@ -8,13 +8,20 @@
 	import { open } from '@tauri-apps/plugin-dialog';
 	import ImageCropper from '$lib/components/modals/image-cropper.svelte';
 	import { readFile } from '@tauri-apps/plugin-fs';
-	import { dev } from '$app/environment';
 	import { useI18n } from '$lib/i18n';
 	import { openUrl } from '@tauri-apps/plugin-opener';
 	import ImageIcon from 'phosphor-svelte/lib/ImageIcon';
 
 	const { t } = useI18n();
 	const privacyUrl = 'https://coh1stats.com/privacy';
+	const siteUrl = 'https://coh1stats.com';
+
+	let displayName = $state(app.features.auth.user.name ?? '');
+	let email = $state(app.account.settings.email);
+	let password = $state(app.account.settings.password);
+	let saving = $state(false);
+	let saveError = $state<string | null>(null);
+	let saveSuccess = $state(false);
 
 	const selectAvatar = async () => {
 		const path = await open({
@@ -55,13 +62,36 @@
 		});
 		app.modal.open();
 	};
+
+	async function saveAccount() {
+		saving = true;
+		saveError = null;
+		saveSuccess = false;
+		const error = await app.account.updateLoginCredentials({
+			name: displayName,
+			email,
+			password
+		});
+		saving = false;
+		if (error) {
+			saveError = error;
+			return;
+		}
+
+		displayName = app.features.auth.user.name ?? '';
+		saveSuccess = true;
+	}
 </script>
 
 <div class={flushHeader}>
 	<p class={flushHeaderDescription}>
 		{t(
-			'When you install the app, we automatically create a default account for you using a randomly generated email address and password. You can use this account right away to sign in and access your data. For better security and to be recognizable on leaderboards, we recommend creating your own account and switching to it. This makes it easier for others to identify you and helps keep your data protected.'
+			'When you install the app, we automatically create a default account for you using a randomly generated email address and password. Set a display name, email, and password you recognize — the same credentials log you in on'
 		)}
+		<Button variant="link" class="h-auto px-0" type="button" onclick={() => openUrl(siteUrl)}>
+			{siteUrl}
+		</Button>
+		{t('and in the desktop app.')}
 		<Button variant="link" class="h-auto px-0" type="button" onclick={() => openUrl(privacyUrl)}>
 			{t('Privacy policy')}
 		</Button>
@@ -92,17 +122,30 @@
 		{/snippet}
 	</Form.Group>
 	<Form.Group label={t('Displayname')}>
-		<Input type="text" bind:value={app.features.auth.user.name} disabled={!dev} />
+		<Input type="text" bind:value={displayName} />
 	</Form.Group>
 	<Form.Group
 		label={t('Email (Emails are private and will not be shared!)')}
 		description={t(
-			'This email is used to sign in to your account. It is recommended to use a valid email address so you can recover your account.'
+			'This email is used to sign in to your account on the website and in the app. Use a valid email address so you can recover your account.'
 		)}
 	>
-		<Input type="email" bind:value={app.account.settings.email} disabled={!dev} />
+		<Input type="email" bind:value={email} />
 	</Form.Group>
 	<Form.Group label={t('Password')}>
-		<Input type="password" bind:value={app.account.settings.password} disabled={!dev} />
+		<Input type="password" bind:value={password} />
+	</Form.Group>
+	<Form.Group>
+		{#snippet footer()}
+			<Button type="button" loading={saving} disabled={saving} onclick={saveAccount}>
+				{t('Save')}
+			</Button>
+			{#if saveError}
+				<p class="text-destructive text-sm">{saveError}</p>
+			{/if}
+			{#if saveSuccess}
+				<p class="text-success text-sm">{t('Account updated.')}</p>
+			{/if}
+		{/snippet}
 	</Form.Group>
 </Form.Root>

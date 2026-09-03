@@ -1,13 +1,13 @@
 <script lang="ts">
-	import UserLabels from '$lib/components/user/user-labels.svelte';
+	import { PlayerLabels as SharedPlayerLabels } from '@company-of-heroes/ui/player';
 	import { labelsForSteamId, preloadPlayerLabels } from '$core/pocketbase/player-label-cache.svelte';
-	import type { HTMLAttributes } from 'svelte/elements';
 
 	type Props = {
 		steamId?: string | null;
-	} & HTMLAttributes<HTMLSpanElement>;
+		class?: string;
+	};
 
-	let { steamId, ...restProps }: Props = $props();
+	let { steamId, class: className }: Props = $props();
 	const labels = $derived(labelsForSteamId(steamId));
 
 	$effect(() => {
@@ -15,4 +15,4 @@
 	});
 </script>
 
-<UserLabels {labels} {...restProps} />
+<SharedPlayerLabels {labels} class={className} />

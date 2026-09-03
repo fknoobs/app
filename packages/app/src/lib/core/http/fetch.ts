@@ -60,7 +60,14 @@ export function configureCorsFetch(): void {
  * - PocketBase + localhost: fetchNative (no Tauri IPC channel streaming)
  * - Other cross-origin APIs: @tauri-apps/plugin-http directly (Relic, Steam, …)
  */
-export function fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+type AppFetchInit = RequestInit & {
+	danger?: {
+		acceptInvalidCerts?: boolean;
+		acceptInvalidHostnames?: boolean;
+	};
+};
+
+export function fetch(input: RequestInfo | URL, init?: AppFetchInit): Promise<Response> {
 	const url = getUrl(input);
 	const w = globalThis as FetchWindow;
 	const transport = selectFetchTransport(url, pocketBaseOrigin, {

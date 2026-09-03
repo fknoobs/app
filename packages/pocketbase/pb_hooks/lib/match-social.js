@@ -1,5 +1,9 @@
 'use strict';
 
+function reputation() {
+	return require(`${__hooks}/lib/reputation.js`);
+}
+
 const COUNTER_FIELDS = ['likeCount', 'downloadCount', 'commentCount'];
 
 function adjustLobbyCounter(lobbyId, field, delta) {
@@ -32,12 +36,54 @@ function restoreCounterFields(e) {
 	e.next();
 }
 
+function adjustLobbyLikeCount(lobbyId, delta) {
+	if (!lobbyId || !delta) {
+		return;
+	}
+
+	try {
+		const lobby = $app.findRecordById('lobbies', lobbyId);
+		const current = Number(lobby.get('likeCount')) || 0;
+		lobby.set('likeCount', current + delta);
+		$app.save(lobby);
+	} catch (error) {
+		console.warn('[match_social] failed to update likeCount', String(error?.message || error));
+	}
+}
+
+function onLikeCreate(e) {
+	const value = Number(e.record.get('value'));
+	e.record.set('value', value === -1 ? -1 : 1);
+}
+
+function onLikeUpdate(e) {
+	const original = e.record.original();
+	e.record.set('lobby', original.get('lobby'));
+	e.record.set('user', original.get('user'));
+	const lobbyId = recordId(e.record.get('lobby'));
+	const value = Number(e.record.get('value'));
+	if (value !== 1 && value !== -1) {
+		throw new BadRequestError('Vote must be 1 or -1');
+	}
+
+	e.record.set('value', value);
+	const oldValue = voteValue(original);
+	e.next();
+	const delta = value - oldValue;
+	if (delta) {
+		adjustLobbyLikeCount(lobbyId, delta);
+		reputation().syncReplayVote(e.record, value);
+	}
+}
+
 function onLikeCreated(e) {
-	adjustLobbyCounter(e.record.get('lobby'), 'likeCount', 1);
+	adjustLobbyLikeCount(e.record.get('lobby'), voteValue(e.record));
+	reputation().syncReplayVote(e.record, voteValue(e.record));
 }
 
 function onLikeDeleted(e) {
-	adjustLobbyCounter(e.record.get('lobby'), 'likeCount', -1);
+	adjustLobbyLikeCount(e.record.get('lobby'), -voteValue(e.record));
+	reputation().syncReplayVote(e.record, 0);
 }
 
 function recordId(value) {
@@ -165,11 +211,55 @@ function commenterName(userId) {
 
 function commentSnippet(text) {
 	const plain = String(text || '')
+		.replace(/@\[([^\]]+)\]\(mention:[a-z0-9]{15}(?::\d+)?\)/g, '@$1')
 		.replace(/\s+/g, ' ')
 		.trim();
 	if (!plain) return '';
 	if (plain.length <= 280) return plain;
 	return plain.slice(0, 277) + '...';
+}
+
+function parseMentionUserIds(text) {
+	const ids = [];
+	const seen = Object.create(null);
+	const re = /@\[([^\]]+)\]\(mention:([a-z0-9]{15})(?::\d+)?\)/g;
+	let match;
+	while ((match = re.exec(String(text || '')))) {
+		const id = match[2];
+		if (!id || seen[id]) continue;
+		seen[id] = true;
+		ids.push(id);
+		if (ids.length >= 10) break;
+	}
+	return ids;
+}
+
+function existingUserIds(ids) {
+	const out = [];
+	for (const id of ids) {
+		try {
+			$app.findRecordById('users', id);
+			out.push(id);
+		} catch {
+			// missing or deleted account
+		}
+	}
+	return out;
+}
+
+function saveCommentNotification(payload) {
+	if (!payload.userIds.length) return;
+	const record = new Record($app.findCollectionByNameOrId('notifications'));
+	record.set('title', payload.title);
+	record.set('body', payload.body);
+	record.set('targetAll', false);
+	record.set('recipients', payload.userIds);
+	record.set('lobby', payload.lobbyId);
+	if (payload.commentId) {
+		record.set('comment', payload.commentId);
+	}
+	record.set('createdBy', payload.commenterId);
+	$app.save(record);
 }
 
 function notifyMatchPlayers(comment) {
@@ -182,11 +272,17 @@ function notifyMatchPlayers(comment) {
 			return;
 		}
 		const steamIds = collectLobbySteamIds(lobbyId);
-		const userIds = uniqueUserIds(
-			[...findUserIdsBySteamIds(steamIds), ...findPriorCommenterUserIds(lobbyId, commentId)],
+		const mentionedIds = uniqueUserIds(
+			existingUserIds(parseMentionUserIds(comment.get('text'))),
 			commenterId
 		);
-		if (!userIds.length) {
+		const mentioned = Object.create(null);
+		for (const id of mentionedIds) mentioned[id] = true;
+		const generalIds = uniqueUserIds(
+			[...findUserIdsBySteamIds(steamIds), ...findPriorCommenterUserIds(lobbyId, commentId)],
+			commenterId
+		).filter((id) => !mentioned[id]);
+		if (!mentionedIds.length && !generalIds.length) {
 			console.warn('[match_social] notify skip: no recipients', lobbyId, 'steam', steamIds.length);
 			return;
 		}
@@ -194,18 +290,29 @@ function notifyMatchPlayers(comment) {
 		const name = commenterName(commenterId);
 		const body =
 			commentSnippet(comment.get('text')) || (isReply ? 'New reply' : 'New comment');
-		const record = new Record($app.findCollectionByNameOrId('notifications'));
-		record.set('title', isReply ? `${name} replied on a match` : `${name} commented on a match`);
-		record.set('body', body);
-		record.set('targetAll', false);
-		record.set('recipients', userIds);
-		record.set('lobby', lobbyId);
-		if (commentId) {
-			record.set('comment', commentId);
+		const shared = { body, lobbyId, commentId, commenterId };
+		if (mentionedIds.length) {
+			saveCommentNotification({
+				...shared,
+				title: `${name} mentioned you on a match`,
+				userIds: mentionedIds
+			});
 		}
-		record.set('createdBy', commenterId);
-		$app.save(record);
-		console.log('[match_social] notify', lobbyId, 'recipients', userIds.length);
+		if (generalIds.length) {
+			saveCommentNotification({
+				...shared,
+				title: isReply ? `${name} replied on a match` : `${name} commented on a match`,
+				userIds: generalIds
+			});
+		}
+		console.log(
+			'[match_social] notify',
+			lobbyId,
+			'recipients',
+			generalIds.length,
+			'mentions',
+			mentionedIds.length
+		);
 	} catch (error) {
 		console.warn('[match_social] notifyMatchPlayers', String(error?.message || error));
 	}
@@ -214,10 +321,66 @@ function notifyMatchPlayers(comment) {
 function onCommentCreated(e) {
 	adjustLobbyCounter(e.record.get('lobby'), 'commentCount', 1);
 	notifyMatchPlayers(e.record);
+	reputation().awardCommentCreated(e.record);
 }
 
 function onCommentDeleted(e) {
+	if (e.record.get('deleted')) {
+		return;
+	}
+
 	adjustLobbyCounter(e.record.get('lobby'), 'commentCount', -1);
+	reputation().revokeCommentCreated(e.record);
+}
+
+function isStaffAuth(auth) {
+	if (!auth) {
+		return false;
+	}
+
+	const role = String(auth.get('role') || '');
+	return role === 'admin' || role === 'moderator';
+}
+
+function applyCommentSoftDelete(e, original) {
+	const alreadyDeleted = Boolean(original.get('deleted'));
+	const nextDeleted = Boolean(e.record.get('deleted'));
+	if (alreadyDeleted) {
+		e.record.set('deleted', true);
+		e.record.set('deletedAt', original.get('deletedAt'));
+		e.record.set('deletedBy', original.get('deletedBy'));
+		e.record.set('deletedNote', original.get('deletedNote'));
+		e.record.set('text', original.get('text'));
+		return;
+	}
+
+	if (!nextDeleted) {
+		e.record.set('deleted', false);
+		e.record.set('deletedAt', original.get('deletedAt'));
+		e.record.set('deletedBy', original.get('deletedBy'));
+		e.record.set('deletedNote', original.get('deletedNote'));
+		return;
+	}
+
+	const auth = e.auth;
+	if (!auth?.id) {
+		throw new BadRequestError('Log in to do that.');
+	}
+
+	const note = String(e.record.get('deletedNote') || '').trim();
+	if (isStaffAuth(auth)) {
+		if (!note) {
+			throw new BadRequestError('Enter a reason.');
+		}
+
+		e.record.set('deletedNote', note.slice(0, 500));
+	} else {
+		e.record.set('deletedNote', '');
+	}
+
+	e.record.set('deleted', true);
+	e.record.set('deletedBy', auth.id);
+	e.record.set('deletedAt', new Date().toISOString());
 }
 
 const MAX_COMMENT_DEPTH = 8;
@@ -253,6 +416,10 @@ function onCommentCreate(e) {
 	if (!e.record) return;
 	if (!e.hasSuperuserAuth()) {
 		e.record.set('likeCount', 0);
+		e.record.set('deleted', false);
+		e.record.set('deletedAt', '');
+		e.record.set('deletedBy', '');
+		e.record.set('deletedNote', '');
 	}
 	const parent = parentId(e.record);
 	if (!parent) return;
@@ -261,6 +428,9 @@ function onCommentCreate(e) {
 		parentRecord = $app.findRecordById('lobby_comments', parent);
 	} catch {
 		throw new BadRequestError('Parent comment not found');
+	}
+	if (parentRecord.get('deleted')) {
+		throw new BadRequestError('Cannot reply to a deleted comment');
 	}
 	if (String(parentRecord.get('lobby')) !== String(e.record.get('lobby'))) {
 		throw new BadRequestError('Reply must be on the same match');
@@ -271,25 +441,89 @@ function onCommentCreate(e) {
 }
 
 function restoreCommentProtectedFields(e) {
-	try {
-		if (!e.hasSuperuserAuth()) {
-			const original = e.record.original();
-			for (const field of COMMENT_PROTECTED_FIELDS) {
-				e.record.set(field, original.get(field));
-			}
-		}
-	} catch (error) {
-		console.warn('[match_social] restoreCommentProtectedFields', String(error?.message || error));
+	if (e.hasSuperuserAuth()) {
+		e.next();
+		return;
 	}
+
+	const original = e.record.original();
+	for (const field of COMMENT_PROTECTED_FIELDS) {
+		e.record.set(field, original.get(field));
+	}
+
+	applyCommentSoftDelete(e, original);
+	const becomingDeleted = !Boolean(original.get('deleted')) && Boolean(e.record.get('deleted'));
+	const lobbyId = e.record.get('lobby');
 	e.next();
+	if (becomingDeleted) {
+		adjustLobbyCounter(lobbyId, 'commentCount', -1);
+		reputation().revokeCommentCreated(e.record);
+	}
+}
+
+function voteValue(record) {
+	const raw = Number(record.get('value'));
+	if (raw === -1) {
+		return -1;
+	}
+
+	return 1;
+}
+
+function requireLiveComment(commentId) {
+	if (!commentId) {
+		throw new BadRequestError('Comment is required');
+	}
+
+	let comment;
+	try {
+		comment = $app.findRecordById('lobby_comments', commentId);
+	} catch {
+		throw new BadRequestError('Comment not found');
+	}
+
+	if (comment.get('deleted')) {
+		throw new BadRequestError('Cannot vote on a deleted comment');
+	}
+
+	return comment;
+}
+
+function onCommentLikeCreate(e) {
+	requireLiveComment(recordId(e.record.get('comment')));
+	const value = Number(e.record.get('value'));
+	e.record.set('value', value === -1 ? -1 : 1);
+}
+
+function onCommentLikeUpdate(e) {
+	const original = e.record.original();
+	e.record.set('comment', original.get('comment'));
+	e.record.set('user', original.get('user'));
+	const commentId = recordId(e.record.get('comment'));
+	requireLiveComment(commentId);
+	const value = Number(e.record.get('value'));
+	if (value !== 1 && value !== -1) {
+		throw new BadRequestError('Vote must be 1 or -1');
+	}
+
+	e.record.set('value', value);
+	const oldValue = voteValue(original);
+	e.next();
+	const delta = value - oldValue;
+	if (delta) {
+		adjustCommentLikeCount(commentId, delta);
+		reputation().syncCommentVote(e.record, value);
+	}
 }
 
 function adjustCommentLikeCount(commentId, delta) {
-	if (!commentId) return;
+	if (!commentId) {
+		return;
+	}
 	try {
 		const comment = $app.findRecordById('lobby_comments', commentId);
 		const current = Number(comment.get('likeCount')) || 0;
-		comment.set('likeCount', Math.max(0, current + delta));
+		comment.set('likeCount', current + delta);
 		$app.save(comment);
 	} catch (error) {
 		console.warn('[match_social] failed to update comment likeCount', String(error?.message || error));
@@ -297,11 +531,13 @@ function adjustCommentLikeCount(commentId, delta) {
 }
 
 function onCommentLikeCreated(e) {
-	adjustCommentLikeCount(e.record.get('comment'), 1);
+	adjustCommentLikeCount(e.record.get('comment'), voteValue(e.record));
+	reputation().syncCommentVote(e.record, voteValue(e.record));
 }
 
 function onCommentLikeDeleted(e) {
-	adjustCommentLikeCount(e.record.get('comment'), -1);
+	adjustCommentLikeCount(e.record.get('comment'), -voteValue(e.record));
+	reputation().syncCommentVote(e.record, 0);
 }
 
 function handleRecordDownload(e) {
@@ -337,12 +573,13 @@ function handleRecordDownload(e) {
 		// first download for this user
 	}
 
+	let downloadRecord;
 	try {
 		const collection = $app.findCollectionByNameOrId('lobby_downloads');
-		const record = new Record(collection);
-		record.set('lobby', lobbyId);
-		record.set('user', auth.id);
-		$app.save(record);
+		downloadRecord = new Record(collection);
+		downloadRecord.set('lobby', lobbyId);
+		downloadRecord.set('user', auth.id);
+		$app.save(downloadRecord);
 	} catch (error) {
 		try {
 			lobby = $app.findRecordById('lobbies', lobbyId);
@@ -353,6 +590,11 @@ function handleRecordDownload(e) {
 	}
 
 	adjustLobbyCounter(lobbyId, 'downloadCount', 1);
+	reputation().awardReplayDownload({
+		uploaderId: lobby.get('user'),
+		downloaderId: auth.id,
+		sourceId: downloadRecord.id
+	});
 
 	try {
 		lobby = $app.findRecordById('lobbies', lobbyId);
@@ -366,11 +608,15 @@ function handleRecordDownload(e) {
 module.exports = {
 	restoreCounterFields,
 	restoreCommentProtectedFields,
+	onLikeCreate,
+	onLikeUpdate,
 	onLikeCreated,
 	onLikeDeleted,
 	onCommentCreate,
 	onCommentCreated,
 	onCommentDeleted,
+	onCommentLikeCreate,
+	onCommentLikeUpdate,
 	onCommentLikeCreated,
 	onCommentLikeDeleted,
 	handleRecordDownload

@@ -11,46 +11,59 @@ import type { RelicProfile } from '@fknoobs/app';
 import { Context } from 'runed';
 
 const userContext = new Context<UserContext>('<user />');
-export const createUser = (user: UsersResponse) =>
+export const createUser = (user: () => UsersResponse) =>
 	userContext.set(new UserContext(user));
 export const useUser = () => userContext.get();
 
 export class UserContext {
-	id = $state<RecordIdString>();
-
-	collectionId = $state<string>();
-
-	collectionName = $state<Collections>();
-
-	avatar = $state<FileNameString>();
-
-	name = $state<string>();
-
-	email = $state<string>();
-
-	steamIds = $state<string[]>([]);
-
-	created = $state<Date>();
-
-	updated = $state<Date>();
+	#user: () => UsersResponse;
 
 	relicProfile = $state<RelicProfile>();
-
 	steamProfile = $state<SteamPlayerSummary>();
 
-	role = $state<UsersRoleOptions>();
+	constructor(user: () => UsersResponse) {
+		this.#user = user;
+	}
 
-	constructor(user: UsersResponse) {
-		this.id = user.id;
-		this.collectionId = user.collectionId;
-		this.collectionName = user.collectionName;
-		this.avatar = user.avatar;
-		this.name = user.name;
-		this.email = user.email;
-		this.steamIds = Array.isArray(user.steamIds) ? user.steamIds.map(String) : [];
-		this.created = new Date(user.created);
-		this.updated = new Date(user.updated);
-		this.role = user.role;
+	get id(): RecordIdString | undefined {
+		return this.#user().id;
+	}
+
+	get collectionId(): string | undefined {
+		return this.#user().collectionId;
+	}
+
+	get collectionName(): Collections | undefined {
+		return this.#user().collectionName;
+	}
+
+	get avatar(): FileNameString | undefined {
+		return this.#user().avatar;
+	}
+
+	get name(): string | undefined {
+		return this.#user().name;
+	}
+
+	get email(): string | undefined {
+		return this.#user().email;
+	}
+
+	get steamIds(): string[] {
+		const ids = this.#user().steamIds;
+		return Array.isArray(ids) ? ids.map(String) : [];
+	}
+
+	get created(): Date {
+		return new Date(this.#user().created);
+	}
+
+	get updated(): Date {
+		return new Date(this.#user().updated);
+	}
+
+	get role(): UsersRoleOptions | undefined {
+		return this.#user().role;
 	}
 
 	getRelicProfile() {

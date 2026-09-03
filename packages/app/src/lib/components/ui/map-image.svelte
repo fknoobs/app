@@ -1,74 +1,24 @@
 <script lang="ts">
-	import type { HTMLImgAttributes } from 'svelte/elements';
+	import MapImage from '@company-of-heroes/ui/map-image';
 	import { getDefaultMapImage, getMapImageFromName } from '$lib/utils/game';
-	import { cn } from '$lib/utils';
-	import { AspectRatio } from 'bits-ui';
 
-	type Props = HTMLImgAttributes & {
+	type Props = {
 		map: string | undefined;
 		small?: boolean;
 		flush?: boolean;
-		alt?: string;
+		alt?: string | null;
+		class?: string;
 	};
 
-	const {
-		map,
-		small = false,
-		flush = false,
-		alt: altText,
-		class: className,
-		...restProps
-	}: Props = $props();
-
-	const src = $derived(getMapImageFromName(map));
-	const alt = $derived(altText ?? map ?? '');
-
-	function handleImageError(event: Event) {
-		const img = event.currentTarget as HTMLImageElement;
-		const fallback = getDefaultMapImage();
-
-		if (fallback && img.src !== fallback) {
-			img.src = fallback;
-		}
-	}
+	let { map, small, flush, alt = undefined, class: className }: Props = $props();
 </script>
 
-{#snippet mapLayers()}
-	<img
-		{...restProps}
-		{src}
-		{alt}
-		onerror={handleImageError}
-		class={cn('absolute inset-0 z-5 h-full w-full scale-180 object-cover opacity-30', className)}
-	/>
-	<img
-		{...restProps}
-		{src}
-		{alt}
-		onerror={handleImageError}
-		class={cn('z-10 h-full w-full object-contain', className)}
-	/>
-{/snippet}
-
-{#if small && flush}
-	<div class="relative size-11 shrink-0 overflow-clip">
-		{@render mapLayers()}
-	</div>
-{:else if small}
-	<div class="w-10">
-		<AspectRatio.Root class="flex items-center justify-center overflow-clip rounded">
-			{@render mapLayers()}
-		</AspectRatio.Root>
-	</div>
-{:else if flush}
-	<div class="relative flex h-full min-h-[220px] w-full items-center justify-center overflow-clip">
-		{@render mapLayers()}
-	</div>
-{:else}
-	<AspectRatio.Root
-		ratio={1}
-		class="border-secondary-800 flex items-center justify-center overflow-clip rounded-lg border"
-	>
-		{@render mapLayers()}
-	</AspectRatio.Root>
-{/if}
+<MapImage
+	{map}
+	{small}
+	{flush}
+	alt={alt ?? undefined}
+	class={className}
+	resolveMapSrc={getMapImageFromName}
+	resolveFallbackSrc={getDefaultMapImage}
+/>

@@ -32,29 +32,43 @@
 			void (async () => {
 				try {
 					if (!record.image) {
-						if (!cancelled) failed = true;
+						if (!cancelled) {
+							failed = true;
+						}
+
 						return;
 					}
+
 					const bytes = await getFile(record, record.image);
-					if (cancelled) return;
+					if (cancelled) {
+						return;
+					}
+
 					const url = URL.createObjectURL(new Blob([bytes], { type: 'image/jpeg' }));
 					if (cancelled) {
 						URL.revokeObjectURL(url);
 						return;
 					}
+
 					objectUrl = url;
 					src = url;
 				} catch (error) {
 					console.warn('[ANTI-CHEAT]: screenshot load failed', record.id, error);
-					if (!cancelled) failed = true;
+					if (!cancelled) {
+						failed = true;
+					}
 				} finally {
-					if (!cancelled) loading = false;
+					if (!cancelled) {
+						loading = false;
+					}
 				}
 			})();
 
 			return () => {
 				cancelled = true;
-				if (objectUrl) URL.revokeObjectURL(objectUrl);
+				if (objectUrl) {
+					URL.revokeObjectURL(objectUrl);
+				}
 			};
 		}
 	);

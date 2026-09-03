@@ -59,6 +59,7 @@
 		const cpm = new Map<number, string>();
 
 		for (const player of replay.players) {
+			if (player.id == null) continue;
 			const actions = replay.actions.filter((action) => action.playerID === player.id);
 			const takeoverIndex = actions.findIndex((action) => action.command?.type === 'AI_TAKEOVER') + 1;
 			const counted = takeoverIndex > 0 ? actions.slice(0, takeoverIndex) : actions;
@@ -123,7 +124,7 @@
 
 	function findResultPlayer(lobbyPlayer: LobbyPlayer | undefined): MatchHistoryPlayer | undefined {
 		if (!result || !lobbyPlayer) return undefined;
-		const profileId = lobbyPlayer.profile_id ?? lobbyPlayer.profile?.profile_id ?? lobbyPlayer.playerId;
+		const profileId = getPlayerProfileId(lobbyPlayer);
 		if (profileId == null || profileId <= 0) return undefined;
 		return result.players.find((entry) => entry.profile_id === profileId);
 	}
@@ -268,7 +269,7 @@
 					{t('CPM')}
 				</span>
 				<span class="text-primary text-xl leading-none font-bold tabular-nums">
-					{playerCpm.get(player.id) ?? '0'}
+					{player.id != null ? (playerCpm.get(player.id) ?? '0') : '0'}
 				</span>
 			</div>
 		</div>

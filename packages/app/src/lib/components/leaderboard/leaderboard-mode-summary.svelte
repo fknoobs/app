@@ -37,7 +37,9 @@
 		const result: ModeRow[] = [];
 		for (const group of MODE_GROUPS) {
 			const candidates = stats.filter(
-				(stat) => isRanked(stat.leaderboard_id) && group.ids.includes(stat.leaderboard_id)
+				(stat) =>
+					isRanked(stat.leaderboard_id) &&
+					(group.ids as readonly number[]).includes(stat.leaderboard_id)
 			);
 			let best: LeaderboardStat | null = null;
 			let bestScore = Number.NEGATIVE_INFINITY;

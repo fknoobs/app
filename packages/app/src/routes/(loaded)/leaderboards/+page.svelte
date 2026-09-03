@@ -16,7 +16,7 @@
 	} from '$core/pocketbase/player-ratings';
 	import type { PlayerEloMap } from '$lib/utils/player-elo';
 	import { leaderboards } from '$lib/utils/game';
-	import Input from '$lib/components/ui/input/input.svelte';
+	import { Input } from '$lib/components/ui/input';
 	import { isEmpty } from 'lodash-es';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
 	import { useI18n } from '$lib/i18n';

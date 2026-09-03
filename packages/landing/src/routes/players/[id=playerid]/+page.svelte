@@ -1,31 +1,34 @@
 <script lang="ts">
-	import PlayerMatchHistory from '$lib/components/PlayerMatchHistory.svelte';
-	import PlayerPerformancePanel from '$lib/components/PlayerPerformancePanel.svelte';
-	import PlayerProfileHeader from '$lib/components/PlayerProfileHeader.svelte';
-	import PlayerProfileSkeleton from '$lib/components/PlayerProfileSkeleton.svelte';
-	import PlayerStatsTable from '$lib/components/PlayerStatsTable.svelte';
-	import { formatHours, formatRelative } from '$lib/player-format';
-	import { SITE_URL } from '$lib/urls';
-	import { tabTrigger } from '$lib/variants';
+	import PlayerMatchHistory from '$lib/components/player/player-match-history.svelte';
+	import PlayerPerformancePanel from '$lib/components/player-performance/player-performance-panel.svelte';
+	import PlayerProfileHeader from '$lib/components/player/player-profile-header.svelte';
+	import PlayerProfileSkeleton from '$lib/components/player/player-profile-skeleton.svelte';
+	import PlayerStatsTable from '$lib/components/player/player-stats-table.svelte';
+	import { formatRelative } from '$lib/utils/player/format';
+	import { SITE_URL } from '$lib/site/urls';
+	import { currentLocale, href, useI18n } from '$lib/i18n';
+	import { tabTrigger } from '$lib/utils/variants';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	const { t } = useI18n();
 	let currentTab = $state<'stats' | 'performance' | 'match-history'>('stats');
 </script>
 
 <svelte:head>
 	{#await data.player}
-		<title>Loading player | Company of Heroes - Companion</title>
+		<title>{t('Loading player')} | {t('Company of Heroes 1 Stats')}</title>
 	{:then player}
-		<title>{player.alias} | Company of Heroes - Companion</title>
+		<title>{player.alias} | {t('Company of Heroes 1 Stats')}</title>
 		<meta
 			name="description"
-			content="Company of Heroes stats for {player.alias}: ranks, community performance, and recent matches."
+			content={t(
+				'Company of Heroes stats for {alias}: ranks, community performance, and recent matches.',
+				{ alias: player.alias }
+			)}
 		/>
-		<meta property="og:url" content="{SITE_URL}/players/{player.steamId}" />
-		<meta property="og:title" content="{player.alias} — CoH player stats" />
-	{:catch}
-		<title>Could not load player | Company of Heroes - Companion</title>
+		<meta property="og:url" content="{SITE_URL}{href(`/players/${player.steamId}`)}" />
+		<meta property="og:title" content="{player.alias} — {t('CoH player stats')}" />
 	{/await}
 </svelte:head>
 
@@ -42,7 +45,7 @@
 					data-state={currentTab === 'stats' ? 'active' : undefined}
 					onclick={() => (currentTab = 'stats')}
 				>
-					Stats
+					{t('Stats')}
 				</button>
 				<button
 					type="button"
@@ -50,7 +53,7 @@
 					data-state={currentTab === 'performance' ? 'active' : undefined}
 					onclick={() => (currentTab = 'performance')}
 				>
-					Performance
+					{t('Performance')}
 				</button>
 				<button
 					type="button"
@@ -58,7 +61,7 @@
 					data-state={currentTab === 'match-history' ? 'active' : undefined}
 					onclick={() => (currentTab = 'match-history')}
 				>
-					Match history
+					{t('Match history')}
 				</button>
 			</div>
 			<div class="border-secondary-800 border-t">
@@ -76,31 +79,22 @@
 		>
 			{#if player.lastlogoff}
 				<span>
-					<span class="text-secondary-500">Last seen</span>
-					{formatRelative(player.lastlogoff)}
+					<span class="text-secondary-500">{t('Last seen')}</span>
+					{formatRelative(player.lastlogoff, currentLocale())}
 				</span>
 			{/if}
 			{#if player.playtimeForever}
 				<span>
-					<span class="text-secondary-500">Playtime</span>
-					{formatHours(player.playtimeForever)}
+					<span class="text-secondary-500">{t('Playtime')}</span>
+					{t('{hours} hours', { hours: Math.round(player.playtimeForever / 60) })}
 				</span>
 			{/if}
 			{#if player.playtime2weeks}
 				<span>
-					<span class="text-secondary-500">Past 2 weeks</span>
-					{formatHours(player.playtime2weeks)}
+					<span class="text-secondary-500">{t('Past 2 weeks')}</span>
+					{t('{hours} hours', { hours: Math.round(player.playtime2weeks / 60) })}
 				</span>
 			{/if}
 		</div>
-	</div>
-{:catch loadError}
-	<div class="border-secondary-800 border-b px-4 py-3">
-		<h1 class="font-heading mb-1 text-xl font-bold text-white">Could not load player</h1>
-		<p class="text-secondary-400 text-sm">
-			{loadError instanceof Error
-				? loadError.message
-				: 'Please try another Steam ID or Relic profile id.'}
-		</p>
 	</div>
 {/await}

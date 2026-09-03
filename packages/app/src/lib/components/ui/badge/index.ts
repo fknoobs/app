@@ -1,3 +1,1 @@
-import Badge from './badge.svelte';
-
-export { Badge };
+export * from '@company-of-heroes/ui/badge';

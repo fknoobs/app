@@ -4,9 +4,10 @@ import { check, Update as TauriUpdate } from '@tauri-apps/plugin-updater';
 import { relaunch } from '@tauri-apps/plugin-process';
 import { app } from '$core/app/context';
 import { padEnd } from 'lodash-es';
-import { coerce, gt, valid } from 'semver';
+import { gt } from 'semver';
 import Changelog from './changelog.svelte';
 import Update from './update.svelte';
+import { findLatestWhatsNew, findWhatsNew, normalizeVersion } from './whats-new';
 import { settings } from '$core/config/settings.svelte';
 import { t } from '$lib/i18n';
 import { dev } from '$app/environment';
@@ -18,18 +19,6 @@ export type UpdaterSettings = {
 	didReadChangelog: boolean;
 	version: string;
 };
-
-function normalizeVersion(version: string): string | null {
-	const trimmed = version.trim();
-	if (!trimmed) return null;
-
-	const exact = valid(trimmed);
-	if (exact) return exact;
-
-	// Windows/MS Store builds can report 4-part versions like "0.52.4.0".
-	// `semver` treats those as invalid, but `coerce()` safely normalizes them.
-	return coerce(trimmed)?.version ?? null;
-}
 
 /**
  * Checks GitHub for signed updates, downloads them in the background,
@@ -55,7 +44,7 @@ export class Updater extends Feature<UpdaterSettings> {
 
 	async enable() {
 		this.currentVersion = await getVersion();
-		this.#maybeShowChangelog();
+		void this.#maybeShowChangelog();
 		if (dev) return;
 		void this.#checkForUpdate();
 	}
@@ -94,7 +83,7 @@ export class Updater extends Feature<UpdaterSettings> {
 		}
 	}
 
-	#maybeShowChangelog(): void {
+	async #maybeShowChangelog(): Promise<void> {
 		const current = normalizeVersion(this.currentVersion);
 		const previous = normalizeVersion(this.settings.version);
 
@@ -106,11 +95,38 @@ export class Updater extends Feature<UpdaterSettings> {
 			(!current || !previous ? this.currentVersion !== this.settings.version : false);
 
 		if (shouldShow) {
-			this.openChangelog();
+			const highlight = await findWhatsNew(previous, current);
+			if (highlight) {
+				this.openWhatsNew(highlight.markdown);
+			} else {
+				this.openChangelog();
+			}
+
 			void app.modal.once('close').then(() => {
 				this.settings.version = current ?? this.currentVersion;
 			});
 		}
+	}
+
+	openWhatsNew(markdown: string) {
+		app.modal.create({
+			component: Changelog,
+			title: t("What's New"),
+			description: t('New in this version:'),
+			size: 'xl',
+			props: { markdown }
+		});
+		app.modal.open();
+	}
+
+	async previewWhatsNew() {
+		const highlight = await findLatestWhatsNew();
+		if (!highlight) {
+			app.toast.info(t("No What's New markdown found."));
+			return;
+		}
+
+		this.openWhatsNew(highlight.markdown);
 	}
 
 	openChangelog() {

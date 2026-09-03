@@ -80,7 +80,8 @@
 			if (capture.steam_id && !ids.includes(capture.steam_id)) {
 				ids.push(capture.steam_id);
 			}
-			for (const steamId of captureUser(capture)?.steamIds ?? []) {
+			const userSteamIds = captureUser(capture)?.steamIds;
+			for (const steamId of Array.isArray(userSteamIds) ? userSteamIds : []) {
 				const id = String(steamId);
 				if (id && !ids.includes(id)) ids.push(id);
 			}

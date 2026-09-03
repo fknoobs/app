@@ -1,0 +1,84 @@
+<script lang="ts">
+	import { Button } from '@company-of-heroes/ui/button';
+	import { cn } from '@company-of-heroes/ui/cn';
+	import { scoreClassName, type CommentVoteValue } from './vote';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
+	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
+
+	type Props = {
+		score: number;
+		vote?: CommentVoteValue;
+		disabled?: boolean;
+		compact?: boolean;
+		href?: string;
+		upvoteLabel?: string;
+		downvoteLabel?: string;
+		onvote?: (value: 1 | -1) => void;
+		class?: string;
+	};
+
+	let {
+		score,
+		vote = 0,
+		disabled = false,
+		compact = false,
+		href,
+		upvoteLabel = 'Upvote',
+		downvoteLabel = 'Downvote',
+		onvote,
+		class: className
+	}: Props = $props();
+
+	const upActive = $derived(vote === 1);
+	const downActive = $derived(vote === -1);
+	const scoreClass = $derived(scoreClassName(score));
+	const iconSize = $derived(compact ? 16 : 18);
+
+	function voteUp() {
+		onvote?.(1);
+	}
+
+	function voteDown() {
+		onvote?.(-1);
+	}
+</script>
+
+<div class={cn('flex w-9 shrink-0 flex-col items-center gap-2', className)}>
+	<Button
+		type={href ? undefined : 'button'}
+		{href}
+		variant="ghost"
+		size="icon-sm"
+		class={cn(
+			upActive
+				? 'bg-success/20 text-success hover:bg-success/30 hover:text-success'
+				: 'text-secondary-300 hover:bg-success/15 hover:text-green-400'
+		)}
+		disabled={!href && disabled}
+		aria-pressed={href ? undefined : upActive}
+		aria-label={upvoteLabel}
+		onclick={href ? undefined : voteUp}
+	>
+		<CaretUpIcon size={iconSize} weight="fill" />
+	</Button>
+	<span class={cn('text-center text-sm leading-none font-bold tabular-nums', scoreClass)}>
+		{score}
+	</span>
+	<Button
+		type={href ? undefined : 'button'}
+		{href}
+		variant="ghost"
+		size="icon-sm"
+		class={cn(
+			downActive
+				? 'bg-destructive/20 hover:bg-destructive/30 text-red-400 hover:text-red-300'
+				: 'text-secondary-300 hover:bg-destructive/15 hover:text-red-400'
+		)}
+		disabled={!href && disabled}
+		aria-pressed={href ? undefined : downActive}
+		aria-label={downvoteLabel}
+		onclick={href ? undefined : voteDown}
+	>
+		<CaretDownIcon size={iconSize} weight="fill" />
+	</Button>
+</div>

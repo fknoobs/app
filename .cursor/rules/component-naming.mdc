@@ -1,0 +1,60 @@
+---
+description: Component file and folder naming — kebab-case everywhere in ui, app, and landing
+globs: packages/{ui,app,landing}/**/*.{svelte,svelte.ts,ts}
+alwaysApply: false
+---
+
+# Component Naming
+
+Follow [`packages/app/src/lib/components/`](packages/app/src/lib/components/) — same rules apply to [`packages/ui`](packages/ui) and [`packages/landing/src/lib/components/`](packages/landing/src/lib/components/).
+
+## Files and folders
+
+- **kebab-case** only — never `Button.svelte`, `Header.svelte`, `DownloadSection.svelte`, or `MatchTitle.svelte`
+- Folder = scope: `ui/button`, `match`, `player`, `leaderboard`, `replay`, …
+- Domain pieces: `{domain}-{piece}.svelte` — `match-title.svelte`, `leaderboard-list.svelte`
+- Context modules: `context.ts`, `context.svelte.ts`, or `{domain}.context.svelte.ts`
+- Barrels: always `index.ts`
+
+## Landing marketing components
+
+Landing-only site chrome lives under `packages/landing/src/lib/components/` with the **same kebab-case rules**, grouped by folder — no PascalCase leftovers, no loose files on the components root:
+
+| Folder | Files |
+|---|---|
+| `layout/` | `header.svelte`, `header-auth.svelte`, `footer.svelte`, `discord-menu.svelte` |
+| `home/` | `hero.svelte`, `download-section.svelte`, `fair-play-section.svelte`, `feature-section.svelte` |
+| `player/` | `card-form.svelte` plus player profile pieces |
+| `ui/` | `error-state.svelte`, `map-image.svelte` |
+
+Shared player/replay UI stays in scoped folders (`player/`, `replay/`, `player-performance/`, `ui/`) — already kebab-case.
+
+## Script bindings vs exports
+
+- Import binding: **PascalCase** (`MatchTitle` from `./match-title.svelte`)
+- Compound families: namespace barrels — `export { MatchTitle as Title }` → `import * as Match`
+- Simple primitives: named export — `import { Button } from '@company-of-heroes/ui/button'`
+
+```typescript
+// ✅ compound domain
+import * as Match from '$lib/components/match';
+// <Match.Root><Match.Title /></Match.Root>
+
+// ✅ shared primitive (app re-exports or direct package import)
+import { Button } from '@company-of-heroes/ui/button';
+import { LeaderboardList } from '@company-of-heroes/ui/leaderboard';
+
+// ✅ landing marketing — folder + kebab path, PascalCase binding
+import Header from '$lib/components/layout/header.svelte';
+import DownloadSection from '$lib/components/home/download-section.svelte';
+```
+
+## Do not
+
+- PascalCase filenames in `components/` or `packages/ui/src/`
+- Loose domain files at the landing `components/` root — put chrome in `layout/` or `home/`
+- Duplicate shared UI in landing/app when `@company-of-heroes/ui` already has it
+
+## New shared components
+
+Add to **`packages/ui`** first (presentational, no `$lib` / `$core` / `$app`). Host-specific fetch, i18n, and navigation stay in thin adapters under `packages/app` or landing route containers.

@@ -1,0 +1,32 @@
+---
+description: packages/ui stays presentational — export in package.json, no app aliases
+globs: packages/ui/**
+alwaysApply: false
+---
+
+# Shared UI package
+
+`@company-of-heroes/ui` is presentational. Hosts inject data, map images, i18n, and navigation via props.
+
+- No `$lib`, `$core`, `$app`, `$features`, Tauri, or PocketBase client
+- `cn` from `@company-of-heroes/ui/cn`
+- New public file → add an `exports` entry in `packages/ui/package.json`
+- Interactive primitives wrap **bits-ui**; English default labels, overridable props
+
+```json
+"./player": "./src/player/index.ts"
+```
+
+```svelte
+<script lang="ts">
+	import { cn } from '@company-of-heroes/ui/cn';
+	let { resolveMapSrc, label = 'Map' }: Props = $props();
+</script>
+```
+
+```typescript
+// ❌ BAD — import { pocketbase } from '$core/pocketbase' inside packages/ui
+// ✅ GOOD — accept player/map data as props; app/landing fetch
+```
+
+App may re-export from `$lib/components/ui/*` for app-only wrappers (Avatar, Table). Do not duplicate a shared component in landing or app when this package already exports it.

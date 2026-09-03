@@ -1,3 +1,1 @@
-import ToggleGroup from './toggle-group.svelte';
-
-export { ToggleGroup };
+export * from '@company-of-heroes/ui/toggle-group';

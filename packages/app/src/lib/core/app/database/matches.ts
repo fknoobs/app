@@ -441,7 +441,7 @@ export class Matches {
 					maps: data.maps ?? [],
 					players: data.players ?? [],
 					users: []
-				} as LobbyAggregationResponse<string, string[], AggregationPlayer[]>;
+				} as unknown as LobbyAggregationResponse<string, string[], AggregationPlayer[]>;
 			}
 
 			return {

@@ -9,7 +9,7 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 export default defineConfig({
 	plugins: [sveltekit(), tailwindcss()],
 	ssr: {
-		noExternal: ['bits-ui', 'layerchart']
+		noExternal: ['bits-ui', 'layerchart', '@svelte-i18n/core', '@company-of-heroes/i18n']
 	},
 	server: {
 		port: 5174,

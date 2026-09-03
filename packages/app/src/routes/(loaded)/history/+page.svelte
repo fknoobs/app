@@ -14,7 +14,8 @@
 	import HistoryFilters from './history-filters.svelte';
 	import MyReplays from './my-replays.svelte';
 	import { ReplayList, type ReplayListState } from '../replays/replay-list.svelte';
-	import HeartIcon from 'phosphor-svelte/lib/HeartIcon';
+	import { scoreClassName } from '@company-of-heroes/ui/comment';
+	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
 	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
 	import ChatCircleIcon from 'phosphor-svelte/lib/ChatCircleIcon';
 
@@ -67,7 +68,7 @@
 		{
 			id: 'map',
 			header: t('Map'),
-			width: 'w-8/24',
+			width: 'w-6/24',
 			class: 'flex h-full min-w-0 items-center gap-0',
 			cellClass: () => 'overflow-clip py-0 pr-0 pl-4',
 			href: (match) => `/history/${match.id}`
@@ -104,6 +105,16 @@
 			sortable: true,
 			onSort: () => matches?.toggleSort('likeCount'),
 			sortDirection: matches?.sort === 'likeCount' ? matches.sortDir : null
+		},
+		{
+			id: 'comments',
+			header: t('Comments'),
+			width: 'w-2/24',
+			class: 'flex items-center justify-end tabular-nums',
+			headerClass: 'justify-end',
+			sortable: true,
+			onSort: () => matches?.toggleSort('commentCount'),
+			sortDirection: matches?.sort === 'commentCount' ? matches.sortDir : null
 		},
 		{
 			id: 'downloads',
@@ -170,18 +181,9 @@
 		{/if}
 	</div>
 
-	{#snippet cell_map({ row }: { row: MatchExpanded })}
+	{#snippet cell_map({ row: _row }: { row: MatchExpanded })}
 		<Match.MapImage small flush />
 		<div class="flex min-w-0 items-center gap-2 px-4">
-			{#if (row.commentCount ?? 0) > 0}
-				<span
-					class="text-secondary-400 inline-flex shrink-0 items-center gap-1 text-sm tabular-nums"
-					title={t('Comments')}
-				>
-					<ChatCircleIcon size={16} weight="duotone" />
-					{row.commentCount}
-				</span>
-			{/if}
 			<Match.MapName class="min-w-0 truncate" />
 			<Match.Title iconsOnly class="shrink-0" />
 		</div>
@@ -204,9 +206,20 @@
 		<Match.Duration class="text-secondary-400 text-sm" />
 	{/snippet}
 	{#snippet cell_likes({ row }: { row: MatchExpanded })}
-		<span class="text-secondary-400 inline-flex items-center gap-1.5 text-sm tabular-nums">
-			<HeartIcon size={16} weight="duotone" />
+		<span
+			class={cn(
+				'inline-flex items-center gap-1.5 text-sm tabular-nums',
+				scoreClassName(row.likeCount ?? 0, 'text-secondary-400')
+			)}
+		>
+			<CaretUpIcon size={16} weight="fill" />
 			{row.likeCount ?? 0}
+		</span>
+	{/snippet}
+	{#snippet cell_comments({ row }: { row: MatchExpanded })}
+		<span class="text-secondary-400 inline-flex items-center gap-1.5 text-sm tabular-nums">
+			<ChatCircleIcon size={16} weight="duotone" />
+			{row.commentCount ?? 0}
 		</span>
 	{/snippet}
 	{#snippet cell_downloads({ row }: { row: MatchExpanded })}
@@ -256,6 +269,7 @@
 					axis: cell_axis,
 					duration: cell_duration,
 					likes: cell_likes,
+					comments: cell_comments,
 					downloads: cell_downloads,
 					date: cell_date
 				}}

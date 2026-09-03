@@ -1,14 +1,2 @@
-import type { Snippet } from 'svelte';
-import type { HTMLButtonAttributes } from 'svelte/elements';
-import Button from './button.svelte';
-import ButtonBack from './button-back.svelte';
-
-export type ButtonProps = {
-	variant?: 'primary' | 'secondary' | 'ghost' | 'link' | 'destructive' | 'success' | 'warning';
-	size?: 'sm' | 'md' | 'lg' | 'icon' | 'icon-sm';
-	children: Snippet;
-	loading?: boolean;
-	href?: string;
-} & HTMLButtonAttributes;
-
-export { Button, ButtonBack };
+export { Button, type ButtonProps } from '@company-of-heroes/ui/button';
+export { default as ButtonBack } from './button-back.svelte';

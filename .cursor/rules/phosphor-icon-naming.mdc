@@ -1,6 +1,6 @@
 ---
-description: Phosphor icon imports must use an Icon suffix in the app package
-globs: packages/app/**/*.{svelte,ts}
+description: Phosphor icon imports must use an Icon suffix
+globs: packages/{app,landing,ui}/src/**/*.{svelte,svelte.ts}
 alwaysApply: false
 ---
 
@@ -30,4 +30,4 @@ Use the same `Icon` suffix in markup:
 <BellIcon size={20} />
 ```
 
-When adding or editing icon imports in `packages/app`, rename the binding to `{Name}Icon` and update all usages in that file.
+When adding or editing icon imports, rename the binding to `{Name}Icon` and update all usages in that file.

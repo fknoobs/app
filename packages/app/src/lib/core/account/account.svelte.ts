@@ -12,7 +12,7 @@ import { steam } from '$core/steam';
 import { ensureAccountFlow, type AuthResult, type RecoveryOutcome } from './recovery';
 import { t } from '$lib/i18n';
 
-export type User = UsersResponse<Record<string, any>, string[]>;
+export type User = UsersResponse<Record<string, any>, string[], Record<string, any>>;
 
 export type AccountStatus = 'idle' | 'authenticating' | 'authenticated' | 'error';
 
@@ -271,6 +271,75 @@ export class AccountService {
 		void this.#enrichFromSteam();
 
 		return this.user;
+	}
+
+	/**
+	 * Updates display name, email, and password on PocketBase and in local settings.
+	 * Use the same credentials to log in on coh1stats.com.
+	 */
+	async updateLoginCredentials({
+		name,
+		email,
+		password
+	}: {
+		name?: string;
+		email: string;
+		password: string;
+	}): Promise<string | null> {
+		if (this.isImpersonating) {
+			return t('Cannot change credentials while impersonating another user');
+		}
+
+		if (!this.isAuthenticated) {
+			return t('Not signed in');
+		}
+
+		const trimmedEmail = email.trim();
+		const credentials: AccountSettings = {
+			userId: settings.tree.account.userId,
+			email: trimmedEmail,
+			password
+		};
+
+		try {
+			const updatePayload: Record<string, unknown> = {
+				email: trimmedEmail,
+				password,
+				passwordConfirm: password
+			};
+
+			if (name !== undefined) {
+				updatePayload.name = name.trim();
+			}
+
+			this.#user = (await pocketbase.collection('users').update(
+				this.userId,
+				updatePayload,
+				{ fetch }
+			)) as User;
+
+			settings.tree.account = { ...credentials };
+			await settings.persistNow();
+			await settings.backup.backupNow('change');
+
+			const authResult = await this.#authenticate(credentials);
+
+			if (authResult !== 'ok') {
+				return t('Credentials updated but re-authentication failed. Restart the app.');
+			}
+
+			return null;
+		} catch (error) {
+			if (error instanceof ClientResponseError) {
+				const data = error.data as { message?: string } | undefined;
+
+				return data?.message ?? error.message;
+			}
+
+			console.error('[ACCOUNT]: updateLoginCredentials failed:', error);
+
+			return t('Failed to update account');
+		}
 	}
 
 	get user() {

@@ -1,3 +1,1 @@
-import Kbd from './kbd.svelte';
-
-export { Kbd };
+export * from '@company-of-heroes/ui/kbd';

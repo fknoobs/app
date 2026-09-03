@@ -31,13 +31,22 @@
 	const userLabel = (user: UsersResponse) => user.name || user.email || user.id;
 
 	const roleLabel = (role: UsersResponse['role']) => {
-		if (role === UsersRoleOptions.admin) return t('Admin');
-		if (role === UsersRoleOptions.moderator) return t('Moderator');
+		if (role === UsersRoleOptions.admin) {
+			return t('Admin');
+		}
+
+		if (role === UsersRoleOptions.moderator) {
+			return t('Moderator');
+		}
+
 		return '';
 	};
 
 	const profileSteamId = (user: UsersResponse) => {
-		if (!Array.isArray(user.steamIds)) return '';
+		if (!Array.isArray(user.steamIds)) {
+			return '';
+		}
+
 		return user.steamIds.map(String).find(Boolean) ?? '';
 	};
 
@@ -48,6 +57,7 @@
 			searched = false;
 			return;
 		}
+
 		isSearching = true;
 		try {
 			const escaped = query.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
@@ -70,6 +80,7 @@
 		if (user.id === app.account.userId) {
 			return;
 		}
+
 		const confirmed = await confirm(
 			t('You will be signed in as {name}. You can return to your own account at any time.', {
 				name: userLabel(user)
@@ -79,6 +90,7 @@
 		if (!confirmed) {
 			return;
 		}
+
 		impersonatingId = user.id;
 		try {
 			await app.account.impersonate(user.id);
@@ -88,8 +100,7 @@
 			console.error('[ADMIN]: impersonate failed:', error);
 			const message =
 				error instanceof ClientResponseError
-					? (typeof error.response?.message === 'string' && error.response.message) ||
-						error.message
+					? (typeof error.response?.message === 'string' && error.response.message) || error.message
 					: error instanceof Error
 						? error.message
 						: t('Could not sign in as this user');
@@ -161,6 +172,9 @@
 									{#if roleLabel(row.role)}
 										<Badge variant="primary">{roleLabel(row.role)}</Badge>
 									{/if}
+									<Badge variant="default">
+										{t('{count} reputation', { count: row.reputation || 0 })}
+									</Badge>
 								</span>
 								{#if row.name && row.email}
 									<span class="text-secondary-400 text-xs">{row.email}</span>

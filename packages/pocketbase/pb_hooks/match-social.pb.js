@@ -6,6 +6,15 @@ onRecordUpdateRequest((e) => {
 	require(`${__hooks}/lib/match-social.js`).restoreCounterFields(e);
 }, 'lobbies');
 
+onRecordCreateRequest((e) => {
+	require(`${__hooks}/lib/match-social.js`).onLikeCreate(e);
+	e.next();
+}, 'lobby_likes');
+
+onRecordUpdateRequest((e) => {
+	require(`${__hooks}/lib/match-social.js`).onLikeUpdate(e);
+}, 'lobby_likes');
+
 onRecordAfterCreateSuccess((e) => {
 	require(`${__hooks}/lib/match-social.js`).onLikeCreated(e);
 }, 'lobby_likes');
@@ -30,6 +39,15 @@ onRecordAfterCreateSuccess((e) => {
 onRecordAfterDeleteSuccess((e) => {
 	require(`${__hooks}/lib/match-social.js`).onCommentDeleted(e);
 }, 'lobby_comments');
+
+onRecordCreateRequest((e) => {
+	require(`${__hooks}/lib/match-social.js`).onCommentLikeCreate(e);
+	e.next();
+}, 'lobby_comment_likes');
+
+onRecordUpdateRequest((e) => {
+	require(`${__hooks}/lib/match-social.js`).onCommentLikeUpdate(e);
+}, 'lobby_comment_likes');
 
 onRecordAfterCreateSuccess((e) => {
 	require(`${__hooks}/lib/match-social.js`).onCommentLikeCreated(e);

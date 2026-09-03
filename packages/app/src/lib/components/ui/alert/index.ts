@@ -1,3 +1,1 @@
-import Alert from './alert.svelte';
-
-export { Alert };
+export * from '@company-of-heroes/ui/alert';

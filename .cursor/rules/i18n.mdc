@@ -1,0 +1,33 @@
+---
+description: User-facing copy goes through t() and shared locale JSON files
+globs: packages/{app,landing,i18n}/**/*.{svelte,svelte.ts,ts,json}
+alwaysApply: false
+---
+
+# i18n
+
+User-visible strings in `packages/app` and `packages/landing` use `t()` from `$lib/i18n`. The **English sentence is the key**. Locales: `en`, `es`, `ko` in `packages/i18n/locales/`.
+
+```svelte
+<script lang="ts">
+	import { useI18n } from '$lib/i18n';
+
+	const { t } = useI18n();
+</script>
+
+<button>{t('Save')}</button>
+<p>{t('{count} matches', { count })}</p>
+```
+
+```json
+// en.json / es.json / ko.json — same key in all three
+"Save": "Save",
+"{count} matches": "{count} matches"
+```
+
+- Add the key to **en.json, es.json, and ko.json**. Translate es/ko; if unsure, copy English so the key exists.
+- Params are `{name}` in the key, passed as `{ name }` to `t()`.
+- `packages/ui` stays English (default props). App/landing hosts pass `t('…')` when wrapping.
+- App: module singleton (`ssr = false`). Landing: per-request instance on `locals` (never a module singleton). Server actions/errors use `locals.t`.
+- Landing URLs: English stays unprefixed (`/players`). Spanish/Korean use `/es/...` and `/ko/...`. `/en/...` 301s to the unprefixed path. Wire internal links with `localizeHref` / `href()`. Do not auto-redirect from `Accept-Language`.
+- Do not hardcode UI copy in app or landing routes/components. Do not invent a second i18n system.

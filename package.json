@@ -2,17 +2,18 @@
 	"name": "fknoobscoh-workspace",
 	"private": true,
 	"type": "module",
+	"packageManager": "pnpm@9.15.9",
 	"scripts": {
-		"dev": "concurrently -n pocketbase,tauri -c blue,magenta \"pnpm pb:up\" \"pnpm --filter app tauri dev\"",
+		"dev": "turbo run dev --filter=@company-of-heroes/pocketbase --filter=@company-of-heroes/app",
 		"build": "pnpm --filter app tauri build",
 		"pb:up": "pnpm --filter pocketbase serve",
 		"pb:down": "pnpm --filter pocketbase down",
 		"overlays:dev": "pnpm --filter @company-of-heroes/oppbot-overlay dev",
-		"overlays:build": "pnpm --filter @company-of-heroes/oppbot-overlay build",
-		"oppbot:build": "pnpm --filter @company-of-heroes/oppbot-overlay build",
+		"overlays:build": "turbo run build --filter=@company-of-heroes/oppbot-overlay",
+		"oppbot:build": "turbo run build --filter=@company-of-heroes/oppbot-overlay",
 		"landing:dev": "pnpm --filter @company-of-heroes/landing dev",
-		"landing:build": "pnpm --filter @company-of-heroes/landing build",
-		"check": "pnpm -r check",
+		"landing:build": "turbo run build --filter=@company-of-heroes/landing",
+		"check": "turbo run check",
 		"format": "prettier --write .",
 		"lint": "prettier --check .",
 		"changeset": "changeset",
@@ -22,15 +23,19 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@changesets/cli": "^2.31.1",
-		"concurrently": "^10.0.5",
 		"prettier": "3.7.4",
+		"prettier-plugin-curly": "0.4.1",
 		"prettier-plugin-svelte": "3.4.1",
-		"prettier-plugin-tailwindcss": "^0.7.4"
+		"prettier-plugin-tailwindcss": "^0.7.4",
+		"turbo": "^2.10.12"
 	},
 	"pnpm": {
 		"onlyBuiltDependencies": [
 			"esbuild",
 			"@fknoobs/replay-parser"
-		]
+		],
+		"overrides": {
+			"svelte": "^5.57.0"
+		}
 	}
 }

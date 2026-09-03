@@ -1,30 +1,20 @@
-import { error } from '@sveltejs/kit';
-import { API_URL } from '$lib/urls';
-import type { CommunityMatchDetail } from '$lib/replays';
+import { unwrapAsync } from '$lib/errors/unwrap';
+import { isStaffUser } from '$lib/auth/user';
 import type { PageServerLoad } from './$types';
 
 export const prerender = false;
 
-async function loadMatch(fetchFn: typeof fetch, id: string): Promise<CommunityMatchDetail> {
-	const response = await fetchFn(`${API_URL}/api/match/${id}`);
-	if (response.status === 404) {
-		error(404, 'That replay is not available.');
+export const load: PageServerLoad = async ({ locals, params, setHeaders }) => {
+	const match = await unwrapAsync(locals.services.replays().get(params.id));
+	if (isStaffUser(locals.user) || match.hidden) {
+		setHeaders({
+			'cache-control': 'private, no-store'
+		});
+	} else {
+		setHeaders({
+			'cache-control': 'public, s-maxage=30, stale-while-revalidate=60'
+		});
 	}
-	if (!response.ok) {
-		throw new Error('Failed to load this replay. Please try again later.');
-	}
-	const match = (await response.json()) as CommunityMatchDetail;
-	if (!match.replay) {
-		error(404, 'That replay is not available.');
-	}
-	return match;
-}
 
-export const load: PageServerLoad = async ({ fetch, params, setHeaders }) => {
-	setHeaders({
-		'cache-control': 'public, s-maxage=30, stale-while-revalidate=60'
-	});
-	return {
-		match: await loadMatch(fetch, params.id)
-	};
+	return { match };
 };

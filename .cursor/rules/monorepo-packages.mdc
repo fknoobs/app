@@ -1,0 +1,27 @@
+---
+description: Put code in the right package — app, landing, ui, pocketbase, overlay, worker
+alwaysApply: true
+---
+
+# Monorepo packages
+
+pnpm + Turbo. Edit the package that owns the concern; do not copy UI or API logic across hosts.
+
+| Package | Role |
+|---|---|
+| `packages/ui` | Presentational primitives + shared domain UI. No Tauri, PocketBase client, `$core`, `$app`, or i18n. Hosts pass `t()` via label props. |
+| `packages/i18n` | Shared `en`/`es`/`ko` dictionaries, `createI18n`, and locale path helpers (`localizeHref`, `parseLocaleFromPath`). |
+| `packages/app` | Tauri desktop (adapter-static). Features, `$core`, game, account. Module-singleton `t()`. |
+| `packages/landing` | Public site (Cloudflare). Fetches `api.coh1stats.com`. Per-request `t()` + `/es` `/ko` URL prefixes. No Tauri / `$core`. |
+| `packages/pocketbase` | Schema migrations + JS hooks. Public HTTP APIs live here. |
+| `packages/oppbot-overlay` | Overlay source. `pnpm overlays:build` copies dist into PocketBase public. |
+| `packages/smurf-worker` | Cloudflare Worker for smurf scoring. Not app/landing code. |
+| `packages/shared-assets` | Screenshots and static assets. |
+
+```typescript
+// ❌ BAD — duplicate Button in landing, or fetch Relic from a ui component
+// ✅ GOOD — Button in packages/ui; app/landing import @company-of-heroes/ui/button
+// ✅ GOOD — new public /api/player field → PocketBase hook, then thin UI in ui/app/landing
+```
+
+Do not hand-edit hashed overlay files under `packages/pocketbase/pb_hooks/public/overlay-default/`. Change `packages/oppbot-overlay` and rebuild.

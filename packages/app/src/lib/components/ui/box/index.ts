@@ -1,3 +1,1 @@
-import Box from './box.svelte';
-
-export { Box };
+export * from '@company-of-heroes/ui/box';

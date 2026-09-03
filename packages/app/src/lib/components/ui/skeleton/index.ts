@@ -1,3 +1,1 @@
-import Skeleton from './skeleton.svelte';
-
-export { Skeleton };
+export * from '@company-of-heroes/ui/skeleton';

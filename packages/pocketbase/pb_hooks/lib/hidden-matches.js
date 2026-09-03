@@ -231,6 +231,7 @@ module.exports = {
 	filterHiddenMatchHistory,
 	isHiddenSession,
 	isHiddenLobby,
+	isHiddenByTitle,
 	normalizeKeyword,
 	invalidateMatchCountCache,
 	invalidateHiddenCaches,

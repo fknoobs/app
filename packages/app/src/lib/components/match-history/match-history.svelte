@@ -38,10 +38,9 @@
 
 	const orderedMatches = $derived(orderBy(matches, ['completiontime'], ['desc']));
 	const isStaff = $derived(app.account.isStaff);
-	let hiddenRevision = $state(0);
 	let pendingSessionId = $state<number | null>(null);
 	const hiddenIds = resource(
-		() => hiddenRevision,
+		() => isStaff,
 		() =>
 			listHiddenSessionIds().catch((error) => {
 				console.warn('[MATCH-HISTORY]: hidden match lookup failed:', error);
@@ -49,7 +48,7 @@
 			})
 	);
 	const hiddenWords = resource(
-		() => hiddenRevision,
+		() => isStaff,
 		() =>
 			listHiddenKeywordWords().catch((error) => {
 				console.warn('[MATCH-HISTORY]: hidden title word lookup failed:', error);
@@ -180,7 +179,13 @@
 				await hideMatch(sessionId, app.account.userId);
 				app.toast.success(t('Match hidden from public overviews.'));
 			}
-			hiddenRevision += 1;
+			const next = new Set(hiddenIds.current ?? []);
+			if (currentlyHidden) {
+				next.delete(sessionId);
+			} else {
+				next.add(sessionId);
+			}
+			hiddenIds.mutate(next);
 		} catch (error) {
 			console.error('[MATCH-HISTORY]: hide toggle failed:', error);
 			app.toast.error(

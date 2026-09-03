@@ -36,8 +36,9 @@ const MIN_CAPTURES = 2;
 const MAX_CAPTURES = 5;
 const SCHEDULE_WINDOW_MS = 25 * 60 * 1000;
 const MAX_SESSION_AGE_MS = 2 * 60 * 60 * 1000;
-const FIRST_CAPTURE_MIN_MS = dev ? 5_000 : LOADING_GRACE_MS;
-const FIRST_CAPTURE_MAX_MS = dev ? 8_000 : LOADING_GRACE_MS + 15_000;
+const FIRST_CAPTURE_MIN_MS = LOADING_GRACE_MS;
+const FIRST_CAPTURE_MAX_MS = LOADING_GRACE_MS + 15_000;
+const DEV_CAPTURE_DELAYS_MS = [1_000, 5_000, 10_000];
 const FIRST_PROCESS_SCAN_MS = 8_000;
 const PROCESS_SCAN_MIN_MS = 20_000;
 const PROCESS_SCAN_MAX_MS = 30_000;
@@ -81,9 +82,9 @@ function base64ToJpegFile(base64: string): File {
 }
 
 /**
- * Takes random screenshots of the CoH window during a live match, reports
- * known cheat processes from a server denylist, and can post a one-time
- * all-chat announce so other players can see that fair play is on.
+ * Captures the Company of Heroes window during a live match, reports known
+ * cheat processes from a server denylist, and can post a one-time all-chat
+ * announce so other players can see that fair play is on.
  */
 export class AntiCheat extends Feature<AntiCheatSettings> {
 	name = 'anti-cheat';
@@ -284,18 +285,25 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 
 	#scheduleCaptures(elapsedMs: number): void {
 		const offsets = new Set<number>();
-		const firstFromStart = randomInt(FIRST_CAPTURE_MIN_MS, FIRST_CAPTURE_MAX_MS);
-		if (firstFromStart > elapsedMs) {
-			offsets.add(firstFromStart - elapsedMs);
-		}
+		if (dev) {
+			// `lobby.started` is several seconds after warnings.log start (loading).
+			for (const delayMs of DEV_CAPTURE_DELAYS_MS) {
+				offsets.add(delayMs);
+			}
+		} else {
+			const firstFromStart = randomInt(FIRST_CAPTURE_MIN_MS, FIRST_CAPTURE_MAX_MS);
+			if (firstFromStart > elapsedMs) {
+				offsets.add(firstFromStart - elapsedMs);
+			}
 
-		const count = randomInt(MIN_CAPTURES, MAX_CAPTURES);
-		let attempts = 0;
-		while (offsets.size < count && attempts < 40) {
-			attempts += 1;
-			const fromStart = randomInt(LOADING_GRACE_MS + 30_000, SCHEDULE_WINDOW_MS);
-			if (fromStart > elapsedMs) {
-				offsets.add(fromStart - elapsedMs);
+			const count = randomInt(MIN_CAPTURES, MAX_CAPTURES);
+			let attempts = 0;
+			while (offsets.size < count && attempts < 40) {
+				attempts += 1;
+				const fromStart = randomInt(LOADING_GRACE_MS + 30_000, SCHEDULE_WINDOW_MS);
+				if (fromStart > elapsedMs) {
+					offsets.add(fromStart - elapsedMs);
+				}
 			}
 		}
 
@@ -454,6 +462,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			return;
 		}
 
+		await shortcuts.suspendBindings();
 		try {
 			const capture = await invoke<GameWindowCapture>('capture_game_window');
 			if (!this.#isLiveMatch()) {
@@ -469,6 +478,8 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 		} catch (error) {
 			console.warn('[ANTI-CHEAT]: capture failed:', error);
 			this.#retryCapture(attempts);
+		} finally {
+			shortcuts.resumeBindings();
 		}
 	}
 

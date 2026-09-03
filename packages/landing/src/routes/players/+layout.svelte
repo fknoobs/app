@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { navigating, page } from '$app/state';
-	import CardForm from '$lib/components/CardForm.svelte';
-	import PlayerProfileSkeleton from '$lib/components/PlayerProfileSkeleton.svelte';
+	import CardForm from '$lib/components/player/card-form.svelte';
+	import PlayerProfileSkeleton from '$lib/components/player/player-profile-skeleton.svelte';
+	import { unlocalizedPath } from '$lib/i18n';
 	import type { Snippet } from 'svelte';
 
 	type Props = {
@@ -13,18 +14,20 @@
 	const loadingPlayer = $derived.by(() => {
 		const target = navigating.to;
 		if (!target?.params?.id) return false;
-		const path = target.url.pathname;
+		const path = unlocalizedPath(target.url.pathname);
 		return path.startsWith('/players/') && path !== '/players';
 	});
-	const isLookup = $derived(page.url.pathname === '/players' && !loadingPlayer);
-	const formId = $derived(navigating.to?.params?.id ?? page.params.id ?? '');
+	const isLookup = $derived(unlocalizedPath(page.url.pathname) === '/players' && !loadingPlayer);
+	const formQuery = $derived(
+		navigating.to?.params?.id ?? page.params.id ?? page.url.searchParams.get('q') ?? ''
+	);
 </script>
 
 {#if isLookup}
 	{@render children()}
 {:else}
 	<div class="border-secondary-800 border-b">
-		<CardForm initialId={formId} />
+		<CardForm initialQuery={formQuery} />
 	</div>
 	{#if loadingPlayer}
 		<PlayerProfileSkeleton />

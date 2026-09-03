@@ -1,4 +1,2 @@
-import DropdownMenu from './dropdown-menu.svelte';
-import DropdownMenuItem from './dropdown-menu-item.svelte';
-
-export { DropdownMenu as Root, DropdownMenuItem as Item };
+export { Root, Item, Subheader } from '@company-of-heroes/ui/dropdown';
+export { default as UserItem } from './dropdown-user-item.svelte';

@@ -46,23 +46,25 @@
 
 	watch(
 		() => page.params.id,
-		async (id) => {
-			await unsubscribe?.();
-			unsubscribe = undefined;
-			if (!id) return;
+		(id) => {
+			void (async () => {
+				await unsubscribe?.();
+				unsubscribe = undefined;
+				if (!id) return;
 
-			unsubscribe = await app.database.lobbiesLive.subscribe(id, (event) => {
-				if (event.action === 'delete') {
-					goto('/');
-					return;
-				}
-				if (event.action === 'update') {
-					app.database.lobbiesLive
-						.getOne(event.record.id)
-						.then((updated) => lobby.mutate(updated))
-						.catch(() => goto('/'));
-				}
-			});
+				unsubscribe = await app.database.lobbiesLive.subscribe(id, (event) => {
+					if (event.action === 'delete') {
+						goto('/');
+						return;
+					}
+					if (event.action === 'update') {
+						app.database.lobbiesLive
+							.getOne(event.record.id)
+							.then((updated) => lobby.mutate(updated))
+							.catch(() => goto('/'));
+					}
+				});
+			})();
 		}
 	);
 
