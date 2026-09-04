@@ -1,13 +1,9 @@
-import { fetch } from '$core/http/fetch';
-import { pocketbase } from '$core/pocketbase';
-import type { PlayerVoteScoresResponse } from '$core/pocketbase/types';
+import { api, unwrapApi } from '$core/api';
 
 let bySteam = $state.raw<Record<string, number>>({});
 const fetched = new Set<string>();
 const queued = new Set<string>();
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
-
-const CHUNK = 40;
 
 export function likeCountForSteamId(steamId: string | undefined | null): number | null {
 	if (!steamId) {
@@ -47,28 +43,11 @@ export function preloadPlayerLikeCounts(steamIds: string[]) {
 
 async function fetchIds(ids: string[]) {
 	try {
+		const counts = await unwrapApi(api.playerSocial.listLikeCounts(ids));
 		const next = { ...bySteam };
-		for (let i = 0; i < ids.length; i += CHUNK) {
-			const chunk = ids.slice(i, i + CHUNK);
-			const filter = chunk
-				.map((id) => `steamId = "${id.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`)
-				.join(' || ');
-			const rows = await pocketbase.collection('player_vote_scores').getFullList<PlayerVoteScoresResponse>({
-				filter,
-				fields: 'steamId,likeCount',
-				fetch
-			});
-			for (const id of chunk) {
-				fetched.add(id);
-				next[id] = 0;
-			}
-
-			for (const row of rows) {
-				const steamId = String(row.steamId || '').trim();
-				if (steamId) {
-					next[steamId] = Number(row.likeCount) || 0;
-				}
-			}
+		for (const id of ids) {
+			fetched.add(id);
+			next[id] = counts[id] ?? 0;
 		}
 
 		bySteam = next;

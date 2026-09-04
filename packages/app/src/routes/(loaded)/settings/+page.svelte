@@ -274,7 +274,7 @@
 	<Form.Group
 		label={t('All-chat announce')}
 		description={t(
-			'Off by default. At the start of a match the app posts a short all-chat message so other players can see that fair play is on.'
+			'Posts "[FAIRPLAY] Supervised by coh1stats.com" in all-chat at match start so other players can see fair play is on. Off until you enable it.'
 		)}
 	>
 		<Checkbox

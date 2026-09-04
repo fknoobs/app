@@ -11,6 +11,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
 	},
 	"dependencies": {
+		"@company-of-heroes/api": "workspace:*",
 		"@company-of-heroes/i18n": "workspace:*",
 		"@company-of-heroes/shared-assets": "workspace:*",
 		"@company-of-heroes/ui": "workspace:*",

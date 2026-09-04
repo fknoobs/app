@@ -5,7 +5,12 @@
 	import { Label } from '$lib/components/ui/label';
 	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { app, createApp } from '$core/app/context';
-	import { Breadcrumb, createBreadcrumbs, crumbsFromPath, useBreadcrumbs } from '$lib/components/ui/breadcrumb';
+	import {
+		Breadcrumb,
+		createBreadcrumbs,
+		crumbsFromPath,
+		useBreadcrumbs
+	} from '$lib/components/ui/breadcrumb';
 	import { ToastReplaysProgress } from '$lib/components/toasts';
 	import { Avatar } from '$lib/components/ui/avatar';
 	import { page } from '$app/state';
@@ -99,12 +104,17 @@
 	// leaves /current-game while a match is still active.
 	$effect(() => {
 		const redirectToCurrentGame = () => {
-			if (page.url.pathname === '/current-game') return;
+			if (page.url.pathname === '/current-game') {
+				return;
+			}
+
 			void goto('/current-game');
 		};
 
 		untrack(() => {
-			if (app.lobby?.started) redirectToCurrentGame();
+			if (app.lobby?.started) {
+				redirectToCurrentGame();
+			}
 		});
 
 		return app.on('lobby.started', redirectToCurrentGame);
@@ -205,12 +215,12 @@
 								<GithubLogoIcon weight="duotone" />
 							</Button>
 						</div>
-						<div class="text-secondary-400 flex flex-wrap items-center gap-2 text-sm">
+						<div class="mt-2 flex flex-wrap items-center gap-2 text-sm">
 							<Button
 								variant="link"
 								size="sm"
 								type="button"
-								class="px-0"
+								class="text-secondary-500 hover:text-secondary-300 px-0 font-normal"
 								onclick={() => openUrl('https://coh1stats.com/privacy')}
 							>
 								{t('Privacy')}
@@ -218,7 +228,7 @@
 							<Button
 								variant="link"
 								size="sm"
-								class="px-0"
+								class="text-secondary-500 hover:text-secondary-300 px-0 font-normal"
 								onclick={() => app.features.updater.previewWhatsNew()}
 							>
 								{t("What's New")}
@@ -226,7 +236,7 @@
 							<Button
 								variant="link"
 								size="sm"
-								class="px-0"
+								class="text-secondary-500 hover:text-secondary-300 px-0 font-normal"
 								onclick={() => app.features.updater.openChangelog()}
 							>
 								v{app.features.updater.currentVersionFormatted}

@@ -39,11 +39,18 @@
 		"./format/types": "./src/format/types.ts",
 		"./leaderboard": "./src/leaderboard/index.ts",
 		"./player": "./src/player/index.ts",
+		"./player/types": "./src/player/types.ts",
 		"./player-performance": "./src/player-performance/index.ts",
 		"./replay": "./src/replay/index.ts",
+		"./replay/types": "./src/replay/types.ts",
 		"./comment": "./src/comment/index.ts",
+		"./comment/vote": "./src/comment/vote.ts",
 		"./live-lobby": "./src/live-lobby/index.ts",
-		"./twitch": "./src/twitch/index.ts"
+		"./live-lobby/slim": "./src/live-lobby/slim.ts",
+		"./live-lobby/stats": "./src/live-lobby/stats.ts",
+		"./live-lobby/types": "./src/live-lobby/types.ts",
+		"./twitch": "./src/twitch/index.ts",
+		"./twitch/types": "./src/twitch/types.ts"
 	},
 	"dependencies": {
 		"clsx": "^2.1.1",

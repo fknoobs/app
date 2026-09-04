@@ -1,0 +1,45 @@
+---
+description: Structure and voice for app What's New markdown releases
+globs: packages/app/static/whats-new/**/*.md
+alwaysApply: false
+---
+
+# What's New
+
+Release highlights live in `packages/app/static/whats-new/vX.Y.Z.md`. Images go under `packages/app/static/whats-new/images/vX.Y.Z/`.
+
+The first paragraph is the **lead** — it is styled automatically (primary left border, larger white text). Every What's New must start with that lead.
+
+## Structure
+
+1. **Lead** (required) — one short thematic sentence: hook + colon + comma-separated features
+2. **Sections** — one `##` heading per feature, short body copy
+3. **Callouts** — optional `>` blockquotes for important notes
+4. **Images** — optional screenshots under the matching section; path `/whats-new/images/vX.Y.Z/...`
+
+```markdown
+This release is about trust: a signed Windows installer, a new fair-play screenshot path we are carefully rolling out, and rating players on their profile.
+
+## Signed Windows builds
+
+Installers are now code-signed. …
+
+## Rate players on their profile
+
+You can upvote or downvote players on their profile. …
+
+![Up and down vote buttons next to a player name](/whats-new/images/v0.62.0/rate-players.png)
+```
+
+## Lead voice
+
+- Pattern: `This release/update is about {theme}: {feature}, {feature}, and {feature}.`
+- Theme groups the release (community, trust, fair play, …)
+- English, conversational, product voice — match existing files
+- Do not put the lead in a blockquote; plain first paragraph only
+
+## Do not
+
+- Skip the lead or start with a heading
+- Hand-edit `CHANGELOG.md` for highlights (use What's New + changesets)
+- Use remote image URLs; keep assets under `/whats-new/images/…`

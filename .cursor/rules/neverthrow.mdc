@@ -6,14 +6,14 @@ alwaysApply: false
 
 # neverthrow
 
-Landing server I/O lives in **services** and returns `Result` / `ResultAsync` from `neverthrow`. Do not throw for expected HTTP failures (404, 400, 429, upstream 500).
+PocketBase / `api.coh1stats.com` I/O lives in **`@company-of-heroes/api`** (`createApi`) and returns `Result` / `ResultAsync`. Landing `locals.services.*()` are thin factories over that client. Do not throw for expected HTTP failures (404, 400, 429, upstream 500).
 
-## Services
+## Services / api
 
-Map failures to `AppError` (`status` + user-facing `message`) via `ok` / `err` / `errAsync` / `ResultAsync.fromPromise`. Use `fetchJson` for JSON GETs.
+Map failures to `AppError` / `ApiError` (`status` + user-facing `message`). Prefer calling `@company-of-heroes/api` over new `pocketbase.collection` or `fetchJson` in landing.
 
 ```typescript
-// ❌ BAD — try/catch that returns a string
+// ❌ BAD — try/catch that returns a string, or inline PB in a route
 async function login(email: string, password: string): Promise<string | null> {
 	try {
 		await pb.collection('users').authWithPassword(email, password);
@@ -23,12 +23,9 @@ async function login(email: string, password: string): Promise<string | null> {
 	}
 }
 
-// ✅ GOOD
+// ✅ GOOD — use createApi / locals.services
 login(email: string, password: string): ResultAsync<AuthUser, AppError> {
-	return ResultAsync.fromPromise(
-		this.pocketbase.collection('users').authWithPassword(email.trim(), password),
-		toLoginError
-	).map((auth) => auth.record as AuthUser);
+	return locals.services.auth().login(email, password);
 }
 ```
 
@@ -58,3 +55,4 @@ export const load = ({ locals, params }) => ({
 - Catch PocketBase / `fetch` errors and return `string | null`
 - Throw raw `Error` from a service or load for a known status
 - Leak `Result` into `+page.svelte` — unwrap on the server (loads, remotes)
+- Duplicate collection/HTTP logic in landing that already exists in `@company-of-heroes/api`

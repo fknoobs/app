@@ -13,6 +13,7 @@ import { exp, getFile, pocketbase } from '$core/pocketbase';
 import { fetch } from '$core/http/fetch';
 import { account } from '$core/account';
 import { app } from '$core/app/context';
+import { api, unwrapApi } from '$core/api';
 import { join } from '@tauri-apps/api/path';
 import { exists, writeFile, remove } from '@tauri-apps/plugin-fs';
 import { t } from '$lib/i18n';
@@ -31,7 +32,6 @@ export type ReplayDetail = {
  * Replay repository.
  */
 export class Replays {
-	/** Retrieves a paginated list of replays. */
 	async getPaginated(
 		page = 1,
 		perPage = 50,
@@ -41,15 +41,13 @@ export class Replays {
 			sort = '-gameDate'
 		}: { filter?: string; fields?: (keyof ReplaysRecord)[]; sort?: string } = {}
 	): Promise<ListResult<ReplaysExpanded>> {
-		const response = await pocketbase
-			.collection('replays')
-			.getList<ReplaysResponse<Message[], Player[]>>(page, perPage, {
+		const response = await unwrapApi(
+			api.replays.getPaginated(page, perPage, {
 				filter,
-				fields: fields.join(','),
-				sort,
-				expand: 'createdBy',
-				fetch
-			});
+				fields: fields.map(String),
+				sort
+			})
+		);
 
 		return {
 			...response,
@@ -68,15 +66,11 @@ export class Replays {
 		return response.map(exp) as unknown as ReplaysExpanded[];
 	}
 
-	/**
-	 * Loads replay bytes plus the `replays` record when available.
-	 * Falls back to the lobby replay file (record is then null).
-	 */
 	async getDetail(id: string): Promise<ReplayDetail> {
 		try {
-			const record = await pocketbase.collection('replays').getOne<ReplaysRecord>(id, { fetch });
-			const bytes = await getFile(record, record.file);
-			return { bytes, record };
+			const record = await unwrapApi(api.replays.getById(id));
+			const bytes = await getFile(record, String(record.file ?? ''));
+			return { bytes, record: record as unknown as ReplaysRecord };
 		} catch {
 			const lobby = await pocketbase.collection('lobbies').getOne(id, { fetch });
 			const bytes = await getFile(lobby, lobby.replay);
@@ -84,28 +78,20 @@ export class Replays {
 		}
 	}
 
-	/**
-	 * Retrieves the raw replay file by record ID. Falls back to the match
-	 * (lobby) record's replay file for links created from match pages.
-	 */
 	async getById(id: string): Promise<Uint8Array> {
 		const { bytes } = await this.getDetail(id);
 		return bytes;
 	}
 
-	/**
-	 * Rewrites `replayName` in the `.rec` binary, updates PocketBase title/file,
-	 * and replaces the local playback file (`filename`).
-	 */
 	async rename(
 		id: string,
 		replayName: string
 	): Promise<{ bytes: Uint8Array; title: string; file: string; filename: string }> {
-		const record = await pocketbase.collection('replays').getOne<ReplaysRecord>(id, { fetch });
-		const current = await getFile(record, record.file);
+		const record = await unwrapApi(api.replays.getById(id));
+		const current = await getFile(record, String(record.file ?? ''));
 		const title = replayName.trim() || '-';
 		const bytes = setReplayName(current, title === '-' ? '' : title);
-		const localName = record.filename || record.file || 'replay.rec';
+		const localName = String(record.filename || record.file || 'replay.rec');
 		const file = new File([bytes], localName);
 
 		const updated = await this.update(id, { title, file });
@@ -125,13 +111,15 @@ export class Replays {
 		};
 	}
 
-	/** Local playback path for a stored replay filename. */
 	async localPath(filename: string): Promise<string> {
 		return join(await app.paths.cohPlaybackDir(), filename);
 	}
 
 	async localExists(filename: string): Promise<boolean> {
-		if (!filename) return false;
+		if (!filename) {
+			return false;
+		}
+
 		try {
 			return await exists(await this.localPath(filename));
 		} catch {
@@ -139,32 +127,32 @@ export class Replays {
 		}
 	}
 
-	/** Deletes the local playback copy when present. Returns whether a file was removed. */
 	async deleteLocal(filename: string): Promise<boolean> {
-		if (!filename) return false;
+		if (!filename) {
+			return false;
+		}
+
 		const path = await this.localPath(filename);
-		if (!(await exists(path))) return false;
+		if (!(await exists(path))) {
+			return false;
+		}
+
 		await remove(path);
 		return true;
 	}
 
-	/**
-	 * Downloads the PocketBase replay file into the CoH playback folder.
-	 * Always reloads the record so a stale list `file` after rename still works.
-	 */
 	async download(id: string) {
-		const record = await pocketbase.collection('replays').getOne<ReplaysRecord>(id, { fetch });
-		const localName = record.filename || record.file;
+		const record = await unwrapApi(api.replays.getById(id));
+		const localName = String(record.filename || record.file || '');
 		if (!localName || !record.file) {
 			throw new Error(t('Replay file is missing'));
 		}
 
-		const bytes = await getFile(record, record.file);
+		const bytes = await getFile(record, String(record.file));
 		await writeFile(await this.localPath(localName), bytes);
-		return { filename: localName, file: record.file };
+		return { filename: localName, file: String(record.file) };
 	}
 
-	/** Retrieves a single replay by its filename. */
 	async getByFilename(filename: string) {
 		const records = await pocketbase.collection('replays').getFullList<ReplaysRecord>(20000, {
 			filter: `filename="${filename}"`,
@@ -175,16 +163,8 @@ export class Replays {
 		return records.length > 0 ? records[0] : null;
 	}
 
-	/** All replay filenames uploaded by the current user. */
 	async getExistingFilenamesByUser(): Promise<string[]> {
-		const records = await pocketbase.collection('replays').getFullList({
-			filter: `createdBy = "${account.userId}"`,
-			fields: 'filename',
-			requestKey: null,
-			fetch
-		});
-
-		return records.map((r) => r.filename);
+		return unwrapApi(api.replays.getExistingFilenamesByUser());
 	}
 
 	async create(data: Omit<Create<'replays'>, 'createdBy'>) {

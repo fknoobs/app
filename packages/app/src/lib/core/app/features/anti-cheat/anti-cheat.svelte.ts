@@ -10,10 +10,13 @@ import { pocketbase } from '$core/pocketbase';
 import { fetch } from '$core/http/fetch';
 import { Feature } from '../feature.svelte';
 import { shortcuts } from '../shortcuts';
+import { t } from '$lib/i18n';
+import ChatAnnouncePrompt from './chat-announce-prompt.svelte';
 
 export type AntiCheatSettings = {
 	enabled: boolean;
 	announceInChat: boolean;
+	chatAnnouncePromptSeen: boolean;
 };
 
 type GameWindowCapture = {
@@ -112,8 +115,12 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 	#chatAnnounced = false;
 	#chatAnnounceInFlight = false;
 	#lastChatAnnounceAt = 0;
+	#stopWaitingForModal: (() => void) | null = null;
+	#promptInFlight = false;
 
 	enable() {
+		void this.#maybePromptChatAnnounce();
+
 		this.#unsubscribers.push(
 			app.on('lobby.joined', () => {
 				this.#resetChatAnnounce();
@@ -174,6 +181,9 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 	}
 
 	disable() {
+		this.#stopWaitingForModal?.();
+		this.#stopWaitingForModal = null;
+		this.#promptInFlight = false;
 		this.#resetChatAnnounce();
 		this.#stopSession();
 		this.#disposeWatchers?.();
@@ -191,10 +201,10 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 	}
 
 	defaultSettings(): AntiCheatSettings {
-		return { enabled: true, announceInChat: false };
+		return { enabled: true, announceInChat: false, chatAnnouncePromptSeen: false };
 	}
 
-	/** Previous default was on; turn it off once so existing installs become opt-in. */
+	/** Previous default was on; opt existing installs into the new default once. */
 	#applyChatAnnounceDefaultOff(): void {
 		const settings = this.settings as AntiCheatSettings & {
 			chatAnnounceDefaultOff?: boolean;
@@ -203,8 +213,107 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			return;
 		}
 
-		this.settings.announceInChat = false;
+		// Already on (old default or user choice): keep it and skip the consent popup.
+		if (this.settings.announceInChat) {
+			this.settings.chatAnnouncePromptSeen = true;
+		} else {
+			this.settings.announceInChat = false;
+		}
+
 		settings.chatAnnounceDefaultOff = true;
+	}
+
+	#maybePromptChatAnnounce(): void {
+		if (this.settings.chatAnnouncePromptSeen) {
+			return;
+		}
+
+		if (this.settings.announceInChat) {
+			this.settings.chatAnnouncePromptSeen = true;
+			return;
+		}
+
+		this.#whenModalIdle(() => {
+			void this.#showChatAnnouncePrompt();
+		});
+	}
+
+	#whenModalIdle(run: () => void): void {
+		this.#stopWaitingForModal?.();
+		let done = false;
+		const finish = () => {
+			if (done || app.modal.isOpen) {
+				return;
+			}
+
+			done = true;
+			unsubscribe();
+			this.#stopWaitingForModal = null;
+			run();
+		};
+		const unsubscribe = app.modal.on('close', finish);
+		this.#stopWaitingForModal = () => {
+			done = true;
+			unsubscribe();
+			this.#stopWaitingForModal = null;
+		};
+		finish();
+	}
+
+	async #showChatAnnouncePrompt(): Promise<void> {
+		if (this.#promptInFlight || this.settings.chatAnnouncePromptSeen) {
+			return;
+		}
+
+		if (this.settings.announceInChat) {
+			this.settings.chatAnnouncePromptSeen = true;
+			return;
+		}
+
+		this.#promptInFlight = true;
+
+		const enabled = await new Promise<boolean>((resolve) => {
+			let settled = false;
+
+			const settle = (value: boolean) => {
+				if (settled) {
+					return;
+				}
+
+				settled = true;
+				unsubscribe();
+				resolve(value);
+				app.modal.close();
+			};
+
+			const unsubscribe = app.modal.on('close', () => {
+				if (settled) {
+					return;
+				}
+
+				settled = true;
+				unsubscribe();
+				resolve(false);
+			});
+
+			app.modal.create({
+				component: ChatAnnouncePrompt,
+				title: t('Show fair play in all-chat?'),
+				description: t('Help other players trust that fair play is on.'),
+				size: 'md',
+				props: {
+					onConfirm: () => settle(true),
+					onCancel: () => settle(false)
+				}
+			});
+			app.modal.open();
+		});
+
+		this.#promptInFlight = false;
+		this.settings.chatAnnouncePromptSeen = true;
+		if (enabled) {
+			this.settings.announceInChat = true;
+		}
 	}
 
 	async #startSession(match: Match): Promise<void> {

@@ -9,6 +9,7 @@
 		if (restProps.href === '/') {
 			return pathname === '/current-game' || pathname === '/';
 		}
+
 		const prefixes = [restProps.href, path].filter((value): value is string => !!value);
 		return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 	});
@@ -19,7 +20,7 @@
 	class={cn(
 		'flex items-center gap-3',
 		'px-4 py-3 font-bold transition-all',
-		'hover:text-secondary-400',
+		'text-secondary-100 hover:text-secondary-400',
 		$state.eager(isActive) && 'text-primary hover:text-primary',
 		restProps.class
 	)}

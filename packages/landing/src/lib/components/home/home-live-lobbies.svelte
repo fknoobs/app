@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import { Table as LiveLobbiesTable, type LiveLobbyPlayer } from '@company-of-heroes/ui/live-lobby';
-	import type { LiveLobbyRecord } from '$lib/services/live-lobbies.service';
+	import type { LiveLobbyRecord } from '@company-of-heroes/api';
 	import { Button } from '@company-of-heroes/ui/button';
 	import { currentLocale, useI18n } from '$lib/i18n';
 	import { API_URL } from '$lib/site/urls';

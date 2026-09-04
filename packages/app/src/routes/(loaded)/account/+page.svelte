@@ -1,25 +1,16 @@
 <script lang="ts">
 	import * as Form from '$lib/components/ui/form';
-	import * as List from '$lib/components/ui/list';
 	import { Input } from '$lib/components/ui/input';
 	import { app } from '$core/app/context';
 	import { fetch } from '$core/http/fetch';
-	import { readMetaVersion } from '$core/pocketbase/companion-user';
-	import { UsersRoleOptions } from '$core/pocketbase/types';
 	import { Button } from '$lib/components/ui/button';
-	import {
-		detailMetaGrid,
-		flushHeader,
-		flushHeaderDescription
-	} from '$lib/components/ui/variants';
+	import { flushHeader, flushHeaderDescription } from '$lib/components/ui/variants';
 	import { open } from '@tauri-apps/plugin-dialog';
 	import ImageCropper from '$lib/components/modals/image-cropper.svelte';
 	import { readFile } from '@tauri-apps/plugin-fs';
 	import { useI18n } from '$lib/i18n';
 	import { openUrl } from '@tauri-apps/plugin-opener';
 	import ImageIcon from 'phosphor-svelte/lib/ImageIcon';
-	import { StaffDebug } from '$lib/components/staff';
-	import dayjs from '$lib/dayjs';
 
 	const { t } = useI18n();
 	const privacyUrl = 'https://coh1stats.com/privacy';
@@ -31,23 +22,6 @@
 	let saving = $state(false);
 	let saveError = $state<string | null>(null);
 	let saveSuccess = $state(false);
-
-	const formatDate = (value?: string | null) =>
-		value ? dayjs(value).format('DD MMM YYYY, HH:mm') : '—';
-
-	const staffUser = $derived(app.account.user);
-	const staffRoleLabel = $derived.by(() => {
-		if (staffUser.role === UsersRoleOptions.admin) {
-			return t('Admin');
-		}
-
-		if (staffUser.role === UsersRoleOptions.moderator) {
-			return t('Moderator');
-		}
-
-		return '—';
-	});
-	const staffAppVersion = $derived(readMetaVersion(staffUser.meta) ?? '—');
 
 	const selectAvatar = async () => {
 		const path = await open({
@@ -175,22 +149,3 @@
 		{/snippet}
 	</Form.Group>
 </Form.Root>
-
-{#if app.account.isStaff}
-	<StaffDebug class="mx-4 mb-6">
-		<div class={detailMetaGrid}>
-			<List.Title>{t('User ID')}</List.Title>
-			<List.Value class="tabular-nums">{staffUser.id}</List.Value>
-			<List.Title>{t('Role')}</List.Title>
-			<List.Value>{staffRoleLabel}</List.Value>
-			<List.Title>{t('App version')}</List.Title>
-			<List.Value>{staffAppVersion}</List.Value>
-			<List.Title>{t('Last login')}</List.Title>
-			<List.Value>{formatDate(staffUser.lastLogin)}</List.Value>
-			<List.Title>{t('Created')}</List.Title>
-			<List.Value>{formatDate(staffUser.created)}</List.Value>
-			<List.Title>{t('Updated')}</List.Title>
-			<List.Value>{formatDate(staffUser.updated)}</List.Value>
-		</div>
-	</StaffDebug>
-{/if}

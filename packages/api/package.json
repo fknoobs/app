@@ -1,0 +1,37 @@
+{
+	"name": "@company-of-heroes/api",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./errors": "./src/errors.ts",
+		"./live-lobbies": "./src/live-lobbies/index.ts",
+		"./match-social": "./src/match-social/index.ts",
+		"./player-social": "./src/player-social/index.ts",
+		"./hidden-matches": "./src/hidden-matches/index.ts",
+		"./auth": "./src/auth/index.ts",
+		"./players": "./src/players/index.ts",
+		"./leaderboards": "./src/leaderboards/index.ts",
+		"./replays": "./src/replays/index.ts",
+		"./twitch": "./src/twitch/index.ts",
+		"./matches": "./src/matches/index.ts",
+		"./notifications": "./src/notifications/index.ts",
+		"./ratings": "./src/ratings/index.ts",
+		"./labels": "./src/labels/index.ts",
+		"./anti-cheat": "./src/anti-cheat/index.ts",
+		"./smurf-watch": "./src/smurf-watch/index.ts",
+		"./reputation": "./src/reputation/index.ts",
+		"./player-performance": "./src/player-performance/index.ts",
+		"./companion": "./src/companion/index.ts"
+	},
+	"dependencies": {
+		"@company-of-heroes/ui": "workspace:*",
+		"neverthrow": "^8.2.0",
+		"pocketbase": "^0.26.9",
+		"zod": "^4.5.4"
+	},
+	"devDependencies": {
+		"typescript": "~5.6.3"
+	}
+}

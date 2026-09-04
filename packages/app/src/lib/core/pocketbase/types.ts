@@ -131,6 +131,9 @@ export type AntiCheatCapturesRecord = {
 	captured_at?: IsoDateString
 	created: IsoAutoDateString
 	game_focused?: boolean
+	hidden?: boolean
+	hiddenAt?: IsoDateString
+	hiddenBy?: RecordIdString
 	id: string
 	image: FileNameString
 	map?: string

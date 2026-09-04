@@ -1,11 +1,12 @@
 <script lang="ts">
 	import type { LobbyPlayer } from '@fknoobs/app';
 	import type { Snippet } from 'svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import CaptureImage from '$lib/components/anti-cheat/capture-image.svelte';
 	import CheaterAlert from '$lib/components/player/cheater-alert.svelte';
 	import PlayerLikeCount from '$lib/components/player/player-like-count.svelte';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Button } from '$lib/components/ui/button';
+	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import { confirm } from '@tauri-apps/plugin-dialog';
 	import { resource } from 'runed';
 	import { account } from '$core/account';
@@ -321,6 +322,11 @@
 							onclick={() => openCapture(capture)}
 						>
 							<CaptureImage {capture} class="absolute inset-0 size-full object-cover" />
+							{#if capture.hidden}
+								<span class="absolute top-1.5 left-1.5 z-10">
+									<Badge variant="warning">{t('Hidden')}</Badge>
+								</span>
+							{/if}
 						</button>
 					{/each}
 				</div>

@@ -13,6 +13,17 @@ const NESTED_FALLBACK: Record<string, string> = {
 	live: 'Live lobby'
 };
 
+const ADMIN_PAGES: Record<string, string> = {
+	notifications: 'Notifications',
+	users: 'Users',
+	labels: 'Labels',
+	reputation: 'Reputation',
+	flagged: 'Flagged',
+	screenshots: 'Screenshots',
+	denylist: 'Denylist',
+	'hidden-matches': 'Hidden matches'
+};
+
 const SECTIONS: Record<string, string> = {
 	replays: 'Replays',
 	history: 'Replays',
@@ -64,10 +75,15 @@ export function crumbsFromPath(pathname: string, extra: Crumb[]): Crumb[] {
 	}
 
 	const nestedKey = NESTED_FALLBACK[parts[0]];
+	const adminPage = parts[0] === 'admin' ? ADMIN_PAGES[parts[1] ?? ''] : undefined;
 	const rest =
 		extra.length > 0
 			? extra
-			: [{ label: nestedKey ? t(nestedKey) : (parts[1] ?? sectionLabel) }];
+			: [
+					{
+						label: adminPage ? t(adminPage) : nestedKey ? t(nestedKey) : (parts[1] ?? sectionLabel)
+					}
+				];
 
 	const href = parts[0] === 'replays' ? '/history?tab=replays' : `/${parts[0]}`;
 	return [{ label: sectionLabel, href }, ...rest];

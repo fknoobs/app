@@ -1,13 +1,18 @@
 import type PocketBase from 'pocketbase';
-import { AuthService } from './auth.service';
-import { HiddenMatchesService } from './hidden-matches.service';
-import { LeaderboardsService } from './leaderboards.service';
-import { LiveLobbiesService } from './live-lobbies.service';
-import { MatchSocialService } from './match-social.service';
-import { PlayerSocialService } from './player-social.service';
-import { PlayersService } from './players.service';
-import { ReplaysService } from './replays.service';
-import { TwitchService } from './twitch.service';
+import {
+	createApi,
+	type Api,
+	type AuthApi,
+	type HiddenMatchesApi,
+	type LeaderboardsApi,
+	type LiveLobbiesApi,
+	type MatchSocialApi,
+	type PlayerSocialApi,
+	type PlayersApi,
+	type TwitchApi
+} from '@company-of-heroes/api';
+import { API_URL } from '$lib/site/urls';
+import { LandingReplaysService } from './replays-host';
 
 export type ServiceDeps = {
 	pocketbase: PocketBase;
@@ -15,37 +20,38 @@ export type ServiceDeps = {
 };
 
 export type Services = {
-	auth: () => AuthService;
-	hiddenMatches: () => HiddenMatchesService;
-	leaderboards: () => LeaderboardsService;
-	liveLobbies: () => LiveLobbiesService;
-	matchSocial: () => MatchSocialService;
-	playerSocial: () => PlayerSocialService;
-	players: () => PlayersService;
-	replays: () => ReplaysService;
-	twitch: () => TwitchService;
+	auth: () => AuthApi;
+	hiddenMatches: () => HiddenMatchesApi;
+	leaderboards: () => LeaderboardsApi;
+	liveLobbies: () => LiveLobbiesApi;
+	matchSocial: () => MatchSocialApi;
+	playerSocial: () => PlayerSocialApi;
+	players: () => PlayersApi;
+	replays: () => LandingReplaysService;
+	twitch: () => TwitchApi;
 };
 
 export function createServices(deps: ServiceDeps): Services {
-	let auth: AuthService | undefined;
-	let hiddenMatches: HiddenMatchesService | undefined;
-	let leaderboards: LeaderboardsService | undefined;
-	let liveLobbies: LiveLobbiesService | undefined;
-	let matchSocial: MatchSocialService | undefined;
-	let playerSocial: PlayerSocialService | undefined;
-	let players: PlayersService | undefined;
-	let replays: ReplaysService | undefined;
-	let twitch: TwitchService | undefined;
+	let api: Api | undefined;
+	const getApi = () =>
+		(api ??= createApi({
+			pocketbase: deps.pocketbase,
+			fetch: deps.fetch,
+			baseUrl: API_URL
+		}));
+
+	let replays: LandingReplaysService | undefined;
 
 	return {
-		auth: () => (auth ??= new AuthService(deps.pocketbase)),
-		hiddenMatches: () => (hiddenMatches ??= new HiddenMatchesService(deps.pocketbase)),
-		leaderboards: () => (leaderboards ??= new LeaderboardsService(deps.fetch)),
-		liveLobbies: () => (liveLobbies ??= new LiveLobbiesService(deps.pocketbase)),
-		matchSocial: () => (matchSocial ??= new MatchSocialService(deps.pocketbase)),
-		playerSocial: () => (playerSocial ??= new PlayerSocialService(deps.pocketbase)),
-		players: () => (players ??= new PlayersService(deps.fetch)),
-		replays: () => (replays ??= new ReplaysService(deps.fetch, deps.pocketbase)),
-		twitch: () => (twitch ??= new TwitchService(deps.fetch))
+		auth: () => getApi().auth,
+		hiddenMatches: () => getApi().hiddenMatches,
+		leaderboards: () => getApi().leaderboards,
+		liveLobbies: () => getApi().liveLobbies,
+		matchSocial: () => getApi().matchSocial,
+		playerSocial: () => getApi().playerSocial,
+		players: () => getApi().players,
+		replays: () =>
+			(replays ??= new LandingReplaysService(getApi().replays, deps.fetch, API_URL)),
+		twitch: () => getApi().twitch
 	};
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { MatchExpanded } from '$core/app/database/matches';
 	import CaptureImage from '$lib/components/anti-cheat/capture-image.svelte';
+	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { MatchListTable, type MatchListColumnId } from '$lib/components/match';
 	import { interactive } from '$lib/components/ui/variants';
@@ -15,6 +15,7 @@
 	import dayjs from '$lib/dayjs';
 	import { cn } from '$lib/utils';
 	import { useI18n } from '$lib/i18n';
+	import type { MatchExpanded } from '$core/app/database/matches';
 
 	type Props = {
 		steamId: string;
@@ -245,6 +246,11 @@
 						onclick={() => openCapture(capture)}
 					>
 						<CaptureImage {capture} class="absolute inset-0 size-full object-cover" />
+						{#if capture.hidden}
+							<span class="absolute top-1.5 left-1.5 z-10">
+								<Badge variant="warning">{t('Hidden')}</Badge>
+							</span>
+						{/if}
 					</button>
 				{/each}
 			</div>

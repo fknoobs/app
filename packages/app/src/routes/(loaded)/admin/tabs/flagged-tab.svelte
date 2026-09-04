@@ -359,6 +359,11 @@
 									onclick={() => openCapture(capture)}
 								>
 									<CaptureImage {capture} class="absolute inset-0 size-full object-cover" />
+									{#if capture.hidden}
+										<span class="absolute top-1.5 left-1.5 z-10">
+											<Badge variant="warning">{t('Hidden')}</Badge>
+										</span>
+									{/if}
 								</button>
 							{/each}
 						</div>

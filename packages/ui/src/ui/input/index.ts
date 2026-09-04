@@ -7,8 +7,9 @@ import Selection from './selection.svelte';
 import Slider from './slider.svelte';
 import Textarea from './textarea.svelte';
 
-export type InputProps = HTMLInputAttributes & {
+export type InputProps = Omit<HTMLInputAttributes, 'size'> & {
 	flush?: boolean;
+	size?: 'sm' | 'md' | 'lg';
 	decreaseLabel?: string;
 	increaseLabel?: string;
 	leading?: Snippet;

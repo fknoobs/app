@@ -22,7 +22,10 @@
 		'prose-a:text-primary hover:prose-a:underline prose-a:cursor-pointer prose-a:no-underline',
 		'prose-blockquote:border-secondary-700 prose-blockquote:text-primary',
 		'prose-li:marker:text-secondary-400',
-		'prose-img:ml-0 prose-img:h-auto prose-img:w-auto prose-img:max-w-full prose-img:rounded-md prose-img:object-contain'
+		'prose-img:ml-0 prose-img:h-auto prose-img:w-auto prose-img:max-w-full prose-img:rounded-md prose-img:object-contain',
+		// What's New lead: first paragraph is the thematic summary for the release
+		'[&>p:first-child]:mb-8 [&>p:first-child]:border-l-2 [&>p:first-child]:border-primary [&>p:first-child]:pl-4',
+		'[&>p:first-child]:text-base [&>p:first-child]:leading-relaxed [&>p:first-child]:font-medium [&>p:first-child]:text-white'
 	)}
 >
 	{@html html}

@@ -1,5 +1,5 @@
 ﻿<script lang="ts">
-	import type { LobbyComment, MentionUser } from '$lib/services/match-social.service';
+	import type { LobbyComment, MentionUser } from '@company-of-heroes/api';
 	import {
 		CommentComposer,
 		CommentDeleteDialog,

@@ -1,5 +1,5 @@
 import { href, type TranslateFn } from '$lib/i18n';
-import type { LiveLobbyRecord } from '$lib/services/live-lobbies.service';
+import type { LiveLobbyRecord } from '@company-of-heroes/api';
 import {
 	getLiveLobbyMatchTypeId,
 	type LiveLobby,

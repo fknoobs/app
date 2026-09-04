@@ -23,6 +23,7 @@
 	"dependencies": {
 		"@babel/parser": "^7.29.8",
 		"@babel/traverse": "^7.29.8",
+		"@company-of-heroes/api": "workspace:*",
 		"@company-of-heroes/i18n": "workspace:*",
 		"@company-of-heroes/ui": "workspace:*",
 		"@dicebear/collection": "^9.4.2",
@@ -74,6 +75,7 @@
 		"marked": "^17.0.6",
 		"monaco-editor": "^0.52.2",
 		"monaco-jsx-highlighter": "^2.77.77",
+		"neverthrow": "^8.2.0",
 		"phosphor-svelte": "^3.1.0",
 		"pocketbase": "^0.26.9",
 		"runed": "^0.37.1",

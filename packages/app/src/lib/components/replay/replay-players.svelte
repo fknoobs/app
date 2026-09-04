@@ -86,7 +86,7 @@
 			id: match?.id ?? '',
 			map: match?.map ?? '',
 			isRanked: !!match?.isRanked,
-			createdAt: match?.created ?? '',
+			createdAt: match?.createdAt ?? '',
 			durationSeconds: null,
 			likeCount: match?.likeCount ?? 0,
 			downloadCount: match?.downloadCount ?? 0,

@@ -1,0 +1,21 @@
+export {
+	ReplaysApi,
+	REPLAYS_PER_PAGE,
+	HISTORY_MATCHUP_TYPES,
+	matchtypesForMatchups,
+	slotsForPositions,
+	buildMatchHistoryUrl,
+	matchFileUrl,
+	type CommunityMatch,
+	type CommunityMatchDetail,
+	type CommunityMatchList,
+	type CommunityMatchSubmittedBy,
+	type CommunityPlayer,
+	type MatchResult,
+	type MatchResultPlayer,
+	type ReplayAuthOptions,
+	type ReplayCatalogRecord,
+	type HistoryMapOption,
+	type HistoryMatchup,
+	type ReplaysQuery
+} from './replays';

@@ -1,7 +1,7 @@
 import { localizeHref, DEFAULT_LOCALE, type AppLocale } from '@company-of-heroes/i18n';
 import type PocketBase from 'pocketbase';
 import type { RecordModel } from 'pocketbase';
-import type { AuthUser, UserRole } from '$lib/services/auth.service';
+import type { AuthUser, UserRole } from '@company-of-heroes/api';
 
 export type AuthUserPublic = {
 	id: string;

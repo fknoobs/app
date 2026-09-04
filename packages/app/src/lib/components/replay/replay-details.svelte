@@ -23,6 +23,7 @@
 	type LobbyWithUser = LobbiesResponse<
 		unknown,
 		unknown,
+		unknown,
 		{
 			user?: UsersResponse;
 		}

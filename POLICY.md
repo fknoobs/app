@@ -114,7 +114,7 @@ We share information with:
 - **Twitch** — if you connect Twitch, and to list public Company of Heroes streams on the website;
 - **ElevenLabs** — if you use TTS with your own API key;
 - **Cloudflare** — to host and deliver the website;
-- staff moderators who review fair play reports, who can hide match results from public listings (including by lobby-name word list), who can attach public badges to Relic/Steam player identities, and who can see comments marked as deleted together with the reason a moderator entered;
+- staff moderators who review fair play reports, who can hide match results from public listings (including by lobby-name word list), who can hide fair-play screenshots from player views while still reviewing them, who can attach public badges to Relic/Steam player identities, and who can see comments marked as deleted together with the reason a moderator entered;
 
 Match results, player identities, and stats may be **public** on the website and API, except where staff have hidden a match from those listings. Replay files, comments, and similar content you post may be visible to other users of the Service. Comments you or staff remove stay stored for moderation and are hidden from the public view.
 
@@ -124,7 +124,7 @@ We may also disclose information if required by law, or to protect the Service a
 
 We keep account, match, replay, and stats data for as long as the Service needs them, including for history, leaderboards, security, and legal reasons.
 
-You can ask us to delete or correct your **account** data. Match records that include other players, public leaderboard rows, and fair play evidence may be retained or only partly removed so history for everyone else stays accurate. Comments marked as deleted are kept so staff can review them and the reason they were removed.
+You can ask us to delete or correct your **account** data. Match records that include other players, public leaderboard rows, and fair play evidence may be retained or only partly removed so history for everyone else stays accurate. Comments marked as deleted are kept so staff can review them and the reason they were removed. Fair-play screenshots staff hide stay stored for moderation and are hidden from player views.
 
 Local settings are stored on your device until you clear app data. External backups the app writes on your computer stay under your control.
 

@@ -1,16 +1,21 @@
 import { isOccupiedLobbySlot, type Match } from '$core/game/lobby';
 import type { LobbyPlayer, TransformedMatch } from '@fknoobs/app';
 import type { LobbiesLiveResponse, UsersResponse } from '$core/pocketbase/types';
-import { exp, pocketbase } from '$core/pocketbase';
+import { exp } from '$core/pocketbase';
 import { getPlayerRatings, type PlayerRatingRecord } from '$core/pocketbase/player-ratings';
-import { fetch } from '$core/http/fetch';
-import {
-	ClientResponseError,
-	type ListResult,
-	type RecordSubscription,
-	type UnsubscribeFunc
-} from 'pocketbase';
+import { api, unwrapApi } from '$core/api';
+import type { ListResult, RecordSubscription, UnsubscribeFunc } from 'pocketbase';
 import type { Expand } from '@fknoobs/app';
+import {
+	LOBBIES_LIVE_STALE_MS,
+	LOBBIES_LIVE_HEARTBEAT_MS,
+	lobbiesLiveFreshFilter,
+	lobbiesLivePublicFilter,
+	isLiveLobbyFresh,
+	isPublicLiveLobby,
+	type LiveLobbyWriteInput,
+	type LiveLobbyWritePlayer
+} from '@company-of-heroes/api';
 
 export type LiveLobby = Expand<
 	LobbiesLiveResponse<
@@ -21,38 +26,14 @@ export type LiveLobby = Expand<
 	>
 > & { players: LobbyPlayer[] };
 
-/** Drop orphaned rows when the game exits without a DESTROYED log (Alt+F4 / Exit to Windows).
- * Keep in sync with packages/pocketbase/pb_hooks/lib/lobbies-live.js */
-export const LOBBIES_LIVE_STALE_MS = 30 * 60 * 1000;
-/** How often an active match refreshes updatedAt so long games aren't pruned. */
-export const LOBBIES_LIVE_HEARTBEAT_MS = 2 * 60 * 1000;
-
-/** PocketBase filter: only rows touched within the stale window. */
-export function lobbiesLiveFreshFilter(now = Date.now()): string {
-	const since = new Date(now - LOBBIES_LIVE_STALE_MS).toISOString().replace('T', ' ');
-	return `updatedAt > "${since}"`;
-}
-
-/** Public live-match list: hide replay playback rows. Overlay still polls by user. */
-export function lobbiesLivePublicFilter(now = Date.now()): string {
-	return `(${lobbiesLiveFreshFilter(now)}) && isReplay != true`;
-}
-
-export function isLiveLobbyFresh(
-	lobby: Pick<LiveLobby, 'updatedAt'> | { updatedAt?: string },
-	now = Date.now()
-): boolean {
-	if (!lobby.updatedAt) return false;
-	const updatedAt = new Date(lobby.updatedAt).getTime();
-	return Number.isFinite(updatedAt) && updatedAt > now - LOBBIES_LIVE_STALE_MS;
-}
-
-export function isPublicLiveLobby(
-	lobby: Pick<LiveLobby, 'updatedAt' | 'isReplay'> | { updatedAt?: string; isReplay?: boolean },
-	now = Date.now()
-): boolean {
-	return isLiveLobbyFresh(lobby, now) && !lobby.isReplay;
-}
+export {
+	LOBBIES_LIVE_STALE_MS,
+	LOBBIES_LIVE_HEARTBEAT_MS,
+	lobbiesLiveFreshFilter,
+	lobbiesLivePublicFilter,
+	isLiveLobbyFresh,
+	isPublicLiveLobby
+};
 
 /**
  * Live lobby repository: upserts each user's currently running match so the
@@ -61,13 +42,7 @@ export function isPublicLiveLobby(
  */
 export class LobbiesLive {
 	async getList(page = 1, perPage = 20): Promise<ListResult<LiveLobby>> {
-		const response = await pocketbase.collection('lobbies_live').getList(page, perPage, {
-			filter: lobbiesLivePublicFilter(),
-			sort: '-updatedAt',
-			expand: 'user',
-			fetch
-		});
-
+		const response = await unwrapApi(api.liveLobbies.getList(page, perPage));
 		return {
 			...response,
 			items: response.items.map((item) => exp(item) as unknown as LiveLobby)
@@ -75,11 +50,7 @@ export class LobbiesLive {
 	}
 
 	async getOne(id: string): Promise<LiveLobby> {
-		const record = await pocketbase.collection('lobbies_live').getOne(id, {
-			expand: 'user',
-			fetch
-		});
-
+		const record = await unwrapApi(api.liveLobbies.getOne(id));
 		return exp(record) as unknown as LiveLobby;
 	}
 
@@ -97,26 +68,17 @@ export class LobbiesLive {
 		const topic = typeof idOrCallback === 'string' ? idOrCallback : '*';
 		const callback = typeof idOrCallback === 'string' ? maybeCallback! : idOrCallback;
 
-		return pocketbase.collection('lobbies_live').subscribe<LiveLobby>(
-			topic,
-			(event) => {
+		return unwrapApi(
+			api.liveLobbies.subscribe(topic, (event) => {
 				callback({
 					...event,
 					record: exp(event.record) as unknown as LiveLobby
 				});
-			},
-			{ fetch, expand: 'user' }
+			})
 		);
 	}
 
 	async setLobby(match: Match, lobbyId?: string | null) {
-		const user = pocketbase.authStore.record?.id;
-
-		if (!pocketbase.authStore.isValid || !user) {
-			console.warn('[LOBBIES_LIVE]: skipping upsert, PocketBase auth is missing or expired');
-			return;
-		}
-
 		if (!match.sessionId || !match.map || match.players.length === 0) {
 			console.warn('[LOBBIES_LIVE]: skipping upsert, match is incomplete', {
 				sessionId: match.sessionId,
@@ -128,60 +90,28 @@ export class LobbiesLive {
 
 		const occupied = match.players.filter(isOccupiedLobbySlot);
 		const players = match.isReplay ? occupied : await withOverlayEloSources(occupied);
-		const data: Record<string, unknown> = {
-			user,
-			isRanked: match.isRanked,
-			isReplay: match.isReplay ?? false,
+		const data: LiveLobbyWriteInput = {
 			sessionId: match.sessionId,
 			map: match.map,
-			players
+			isRanked: match.isRanked,
+			isReplay: match.isReplay ?? false,
+			players: players as LiveLobbyWritePlayer[],
+			lobby: lobbyId
 		};
-		if (lobbyId) {
-			data.lobby = lobbyId;
-		}
 
 		try {
-			const existing = await pocketbase
-				.collection('lobbies_live')
-				.getFirstListItem(`user="${user}"`, { fetch });
-
-			return await pocketbase.collection('lobbies_live').update(existing.id, data, { fetch });
+			return await unwrapApi(api.liveLobbies.setLobby(data));
 		} catch (error) {
-			if (error instanceof ClientResponseError && error.status === 404) {
-				return await pocketbase.collection('lobbies_live').create(data, { fetch });
-			}
-
-			if (error instanceof ClientResponseError) {
-				console.warn('[LOBBIES_LIVE]: upsert failed:', error.status, error.response);
-			}
-
+			console.warn('[LOBBIES_LIVE]: upsert failed:', error);
 			throw error;
 		}
 	}
 
 	async removeLobby() {
-		const user = pocketbase.authStore.record?.id;
-
-		if (!pocketbase.authStore.isValid || !user) {
-			console.warn('[LOBBIES_LIVE]: skipping delete, PocketBase auth is missing or expired');
-			return;
-		}
-
 		try {
-			const existing = await pocketbase
-				.collection('lobbies_live')
-				.getFirstListItem(`user="${user}"`, { fetch });
-
-			return await pocketbase.collection('lobbies_live').delete(existing.id, { fetch });
+			return await unwrapApi(api.liveLobbies.removeLobby());
 		} catch (error) {
-			if (error instanceof ClientResponseError && error.status === 404) {
-				return;
-			}
-
-			if (error instanceof ClientResponseError) {
-				console.warn('[LOBBIES_LIVE]: delete failed:', error.status, error.response);
-			}
-
+			console.warn('[LOBBIES_LIVE]: delete failed:', error);
 			throw error;
 		}
 	}
@@ -191,7 +121,10 @@ export class LobbiesLive {
 function slimMatchHistoryForOverlay(
 	history: TransformedMatch[] | undefined
 ): TransformedMatch[] | undefined {
-	if (!history?.length) return history;
+	if (!history?.length) {
+		return history;
+	}
+
 	return history.map((match) => ({
 		matchtype_id: match.matchtype_id,
 		completiontime: match.completiontime,

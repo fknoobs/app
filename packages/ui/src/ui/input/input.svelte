@@ -28,6 +28,7 @@
 		leading,
 		trailing,
 		flush = false,
+		size = 'md',
 		decreaseLabel = 'Decrease value',
 		increaseLabel = 'Increase value',
 		...restProps
@@ -37,6 +38,17 @@
 	const hasExtras = $derived(
 		leading != null || trailing != null || showPasswordToggle || type === 'number'
 	);
+	const controlSize = $derived(
+		size === 'sm' ? 'h-8 text-sm' : size === 'lg' ? 'h-14 text-lg' : 'h-11 text-base'
+	);
+	const controlPad = $derived(size === 'sm' ? 'px-3' : size === 'lg' ? 'px-5' : 'px-4');
+	const adornedText = $derived(
+		size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-lg' : 'text-base'
+	);
+	const adornedSidePad = $derived(size === 'sm' ? 'px-2' : 'px-3');
+	const numberEndPad = $derived(size === 'sm' ? 'pe-14' : 'pe-17');
+	const passwordTogglePos = $derived(size === 'sm' ? 'top-0.5 right-0.5' : 'top-1.5 right-1.5');
+	const flushText = $derived(size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-lg' : 'text-base');
 
 	function stepValue(direction: 1 | -1) {
 		const step = restProps.step ? parseFloat(restProps.step.toString()) : 1;
@@ -64,7 +76,7 @@
 				{...restProps}
 				type={type === 'number' ? 'text' : type}
 				inputmode={type === 'number' ? 'numeric' : restProps.inputmode}
-				class={cn(flushInput, controlDisabled, controlReadonly)}
+				class={cn(flushInput, flushText, controlDisabled, controlReadonly)}
 				oninput={
 					type === 'number'
 						? () => {
@@ -122,19 +134,19 @@
 			bind:value
 			{...restProps}
 			{type}
-			class={cn(flushInput, controlDisabled, controlReadonly, className)}
+			class={cn(flushInput, flushText, controlDisabled, controlReadonly, className)}
 		/>
 	{/if}
 {:else if type === 'number'}
 	<div
 		class={cn(
-			hasAdornments ? cn(adornedControl, adornedControlDisabled) : 'relative w-full',
+			hasAdornments ? cn(adornedControl, adornedControlDisabled, controlSize) : 'relative w-full',
 			'min-w-0 flex-1',
 			className
 		)}
 	>
 		{#if leading}
-			<span class={cn(adornedLeading, 'pointer-events-none')}>
+			<span class={cn(adornedLeading, adornedSidePad, 'pointer-events-none')}>
 				{@render leading()}
 			</span>
 		{/if}
@@ -144,7 +156,9 @@
 			type="text"
 			inputmode="numeric"
 			class={cn(
-				hasAdornments ? adornedInput : cn(controlBase, 'w-full px-4 pe-17'),
+				hasAdornments
+					? cn(adornedInput, adornedText)
+					: cn(controlBase, controlSize, 'w-full', controlPad, numberEndPad),
 				controlDisabled,
 				controlReadonly
 			)}
@@ -153,7 +167,7 @@
 			}}
 		/>
 		{#if trailing}
-			<span class={adornedTrailing}>
+			<span class={cn(adornedTrailing, adornedSidePad)}>
 				{@render trailing()}
 			</span>
 		{/if}
@@ -182,9 +196,9 @@
 		</div>
 	</div>
 {:else if hasAdornments}
-	<div class={cn(adornedControl, adornedControlDisabled, 'min-w-0 flex-1', className)}>
+	<div class={cn(adornedControl, adornedControlDisabled, controlSize, 'min-w-0 flex-1', className)}>
 		{#if leading}
-			<span class={cn(adornedLeading, 'pointer-events-none')}>
+			<span class={cn(adornedLeading, adornedSidePad, 'pointer-events-none')}>
 				{@render leading()}
 			</span>
 		{/if}
@@ -192,10 +206,10 @@
 			bind:value
 			{...restProps}
 			{type}
-			class={cn(adornedInput, controlDisabled, controlReadonly)}
+			class={cn(adornedInput, adornedText, controlDisabled, controlReadonly)}
 		/>
 		{#if trailing}
-			<span class={adornedTrailing}>
+			<span class={cn(adornedTrailing, adornedSidePad)}>
 				{@render trailing()}
 			</span>
 		{/if}
@@ -221,14 +235,21 @@
 			bind:value
 			{...restProps}
 			{type}
-			class={cn(controlBase, 'w-full px-4', controlDisabled, controlReadonly)}
+			class={cn(
+				controlBase,
+				controlSize,
+				'w-full',
+				controlPad,
+				controlDisabled,
+				controlReadonly
+			)}
 		/>
 		{#if showPasswordToggle}
 			<Button
 				variant="ghost"
 				size="icon-sm"
 				type="button"
-				class="text-secondary-400 absolute top-1.5 right-1.5"
+				class={cn('text-secondary-400 absolute', passwordTogglePos)}
 				onclick={() => (type = type === 'password' ? 'text' : 'password')}
 			>
 				{#if type === 'password'}
