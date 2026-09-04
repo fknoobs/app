@@ -1,5 +1,11 @@
 # @company-of-heroes/pocketbase
 
+## 0.9.0
+
+- enhance; share the same player profile UI components across the app and website
+- fix; load website live lobbies from lobbies_live like the companion instead of a slow custom API
+- feat; upvote and downvote players on profiles, and show net rating next to player names
+
 ## 0.8.0
 
 - feat; mention users with @ in match comments and link to their profile

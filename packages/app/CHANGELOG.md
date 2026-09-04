@@ -1,5 +1,16 @@
 # @company-of-heroes/app
 
+## 0.62.0
+
+- fix; install and restart automatically once an update finishes downloading
+- feat; sign Windows installers with Azure Artifact Signing
+- fix; take fair play shots via company of heroes print screen, with window capture as fallback
+- enhance; share the same player profile UI components across the app and website
+- fix; load website live lobbies from lobbies_live like the companion instead of a slow custom API
+- fix; play the match-start notification sound more reliably when CoH is not focused
+- feat; upvote and downvote players on profiles, and show net rating next to player names
+- enhance; show staff-only account debug on player profiles, replays, and matches
+
 ## 0.61.0
 
 - feat; mention users with @ in match comments and link to their profile
