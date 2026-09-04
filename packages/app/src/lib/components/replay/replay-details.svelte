@@ -7,21 +7,41 @@
 	import { getString } from '$lib/utils/game';
 	import MapImage from '$lib/components/ui/map-image.svelte';
 	import dayjs from '$lib/dayjs';
-	import Ranking from 'phosphor-svelte/lib/RankingIcon';
+	import RankingIcon from 'phosphor-svelte/lib/RankingIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import { detailMetaGrid, interactive } from '$lib/components/ui/variants';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { app } from '$core/app/context';
+	import { pocketbase } from '$core/pocketbase';
+	import { fetch } from '$core/http/fetch';
+	import type { LobbiesResponse, ReplaysRecord, UsersResponse } from '$core/pocketbase/types';
+	import { resource } from 'runed';
 	import { useI18n } from '$lib/i18n';
+	import { StaffDebug } from '$lib/components/staff';
+
+	type LobbyWithUser = LobbiesResponse<
+		unknown,
+		unknown,
+		{
+			user?: UsersResponse;
+		}
+	>;
 
 	type Props = {
 		canRename?: boolean;
 		replayId?: string | null;
+		replayRecord?: ReplaysRecord | null;
 		onRenamed?: (payload: { bytes: Uint8Array; title: string }) => void;
 	} & HTMLAttributes<HTMLDivElement>;
 
-	let { canRename = false, replayId = null, onRenamed, ...restProps }: Props = $props();
+	let {
+		canRename = false,
+		replayId = null,
+		replayRecord = null,
+		onRenamed,
+		...restProps
+	}: Props = $props();
 	const { t } = useI18n();
 	let replay = $derived(useReplay());
 	let isRanked = $derived(replay.matchType === 'automatch');
@@ -40,6 +60,102 @@
 	let draftName = $state('');
 	let saving = $state(false);
 
+	const isStaff = $derived(app.account.isStaff);
+
+	const formatDate = (value?: string | null) =>
+		value ? dayjs(value).format('DD MMM YYYY, HH:mm') : '—';
+
+	const escapeFilter = (value: string) => value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+	async function findLobbyByReplayFile(file: string, filename: string): Promise<LobbyWithUser | null> {
+		for (const candidate of [file, filename]) {
+			if (!candidate) {
+				continue;
+			}
+
+			const escaped = escapeFilter(candidate);
+			try {
+				const result = await pocketbase.collection('lobbies').getList<LobbyWithUser>(1, 1, {
+					filter: `replay = "${escaped}"`,
+					expand: 'user',
+					fetch
+				});
+				if (result.items.length > 0) {
+					return result.items[0];
+				}
+			} catch (error) {
+				console.warn('[REPLAY]: lobby lookup by replay file failed:', error);
+			}
+		}
+
+		return null;
+	}
+
+	const staffLobby = resource(
+		() => {
+			if (!isStaff) {
+				return null;
+			}
+
+			if (replayRecord) {
+				return {
+					kind: 'byReplay' as const,
+					file: replayRecord.file,
+					filename: replayRecord.filename
+				};
+			}
+
+			const id = page.params.replayId;
+			if (!id) {
+				return null;
+			}
+
+			return { kind: 'byId' as const, id };
+		},
+		async (key) => {
+			if (!key) {
+				return null;
+			}
+
+			try {
+				if (key.kind === 'byId') {
+					return await app.database.matches.getById(key.id);
+				}
+
+				return await findLobbyByReplayFile(key.file, key.filename);
+			} catch (error) {
+				console.warn('[REPLAY]: staff lobby lookup failed:', error);
+				return null;
+			}
+		}
+	);
+
+	const lobbyId = $derived(
+		staffLobby.current?.id ?? (!replayRecord ? (page.params.replayId ?? null) : null)
+	);
+	const sessionId = $derived(staffLobby.current?.sessionId ?? null);
+	const lobbyOwner = $derived.by(() => {
+		const lobby = staffLobby.current;
+		if (!lobby) {
+			return null;
+		}
+
+		const expanded =
+			'expand' in lobby && lobby.expand && typeof lobby.expand === 'object'
+				? (lobby.expand as { user?: UsersResponse }).user
+				: undefined;
+		const user =
+			expanded ??
+			(typeof lobby.user === 'object' && lobby.user !== null
+				? (lobby.user as UsersResponse)
+				: null);
+		if (!user) {
+			return typeof lobby.user === 'string' ? lobby.user : null;
+		}
+
+		return user.name || user.email || user.id;
+	});
+
 	function startEdit() {
 		draftName = replay.replayName || '';
 		editing = true;
@@ -51,7 +167,10 @@
 	}
 
 	async function saveName() {
-		if (!replayId || saving) return;
+		if (!replayId || saving) {
+			return;
+		}
+
 		const next = draftName.trim();
 		if (next === (replay.replayName || '').trim()) {
 			cancelEdit();
@@ -139,7 +258,7 @@
 			<List.Title>{t('Game mode')}</List.Title>
 			<List.Value class="flex items-center gap-2">
 				{#if isRanked}
-					<Ranking class="text-primary" /> {t('Ranked')}
+					<RankingIcon class="text-primary" /> {t('Ranked')}
 				{:else}
 					{t('Custom game')}
 				{/if}
@@ -164,5 +283,42 @@
 			<List.Title>{t('ID')}</List.Title>
 			<List.Value class="tabular-nums">{page.params.replayId}</List.Value>
 		</div>
+
+		{#if isStaff}
+			<StaffDebug>
+				<div class={detailMetaGrid}>
+					<List.Title>{t('Replay ID')}</List.Title>
+					<List.Value class="tabular-nums">{page.params.replayId}</List.Value>
+					{#if replayRecord}
+						<List.Title>{t('Replay created')}</List.Title>
+						<List.Value>{formatDate(replayRecord.createdAt)}</List.Value>
+						<List.Title>{t('Replay updated')}</List.Title>
+						<List.Value>{formatDate(replayRecord.updatedAt)}</List.Value>
+					{/if}
+
+					<List.Title>{t('Match ID')}</List.Title>
+					<List.Value class="tabular-nums">
+						{#if lobbyId}
+							<a href="/history/{lobbyId}" class={cn(interactive, 'hover:text-primary underline')}>
+								{lobbyId}
+							</a>
+						{:else}
+							—
+						{/if}
+					</List.Value>
+					<List.Title>{t('Session ID')}</List.Title>
+					<List.Value class="tabular-nums">{sessionId ?? '—'}</List.Value>
+
+					{#if staffLobby.current}
+						<List.Title>{t('Match created')}</List.Title>
+						<List.Value>{formatDate(staffLobby.current.createdAt)}</List.Value>
+						<List.Title>{t('Match updated')}</List.Title>
+						<List.Value>{formatDate(staffLobby.current.updatedAt)}</List.Value>
+						<List.Title>{t('Owner')}</List.Title>
+						<List.Value>{lobbyOwner ?? '—'}</List.Value>
+					{/if}
+				</div>
+			</StaffDebug>
+		{/if}
 	</div>
 </div>

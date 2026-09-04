@@ -1,13 +1,19 @@
 import { href, type TranslateFn } from '$lib/i18n';
 import type { LiveLobbyRecord } from '$lib/services/live-lobbies.service';
-import type { LiveLobby, LiveLobbyPlayer } from '@company-of-heroes/ui/live-lobby';
-import { getLiveLobbyMatchTypeId, MATCH_TYPES } from '$lib/utils/player/format';
+import {
+	getLiveLobbyMatchTypeId,
+	type LiveLobby,
+	type LiveLobbyPlayer
+} from '@company-of-heroes/ui/live-lobby';
+import { MATCH_TYPES } from '$lib/utils/player/format';
 import { profileHref } from '$lib/utils/resolvers';
 
 export function toLiveLobby(lobby: LiveLobbyRecord, t: TranslateFn): LiveLobby {
 	return {
 		...lobby,
-		modeLabel: t(MATCH_TYPES[getLiveLobbyMatchTypeId(lobby.players, lobby.isRanked)] ?? 'Custom Game')
+		modeLabel: t(
+			MATCH_TYPES[getLiveLobbyMatchTypeId(lobby.players, lobby.isRanked)] ?? 'Custom Game'
+		)
 	};
 }
 
@@ -36,5 +42,9 @@ export function liveLobbyPlayerLabel(player: LiveLobbyPlayer, t: TranslateFn) {
 }
 
 export function liveLobbyDetailsHref(lobby: LiveLobby) {
+	if (lobby.lobbyId) {
+		return href(`/replays/${lobby.lobbyId}`);
+	}
+
 	return href(`/live/${lobby.id}`);
 }

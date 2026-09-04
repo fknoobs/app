@@ -70,6 +70,7 @@ export type CommunityPlayer = {
 	playerId: number | null;
 	steamId: string | null;
 	race: number | null;
+	likeCount?: number;
 	profile: {
 		profile_id: number;
 		alias: string;

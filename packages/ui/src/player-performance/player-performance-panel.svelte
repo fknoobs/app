@@ -12,7 +12,7 @@
 		normalizeMapName,
 		winrate
 	} from '../format/player-format';
-	import { statLosses, statWins } from '@company-of-heroes/ui/variants';
+	import { statLosses, statWins, tableHeadRow } from '@company-of-heroes/ui/variants';
 	import ChartLineIcon from 'phosphor-svelte/lib/ChartLineIcon';
 	import MapTrifoldIcon from 'phosphor-svelte/lib/MapTrifoldIcon';
 	import FlagIcon from 'phosphor-svelte/lib/FlagIcon';
@@ -87,7 +87,7 @@
 	}: Props = $props();
 
 	const byMode = $derived(stats.byMode.filter((mode) => mode.matchtypeId !== 14));
-	const headerRow = 'text-secondary-400 text-xs font-semibold tracking-wide uppercase';
+	const headerRow = tableHeadRow;
 
 	let eloExpanded = $state(false);
 	let mapsExpanded = $state(false);
@@ -161,7 +161,7 @@
 				</thead>
 				<tbody>
 					{#each eloRows as row (`${row.matchtypeId}-${row.raceId}`)}
-						<tr class="border-secondary-800/70 border-t">
+						<tr class="border-secondary-800 border-b">
 							<td class="px-4 py-1.5 text-white">{getModeLabel(row.matchtypeId)}</td>
 							<td class="px-4 py-1.5">
 								<div class="flex min-w-0 items-center gap-2">
@@ -214,7 +214,7 @@
 				<tbody>
 					{#each stats.byMap as row (row.map)}
 						{@const players = mapCount(row.map)}
-						<tr class="border-secondary-800/70 border-t">
+						<tr class="border-secondary-800 border-b">
 							<td class="px-4 py-1.5">
 								<div class="flex min-w-0 items-center gap-3">
 									<MapImage
@@ -258,7 +258,7 @@
 				</thead>
 				<tbody>
 					{#each stats.byFaction as row (row.raceId)}
-						<tr class="border-secondary-800/70 border-t">
+						<tr class="border-secondary-800 border-b">
 							<td class="px-4 py-1.5">
 								<div class="flex min-w-0 items-center gap-2">
 									<img
@@ -296,7 +296,7 @@
 				</thead>
 				<tbody>
 					{#each byMode as row (row.matchtypeId)}
-						<tr class="border-secondary-800/70 border-t">
+						<tr class="border-secondary-800 border-b">
 							<td class="px-4 py-1.5 text-white">{getModeLabel(row.matchtypeId)}</td>
 							{@render statCells(row)}
 						</tr>

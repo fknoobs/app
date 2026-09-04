@@ -39,32 +39,35 @@
 	}
 </script>
 
-<Dropdown.Root {side} {align} alignOffset={-1} sideOffset={0} class="w-44">
-	{#snippet trigger({ props })}
-		<button
-			type="button"
-			aria-label={t('Language')}
-			class={cn(
-				interactive,
-				headerCellAction,
-				'inline-flex h-full items-center gap-1.5 px-4',
-				className
-			)}
-			{...props}
-		>
-			<TranslateIcon size={18} weight="duotone" class="text-primary shrink-0" />
-			<span class="text-sm font-medium text-white">{localeLabels[locale]}</span>
-			<CaretDownIcon size={14} weight="bold" class="text-secondary-400 shrink-0" />
-		</button>
-	{/snippet}
-	{#each locales as item (item)}
-		<Dropdown.Item class={dropdownItemIcon} onSelect={() => select(item)}>
-			<CheckIcon
-				size={18}
-				weight="bold"
-				class={cn('shrink-0', item === locale ? 'text-primary' : 'opacity-0')}
-			/>
-			{localeLabels[item]}
-		</Dropdown.Item>
-	{/each}
-</Dropdown.Root>
+<div class="flex h-full items-stretch">
+	<Dropdown.Root {side} {align} alignOffset={-1} sideOffset={0} class="w-44">
+		{#snippet trigger({ props })}
+			<button
+				type="button"
+				aria-label={t('Language')}
+				{...props}
+				class={cn(
+					interactive,
+					headerCellAction,
+					'inline-flex h-full items-center gap-1.5 px-4',
+					className,
+					props.class
+				)}
+			>
+				<TranslateIcon size={18} weight="duotone" class="text-primary shrink-0" />
+				<span class="text-sm font-medium text-white">{localeLabels[locale]}</span>
+				<CaretDownIcon size={14} weight="bold" class="text-secondary-400 shrink-0" />
+			</button>
+		{/snippet}
+		{#each locales as item (item)}
+			<Dropdown.Item class={dropdownItemIcon} onSelect={() => select(item)}>
+				<CheckIcon
+					size={18}
+					weight="bold"
+					class={cn('shrink-0', item === locale ? 'text-primary' : 'opacity-0')}
+				/>
+				{localeLabels[item]}
+			</Dropdown.Item>
+		{/each}
+	</Dropdown.Root>
+</div>

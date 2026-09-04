@@ -295,45 +295,66 @@ export class AccountService {
 		}
 
 		const trimmedEmail = email.trim();
+		const current = settings.tree.account;
 		const credentials: AccountSettings = {
-			userId: settings.tree.account.userId,
+			userId: current.userId,
 			email: trimmedEmail,
 			password
 		};
+		const emailChanged = trimmedEmail !== current.email;
+		const passwordChanged = password !== current.password;
 
 		try {
-			const updatePayload: Record<string, unknown> = {
-				email: trimmedEmail,
-				password,
-				passwordConfirm: password
-			};
+			const updatePayload: Record<string, unknown> = {};
 
 			if (name !== undefined) {
 				updatePayload.name = name.trim();
 			}
 
-			this.#user = (await pocketbase.collection('users').update(
-				this.userId,
-				updatePayload,
-				{ fetch }
-			)) as User;
+			if (emailChanged) {
+				updatePayload.email = trimmedEmail;
+			}
+
+			if (passwordChanged) {
+				updatePayload.oldPassword = current.password;
+				updatePayload.password = password;
+				updatePayload.passwordConfirm = password;
+			}
+
+			if (Object.keys(updatePayload).length > 0) {
+				this.#user = (await pocketbase.collection('users').update(
+					this.userId,
+					updatePayload,
+					{ fetch }
+				)) as User;
+			}
 
 			settings.tree.account = { ...credentials };
 			await settings.persistNow();
 			await settings.backup.backupNow('change');
 
-			const authResult = await this.#authenticate(credentials);
+			if (emailChanged || passwordChanged) {
+				const authResult = await this.#authenticate(credentials);
 
-			if (authResult !== 'ok') {
-				return t('Credentials updated but re-authentication failed. Restart the app.');
+				if (authResult !== 'ok') {
+					return t('Credentials updated but re-authentication failed. Restart the app.');
+				}
 			}
 
 			return null;
 		} catch (error) {
 			if (error instanceof ClientResponseError) {
-				const data = error.data as { message?: string } | undefined;
+				const data = error.data as
+					| { message?: string; data?: Record<string, { message?: string }> }
+					| undefined;
+				const fieldMessage = data?.data
+					? Object.values(data.data)
+							.map((field) => field?.message)
+							.filter(Boolean)
+							.join(' ')
+					: '';
 
-				return data?.message ?? error.message;
+				return fieldMessage || data?.message || error.message;
 			}
 
 			console.error('[ACCOUNT]: updateLoginCredentials failed:', error);

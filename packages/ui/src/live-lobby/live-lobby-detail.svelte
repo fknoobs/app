@@ -2,7 +2,9 @@
 	import MapImage from '../ui/map-image.svelte';
 	import * as List from '../ui/list';
 	import { detailMetaGrid } from '@company-of-heroes/ui/variants';
+	import { getEloColor, getEloTextShadow } from '@company-of-heroes/ui/format/player-format';
 	import LiveLobbyPlayers from './live-lobby-players.svelte';
+	import { formatMatchupGap, getLiveLobbyMatchup, hasLiveLobbyStats } from './stats';
 	import { defaultLiveLobbyPlayerLabel, type LiveLobby, type LiveLobbyPlayer } from './types';
 
 	type Props = {
@@ -14,6 +16,8 @@
 		formatStarted: (createdAt: string) => string;
 		playerHref: (player: LiveLobbyPlayer) => string | null;
 		playerLabel?: (player: LiveLobbyPlayer) => string;
+		formatGap?: (gap: number | null) => string;
+		sessionLabel?: string;
 		matchTypeLabel?: string;
 		gameModeLabel?: string;
 		playersLabel?: string;
@@ -22,6 +26,16 @@
 		teamsLabel?: string;
 		alliesLabel?: string;
 		axisLabel?: string;
+		alliesEloLabel?: string;
+		axisEloLabel?: string;
+		gapLabel?: string;
+		highestLabel?: string;
+		eloLabel?: string;
+		levelLabel?: string;
+		posLabel?: string;
+		winsLabel?: string;
+		lossesLabel?: string;
+		streakLabel?: string;
 		unknownHostLabel?: string;
 		rankedLabel?: string;
 		customLabel?: string;
@@ -37,6 +51,8 @@
 		formatStarted,
 		playerHref,
 		playerLabel = defaultLiveLobbyPlayerLabel,
+		formatGap = (gap) => formatMatchupGap(gap),
+		sessionLabel = 'Session',
 		matchTypeLabel = 'Match type',
 		gameModeLabel = 'Game mode',
 		playersLabel = 'Players',
@@ -45,6 +61,16 @@
 		teamsLabel = 'Teams',
 		alliesLabel = 'Allies',
 		axisLabel = 'Axis',
+		alliesEloLabel = 'Allies ELO',
+		axisEloLabel = 'Axis ELO',
+		gapLabel = 'Gap',
+		highestLabel = 'Highest',
+		eloLabel = 'ELO',
+		levelLabel = 'Level',
+		posLabel = 'Pos',
+		winsLabel = 'W',
+		lossesLabel = 'L',
+		streakLabel = 'Streak',
 		unknownHostLabel = 'Unknown',
 		rankedLabel = 'Ranked',
 		customLabel = 'Custom',
@@ -53,7 +79,24 @@
 
 	const mapName = $derived(formatMapName(lobby.map));
 	const occupied = $derived(lobby.players.length);
+	const showStats = $derived(hasLiveLobbyStats(lobby.players));
+	const matchup = $derived(getLiveLobbyMatchup(lobby.players));
 </script>
+
+{#snippet eloValue(value: number | null, alias?: string | null)}
+	{#if value == null}
+		<span class="text-secondary-400">—</span>
+	{:else}
+		<span
+			class="tabular-nums"
+			style:color={getEloColor(value)}
+			style:text-shadow={getEloTextShadow(value)}
+			title={alias ?? undefined}
+		>
+			{value}{#if alias}<span class="text-secondary-400 font-normal"> · {alias}</span>{/if}
+		</span>
+	{/if}
+{/snippet}
 
 <div class="border-secondary-800 overflow-clip border-b">
 	<div
@@ -65,18 +108,32 @@
 		<div class="min-w-0 px-6 py-4">
 			<span class="font-heading mb-3 block truncate text-3xl font-bold text-white">{mapName}</span>
 			<div class={detailMetaGrid}>
+				<List.Title>{sessionLabel}</List.Title>
+				<List.Value class="tabular-nums">{lobby.sessionId}</List.Value>
 				<List.Title>{matchTypeLabel}</List.Title>
 				<List.Value>{lobby.isRanked ? rankedLabel : customLabel}</List.Value>
 				<List.Title>{gameModeLabel}</List.Title>
 				<List.Value>{lobby.modeLabel}</List.Value>
 				<List.Title>{playersLabel}</List.Title>
 				<List.Value>{occupied}</List.Value>
-				<List.Title>{hostLabel}</List.Title>
-				<List.Value>{lobby.hostName || unknownHostLabel}</List.Value>
 				<List.Title>{startedLabel}</List.Title>
 				<List.Value class="tabular-nums">{formatStarted(lobby.createdAt)}</List.Value>
+				<List.Title>{hostLabel}</List.Title>
+				<List.Value>{lobby.hostName || unknownHostLabel}</List.Value>
 				<List.Title>{teamsLabel}</List.Title>
 				<List.Value>{teamsValue}</List.Value>
+				{#if showStats}
+					<List.Title>{alliesEloLabel}</List.Title>
+					<List.Value>{@render eloValue(matchup.alliesAvg)}</List.Value>
+					<List.Title>{axisEloLabel}</List.Title>
+					<List.Value>{@render eloValue(matchup.axisAvg)}</List.Value>
+					<List.Title>{gapLabel}</List.Title>
+					<List.Value class="tabular-nums">{formatGap(matchup.gap)}</List.Value>
+					<List.Title>{highestLabel}</List.Title>
+					<List.Value class="min-w-0 truncate">
+						{@render eloValue(matchup.highest, matchup.highestAlias)}
+					</List.Value>
+				{/if}
 			</div>
 		</div>
 	</div>
@@ -86,8 +143,15 @@
 			{resolveFactionFlag}
 			{playerHref}
 			{playerLabel}
+			{showStats}
 			{alliesLabel}
 			{axisLabel}
+			{eloLabel}
+			{levelLabel}
+			{posLabel}
+			{winsLabel}
+			{lossesLabel}
+			{streakLabel}
 		/>
 	</div>
 </div>

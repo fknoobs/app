@@ -1,5 +1,9 @@
 <script lang="ts">
-	import { Detail as LiveLobbyDetail, teamPlayers } from '@company-of-heroes/ui/live-lobby';
+	import {
+		Detail as LiveLobbyDetail,
+		formatMatchupGap,
+		teamPlayers
+	} from '@company-of-heroes/ui/live-lobby';
 	import { SITE_URL } from '$lib/site/urls';
 	import {
 		liveLobbyPlayerHref,
@@ -22,14 +26,17 @@
 			axis: teamPlayers(lobby.players, 'axis').length
 		})
 	);
+	const formatGap = (gap: number | null) =>
+		formatMatchupGap(gap, {
+			even: t('Even'),
+			axisAhead: (value) => t('Axis +{gap}', { gap: value }),
+			alliesAhead: (value) => t('Allies +{gap}', { gap: value })
+		});
 </script>
 
 <svelte:head>
 	<title>{mapName} | {t('Live lobby')}</title>
-	<meta
-		name="description"
-		content={t('Matches that companion users are in right now.')}
-	/>
+	<meta name="description" content={t('Matches that companion users are in right now.')} />
 	<meta property="og:url" content="{SITE_URL}{href(`/live/${lobby.id}`)}" />
 	<meta property="og:title" content="{mapName} — {t('Live lobby')}" />
 </svelte:head>
@@ -43,6 +50,8 @@
 	playerLabel={(player) => liveLobbyPlayerLabel(player, t)}
 	formatMapName={normalizeMapName}
 	formatStarted={(createdAt) => formatRelativeIso(createdAt, currentLocale())}
+	{formatGap}
+	sessionLabel={t('Session')}
 	matchTypeLabel={t('Match type')}
 	gameModeLabel={t('Game mode')}
 	playersLabel={t('Players')}
@@ -51,6 +60,16 @@
 	teamsLabel={t('Teams')}
 	alliesLabel={t('Allies')}
 	axisLabel={t('Axis')}
+	alliesEloLabel={t('Allies ELO')}
+	axisEloLabel={t('Axis ELO')}
+	gapLabel={t('Gap')}
+	highestLabel={t('Highest')}
+	eloLabel={t('ELO')}
+	levelLabel={t('Level')}
+	posLabel={t('Pos')}
+	winsLabel={t('W')}
+	lossesLabel={t('L')}
+	streakLabel={t('Streak')}
 	unknownHostLabel={t('Unknown')}
 	rankedLabel={t('Ranked')}
 	customLabel={t('Custom')}

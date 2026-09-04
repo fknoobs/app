@@ -27,5 +27,6 @@ export type LeaderboardStatRow = {
 		name: string;
 		avatarUrl?: string;
 		labels?: PlayerLabel[];
+		likeCount?: number;
 	};
 };

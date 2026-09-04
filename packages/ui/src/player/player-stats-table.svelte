@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '@company-of-heroes/ui/cn';
-	import { statLosses, statWins, tableHeadRow } from '@company-of-heroes/ui/variants';
+	import { tableHeadRow } from '@company-of-heroes/ui/variants';
 	import {
 		getStoredEloForLeaderboard,
 		getEloColor,
@@ -9,17 +9,14 @@
 		isRankedLeaderboard,
 		sortLeaderboardStats
 	} from '../format/player-format';
-	import {
-		formatStreak,
-		getFactionFlagByLeaderboardId,
-		getLeaderboardTypeLabel,
-		getRankImageByLeaderboardId,
-		streakClass
-	} from '../format/ranks';
+	import { getLeaderboardTypeLabel } from '../format/ranks';
+	import LeaderboardStatPill from '../leaderboard/leaderboard-stat-pill.svelte';
 	import type { PlayerPageData } from './types';
 
 	type Props = {
 		player: PlayerPageData;
+		getRankImageByLeaderboardId: (leaderboardId: number, rankLevel: number) => string;
+		getFactionFlagByLeaderboardId: (leaderboardId: number) => string;
 		emptyMessage?: string;
 		eloLabel?: string;
 		levelLabelText?: string;
@@ -33,6 +30,8 @@
 
 	let {
 		player,
+		getRankImageByLeaderboardId,
+		getFactionFlagByLeaderboardId,
 		emptyMessage = 'No leaderboard stats yet.',
 		eloLabel = 'ELO',
 		levelLabelText = 'Level',
@@ -47,13 +46,11 @@
 	const stats = $derived(sortLeaderboardStats(player.leaderboardStats));
 
 	function positionLabel(leaderboardId: number, rank: number): string {
-		if (!isRankedLeaderboard(leaderboardId) || rank <= 0) return '-';
-		return String(rank);
-	}
+		if (!isRankedLeaderboard(leaderboardId) || rank <= 0) {
+			return '-';
+		}
 
-	function levelLabel(leaderboardId: number, ranklevel: number): string {
-		if (!isRankedLeaderboard(leaderboardId) || ranklevel <= 0) return '-';
-		return String(ranklevel);
+		return String(rank);
 	}
 </script>
 
@@ -61,71 +58,126 @@
 	<p class="text-secondary-400 px-4 py-3 text-sm">{emptyMessage}</p>
 {:else}
 	<div class="overflow-x-auto">
-		<table class="w-full table-fixed border-collapse text-sm">
+		<table class="w-full table-fixed text-sm">
 			<thead>
-				<tr class="{tableHeadRow} text-center">
-					<th class="w-[6.5rem] px-4 py-2">{eloLabel}</th>
-					<th class="w-[8rem] px-4 py-2">{levelLabelText}</th>
-					<th class="w-[14rem] px-4 py-2">{typeLabel}</th>
-					<th class="w-[6.5rem] px-4 py-2">{positionLabelText}</th>
-					<th class="w-[5.5rem] px-4 py-2">{winsLabel}</th>
-					<th class="w-[6rem] px-4 py-2">{lossesLabel}</th>
-					<th class="w-[6rem] px-4 py-2">{streakLabel}</th>
+				<tr class={tableHeadRow}>
+					<th class="w-[6.5rem] px-4 py-2">
+						<div class="flex w-full justify-center">{eloLabel}</div>
+					</th>
+					<th class="w-[5rem] px-4 py-2">
+						<div class="flex w-full justify-center">{levelLabelText}</div>
+					</th>
+					<th class="w-[14rem] px-4 py-2">
+						<div class="flex w-full justify-center">{typeLabel}</div>
+					</th>
+					<th class="w-[4.5rem] px-4 py-2">
+						<div class="flex w-full justify-center">{positionLabelText}</div>
+					</th>
+					<th class="w-auto p-0"></th>
+					<th class="w-[4.5rem] px-4 py-2">
+						<div class="flex w-full justify-center">{winsLabel}</div>
+					</th>
+					<th class="w-[5.5rem] px-4 py-2">
+						<div class="flex w-full justify-center">{lossesLabel}</div>
+					</th>
+					<th class="w-[5rem] px-4 py-2">
+						<div class="flex w-full justify-center">{streakLabel}</div>
+					</th>
 				</tr>
 			</thead>
 			<tbody>
 				{#each stats as stat (stat.leaderboard_id)}
 					{@const elo = getStoredEloForLeaderboard(player.elo, stat.leaderboard_id)}
-					<tr class="border-secondary-800/70 h-11 border-t text-white">
-						<td
-							class={cn(
-								'px-4 py-1.5 text-center tabular-nums',
-								elo == null && 'text-secondary-500 text-xs font-normal',
-								isEliteElo(elo) && 'font-bold tracking-wide'
-							)}
-							style:color={elo != null ? getEloColor(elo) : undefined}
-							style:text-shadow={getEloTextShadow(elo)}
-						>
-							{elo ?? notAvailableLabel}
+					{@const ranked = isRankedLeaderboard(stat.leaderboard_id)}
+					<tr class="border-secondary-800 h-11 border-b">
+						<td class="px-4 py-1.5">
+							<div class="flex h-full w-full min-w-0 items-center justify-center">
+								{#if elo == null}
+									<span class="text-secondary-500 text-xs">{notAvailableLabel}</span>
+								{:else}
+									<span
+										class={cn(
+											'tabular-nums',
+											isEliteElo(elo) ? 'font-bold tracking-wide' : 'font-medium'
+										)}
+										style:color={getEloColor(elo)}
+										style:text-shadow={getEloTextShadow(elo)}
+									>
+										{elo}
+									</span>
+								{/if}
+							</div>
 						</td>
 						<td class="px-4 py-1.5">
-							<div class="flex items-center justify-center gap-2">
-								{#if isRankedLeaderboard(stat.leaderboard_id)}
+							<div class="flex h-full w-full min-w-0 items-center justify-center gap-2">
+								{#if ranked}
 									<img
 										src={getRankImageByLeaderboardId(stat.leaderboard_id, stat.ranklevel)}
 										alt=""
 										class="size-6 shrink-0 object-contain"
 									/>
+									<span class="font-semibold tabular-nums">
+										{stat.ranklevel > 0 ? stat.ranklevel : '-'}
+									</span>
+								{:else}
+									<span class="text-secondary-400 tabular-nums">-</span>
 								{/if}
-								<span class="text-secondary-200 font-semibold tabular-nums">
-									{levelLabel(stat.leaderboard_id, stat.ranklevel)}
-								</span>
 							</div>
 						</td>
 						<td class="px-4 py-1.5">
-							<div class="flex items-center justify-center gap-2">
+							<div class="flex h-full w-full min-w-0 items-center justify-center gap-2">
 								<img
 									src={getFactionFlagByLeaderboardId(stat.leaderboard_id)}
 									alt=""
 									class="w-6 shrink-0 ring-2 ring-black"
 								/>
-								<span class="whitespace-nowrap">{getLeaderboardTypeLabel(stat.leaderboard_id)}</span
-								>
+								<span class="shrink-0 text-base whitespace-nowrap">
+									{getLeaderboardTypeLabel(stat.leaderboard_id)}
+								</span>
 							</div>
 						</td>
-						<td class="px-4 py-1.5 text-center tabular-nums">
-							{#if stat.rank === 1}
-								<span class="text-primary font-bold"
-									>👑 {positionLabel(stat.leaderboard_id, stat.rank)}</span
-								>
-							{:else}
-								{positionLabel(stat.leaderboard_id, stat.rank)}
-							{/if}
+						<td class="px-4 py-1.5">
+							<div class="flex h-full w-full min-w-0 items-center justify-center">
+								<span class="inline-flex items-center justify-center gap-1 tabular-nums">
+									{#if stat.rank === 1}
+										<span class="relative -top-0.5">👑</span>
+									{/if}
+									<span class={cn(stat.rank === 1 && 'text-primary font-bold')}>
+										{positionLabel(stat.leaderboard_id, stat.rank)}
+									</span>
+								</span>
+							</div>
 						</td>
-						<td class="px-4 py-1.5 text-center font-medium {statWins}">{stat.wins}</td>
-						<td class="px-4 py-1.5 text-center font-medium {statLosses}">{stat.losses}</td>
-						<td class="px-4 py-1.5 text-center font-medium tabular-nums {streakClass(stat.streak)}">
-							{formatStreak(stat.streak)}
+						<td class="p-0"></td>
+						<td class="px-4 py-1.5">
+							<div class="flex h-full w-full min-w-0 items-center justify-center">
+								<LeaderboardStatPill
+									type="wins"
+									wins={stat.wins}
+									losses={stat.losses}
+									streak={stat.streak}
+								/>
+							</div>
+						</td>
+						<td class="px-4 py-1.5">
+							<div class="flex h-full w-full min-w-0 items-center justify-center">
+								<LeaderboardStatPill
+									type="losses"
+									wins={stat.wins}
+									losses={stat.losses}
+									streak={stat.streak}
+								/>
+							</div>
+						</td>
+						<td class="px-4 py-1.5">
+							<div class="flex h-full w-full min-w-0 items-center justify-center">
+								<LeaderboardStatPill
+									type="streak"
+									wins={stat.wins}
+									losses={stat.losses}
+									streak={stat.streak}
+								/>
+							</div>
 						</td>
 					</tr>
 				{/each}

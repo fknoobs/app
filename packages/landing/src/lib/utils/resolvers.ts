@@ -10,7 +10,11 @@ import { href, currentLocale } from '$lib/i18n';
 import { getCountryDisplayName as countryDisplayName } from '$lib/utils/country';
 import { getMapImageFromName } from '$lib/utils/media/maps';
 import { flagImageUrl as flagImageUrlFromProxy, proxiedImageUrl } from '$lib/utils/media/proxy-image';
-import { getFactionFlagByRace, getRankImageByLeaderboardId } from '$lib/utils/media/ranks';
+import {
+	getFactionFlagByRace,
+	getRankImageByLeaderboardId,
+	getRankImageByRace
+} from '$lib/utils/media/ranks';
 import { normalizeMapName } from '$lib/utils/player/format';
 import { getSteamIdFromName } from '$lib/utils/player/steam-id';
 
@@ -25,6 +29,7 @@ export function getCountryDisplayName(country: string | null | undefined): strin
 export {
 	getSteamIdFromName,
 	getRankImageByLeaderboardId,
+	getRankImageByRace,
 	proxiedImageUrl,
 	normalizeMapName,
 	playerHref,

@@ -13,6 +13,7 @@
 		"./button": "./src/ui/button/index.ts",
 		"./skeleton": "./src/ui/skeleton/index.ts",
 		"./badge": "./src/ui/badge/index.ts",
+		"./staff-debug": "./src/ui/staff-debug/index.ts",
 		"./alert": "./src/ui/alert/index.ts",
 		"./box": "./src/ui/box/index.ts",
 		"./accordion": "./src/ui/accordion/index.ts",

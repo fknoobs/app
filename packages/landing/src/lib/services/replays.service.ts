@@ -63,11 +63,17 @@ export class ReplaysService {
 				}
 			}
 		}).andThen((match) => {
-			if (!match.replay) {
+			const hasReplay = match.hasReplay ?? Boolean(match.replay);
+			const inProgress = match.needsResult === true;
+			if (!hasReplay && !inProgress) {
 				return errAsync(appError(404, 'That replay is not available.'));
 			}
 
-			return ok(match);
+			return ok({
+				...match,
+				hasReplay,
+				needsResult: inProgress
+			});
 		});
 	}
 

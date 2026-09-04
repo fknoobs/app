@@ -23,7 +23,11 @@ export const REPUTATION_TRIGGER_CATALOG: ReputationTriggerCatalogItem[] = [
 	{ trigger: 'replay_cast_downvote', name: 'Downvoted a replay', score: 1 },
 	{ trigger: 'replay_received_download', name: 'Replay downloaded', score: 5 },
 	{ trigger: 'replay_cast_download', name: 'Downloaded a replay', score: 2 },
-	{ trigger: 'match_played', name: 'Played a match', score: 15 }
+	{ trigger: 'match_played', name: 'Played a match', score: 15 },
+	{ trigger: 'player_received_upvote', name: 'Player upvoted', score: 10 },
+	{ trigger: 'player_received_downvote', name: 'Player downvoted', score: -5 },
+	{ trigger: 'player_cast_upvote', name: 'Upvoted a player', score: 1 },
+	{ trigger: 'player_cast_downvote', name: 'Downvoted a player', score: 1 }
 ];
 
 export async function listReputationTypes(): Promise<ReputationType[]> {

@@ -5,6 +5,7 @@
 	import { DataTable, type ColumnDef } from '$lib/components/ui/table';
 	import CaptureImage from '$lib/components/anti-cheat/capture-image.svelte';
 	import CheaterAlert from '$lib/components/player/cheater-alert.svelte';
+	import PlayerLikeCount from '$lib/components/player/player-like-count.svelte';
 	import { confirm } from '@tauri-apps/plugin-dialog';
 	import { resource } from 'runed';
 	import { account } from '$core/account';
@@ -257,6 +258,7 @@
 
 {#snippet cell_player({ row }: { row: CaptureGroup })}
 	<span class="flex min-w-0 items-center gap-2">
+		<PlayerLikeCount steamId={row.steamId} class="shrink-0" />
 		{#if row.profileId}
 			<a
 				href="/players/{row.profileId}"

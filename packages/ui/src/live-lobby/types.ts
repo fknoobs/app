@@ -1,3 +1,12 @@
+export type LiveLobbyPlayerStats = {
+	elo: number | null;
+	wins: number;
+	losses: number;
+	streak: number;
+	rank: number; // Pos
+	rankLevel: number; // Level
+};
+
 export type LiveLobbyPlayer = {
 	index: number;
 	playerId: number;
@@ -6,10 +15,14 @@ export type LiveLobbyPlayer = {
 	alias: string;
 	profileId: number | null;
 	steamId: string | null;
+	country?: string | null;
+	stats?: LiveLobbyPlayerStats | null;
+	likeCount?: number;
 };
 
 export type LiveLobby = {
 	id: string;
+	lobbyId?: string | null;
 	sessionId: string;
 	map: string;
 	isRanked: boolean;

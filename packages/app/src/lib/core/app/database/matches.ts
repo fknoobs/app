@@ -400,13 +400,58 @@ export class Matches {
 		return await pocketbase.collection('lobbies').delete(id, { fetch });
 	}
 
+	/** Find a lobby by Relic session id, or null. */
+	async findBySessionId(sessionId: number): Promise<MatchExpanded | null> {
+		try {
+			const record = await pocketbase
+				.collection('lobbies')
+				.getFirstListItem(`sessionId=${sessionId}`, { expand: DEFAULT_EXPAND, fetch });
+			return exp(record) as MatchExpanded;
+		} catch {
+			return null;
+		}
+	}
+
 	/** Whether a match with the given session ID already exists. */
 	async exists(sessionId: number): Promise<boolean> {
-		return pocketbase
-			.collection('lobbies')
-			.getFirstListItem(`sessionId=${sessionId}`, { fetch })
-			.then(() => true)
-			.catch(() => false);
+		return (await this.findBySessionId(sessionId)) != null;
+	}
+
+	/**
+	 * Ensures a durable lobbies row exists for a live match (created at start).
+	 * Concurrent companions racing on the same sessionId: first create wins;
+	 * losers re-fetch the existing row.
+	 */
+	async ensureStarted(data: {
+		sessionId: number;
+		isRanked: boolean;
+		title: string;
+		map: string;
+		needsResult: boolean;
+		players: LobbyPlayer[];
+	}): Promise<MatchExpanded> {
+		const existing = await this.findBySessionId(data.sessionId);
+		if (existing) {
+			return existing;
+		}
+
+		try {
+			return await this.create({
+				isRanked: data.isRanked,
+				title: data.title,
+				map: data.map || 'Unknown',
+				sessionId: data.sessionId,
+				needsResult: data.needsResult,
+				players: data.players
+			});
+		} catch (error) {
+			const raced = await this.findBySessionId(data.sessionId);
+			if (raced) {
+				return raced;
+			}
+
+			throw error;
+		}
 	}
 
 	/** Retrieves match aggregation data (filters for the history page). */

@@ -248,6 +248,58 @@ function syncCommentVote(likeRecord, value) {
 	});
 }
 
+function userSteamIds(userId) {
+	const id = recordId(userId);
+	if (!id) {
+		return [];
+	}
+
+	try {
+		const user = $app.findRecordById('users', id);
+		const raw = user.get('steamIds');
+		let list = raw;
+		if (typeof raw === 'string') {
+			try {
+				list = JSON.parse(raw);
+			} catch {
+				list = [];
+			}
+		}
+
+		if (!Array.isArray(list)) {
+			return [];
+		}
+
+		return list
+			.map((value) => {
+				let steam = String(value || '').trim();
+				if (steam.startsWith('/steam/')) {
+					steam = steam.slice('/steam/'.length);
+				}
+
+				return steam;
+			})
+			.filter(Boolean);
+	} catch {
+		return [];
+	}
+}
+
+function syncPlayerVote(likeRecord, value) {
+	const steamId = String(likeRecord.get('steamId') || '').trim();
+	const voterId = recordId(likeRecord.get('user'));
+	const authorIds = findUserIdsBySteamIds(steamId ? [steamId] : []);
+	const authorId = authorIds[0] || '';
+	const self = Boolean(voterId && steamId && userSteamIds(voterId).indexOf(steamId) !== -1);
+	setVoteReputation({
+		voterId,
+		authorId: self ? voterId : authorId,
+		sourceId: likeRecord.id,
+		value,
+		prefix: 'player'
+	});
+}
+
 function awardCommentCreated(comment) {
 	award(comment.get('user'), 'comment_created', comment.id);
 }
@@ -324,6 +376,7 @@ module.exports = {
 	awardReplayDownload,
 	syncCommentVote,
 	syncReplayVote,
+	syncPlayerVote,
 	restoreUserReputation,
 	assertUniqueTrigger,
 	lobbyUploaderId,

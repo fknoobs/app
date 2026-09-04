@@ -1,6 +1,8 @@
 <script lang="ts">
 	import PlayerMatchHistory from '$lib/components/player/player-match-history.svelte';
 	import PlayerPerformancePanel from '$lib/components/player-performance/player-performance-panel.svelte';
+	import PlayerCompanionStaffDebug from '$lib/components/player/player-companion-staff-debug.svelte';
+	import PlayerLikeButton from '$lib/components/player/player-like-button.svelte';
 	import PlayerProfileHeader from '$lib/components/player/player-profile-header.svelte';
 	import PlayerProfileSkeleton from '$lib/components/player/player-profile-skeleton.svelte';
 	import PlayerStatsTable from '$lib/components/player/player-stats-table.svelte';
@@ -35,10 +37,17 @@
 {#await data.player}
 	<PlayerProfileSkeleton />
 {:then player}
-	<div class="border-secondary-800 overflow-clip border-b">
-		<PlayerProfileHeader {player} />
+	<div class="border-secondary-900 overflow-clip border-b">
+		<PlayerProfileHeader {player}>
+			{#snippet vote()}
+				<PlayerLikeButton steamId={player.steamId} likeCount={player.likeCount ?? 0} />
+			{/snippet}
+			{#snippet afterDetails()}
+				<PlayerCompanionStaffDebug steamId={player.steamId} />
+			{/snippet}
+		</PlayerProfileHeader>
 		<div class="border-secondary-800 border-b">
-			<div class="flex flex-wrap items-center gap-2 px-4 py-2.5">
+			<div class="flex items-center gap-2 px-4 py-2.5">
 				<button
 					type="button"
 					class={tabTrigger}
@@ -75,7 +84,7 @@
 			</div>
 		</div>
 		<div
-			class="text-secondary-400 bg-secondary-800/20 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm"
+			class="text-secondary-400 bg-secondary-950/50 flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-sm"
 		>
 			{#if player.lastlogoff}
 				<span>

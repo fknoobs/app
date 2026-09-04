@@ -6,6 +6,7 @@
 	import { interactive, tableHeadRow } from '@company-of-heroes/ui/variants';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import LiveLobbyPlayers from './live-lobby-players.svelte';
+	import { hasLiveLobbyStats } from './stats';
 	import {
 		defaultLiveLobbyPlayerLabel,
 		playerRowKey,
@@ -24,7 +25,7 @@
 		formatStarted: (createdAt: string) => string;
 		playerHref: (player: LiveLobbyPlayer) => string | null;
 		playerLabel?: (player: LiveLobbyPlayer) => string;
-		detailsHref?: (lobby: LiveLobby) => string;
+		detailsHref?: (lobby: LiveLobby) => string | null;
 		emptyMessage?: string;
 		mapLabel?: string;
 		nameLabel?: string;
@@ -35,6 +36,12 @@
 		startedLabel?: string;
 		unknownHostLabel?: string;
 		detailsLabel?: string;
+		eloLabel?: string;
+		levelLabel?: string;
+		posLabel?: string;
+		winsLabel?: string;
+		lossesLabel?: string;
+		streakLabel?: string;
 	};
 
 	let {
@@ -57,7 +64,13 @@
 		hostLabel = 'Host',
 		startedLabel = 'Started at',
 		unknownHostLabel = 'Unknown',
-		detailsLabel = 'Details'
+		detailsLabel = 'Details',
+		eloLabel = 'ELO',
+		levelLabel = 'Level',
+		posLabel = 'Pos',
+		winsLabel = 'W',
+		lossesLabel = 'L',
+		streakLabel = 'Streak'
 	}: Props = $props();
 
 	let expandedId = $state<string | null>(null);
@@ -86,19 +99,20 @@
 				<a
 					{href}
 					title={label}
-					class={cn(
-						interactive,
-						'ring-secondary-800 inline-flex h-4 w-4 shrink-0 overflow-clip rounded-full ring-4'
-					)}
+					class={cn(interactive, 'ring-secondary-800 shrink-0 rounded-full ring-3')}
 				>
-					<img src={resolveFactionFlag(player.race)} alt={label} class="size-full object-cover" />
+					<img
+						src={resolveFactionFlag(player.race)}
+						alt={label}
+						class="size-5 rounded-full object-cover"
+					/>
 				</a>
 			{:else}
 				<img
 					src={resolveFactionFlag(player.race)}
 					alt={label}
 					title={label}
-					class="ring-secondary-800 h-4 w-4 rounded-full object-cover ring-4"
+					class="size-6 shrink-0 rounded-full object-cover opacity-70"
 				/>
 			{/if}
 		{/each}
@@ -190,16 +204,13 @@
 							{formatStarted(lobby.createdAt)}
 						</td>
 						{#if detailsHref}
+							{@const detailUrl = detailsHref(lobby)}
 							<td class="px-4">
-								<Button
-									href={detailsHref(lobby)}
-									size="sm"
-									variant="secondary"
-									class="h-7 px-2.5 text-xs"
-									onclick={(event) => event.stopPropagation()}
-								>
-									{detailsLabel}
-								</Button>
+								{#if detailUrl}
+									<Button href={detailUrl} size="sm" variant="secondary" class="h-7 px-2.5 text-xs">
+										{detailsLabel}
+									</Button>
+								{/if}
 							</td>
 						{/if}
 						<td class="px-4">
@@ -214,8 +225,15 @@
 									{resolveFactionFlag}
 									{playerHref}
 									{playerLabel}
+									showStats={hasLiveLobbyStats(lobby.players)}
 									{alliesLabel}
 									{axisLabel}
+									{eloLabel}
+									{levelLabel}
+									{posLabel}
+									{winsLabel}
+									{lossesLabel}
+									{streakLabel}
 								/>
 							</td>
 						</tr>

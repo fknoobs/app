@@ -5,11 +5,11 @@
 	import { Label } from '$lib/components/ui/label';
 	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { app, createApp } from '$core/app/context';
-	import { Breadcrumb, createBreadcrumbs } from '$lib/components/ui/breadcrumb';
+	import { Breadcrumb, createBreadcrumbs, crumbsFromPath, useBreadcrumbs } from '$lib/components/ui/breadcrumb';
 	import { ToastReplaysProgress } from '$lib/components/toasts';
 	import { Avatar } from '$lib/components/ui/avatar';
 	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { Modal } from '$lib/components/ui/modal';
 	import { Toaster } from '$lib/components/ui/toasts';
 	import { Button, ButtonBack } from '$lib/components/ui/button';
@@ -65,7 +65,17 @@
 	createApp(app);
 	createBreadcrumbs();
 
+	const breadcrumbs = useBreadcrumbs();
 	const showBack = $derived(page.url.pathname !== '/');
+	const backHref = $derived(
+		crumbsFromPath(page.url.pathname, breadcrumbs.extra).find((crumb) => crumb.href)?.href ?? '/'
+	);
+	let hasClientHistory = $state(false);
+	afterNavigate(({ from }) => {
+		if (from) {
+			hasClientHistory = true;
+		}
+	});
 	let returning = $state(false);
 	const impersonatedName = $derived(
 		app.account.user?.name || app.account.user?.email || app.account.userId
@@ -245,7 +255,13 @@
 			{/if}
 			<header class="border-secondary-800 flex items-center gap-3 border-b p-4">
 				{#if showBack}
-					<ButtonBack iconOnly aria-label={t('Go back to previous page')} title={t('Go back')} />
+					<ButtonBack
+						iconOnly
+						href={backHref}
+						useHistory={hasClientHistory}
+						aria-label={t('Go back to previous page')}
+						title={t('Go back')}
+					/>
 				{/if}
 				<Breadcrumb />
 			</header>

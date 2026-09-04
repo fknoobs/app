@@ -15,23 +15,38 @@
 		smurf: PlayerSmurf;
 		lenderHref: string;
 		resolveAvatarUrl?: (url: string) => string;
+		showLabel?: boolean;
+		label?: string;
 	};
 
-	let { smurf, lenderHref, resolveAvatarUrl = (url) => url }: Props = $props();
+	let {
+		smurf,
+		lenderHref,
+		resolveAvatarUrl = (url) => url,
+		showLabel = true,
+		label = 'Smurf account'
+	}: Props = $props();
 
 	const lenderAvatar = $derived(
 		smurf.lenderAvatarUrl ? resolveAvatarUrl(smurf.lenderAvatarUrl) : null
 	);
 </script>
 
-<div class="text-destructive inline-flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold">
-	<BinocularsIcon class="shrink-0" size={16} weight="bold" />
-	<span>Smurf account</span>
-	<a href={lenderHref} class={cn(interactive, 'inline-flex items-center gap-1.5 hover:underline')}>
+<span
+	class="text-destructive inline-flex h-5 items-center gap-x-1.5 text-sm font-bold leading-none"
+>
+	{#if showLabel}
+		<BinocularsIcon class="shrink-0" size={16} weight="bold" />
+		<span class="leading-none">{label}</span>
+	{/if}
+	<a
+		href={lenderHref}
+		class={cn(interactive, 'inline-flex h-5 items-center gap-1.5 leading-none hover:underline')}
+	>
 		{#if lenderAvatar}
-			<img src={lenderAvatar} alt="" class="size-5 rounded-sm object-cover" />
+			<img src={lenderAvatar} alt="" class="block size-4 shrink-0 rounded-sm object-cover" />
 		{/if}
-		<span>{smurf.lenderAlias}</span>
-		<ArrowRightIcon size={12} weight="bold" />
+		<span class="leading-none">{smurf.lenderAlias}</span>
+		<ArrowRightIcon class="shrink-0" size={12} weight="bold" />
 	</a>
-</div>
+</span>

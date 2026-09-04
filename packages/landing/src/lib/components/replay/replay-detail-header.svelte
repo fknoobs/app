@@ -29,10 +29,12 @@
 	import { resolveMapSrc } from '$lib/utils/resolvers';
 	import { currentLocale, href, unlocalizedPath, useI18n } from '$lib/i18n';
 	import { isStaffUser } from '$lib/auth/user';
+	import StaffDebug from '$lib/components/staff/staff-debug.svelte';
 	import ReplayLikeButton from './replay-like-button.svelte';
 	import ChecksIcon from 'phosphor-svelte/lib/ChecksIcon';
 	import EyeIcon from 'phosphor-svelte/lib/Eye';
 	import EyeSlashIcon from 'phosphor-svelte/lib/EyeSlash';
+	import HourglassIcon from 'phosphor-svelte/lib/HourglassIcon';
 	import RankingIcon from 'phosphor-svelte/lib/RankingIcon';
 	import type { TranslateFn } from '@company-of-heroes/i18n';
 
@@ -70,12 +72,15 @@
 	);
 	const isRanked = $derived(replay ? replay.matchType === 'automatch' : match.isRanked);
 	const isPro = $derived(isProGameplayMatch(match));
-	const downloadHref = $derived(`/api/replay-file/${match.id}`);
+	const hasReplay = $derived(match.hasReplay ?? Boolean(match.replay));
+	const downloadHref = $derived(hasReplay ? `/api/replay-file/${match.id}` : null);
 	const downloadFileName = $derived(match.replay || `${match.id}.rec`);
 	const submittedAt = $derived(
 		formatSubmittedAt(replay?.gameDate || match.createdAt, currentLocale())
 	);
-	const playerCount = $derived(replay?.players.length ?? match.players.length);
+	const playerCount = $derived(
+		replay?.players.length ?? match.livePlayers?.length ?? match.players.length
+	);
 	const submittedBy = $derived(match.submittedBy);
 	const submittedByHref = $derived.by(() => {
 		if (!submittedBy) {
@@ -95,6 +100,25 @@
 	const titleValue = $derived(
 		isRanked ? match.title : match.result?.description || match.title || '—'
 	);
+
+	function formatStaffDate(value?: string | null): string {
+		if (!value) {
+			return '—';
+		}
+
+		const date = new Date(value);
+		if (!Number.isFinite(date.getTime())) {
+			return '—';
+		}
+
+		return new Intl.DateTimeFormat(currentLocale(), {
+			day: '2-digit',
+			month: 'short',
+			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit'
+		}).format(date);
+	}
 
 	onMount(() => {
 		countedHere = hasCountedReplayDownload(match.id);
@@ -191,6 +215,7 @@
 	map={match.map}
 	{downloadHref}
 	{downloadFileName}
+	downloadDisabled={!hasReplay}
 	{downloadCount}
 	{listHref}
 	{resolveMapSrc}
@@ -215,9 +240,15 @@
 		<div class={detailMetaGrid}>
 			<List.Title>{t('Status')}</List.Title>
 			<List.Value class="flex items-center">
-				<span title={t('Result saved')}>
-					<ChecksIcon class="text-green-400" />
-				</span>
+				{#if match.needsResult && !hasReplay}
+					<span title={t('Result pending')}>
+						<HourglassIcon class="text-primary" />
+					</span>
+				{:else}
+					<span title={t('Result saved')}>
+						<ChecksIcon class="text-green-400" />
+					</span>
+				{/if}
 			</List.Value>
 			<List.Title>{t('Title')}</List.Title>
 			<List.Value>
@@ -276,6 +307,22 @@
 					{t('Hide match')}
 				{/if}
 			</Button>
+		{/if}
+	{/snippet}
+	{#snippet afterDetails()}
+		{#if isStaff}
+			<StaffDebug>
+				<div class={detailMetaGrid}>
+					<List.Title>{t('Match ID')}</List.Title>
+					<List.Value class="tabular-nums">{match.id}</List.Value>
+					<List.Title>{t('Session ID')}</List.Title>
+					<List.Value class="tabular-nums">{sessionId || '—'}</List.Value>
+					<List.Title>{t('Updated')}</List.Title>
+					<List.Value>{formatStaffDate(match.updatedAt)}</List.Value>
+					<List.Title>{t('Owner')}</List.Title>
+					<List.Value>{match.owner || '—'}</List.Value>
+				</div>
+			</StaffDebug>
 		{/if}
 	{/snippet}
 </DetailHeader>

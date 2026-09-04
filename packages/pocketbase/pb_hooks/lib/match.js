@@ -10,6 +10,17 @@ const {
 } = require(`${__hooks}/lib/match-history.js`);
 const { isHiddenLobby, isHiddenByTitle, isStaffAuth } = require(`${__hooks}/lib/hidden-matches.js`);
 const { clientIp, limitCountRequest, TOO_MANY } = require(`${__hooks}/lib/download-rate-limit.js`);
+const { detailPlayers } = require(`${__hooks}/lib/live-lobbies.js`);
+
+function livePlayersForInProgress(rawPlayers, isRanked) {
+	try {
+		return detailPlayers(rawPlayers, isRanked);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.warn('[match] livePlayers failed:', message);
+		return [];
+	}
+}
 
 const HTTP_CACHE_CONTROL = 'public, max-age=30, s-maxage=60, stale-while-revalidate=300';
 
@@ -140,6 +151,33 @@ function submittedByFromRecord(record, result) {
 	return null;
 }
 
+function ownerLabelFromRecord(record) {
+	const userRef = record.get('user');
+	const userId = userRef && typeof userRef === 'object' ? userRef.id : userRef;
+	if (!userId) {
+		return null;
+	}
+
+	let user;
+	try {
+		user = $app.findRecordById('users', String(userId));
+	} catch {
+		return null;
+	}
+
+	const name = String(user.get('name') || '').trim();
+	if (name) {
+		return name;
+	}
+
+	const email = String(user.get('email') || '').trim();
+	if (email) {
+		return email;
+	}
+
+	return String(user.id || userId);
+}
+
 function loadMatchPage(id, options) {
 	const includeHidden = !!(options && options.includeHidden);
 	let record;
@@ -151,7 +189,16 @@ function loadMatchPage(id, options) {
 		throw error;
 	}
 
-	if (!hasReplayFile(record) || (!includeHidden && isHiddenLobby(record))) {
+	const hasReplay = hasReplayFile(record);
+	const needsResult = !!record.get('needsResult');
+	// Finished replay pages, or in-progress rows created at lobby start.
+	if (!hasReplay && !needsResult) {
+		const error = new Error('Match not found');
+		error.status = 404;
+		throw error;
+	}
+
+	if (!includeHidden && isHiddenLobby(record)) {
 		const error = new Error('Match not found');
 		error.status = 404;
 		throw error;
@@ -168,8 +215,16 @@ function loadMatchPage(id, options) {
 	const aliasMap = loadPlayerAliasMap('community', '');
 	const playersByLobby = loadPlayersByLobbyIds([record.id], aliasMap);
 	const players = resolvePlayersForRow(row, aliasMap, playersByLobby);
+	const livePlayers = livePlayersForInProgress(record.get('players'), !!record.get('isRanked'));
+	const likeCounts = require(`${__hooks}/lib/player-social.js`).loadLikeCountsBySteamIds(
+		[]
+			.concat(players.map((player) => player?.steamId).filter(Boolean))
+			.concat(livePlayers.map((player) => player?.steamId).filter(Boolean))
+	);
+	require(`${__hooks}/lib/player-social.js`).attachLikeCountsToPlayers(players, likeCounts);
+	require(`${__hooks}/lib/player-social.js`).attachLikeCountsToPlayers(livePlayers, likeCounts);
 
-	return {
+	const body = {
 		id: record.id,
 		map: record.get('map') || '',
 		title: record.get('title') || '',
@@ -179,13 +234,23 @@ function loadMatchPage(id, options) {
 		likeCount: Number(record.get('likeCount')) || 0,
 		downloadCount: Number(record.get('downloadCount')) || 0,
 		replay: record.get('replay') || '',
+		hasReplay,
+		needsResult,
 		sessionId: Number(record.get('sessionId')) || 0,
 		hidden: isHiddenLobby(record),
 		hiddenByKeyword: isHiddenByTitle(record),
 		submittedBy: submittedByFromRecord(record, result),
 		players,
+		livePlayers,
 		result
 	};
+
+	if (includeHidden) {
+		body.updatedAt = record.get('updatedAt') || record.get('updated') || '';
+		body.owner = ownerLabelFromRecord(record);
+	}
+
+	return body;
 }
 
 function handleOptions(e) {

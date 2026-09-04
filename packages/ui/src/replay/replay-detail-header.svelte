@@ -10,8 +10,9 @@
 	type Props = {
 		mapName: string;
 		map: string;
-		downloadHref: string;
-		downloadFileName: string;
+		downloadHref?: string | null;
+		downloadFileName?: string;
+		downloadDisabled?: boolean;
 		downloadCount: number;
 		listHref: string;
 		resolveMapSrc: (map: string | undefined) => string | undefined;
@@ -24,13 +25,15 @@
 		titleMeta?: Snippet;
 		details: Snippet;
 		actions?: Snippet;
+		afterDetails?: Snippet;
 	};
 
 	let {
 		mapName,
 		map,
-		downloadHref,
-		downloadFileName,
+		downloadHref = null,
+		downloadFileName = '',
+		downloadDisabled = false,
 		downloadCount,
 		listHref,
 		resolveMapSrc,
@@ -42,7 +45,8 @@
 		vote,
 		titleMeta,
 		details,
-		actions
+		actions,
+		afterDetails
 	}: Props = $props();
 </script>
 
@@ -77,26 +81,40 @@
 				{@render vote()}
 			</div>
 		{/if}
-		<div class={cn('min-w-0 px-6 py-4', vote && 'sm:pl-0')}>
-			<div class="mb-3 flex min-w-0 items-center gap-3">
-				<h1 class="font-heading min-w-0 truncate text-3xl font-bold text-white">{mapName}</h1>
-				{@render titleMeta?.()}
+		<div class="min-w-0">
+			<div class={cn('px-6 py-4', vote && 'sm:pl-0')}>
+				<div class="mb-3 flex min-w-0 items-center gap-3">
+					<h1 class="font-heading min-w-0 truncate text-3xl font-bold text-white">{mapName}</h1>
+					{@render titleMeta?.()}
+				</div>
+				{@render details()}
+				<div class="mt-4 flex flex-wrap items-center gap-3">
+					{#if downloadDisabled || !downloadHref}
+						<Button disabled>
+							<DownloadIcon class="size-4" />
+							{downloadLabel}
+						</Button>
+					{:else}
+						<Button
+							href={downloadHref}
+							download={downloadFileName}
+							onclick={() => onDownloadClick?.()}
+						>
+							<DownloadIcon class="size-4" />
+							{downloadLabel}
+						</Button>
+					{/if}
+					{@render actions?.()}
+					<span
+						class="text-secondary-400 inline-flex h-11 items-center gap-1.5 px-3 text-sm tabular-nums"
+						title={downloadsLabel}
+					>
+						<DownloadIcon class="size-4" weight="duotone" />
+						{downloadCount}
+					</span>
+				</div>
 			</div>
-			{@render details()}
-			<div class="mt-4 flex flex-wrap items-center gap-3">
-				<Button href={downloadHref} download={downloadFileName} onclick={() => onDownloadClick?.()}>
-					<DownloadIcon class="size-4" />
-					{downloadLabel}
-				</Button>
-				{@render actions?.()}
-				<span
-					class="text-secondary-400 inline-flex h-11 items-center gap-1.5 px-3 text-sm tabular-nums"
-					title={downloadsLabel}
-				>
-					<DownloadIcon class="size-4" weight="duotone" />
-					{downloadCount}
-				</span>
-			</div>
+			{@render afterDetails?.()}
 		</div>
 	</div>
 </div>

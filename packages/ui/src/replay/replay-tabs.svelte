@@ -9,6 +9,8 @@
 		chatLabel?: string;
 		timelineLabel?: string;
 		screenshotsLabel?: string;
+		showChat?: boolean;
+		showTimeline?: boolean;
 		showScreenshots?: boolean;
 		overview?: Snippet;
 		chat?: Snippet;
@@ -22,6 +24,8 @@
 		chatLabel = 'Chat',
 		timelineLabel = 'Timeline',
 		screenshotsLabel = 'Screenshots',
+		showChat = true,
+		showTimeline = true,
 		showScreenshots = false,
 		overview,
 		chat,
@@ -33,8 +37,12 @@
 <Tabs.Root bind:value>
 	<Tabs.List class="border-secondary-800 flex items-center gap-2 border-b px-4 py-2.5">
 		<Tabs.Trigger value="overview" class={tabTrigger}>{overviewLabel}</Tabs.Trigger>
-		<Tabs.Trigger value="chat" class={tabTrigger}>{chatLabel}</Tabs.Trigger>
-		<Tabs.Trigger value="timeline" class={tabTrigger}>{timelineLabel}</Tabs.Trigger>
+		{#if showChat}
+			<Tabs.Trigger value="chat" class={tabTrigger}>{chatLabel}</Tabs.Trigger>
+		{/if}
+		{#if showTimeline}
+			<Tabs.Trigger value="timeline" class={tabTrigger}>{timelineLabel}</Tabs.Trigger>
+		{/if}
 		{#if showScreenshots}
 			<Tabs.Trigger value="screenshots" class={tabTrigger}>{screenshotsLabel}</Tabs.Trigger>
 		{/if}
@@ -42,12 +50,16 @@
 	<Tabs.Content value="overview">
 		{@render overview?.()}
 	</Tabs.Content>
-	<Tabs.Content value="chat">
-		{@render chat?.()}
-	</Tabs.Content>
-	<Tabs.Content value="timeline">
-		{@render timeline?.()}
-	</Tabs.Content>
+	{#if showChat}
+		<Tabs.Content value="chat">
+			{@render chat?.()}
+		</Tabs.Content>
+	{/if}
+	{#if showTimeline}
+		<Tabs.Content value="timeline">
+			{@render timeline?.()}
+		</Tabs.Content>
+	{/if}
 	{#if showScreenshots}
 		<Tabs.Content value="screenshots">
 			{@render screenshots?.()}

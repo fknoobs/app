@@ -15,6 +15,7 @@
 	} from './leaderboard-utils';
 	import { useI18n } from '$lib/i18n';
 	import PlayerLabels from '$lib/components/player/player-labels.svelte';
+	import PlayerLikeCount from '$lib/components/player/player-like-count.svelte';
 
 	type Props = {
 		stats: LeaderboardStatWithProfile[];
@@ -120,6 +121,9 @@
 			alt={countryName ?? row.profile.country}
 			{@attach tooltip(countryName ?? row.profile.country)}
 		/>
+	{/if}
+	{#if row.profile}
+		<PlayerLikeCount steamId={getSteamIdFromProfile(row.profile)} class="shrink-0" />
 	{/if}
 	<span class="truncate">{row.profile?.alias}</span>
 	{#if row.profile}

@@ -2,7 +2,6 @@
 	import * as List from '$lib/components/ui/list';
 	import * as Match from '$lib/components/match';
 	import * as Replay from '$lib/components/replay';
-	import MatchLobbyPlayers from '$lib/components/widgets/match-lobby-players.svelte';
 	import { scale } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { app } from '$core/app/context';
@@ -23,6 +22,7 @@
 	import EyeSlashIcon from 'phosphor-svelte/lib/EyeSlash';
 	import { confirm } from '@tauri-apps/plugin-dialog';
 	import { useI18n } from '$lib/i18n';
+	import { StaffDebug } from '$lib/components/staff';
 	import { tabTrigger } from '$lib/components/ui/variants';
 	import { loadCheaterSteamIds } from '$core/pocketbase/anti-cheat';
 	import {
@@ -201,110 +201,115 @@
 					onCountChange={setLikeCount}
 				/>
 			</div>
-			<div class="min-w-0 px-6 py-4 sm:pl-0">
-				<div class="mb-3 flex min-w-0 items-center gap-3">
-					<Match.MapName class="font-heading min-w-0 truncate text-3xl font-bold" />
-					<Match.ProBadge />
-					{#if isStaff && isHidden}
-						<Badge variant="warning">{t('Hidden')}</Badge>
-					{/if}
-				</div>
-
-				<div class={detailMetaGrid}>
-					<List.Title>{t('Status')}</List.Title>
-					<List.Value class="flex items-center">
-						{#if match.current.needsResult}
-							<HourglassIcon class="text-primary" {@attach tooltip(t('Result pending'))} />
-						{:else}
-							<ChecksIcon class="text-green-400" {@attach tooltip(t('Result saved'))} />
+			<div class="min-w-0">
+				<div class="px-6 py-4 sm:pl-0">
+					<div class="mb-3 flex min-w-0 items-center gap-3">
+						<Match.MapName class="font-heading min-w-0 truncate text-3xl font-bold" />
+						<Match.ProBadge />
+						{#if isStaff && isHidden}
+							<Badge variant="warning">{t('Hidden')}</Badge>
 						{/if}
-					</List.Value>
-					<List.Title>{t('Title')}</List.Title>
-					<List.Value><Match.Title /></List.Value>
+					</div>
 
-					<List.Title>{t('Submitted at')}</List.Title>
-					<List.Value>{dayjs(match.current.createdAt).format('DD MMM YYYY, HH:mm')}</List.Value>
-					<List.Title>{t('Player count')}</List.Title>
-					<List.Value>{match.current.players?.length}</List.Value>
-
-					{#if submittedBy}
-						<List.Title>{t('Submitted by')}</List.Title>
-						<List.Value>
-							<a href={`/players/${submittedBy.profile_id}`} class="hover:text-primary underline">
-								{submittedBy.alias}
-							</a>
-						</List.Value>
-						<List.Title>{t('Duration')}</List.Title>
-						<List.Value>{duration}</List.Value>
-
-						<List.Title>{t('Game mode')}</List.Title>
-						<List.Value>{match.current.isRanked ? t('Ranked') : t('Custom match')}</List.Value>
-					{:else}
-						<List.Title>{t('Game mode')}</List.Title>
-						<List.Value>{match.current.isRanked ? t('Ranked') : t('Custom match')}</List.Value>
-						<List.Title>{t('Duration')}</List.Title>
-						<List.Value>{duration}</List.Value>
-					{/if}
-				</div>
-
-				<div class="mt-4 flex flex-wrap items-center gap-3">
-					{#if hasReplay}
-						<Button
-							onclick={() => {
-								isDownloading = true;
-								app.features.history
-									.downloadReplay(match.current!)
-									.then((result) => {
-										if (result.ok) {
-											didDownload = true;
-											if (result.downloadCount != null && match.current) {
-												match.mutate({
-													...match.current,
-													downloadCount: result.downloadCount
-												});
-											}
-										} else {
-											didDownload = false;
-										}
-									})
-									.catch(() => {
-										didDownload = false;
-									})
-									.finally(() => {
-										isDownloading = false;
-									});
-							}}
-							class={cn(didDownload && 'pointer-events-none cursor-not-allowed opacity-50')}
-							loading={isDownloading}
-						>
-							{#if !isDownloading && !didDownload}
-								<DownloadIcon class="mr-2" />
-							{/if}
-							{#if didDownload}
-								<span in:scale={{ easing: bounceInOut, duration: 150 }}>
-									<CheckIcon size={22} class="mr-2" />
-								</span>
-							{/if}
-							{t('Download replay')}
-						</Button>
-					{/if}
-					{#if isStaff && sessionId > 0}
-						<Button
-							type="button"
-							variant="secondary"
-							loading={hidePending}
-							onclick={() => toggleHidden()}
-						>
-							{#if isManuallyHidden}
-								<EyeIcon class="size-4" />
-								{t('Show match')}
+					<div class={detailMetaGrid}>
+						<List.Title>{t('Status')}</List.Title>
+						<List.Value class="flex items-center">
+							{#if match.current.needsResult}
+								<HourglassIcon class="text-primary" {@attach tooltip(t('Result pending'))} />
 							{:else}
-								<EyeSlashIcon class="size-4" />
-								{t('Hide match')}
+								<ChecksIcon class="text-green-400" {@attach tooltip(t('Result saved'))} />
 							{/if}
-						</Button>
-					{/if}
-					{#if hasReplay}
+						</List.Value>
+						<List.Title>{t('Title')}</List.Title>
+						<List.Value><Match.Title /></List.Value>
+
+						<List.Title>{t('Submitted at')}</List.Title>
+						<List.Value>{dayjs(match.current.createdAt).format('DD MMM YYYY, HH:mm')}</List.Value>
+						<List.Title>{t('Player count')}</List.Title>
+						<List.Value>{match.current.players?.length}</List.Value>
+
+						{#if submittedBy}
+							<List.Title>{t('Submitted by')}</List.Title>
+							<List.Value>
+								<a href={`/players/${submittedBy.profile_id}`} class="hover:text-primary underline">
+									{submittedBy.alias}
+								</a>
+							</List.Value>
+							<List.Title>{t('Duration')}</List.Title>
+							<List.Value>{duration}</List.Value>
+
+							<List.Title>{t('Game mode')}</List.Title>
+							<List.Value>{match.current.isRanked ? t('Ranked') : t('Custom match')}</List.Value>
+						{:else}
+							<List.Title>{t('Game mode')}</List.Title>
+							<List.Value>{match.current.isRanked ? t('Ranked') : t('Custom match')}</List.Value>
+							<List.Title>{t('Duration')}</List.Title>
+							<List.Value>{duration}</List.Value>
+						{/if}
+					</div>
+
+					<div class="mt-4 flex flex-wrap items-center gap-3">
+						{#if hasReplay}
+							<Button
+								onclick={() => {
+									isDownloading = true;
+									app.features.history
+										.downloadReplay(match.current!)
+										.then((result) => {
+											if (result.ok) {
+												didDownload = true;
+												if (result.downloadCount != null && match.current) {
+													match.mutate({
+														...match.current,
+														downloadCount: result.downloadCount
+													});
+												}
+											} else {
+												didDownload = false;
+											}
+										})
+										.catch(() => {
+											didDownload = false;
+										})
+										.finally(() => {
+											isDownloading = false;
+										});
+								}}
+								class={cn(didDownload && 'pointer-events-none cursor-not-allowed opacity-50')}
+								loading={isDownloading}
+							>
+								{#if !isDownloading && !didDownload}
+									<DownloadIcon class="mr-2" />
+								{/if}
+								{#if didDownload}
+									<span in:scale={{ easing: bounceInOut, duration: 150 }}>
+										<CheckIcon size={22} class="mr-2" />
+									</span>
+								{/if}
+								{t('Download replay')}
+							</Button>
+						{:else}
+							<Button disabled>
+								<DownloadIcon class="mr-2" />
+								{t('Download replay')}
+							</Button>
+						{/if}
+						{#if isStaff && sessionId > 0}
+							<Button
+								type="button"
+								variant="secondary"
+								loading={hidePending}
+								onclick={() => toggleHidden()}
+							>
+								{#if isManuallyHidden}
+									<EyeIcon class="size-4" />
+									{t('Show match')}
+								{:else}
+									<EyeSlashIcon class="size-4" />
+									{t('Hide match')}
+								{/if}
+							</Button>
+						{/if}
 						<span
 							class="text-secondary-400 inline-flex h-11 items-center gap-1.5 px-3 text-sm tabular-nums"
 							title={t('Downloads')}
@@ -312,8 +317,32 @@
 							<DownloadIcon size={16} weight="duotone" />
 							{downloadCount}
 						</span>
-					{/if}
+					</div>
 				</div>
+
+				{#if isStaff}
+					<StaffDebug>
+						<div class={detailMetaGrid}>
+							<List.Title>{t('Match ID')}</List.Title>
+							<List.Value class="tabular-nums">{matchId}</List.Value>
+							<List.Title>{t('Session ID')}</List.Title>
+							<List.Value class="tabular-nums">{sessionId || '—'}</List.Value>
+							<List.Title>{t('Updated')}</List.Title>
+							<List.Value>
+								{match.current.updatedAt
+									? dayjs(match.current.updatedAt).format('DD MMM YYYY, HH:mm')
+									: '—'}
+							</List.Value>
+							<List.Title>{t('Owner')}</List.Title>
+							<List.Value>
+								{match.current.user?.name ||
+									match.current.user?.email ||
+									match.current.user?.id ||
+									'—'}
+							</List.Value>
+						</div>
+					</StaffDebug>
+				{/if}
 			</div>
 		</div>
 
@@ -338,7 +367,7 @@
 					</button>
 				</div>
 				{#if matchTab === 'overview'}
-					<MatchLobbyPlayers match={match.current} cheaters={cheaters.current ?? new Set()} />
+					<Match.Overview match={match.current} cheaters={cheaters.current ?? new Set()} />
 					<Match.Comments lobbyId={matchId} {highlightCommentId} />
 				{:else}
 					<Match.Screenshots

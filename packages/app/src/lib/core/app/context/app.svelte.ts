@@ -322,6 +322,14 @@ export class AppContext extends Emittery<AppEvents> {
 			this.#onLobbyResult(playerId, result)
 		);
 		this.gameLog.on('lobby.destroyed', () => this.#onLobbyDestroyed());
+
+		this.on('lobby.saved', (saved) => {
+			if (!this.lobby || this.lobby.sessionId !== saved.sessionId) {
+				return;
+			}
+
+			this.#upsertLiveLobby(this.lobby, saved.id);
+		});
 	}
 
 	#trackStatuses() {
@@ -375,7 +383,7 @@ export class AppContext extends Emittery<AppEvents> {
 		this.game.close();
 	}
 
-	#onLobbyJoined(lobby: Lobby) {
+	async #onLobbyJoined(lobby: Lobby) {
 		if (!this.isReady) {
 			return;
 		}
@@ -384,18 +392,18 @@ export class AppContext extends Emittery<AppEvents> {
 			return;
 		}
 
-		if (
-			!lobby.isReplay &&
-			this.game.isRunning &&
-			lobby.startedAt &&
-			!lobby.didNotify &&
-			!this.game.isWindowFocused
-		) {
-			this.audio.src = GameStartedNotificationAudio;
-			this.audio.currentTime = 0;
-			lobby.didNotify = true;
+		const shouldNotify =
+			!lobby.isReplay && this.game.isRunning && Boolean(lobby.startedAt) && !lobby.didNotify;
 
-			this.audio.play().catch(() => undefined);
+		if (shouldNotify) {
+			// Fresh focus check — polled `isWindowFocused` can still say "in game"
+			// for up to ~1s after the user alt-tabs out.
+			const focused = await this.game.refreshWindowFocus();
+
+			if (!focused) {
+				lobby.didNotify = true;
+				this.#playGameStartedSound();
+			}
 		}
 
 		if (this.game.isWindowFocused) {
@@ -405,6 +413,14 @@ export class AppContext extends Emittery<AppEvents> {
 		this.game.closeIngameChatOpen();
 		this.emit('lobby.joined', lobby.toJSON());
 		this.socket.publish('game.lobby.joined', lobby.toJSON());
+	}
+
+	#playGameStartedSound() {
+		const audio = new Audio(GameStartedNotificationAudio);
+		this.audio = audio;
+		void audio.play().catch((error) => {
+			console.warn('[APP]: match start notification sound failed:', error);
+		});
 	}
 
 	#onLobbyMissionStarting(lobby: Lobby | undefined) {
@@ -549,10 +565,10 @@ export class AppContext extends Emittery<AppEvents> {
 	 * Upserts lobbies_live and deletes again if a clear started while the
 	 * request was in flight (avoids resurrecting a stale row).
 	 */
-	#upsertLiveLobby(match: Match) {
+	#upsertLiveLobby(match: Match, lobbyId?: string | null) {
 		const generation = this.#liveLobbyGeneration;
 		this.database.lobbiesLive
-			.setLobby(match)
+			.setLobby(match, lobbyId)
 			.then(() => {
 				// Cleared while in flight — delete the resurrected row.
 				if (generation !== this.#liveLobbyGeneration && !this.lobby) {

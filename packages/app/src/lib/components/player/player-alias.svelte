@@ -2,6 +2,7 @@
 	import type { HTMLAnchorAttributes } from 'svelte/elements';
 	import { usePlayer } from '.';
 	import PlayerLabels from './player-labels.svelte';
+	import PlayerLikeCount from './player-like-count.svelte';
 	import { cn } from '$lib/utils';
 	import { isMePlayer } from '$lib/utils/player-me';
 	import { mePlayerText } from '$lib/components/ui/variants';
@@ -16,6 +17,7 @@
 </script>
 
 <span class={cn('inline-flex min-w-0 items-center gap-1.5', className)}>
+	<PlayerLikeCount steamId={player.steamId} class="shrink-0" />
 	<a
 		{...restProps}
 		class={cn('hover:text-primary min-w-0 truncate transition-colors', isMe && mePlayerText)}

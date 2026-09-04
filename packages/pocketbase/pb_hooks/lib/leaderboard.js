@@ -261,9 +261,15 @@ function assemblePayload(leaderboardId, relicData) {
 	}
 
 	const labelsBySteamId = playerLabels.loadLabelsBySteamIds(steamIds);
+	const likeCountsBySteamId = require(`${__hooks}/lib/player-social.js`).loadLikeCountsBySteamIds(
+		steamIds
+	);
 	for (const stat of stats) {
 		const steamId = steamIdFromName(stat.profile.name);
 		stat.profile.labels = labelsBySteamId[steamId] ?? [];
+		if (Object.prototype.hasOwnProperty.call(likeCountsBySteamId, steamId)) {
+			stat.profile.likeCount = likeCountsBySteamId[steamId];
+		}
 	}
 
 	return {

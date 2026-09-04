@@ -81,7 +81,7 @@ export const interactive = 'cursor-pointer disabled:cursor-not-allowed';
 export const tableHeadText =
 	'font-sans text-xs font-semibold tracking-wide text-secondary-300 uppercase';
 
-export const tableHeadRow = `bg-secondary-800/40 border-secondary-800 border-b ${tableHeadText}`;
+export const tableHeadRow = `bg-secondary-950/90 border-secondary-800 border-b ${tableHeadText}`;
 
 export const tableSortHeader = `${interactive} ${tableHeadText} flex w-full min-w-0 items-center bg-transparent p-0 select-none`;
 

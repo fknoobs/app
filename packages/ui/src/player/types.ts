@@ -50,7 +50,9 @@ export type MatchHistoryPlayer = {
 	oldrating: number;
 	newrating: number;
 	country?: string;
+	avatarUrl?: string | null;
 	labels?: PlayerLabel[];
+	likeCount?: number;
 };
 
 export type TransformedMatch = {
@@ -61,6 +63,8 @@ export type TransformedMatch = {
 	completiontime: number;
 	players: MatchHistoryPlayer[];
 	outcome: number;
+	lobbyId?: string | null;
+	description?: string;
 };
 
 export type PlayerSmurf = {
@@ -80,6 +84,7 @@ export type PlayerPageData = {
 	personastate: number;
 	gameextrainfo: string | null;
 	lastlogoff: number | null;
+	timecreated?: number | null;
 	playtimeForever: number | null;
 	playtime2weeks: number | null;
 	leaderboardStats: LeaderboardStat[];
@@ -88,6 +93,7 @@ export type PlayerPageData = {
 	matchHistory: TransformedMatch[];
 	smurf?: PlayerSmurf | null;
 	labels?: PlayerLabel[];
+	likeCount?: number;
 };
 
 export type PlayerSearchResult = {
@@ -97,4 +103,5 @@ export type PlayerSearchResult = {
 	level: number;
 	steamId: string;
 	avatarUrl: string;
+	likeCount?: number;
 };

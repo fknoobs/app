@@ -154,6 +154,10 @@ function handleSearch(e) {
 		const items = members
 			.map((member) => mapMember(member, avatars))
 			.filter((item) => item.profileId > 0);
+		const likeCounts = require(`${__hooks}/lib/player-social.js`).loadLikeCountsBySteamIds(
+			items.map((item) => item.steamId).filter(Boolean)
+		);
+		require(`${__hooks}/lib/player-social.js`).attachLikeCountsToPlayers(items, likeCounts);
 		return jsonWithCors(e, 200, { items }, HTTP_CACHE_CONTROL);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);

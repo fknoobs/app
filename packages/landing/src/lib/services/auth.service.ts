@@ -1,5 +1,5 @@
 import PocketBase, { ClientResponseError, type RecordModel } from 'pocketbase';
-import { ok, Result, ResultAsync } from 'neverthrow';
+import { ok, okAsync, Result, ResultAsync } from 'neverthrow';
 import { appError, fromUnknown, type AppError } from '$lib/errors/app-error';
 import { generateUniqueId } from '$lib/utils/id';
 
@@ -11,6 +11,16 @@ export type AuthUser = RecordModel & {
 	avatar?: string;
 	steamIds?: string[];
 	role?: UserRole;
+};
+
+export type CompanionUserDebug = {
+	id: string;
+	email: string;
+	role?: string;
+	lastLogin?: string;
+	created?: string;
+	updated?: string;
+	appVersion: string | null;
 };
 
 export class AuthService {
@@ -47,6 +57,60 @@ export class AuthService {
 		this.pocketbase.authStore.clear();
 		return ok(undefined);
 	}
+
+	findCompanionBySteamId(steamId: string): ResultAsync<CompanionUserDebug | null, AppError> {
+		if (!this.isStaff()) {
+			return okAsync(null);
+		}
+
+		const id = steamId.trim();
+		if (!id) {
+			return okAsync(null);
+		}
+
+		const escaped = id.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+		return ResultAsync.fromPromise(
+			this.pocketbase.collection('users').getList(1, 1, {
+				filter: `steamIds ~ "${escaped}"`
+			}),
+			(error) => fromUnknown(error, 'Could not load that account.')
+		)
+			.map((list) => {
+				const row = list.items[0];
+				if (!row) {
+					return null;
+				}
+
+				return {
+					id: row.id,
+					email: typeof row.email === 'string' ? row.email : '',
+					role: typeof row.role === 'string' ? row.role : undefined,
+					lastLogin: typeof row.lastLogin === 'string' ? row.lastLogin : undefined,
+					created: typeof row.created === 'string' ? row.created : undefined,
+					updated: typeof row.updated === 'string' ? row.updated : undefined,
+					appVersion: readMetaVersion(row.meta)
+				};
+			})
+			.orElse(() => ok(null));
+	}
+
+	private isStaff(): boolean {
+		if (!this.pocketbase.authStore.isValid) {
+			return false;
+		}
+
+		const role = this.pocketbase.authStore.record?.role;
+		return role === 'admin' || role === 'moderator';
+	}
+}
+
+function readMetaVersion(meta: unknown): string | null {
+	if (!meta || typeof meta !== 'object' || !('version' in meta)) {
+		return null;
+	}
+
+	const version = (meta as { version?: unknown }).version;
+	return typeof version === 'string' && version ? version : null;
 }
 
 function toLoginError(error: unknown): AppError {

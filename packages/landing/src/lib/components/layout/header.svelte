@@ -93,10 +93,10 @@
 	</nav>
 
 	<div class="border-secondary-800 ms-auto flex shrink-0 items-stretch border-l sm:ms-0">
-		<div class="border-secondary-800 hidden items-stretch border-r sm:flex">
+		<div class="border-secondary-800 hidden h-full items-stretch border-r sm:flex">
 			<LocaleSwitcher />
 		</div>
-		<div class="border-secondary-800 flex items-stretch border-r">
+		<div class="border-secondary-800 flex h-full items-stretch border-r">
 			<HeaderAuth />
 		</div>
 		<Button

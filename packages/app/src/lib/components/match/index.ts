@@ -15,6 +15,7 @@ import MatchComments from './match-comments.svelte';
 import MatchSocialCounts from './match-social-counts.svelte';
 import MatchProBadge from './match-pro-badge.svelte';
 import MatchScreenshots from './match-screenshots.svelte';
+import MatchOverview from './match-overview.svelte';
 
 export {
 	createMatch,
@@ -35,7 +36,8 @@ export {
 	MatchComments as Comments,
 	MatchSocialCounts as SocialCounts,
 	MatchProBadge as ProBadge,
-	MatchScreenshots as Screenshots
+	MatchScreenshots as Screenshots,
+	MatchOverview as Overview
 };
 
 export type { MatchListColumnId } from './match-list-columns';

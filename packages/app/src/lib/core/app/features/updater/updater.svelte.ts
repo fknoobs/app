@@ -6,13 +6,10 @@ import { app } from '$core/app/context';
 import { padEnd } from 'lodash-es';
 import { gt } from 'semver';
 import Changelog from './changelog.svelte';
-import Update from './update.svelte';
 import { findLatestWhatsNew, findWhatsNew, normalizeVersion } from './whats-new';
 import { settings } from '$core/config/settings.svelte';
 import { t } from '$lib/i18n';
 import { dev } from '$app/environment';
-
-const RELEASE_URL = 'https://github.com/fknoobs/app/releases/latest';
 
 export type UpdaterSettings = {
 	enabled: boolean;
@@ -22,7 +19,7 @@ export type UpdaterSettings = {
 
 /**
  * Checks GitHub for signed updates, downloads them in the background,
- * and installs + relaunches after the user confirms.
+ * then installs and relaunches as soon as no other modal is open.
  */
 export class Updater extends Feature<UpdaterSettings> {
 	name = 'updater';
@@ -30,7 +27,6 @@ export class Updater extends Feature<UpdaterSettings> {
 	hasUpdate = $state<boolean>(false);
 	currentVersion = $state<string>('');
 	latestVersion = $state<string>('');
-	releaseNotes = $state<string | undefined>(undefined);
 	pendingUpdate = $state.raw<TauriUpdate | null>(null);
 	#stopWaitingForModal: (() => void) | null = null;
 
@@ -44,8 +40,12 @@ export class Updater extends Feature<UpdaterSettings> {
 
 	async enable() {
 		this.currentVersion = await getVersion();
-		void this.#maybeShowChangelog();
-		if (dev) return;
+		// Await so an open What's New modal is registered before auto-install.
+		await this.#maybeShowChangelog();
+		if (dev) {
+			return;
+		}
+
 		void this.#checkForUpdate();
 	}
 
@@ -53,7 +53,6 @@ export class Updater extends Feature<UpdaterSettings> {
 		this.#stopWaitingForModal?.();
 		this.hasUpdate = false;
 		this.latestVersion = '';
-		this.releaseNotes = undefined;
 		void this.pendingUpdate?.close();
 		this.pendingUpdate = null;
 	}
@@ -68,11 +67,12 @@ export class Updater extends Feature<UpdaterSettings> {
 
 			this.pendingUpdate = update;
 			this.latestVersion = update.version;
-			this.releaseNotes = update.body;
 			this.hasUpdate = true;
 			app.toast.info(t('Downloading update...'));
 			await update.download();
-			this.openDialog();
+			this.#whenModalIdle(() => {
+				void this.#installDownloadedUpdate();
+			});
 		} catch (error) {
 			console.warn('[UPDATER]: update check failed:', error);
 			this.latestVersion = this.currentVersion;
@@ -80,6 +80,20 @@ export class Updater extends Feature<UpdaterSettings> {
 				app.toast.error(t('Failed to download update.'));
 			}
 			this.hasUpdate = false;
+		}
+	}
+
+	async #installDownloadedUpdate(): Promise<void> {
+		if (!this.pendingUpdate) {
+			return;
+		}
+
+		try {
+			app.toast.info(t('Installing update...'));
+			await this.installAndRelaunch();
+		} catch (error) {
+			console.warn('[UPDATER]: install failed:', error);
+			app.toast.error(t('Failed to install update.'));
 		}
 	}
 
@@ -148,44 +162,23 @@ export class Updater extends Feature<UpdaterSettings> {
 	}
 
 	async installAndRelaunch(): Promise<void> {
-		if (!this.pendingUpdate) return;
+		if (!this.pendingUpdate) {
+			return;
+		}
+
 		await this.prepareForUpdate();
 		await this.pendingUpdate.install();
 		await relaunch();
-	}
-
-	openDialog() {
-		if (!this.pendingUpdate) return;
-
-		this.#whenModalIdle(() => {
-			if (!this.pendingUpdate) return;
-			app.modal.create({
-				component: Update,
-				title: t('Update Available'),
-				description: t(
-					'A new version ({latestVersion}) is available. You are currently on version {currentVersion}.',
-					{
-						latestVersion: this.latestVersionFormatted,
-						currentVersion: this.currentVersionFormatted
-					}
-				),
-				props: {
-					currentVersion: this.currentVersion,
-					latestVersion: this.latestVersion,
-					notes: this.releaseNotes,
-					releaseUrl: RELEASE_URL,
-					onInstall: async () => this.installAndRelaunch()
-				}
-			});
-			app.modal.open();
-		});
 	}
 
 	#whenModalIdle(run: () => void): void {
 		this.#stopWaitingForModal?.();
 		let done = false;
 		const finish = () => {
-			if (done || app.modal.isOpen) return;
+			if (done || app.modal.isOpen) {
+				return;
+			}
+
 			done = true;
 			unsubscribe();
 			this.#stopWaitingForModal = null;

@@ -38,6 +38,15 @@
 	}
 
 	watch(
+		() => lobby.current?.lobby,
+		(lobbyId) => {
+			if (lobbyId) {
+				void goto(`/history/${lobbyId}`, { replaceState: true });
+			}
+		}
+	);
+
+	watch(
 		() => lobby.error,
 		(error) => {
 			if (error) goto('/');
@@ -60,7 +69,13 @@
 					if (event.action === 'update') {
 						app.database.lobbiesLive
 							.getOne(event.record.id)
-							.then((updated) => lobby.mutate(updated))
+							.then((updated) => {
+								if (updated.lobby) {
+									void goto(`/history/${updated.lobby}`, { replaceState: true });
+									return;
+								}
+								lobby.mutate(updated);
+							})
 							.catch(() => goto('/'));
 					}
 				});
@@ -74,7 +89,7 @@
 </script>
 
 {#key match}
-	{#if match}
+	{#if match && !lobby.current?.lobby}
 		<CurrentGameView lobby={match} />
 	{/if}
 {/key}

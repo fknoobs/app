@@ -10,6 +10,7 @@
 	import { resource } from 'runed';
 	import { useI18n } from '$lib/i18n';
 	import PlayerLabels from './player-labels.svelte';
+	import PlayerLikeCount from './player-like-count.svelte';
 
 	type Props = {
 		player: Profile;
@@ -50,6 +51,7 @@
 						alt={player.relic.country}
 					/>
 				{/if}
+				<PlayerLikeCount steamId={player.steam.steamid} class="shrink-0" />
 				<span class="font-heading truncate text-xl font-bold">{player.relic.alias}</span>
 				<PlayerLabels steamId={player.steam.steamid} class="shrink-0" />
 			</a>

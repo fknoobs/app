@@ -275,6 +275,7 @@
 									alt={profile.relic.country}
 								/>
 							{/if}
+							<Player.LikeCount steamId={profile.steam.steamid} class="shrink-0" />
 							<span class="font-heading truncate text-lg font-bold">{profile.relic.alias}</span>
 						</a>
 						<Player.Labels steamId={profile.steam.steamid} class="shrink-0" />

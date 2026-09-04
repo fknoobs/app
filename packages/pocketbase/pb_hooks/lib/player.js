@@ -580,12 +580,34 @@ function writePageCache(key, value) {
 	}
 }
 
+function loadPlayerLikeCount(steamId) {
+	const id = String(steamId || '').trim();
+	if (!id) {
+		return 0;
+	}
+
+	try {
+		const row = $app.findFirstRecordByFilter('player_vote_scores', 'steamId = {:steamId}', {
+			steamId: id
+		});
+		return Number(row.get('likeCount')) || 0;
+	} catch {
+		return 0;
+	}
+}
+
+function withLikeCount(page) {
+	return Object.assign({}, page, {
+		likeCount: loadPlayerLikeCount(page.steamId)
+	});
+}
+
 function loadPlayerPage(id, options) {
 	const extras = options?.extras !== false;
 	const cacheKey = `${id}:${extras ? 'full' : 'card'}`;
 	const cached = readPageCache(cacheKey);
 	if (cached) {
-		return cached;
+		return withLikeCount(cached);
 	}
 
 	const steamLookup = isSteamId(String(id));
@@ -697,7 +719,22 @@ function loadPlayerPage(id, options) {
 	const labelsBySteamId = extras
 		? playerLabels.loadLabelsBySteamIds([steamId, ...playerLabels.steamIdsFromMatches(matches)])
 		: {};
+	const likeCountsBySteamId = extras
+		? require(`${__hooks}/lib/player-social.js`).loadLikeCountsBySteamIds([
+				steamId,
+				...playerLabels.steamIdsFromMatches(matches)
+			])
+		: {};
 	const labeledMatches = extras ? playerLabels.attachLabelsToMatches(matches, labelsBySteamId) : matches;
+	const matchHistoryWithScores = extras
+		? require(`${__hooks}/lib/player-social.js`).attachLikeCountsToMatches(
+				labeledMatches,
+				likeCountsBySteamId
+			)
+		: labeledMatches;
+	const matchHistoryWithLobbies = extras
+		? matchHistory.attachReplayLobbyIds(matchHistoryWithScores)
+		: matchHistoryWithScores;
 
 	const page = {
 		steamId,
@@ -709,18 +746,19 @@ function loadPlayerPage(id, options) {
 		personastate: steamProfile.personastate ?? 0,
 		gameextrainfo: steamProfile.gameextrainfo || null,
 		lastlogoff: steamProfile.lastlogoff ?? null,
+		timecreated: steamProfile.timecreated ?? null,
 		playtimeForever: playtime?.playtime_forever ?? null,
 		playtime2weeks: playtime?.playtime_2weeks ?? null,
 		leaderboardStats: relicProfile.leaderboardStats ?? [],
 		elo,
 		performance,
-		matchHistory: labeledMatches,
+		matchHistory: matchHistoryWithLobbies,
 		smurf,
 		labels: labelsBySteamId[steamId] ?? []
 	};
 
 	writePageCache(cacheKey, page);
-	return page;
+	return withLikeCount(page);
 }
 
 function handleOptions(e) {

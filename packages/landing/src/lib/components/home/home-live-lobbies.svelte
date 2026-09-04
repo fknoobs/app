@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { invalidateAll } from '$app/navigation';
 	import { Table as LiveLobbiesTable, type LiveLobbyPlayer } from '@company-of-heroes/ui/live-lobby';
 	import type { LiveLobbyRecord } from '$lib/services/live-lobbies.service';
+	import { Button } from '@company-of-heroes/ui/button';
 	import { currentLocale, useI18n } from '$lib/i18n';
+	import { API_URL } from '$lib/site/urls';
 	import {
 		liveLobbyDetailsHref,
 		liveLobbyPlayerHref,
@@ -18,11 +21,48 @@
 
 	let { lobbies, loading = false }: Props = $props();
 	const { t } = useI18n();
+	const isDev = import.meta.env.DEV;
+	let seeding = $state(false);
+	let seedError = $state<string | null>(null);
 
 	const rows = $derived(lobbies.map((lobby) => toLiveLobby(lobby, t)));
 
 	function playerLabel(player: LiveLobbyPlayer) {
 		return liveLobbyPlayerLabel(player, t);
+	}
+
+	async function seedTestLobbies() {
+		seeding = true;
+		seedError = null;
+		try {
+			const response = await fetch(`${API_URL}/api/dev/live-lobbies/seed`, { method: 'POST' });
+			if (!response.ok) {
+				throw new Error((await response.text()) || response.statusText);
+			}
+
+			await invalidateAll();
+		} catch (error) {
+			seedError = error instanceof Error ? error.message : String(error);
+		} finally {
+			seeding = false;
+		}
+	}
+
+	async function clearTestLobbies() {
+		seeding = true;
+		seedError = null;
+		try {
+			const response = await fetch(`${API_URL}/api/dev/live-lobbies/seed`, { method: 'DELETE' });
+			if (!response.ok) {
+				throw new Error((await response.text()) || response.statusText);
+			}
+
+			await invalidateAll();
+		} catch (error) {
+			seedError = error instanceof Error ? error.message : String(error);
+		} finally {
+			seeding = false;
+		}
 	}
 </script>
 
@@ -36,10 +76,25 @@
 				{t('Matches that companion users are in right now.')}
 			</p>
 		</div>
-		{#if !loading}
-			<span class="text-secondary-400 text-sm">{t('{count} active', { count: rows.length })}</span>
-		{/if}
+		<div class="flex flex-wrap items-center gap-3">
+			{#if isDev}
+				<div class="flex items-center gap-2">
+					<Button size="sm" variant="secondary" disabled={seeding} onclick={seedTestLobbies}>
+						{t('Seed test')}
+					</Button>
+					<Button size="sm" variant="ghost" disabled={seeding} onclick={clearTestLobbies}>
+						{t('Clear test')}
+					</Button>
+				</div>
+			{/if}
+			{#if !loading}
+				<span class="text-secondary-400 text-sm">{t('{count} active', { count: rows.length })}</span>
+			{/if}
+		</div>
 	</div>
+	{#if seedError}
+		<p class="border-secondary-800 text-red-400 border-b px-4 py-2 text-sm">{seedError}</p>
+	{/if}
 	<LiveLobbiesTable
 		lobbies={rows}
 		{loading}
@@ -61,5 +116,11 @@
 		startedLabel={t('Started at')}
 		unknownHostLabel={t('Unknown')}
 		detailsLabel={t('Details')}
+		eloLabel={t('ELO')}
+		levelLabel={t('Level')}
+		posLabel={t('Pos')}
+		winsLabel={t('W')}
+		lossesLabel={t('L')}
+		streakLabel={t('Streak')}
 	/>
 </section>

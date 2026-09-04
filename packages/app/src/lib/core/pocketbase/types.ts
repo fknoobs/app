@@ -17,28 +17,32 @@ export const Collections = {
 	AntiCheatProcessHits: "anti_cheat_process_hits",
 	AntiCheatReports: "anti_cheat_reports",
 	Attachments: "attachments",
+	HiddenMatchKeywords: "hidden_match_keywords",
+	HiddenMatches: "hidden_matches",
+	JobState: "job_state",
 	Lobbies: "lobbies",
 	LobbiesLive: "lobbies_live",
-	LobbyAggregation: "lobby_aggregation",
-	LobbyAggregationCommunity: "lobby_aggregation_community",
-	NotificationReads: "notification_reads",
-	Notifications: "notifications",
-	LobbyComments: "lobby_comments",
 	LobbyCommentLikes: "lobby_comment_likes",
+	LobbyComments: "lobby_comments",
+	LobbyDownloadFingerprints: "lobby_download_fingerprints",
 	LobbyDownloads: "lobby_downloads",
 	LobbyLikes: "lobby_likes",
+	LobbyPlayerIndex: "lobby_player_index",
 	Maps: "maps",
+	MatchFilterSnapshots: "match_filter_snapshots",
+	NotificationReads: "notification_reads",
+	Notifications: "notifications",
+	PlayerLabelAssignments: "player_label_assignments",
+	PlayerLikes: "player_likes",
 	PlayerRatings: "player_ratings",
+	PlayerVoteScores: "player_vote_scores",
 	Players: "players",
 	ReplayAggregation: "replay_aggregation",
 	Replays: "replays",
+	ReputationTypes: "reputation_types",
 	SmurfWatch: "smurf_watch",
-	PlayerLabelAssignments: "player_label_assignments",
 	UserLabels: "user_labels",
 	UserOverlays: "user_overlays",
-	HiddenMatches: "hidden_matches",
-	HiddenMatchKeywords: "hidden_match_keywords",
-	ReputationTypes: "reputation_types",
 	UserReputation: "user_reputation",
 	UserReputationTotals: "user_reputation_totals",
 	Users: "users",
@@ -136,25 +140,6 @@ export type AntiCheatCapturesRecord = {
 	user: RecordIdString
 }
 
-export const AntiCheatReportsStatusOptions = {
-	"pending": "pending",
-	"dismissed": "dismissed",
-	"confirmed": "confirmed",
-} as const
-export type AntiCheatReportsStatusOptions = typeof AntiCheatReportsStatusOptions[keyof typeof AntiCheatReportsStatusOptions]
-export type AntiCheatReportsRecord = {
-	accused: RecordIdString
-	accused_steam_id?: string
-	created: IsoAutoDateString
-	id: string
-	lobby?: RecordIdString
-	note?: string
-	reporter: RecordIdString
-	session_id: number
-	status: AntiCheatReportsStatusOptions
-	updated: IsoAutoDateString
-}
-
 export type AntiCheatCheatersRecord = {
 	created: IsoAutoDateString
 	id: string
@@ -184,6 +169,25 @@ export type AntiCheatProcessHitsRecord = {
 	user: RecordIdString
 }
 
+export const AntiCheatReportsStatusOptions = {
+	"pending": "pending",
+	"dismissed": "dismissed",
+	"confirmed": "confirmed",
+} as const
+export type AntiCheatReportsStatusOptions = typeof AntiCheatReportsStatusOptions[keyof typeof AntiCheatReportsStatusOptions]
+export type AntiCheatReportsRecord = {
+	accused: RecordIdString
+	accused_steam_id?: string
+	created: IsoAutoDateString
+	id: string
+	lobby?: RecordIdString
+	note?: string
+	reporter: RecordIdString
+	session_id: number
+	status: AntiCheatReportsStatusOptions
+	updated: IsoAutoDateString
+}
+
 export type AttachmentsRecord = {
 	created: IsoAutoDateString
 	file: FileNameString
@@ -192,13 +196,41 @@ export type AttachmentsRecord = {
 	updated: IsoAutoDateString
 }
 
-export type LobbiesRecord<Tplayers = unknown, Tresult = unknown> = {
+export type HiddenMatchKeywordsRecord = {
+	created: IsoAutoDateString
+	createdBy?: RecordIdString
+	id: string
+	updated: IsoAutoDateString
+	word: string
+}
+
+export type HiddenMatchesRecord = {
+	created: IsoAutoDateString
+	hiddenBy?: RecordIdString
+	id: string
+	sessionId: number
+	updated: IsoAutoDateString
+}
+
+export type JobStateRecord = {
+	complete?: boolean
+	id: string
+	page?: number
+	updatedAt: IsoAutoDateString
+}
+
+export type LobbiesRecord<TlobbyPlayers = unknown, Tplayers = unknown, Tresult = unknown> = {
+	avgElo?: number
+	commentCount?: number
 	createdAt: IsoAutoDateString
+	downloadCount?: number
+	durationSeconds?: number
 	hasFailed?: boolean
 	hasReplay?: boolean
 	id: string
 	isRanked?: boolean
-	lobbyPlayers?: null | unknown
+	likeCount?: number
+	lobbyPlayers?: null | TlobbyPlayers
 	map: string
 	needsResult?: boolean
 	playerProfileIdsCsv?: string
@@ -206,11 +238,6 @@ export type LobbiesRecord<Tplayers = unknown, Tresult = unknown> = {
 	replay?: FileNameString
 	result?: null | Tresult
 	resultAttempts?: number
-	commentCount?: number
-	downloadCount?: number
-	likeCount?: number
-	durationSeconds?: number
-	avgElo?: number
 	sessionId: number
 	title: string
 	updatedAt: IsoAutoDateString
@@ -222,6 +249,7 @@ export type LobbiesLiveRecord<Tplayers = unknown> = {
 	id: string
 	isRanked?: boolean
 	isReplay?: boolean
+	lobby?: RecordIdString
 	map: string
 	players: null | Tplayers
 	sessionId: number
@@ -229,18 +257,84 @@ export type LobbiesLiveRecord<Tplayers = unknown> = {
 	user: RecordIdString
 }
 
-export type LobbyAggregationRecord<TUSER = unknown, Tmaps = unknown, Tplayers = unknown> = {
-	USER?: null | TUSER
+export type LobbyCommentLikesRecord = {
+	comment: RecordIdString
+	created: IsoAutoDateString
 	id: string
-	maps?: null | Tmaps
-	players?: null | Tplayers
+	updated: IsoAutoDateString
+	user: RecordIdString
+	value?: number
 }
 
-export type LobbyAggregationCommunityRecord<Tmaps = unknown, Tplayers = unknown, Tusers = unknown> = {
+export type LobbyCommentsRecord = {
+	created: IsoAutoDateString
+	deleted?: boolean
+	deletedAt?: IsoDateString
+	deletedBy?: RecordIdString
+	deletedNote?: string
+	id: string
+	likeCount?: number
+	lobby: RecordIdString
+	parent?: RecordIdString
+	text: string
+	updated: IsoAutoDateString
+	user: RecordIdString
+}
+
+export type LobbyDownloadFingerprintsRecord = {
+	created: IsoAutoDateString
+	fingerprint: string
+	id: string
+	lobby: RecordIdString
+	updated: IsoAutoDateString
+}
+
+export type LobbyDownloadsRecord = {
+	created: IsoAutoDateString
+	id: string
+	lobby: RecordIdString
+	updated: IsoAutoDateString
+	user: RecordIdString
+}
+
+export type LobbyLikesRecord = {
+	created: IsoAutoDateString
+	id: string
+	lobby: RecordIdString
+	updated: IsoAutoDateString
+	user: RecordIdString
+	value?: number
+}
+
+export type LobbyPlayerIndexRecord = {
+	counts?: boolean
+	elo?: number
+	id: string
+	lobby: RecordIdString
+	lobby_user?: string
+	map?: string
+	matchtype_id?: number
+	outcome?: number
+	profile_id: number
+	race_id?: number
+	session_id?: number
+	slot?: number
+	steam_id?: string
+}
+
+export type MapsRecord = {
+	created: IsoAutoDateString
+	id: string
+	map: string
+	name?: string
+	updated: IsoAutoDateString
+}
+
+export type MatchFilterSnapshotsRecord<Tmaps = unknown, Tplayers = unknown> = {
 	id: string
 	maps?: null | Tmaps
+	matchCount?: number
 	players?: null | Tplayers
-	users?: null | Tusers
 }
 
 export type NotificationReadsRecord = {
@@ -263,52 +357,41 @@ export type NotificationsRecord = {
 	updated: IsoAutoDateString
 }
 
-export type LobbyCommentsRecord = {
+export type PlayerLabelAssignmentsRecord = {
+	alias?: string
 	created: IsoAutoDateString
-	deleted?: boolean
-	deletedAt?: IsoDateString
-	deletedBy?: RecordIdString
-	deletedNote?: string
+	id: string
+	label: RecordIdString
+	profileId: number
+	steamId: string
+	updated: IsoAutoDateString
+}
+
+export type PlayerLikesRecord = {
+	created: IsoAutoDateString
+	id: string
+	steamId: string
+	updated: IsoAutoDateString
+	user: RecordIdString
+	value: number
+}
+
+export type PlayerRatingsRecord<Telo = unknown> = {
+	alias: string
+	created: IsoAutoDateString
+	elo?: null | Telo
+	harvestedAt?: IsoDateString
+	id: string
+	profileId: number
+	steamId: string
+	updated: IsoAutoDateString
+}
+
+export type PlayerVoteScoresRecord = {
+	created: IsoAutoDateString
 	id: string
 	likeCount?: number
-	lobby: RecordIdString
-	parent?: RecordIdString
-	text: string
-	updated: IsoAutoDateString
-	user: RecordIdString
-}
-
-export type LobbyCommentLikesRecord = {
-	comment: RecordIdString
-	created: IsoAutoDateString
-	id: string
-	updated: IsoAutoDateString
-	user: RecordIdString
-	value?: number
-}
-
-export type LobbyDownloadsRecord = {
-	created: IsoAutoDateString
-	id: string
-	lobby: RecordIdString
-	updated: IsoAutoDateString
-	user: RecordIdString
-}
-
-export type LobbyLikesRecord = {
-	created: IsoAutoDateString
-	id: string
-	lobby: RecordIdString
-	updated: IsoAutoDateString
-	user: RecordIdString
-	value?: number
-}
-
-export type MapsRecord = {
-	created: IsoAutoDateString
-	id: string
-	map: string
-	name?: string
+	steamId: string
 	updated: IsoAutoDateString
 }
 
@@ -349,64 +432,6 @@ export type ReplaysRecord<Tmessages = unknown, Tplayers = unknown> = {
 	vpCount?: number
 }
 
-export const UsersRoleOptions = {
-	"admin": "admin",
-	"moderator": "moderator",
-} as const
-export type UsersRoleOptions = typeof UsersRoleOptions[keyof typeof UsersRoleOptions]
-export type UsersRecord<Tmeta = unknown, TsteamIds = unknown> = {
-	avatar?: FileNameString
-	created: IsoAutoDateString
-	email: string
-	emailVisibility?: boolean
-	id: string
-	lastLogin?: IsoDateString
-	meta?: null | Tmeta
-	name?: string
-	password: string
-	role?: UsersRoleOptions
-	reputation?: number
-	steamIds?: null | TsteamIds
-	tokenKey: string
-	updated: IsoAutoDateString
-	verified?: boolean
-}
-
-export type UserLabelsRecord = {
-	color: string
-	created: IsoAutoDateString
-	id: string
-	name: string
-	sort?: number
-	updated: IsoAutoDateString
-}
-
-export type PlayerLabelAssignmentsRecord = {
-	alias?: string
-	created: IsoAutoDateString
-	id: string
-	label: RecordIdString
-	profileId: number
-	steamId: string
-	updated: IsoAutoDateString
-}
-
-export type HiddenMatchesRecord = {
-	created: IsoAutoDateString
-	hiddenBy?: RecordIdString
-	id: string
-	sessionId: number
-	updated: IsoAutoDateString
-}
-
-export type HiddenMatchKeywordsRecord = {
-	created: IsoAutoDateString
-	createdBy?: RecordIdString
-	id: string
-	updated: IsoAutoDateString
-	word: string
-}
-
 export const ReputationTypesTriggerOptions = {
 	"comment_created": "comment_created",
 	"comment_received_upvote": "comment_received_upvote",
@@ -420,6 +445,10 @@ export const ReputationTypesTriggerOptions = {
 	"replay_received_download": "replay_received_download",
 	"replay_cast_download": "replay_cast_download",
 	"match_played": "match_played",
+	"player_received_upvote": "player_received_upvote",
+	"player_received_downvote": "player_received_downvote",
+	"player_cast_upvote": "player_cast_upvote",
+	"player_cast_downvote": "player_cast_downvote",
 } as const
 export type ReputationTypesTriggerOptions = typeof ReputationTypesTriggerOptions[keyof typeof ReputationTypesTriggerOptions]
 export type ReputationTypesRecord = {
@@ -431,6 +460,88 @@ export type ReputationTypesRecord = {
 	sort?: number
 	trigger: ReputationTypesTriggerOptions
 	updated: IsoAutoDateString
+}
+
+export const SmurfWatchStatusOptions = {
+	"pending_screening": "pending_screening",
+	"watching": "watching",
+	"resolved": "resolved",
+	"not_smurf": "not_smurf",
+	"expired": "expired",
+	"unknown_private": "unknown_private",
+} as const
+export type SmurfWatchStatusOptions = typeof SmurfWatchStatusOptions[keyof typeof SmurfWatchStatusOptions]
+
+export const SmurfWatchSourceOptions = {
+	"profile": "profile",
+	"search": "search",
+	"lobby_live": "lobby_live",
+	"lobby_match": "lobby_match",
+	"backfill": "backfill",
+} as const
+export type SmurfWatchSourceOptions = typeof SmurfWatchSourceOptions[keyof typeof SmurfWatchSourceOptions]
+
+export const SmurfWatchLenderSourceOptions = {
+	"live": "live",
+	"cohstats": "cohstats",
+} as const
+export type SmurfWatchLenderSourceOptions = typeof SmurfWatchLenderSourceOptions[keyof typeof SmurfWatchLenderSourceOptions]
+
+export const SmurfWatchVerdictOptions = {
+	"confirmed_shared": "confirmed_shared",
+	"likely_smurf": "likely_smurf",
+	"suspicious": "suspicious",
+	"clean": "clean",
+	"unknown": "unknown",
+} as const
+export type SmurfWatchVerdictOptions = typeof SmurfWatchVerdictOptions[keyof typeof SmurfWatchVerdictOptions]
+export type SmurfWatchRecord<Tmain_candidates = unknown, Tsignals = unknown> = {
+	account_created_at?: IsoDateString
+	check_interval_sec?: number
+	coh_playtime_min?: number
+	created: IsoAutoDateString
+	game_bans?: number
+	id: string
+	last_checked_at?: IsoDateString
+	lender_source?: SmurfWatchLenderSourceOptions
+	lender_steam_id?: string
+	main_candidates?: null | Tmain_candidates
+	main_confidence?: number
+	next_check_at?: IsoDateString
+	owns_coh?: boolean
+	priority?: number
+	profile_id?: number
+	relic_level?: number
+	relic_total_games?: number
+	relic_winrate?: number
+	score_computed_at?: IsoDateString
+	signals?: null | Tsignals
+	smurf_score?: number
+	source: SmurfWatchSourceOptions
+	status: SmurfWatchStatusOptions
+	steam_id: string
+	suspected_main_steam_id?: string
+	updated: IsoAutoDateString
+	vac_banned?: boolean
+	verdict?: SmurfWatchVerdictOptions
+	watching_since?: IsoDateString
+}
+
+export type UserLabelsRecord = {
+	color: string
+	created: IsoAutoDateString
+	id: string
+	name: string
+	sort?: number
+	updated: IsoAutoDateString
+}
+
+export type UserOverlaysRecord = {
+	bundle?: FileNameString
+	id: string
+	updated: IsoAutoDateString
+	user: RecordIdString
+	version?: string
 }
 
 export type UserReputationRecord = {
@@ -452,59 +563,27 @@ export type UserReputationTotalsRecord = {
 	user: RecordIdString
 }
 
-export const SmurfWatchStatusOptions = {
-	"pending_screening": "pending_screening",
-	"watching": "watching",
-	"resolved": "resolved",
-	"not_smurf": "not_smurf",
+export const UsersRoleOptions = {
+	"admin": "admin",
+	"moderator": "moderator",
 } as const
-export type SmurfWatchStatusOptions = typeof SmurfWatchStatusOptions[keyof typeof SmurfWatchStatusOptions]
-export const SmurfWatchSourceOptions = {
-	"profile": "profile",
-	"search": "search",
-	"lobby_live": "lobby_live",
-	"lobby_match": "lobby_match",
-	"backfill": "backfill",
-} as const
-export type SmurfWatchSourceOptions = typeof SmurfWatchSourceOptions[keyof typeof SmurfWatchSourceOptions]
-export const SmurfWatchLenderSourceOptions = {
-	"live": "live",
-	"cohstats": "cohstats",
-} as const
-export type SmurfWatchLenderSourceOptions = typeof SmurfWatchLenderSourceOptions[keyof typeof SmurfWatchLenderSourceOptions]
-export type UserOverlaysRecord = {
-	bundle?: FileNameString
-	id: string
-	updated: IsoAutoDateString
-	user: RecordIdString
-	version?: string
-}
-
-export type PlayerRatingsRecord<Telo = unknown> = {
-	alias: string
+export type UsersRoleOptions = typeof UsersRoleOptions[keyof typeof UsersRoleOptions]
+export type UsersRecord<Tmeta = unknown, TsteamIds = unknown> = {
+	avatar?: FileNameString
 	created: IsoAutoDateString
-	elo?: null | Telo
+	email: string
+	emailVisibility?: boolean
 	id: string
-	profileId: number
-	steamId: string
+	lastLogin?: IsoDateString
+	meta?: null | Tmeta
+	name?: string
+	password: string
+	reputation?: number
+	role?: UsersRoleOptions
+	steamIds?: null | TsteamIds
+	tokenKey: string
 	updated: IsoAutoDateString
-}
-
-export type SmurfWatchRecord = {
-	check_interval_sec?: number
-	created: IsoAutoDateString
-	id: string
-	last_checked_at?: IsoDateString
-	lender_source?: SmurfWatchLenderSourceOptions
-	lender_steam_id?: string
-	next_check_at?: IsoDateString
-	owns_coh?: boolean
-	priority?: number
-	profile_id?: number
-	source: SmurfWatchSourceOptions
-	status: SmurfWatchStatusOptions
-	steam_id: string
-	updated: IsoAutoDateString
+	verified?: boolean
 }
 
 // Response types include system fields and match responses from the PocketBase API
@@ -519,28 +598,32 @@ export type AntiCheatProcessDenylistResponse<Texpand = unknown> = Required<AntiC
 export type AntiCheatProcessHitsResponse<Texpand = unknown> = Required<AntiCheatProcessHitsRecord> & BaseSystemFields<Texpand>
 export type AntiCheatReportsResponse<Texpand = unknown> = Required<AntiCheatReportsRecord> & BaseSystemFields<Texpand>
 export type AttachmentsResponse<Texpand = unknown> = Required<AttachmentsRecord> & BaseSystemFields<Texpand>
-export type LobbiesResponse<Tplayers = unknown, Tresult = unknown, Texpand = unknown> = Required<LobbiesRecord<Tplayers, Tresult>> & BaseSystemFields<Texpand>
+export type HiddenMatchKeywordsResponse<Texpand = unknown> = Required<HiddenMatchKeywordsRecord> & BaseSystemFields<Texpand>
+export type HiddenMatchesResponse<Texpand = unknown> = Required<HiddenMatchesRecord> & BaseSystemFields<Texpand>
+export type JobStateResponse<Texpand = unknown> = Required<JobStateRecord> & BaseSystemFields<Texpand>
+export type LobbiesResponse<TlobbyPlayers = unknown, Tplayers = unknown, Tresult = unknown, Texpand = unknown> = Required<LobbiesRecord<TlobbyPlayers, Tplayers, Tresult>> & BaseSystemFields<Texpand>
 export type LobbiesLiveResponse<Tplayers = unknown, Texpand = unknown> = Required<LobbiesLiveRecord<Tplayers>> & BaseSystemFields<Texpand>
-export type LobbyAggregationResponse<TUSER = unknown, Tmaps = unknown, Tplayers = unknown, Texpand = unknown> = Required<LobbyAggregationRecord<TUSER, Tmaps, Tplayers>> & BaseSystemFields<Texpand>
-export type LobbyAggregationCommunityResponse<Tmaps = unknown, Tplayers = unknown, Tusers = unknown, Texpand = unknown> = Required<LobbyAggregationCommunityRecord<Tmaps, Tplayers, Tusers>> & BaseSystemFields<Texpand>
-export type NotificationReadsResponse<Texpand = unknown> = Required<NotificationReadsRecord> & BaseSystemFields<Texpand>
-export type NotificationsResponse<Texpand = unknown> = Required<NotificationsRecord> & BaseSystemFields<Texpand>
-export type LobbyCommentsResponse<Texpand = unknown> = Required<LobbyCommentsRecord> & BaseSystemFields<Texpand>
 export type LobbyCommentLikesResponse<Texpand = unknown> = Required<LobbyCommentLikesRecord> & BaseSystemFields<Texpand>
+export type LobbyCommentsResponse<Texpand = unknown> = Required<LobbyCommentsRecord> & BaseSystemFields<Texpand>
+export type LobbyDownloadFingerprintsResponse<Texpand = unknown> = Required<LobbyDownloadFingerprintsRecord> & BaseSystemFields<Texpand>
 export type LobbyDownloadsResponse<Texpand = unknown> = Required<LobbyDownloadsRecord> & BaseSystemFields<Texpand>
 export type LobbyLikesResponse<Texpand = unknown> = Required<LobbyLikesRecord> & BaseSystemFields<Texpand>
+export type LobbyPlayerIndexResponse<Texpand = unknown> = Required<LobbyPlayerIndexRecord> & BaseSystemFields<Texpand>
 export type MapsResponse<Texpand = unknown> = Required<MapsRecord> & BaseSystemFields<Texpand>
-export type PlayersResponse<Texpand = unknown> = Required<PlayersRecord> & BaseSystemFields<Texpand>
+export type MatchFilterSnapshotsResponse<Tmaps = unknown, Tplayers = unknown, Texpand = unknown> = Required<MatchFilterSnapshotsRecord<Tmaps, Tplayers>> & BaseSystemFields<Texpand>
+export type NotificationReadsResponse<Texpand = unknown> = Required<NotificationReadsRecord> & BaseSystemFields<Texpand>
+export type NotificationsResponse<Texpand = unknown> = Required<NotificationsRecord> & BaseSystemFields<Texpand>
+export type PlayerLabelAssignmentsResponse<Texpand = unknown> = Required<PlayerLabelAssignmentsRecord> & BaseSystemFields<Texpand>
+export type PlayerLikesResponse<Texpand = unknown> = Required<PlayerLikesRecord> & BaseSystemFields<Texpand>
 export type PlayerRatingsResponse<Telo = unknown, Texpand = unknown> = Required<PlayerRatingsRecord<Telo>> & BaseSystemFields<Texpand>
+export type PlayerVoteScoresResponse<Texpand = unknown> = Required<PlayerVoteScoresRecord> & BaseSystemFields<Texpand>
+export type PlayersResponse<Texpand = unknown> = Required<PlayersRecord> & BaseSystemFields<Texpand>
 export type ReplayAggregationResponse<Tmaps = unknown, Tplayers = unknown, Tuser = unknown, Texpand = unknown> = Required<ReplayAggregationRecord<Tmaps, Tplayers, Tuser>> & BaseSystemFields<Texpand>
 export type ReplaysResponse<Tmessages = unknown, Tplayers = unknown, Texpand = unknown> = Required<ReplaysRecord<Tmessages, Tplayers>> & BaseSystemFields<Texpand>
-export type SmurfWatchResponse<Texpand = unknown> = Required<SmurfWatchRecord> & BaseSystemFields<Texpand>
-export type UserOverlaysResponse<Texpand = unknown> = Required<UserOverlaysRecord> & BaseSystemFields<Texpand>
-export type UserLabelsResponse<Texpand = unknown> = Required<UserLabelsRecord> & BaseSystemFields<Texpand>
-export type PlayerLabelAssignmentsResponse<Texpand = unknown> = Required<PlayerLabelAssignmentsRecord> & BaseSystemFields<Texpand>
-export type HiddenMatchesResponse<Texpand = unknown> = Required<HiddenMatchesRecord> & BaseSystemFields<Texpand>
-export type HiddenMatchKeywordsResponse<Texpand = unknown> = Required<HiddenMatchKeywordsRecord> & BaseSystemFields<Texpand>
 export type ReputationTypesResponse<Texpand = unknown> = Required<ReputationTypesRecord> & BaseSystemFields<Texpand>
+export type SmurfWatchResponse<Tmain_candidates = unknown, Tsignals = unknown, Texpand = unknown> = Required<SmurfWatchRecord<Tmain_candidates, Tsignals>> & BaseSystemFields<Texpand>
+export type UserLabelsResponse<Texpand = unknown> = Required<UserLabelsRecord> & BaseSystemFields<Texpand>
+export type UserOverlaysResponse<Texpand = unknown> = Required<UserOverlaysRecord> & BaseSystemFields<Texpand>
 export type UserReputationResponse<Texpand = unknown> = Required<UserReputationRecord> & BaseSystemFields<Texpand>
 export type UserReputationTotalsResponse<Texpand = unknown> = Required<UserReputationTotalsRecord> & BaseSystemFields<Texpand>
 export type UsersResponse<Tmeta = unknown, TsteamIds = unknown, Texpand = unknown> = Required<UsersRecord<Tmeta, TsteamIds>> & AuthSystemFields<Texpand>
@@ -559,28 +642,32 @@ export type CollectionRecords = {
 	anti_cheat_process_hits: AntiCheatProcessHitsRecord
 	anti_cheat_reports: AntiCheatReportsRecord
 	attachments: AttachmentsRecord
+	hidden_match_keywords: HiddenMatchKeywordsRecord
+	hidden_matches: HiddenMatchesRecord
+	job_state: JobStateRecord
 	lobbies: LobbiesRecord
 	lobbies_live: LobbiesLiveRecord
-	lobby_aggregation: LobbyAggregationRecord
-	lobby_aggregation_community: LobbyAggregationCommunityRecord
-	notification_reads: NotificationReadsRecord
-	notifications: NotificationsRecord
-	lobby_comments: LobbyCommentsRecord
 	lobby_comment_likes: LobbyCommentLikesRecord
+	lobby_comments: LobbyCommentsRecord
+	lobby_download_fingerprints: LobbyDownloadFingerprintsRecord
 	lobby_downloads: LobbyDownloadsRecord
 	lobby_likes: LobbyLikesRecord
+	lobby_player_index: LobbyPlayerIndexRecord
 	maps: MapsRecord
+	match_filter_snapshots: MatchFilterSnapshotsRecord
+	notification_reads: NotificationReadsRecord
+	notifications: NotificationsRecord
+	player_label_assignments: PlayerLabelAssignmentsRecord
+	player_likes: PlayerLikesRecord
 	player_ratings: PlayerRatingsRecord
+	player_vote_scores: PlayerVoteScoresRecord
 	players: PlayersRecord
 	replay_aggregation: ReplayAggregationRecord
 	replays: ReplaysRecord
+	reputation_types: ReputationTypesRecord
 	smurf_watch: SmurfWatchRecord
-	player_label_assignments: PlayerLabelAssignmentsRecord
 	user_labels: UserLabelsRecord
 	user_overlays: UserOverlaysRecord
-	hidden_matches: HiddenMatchesRecord
-	hidden_match_keywords: HiddenMatchKeywordsRecord
-	reputation_types: ReputationTypesRecord
 	user_reputation: UserReputationRecord
 	user_reputation_totals: UserReputationTotalsRecord
 	users: UsersRecord
@@ -598,28 +685,32 @@ export type CollectionResponses = {
 	anti_cheat_process_hits: AntiCheatProcessHitsResponse
 	anti_cheat_reports: AntiCheatReportsResponse
 	attachments: AttachmentsResponse
+	hidden_match_keywords: HiddenMatchKeywordsResponse
+	hidden_matches: HiddenMatchesResponse
+	job_state: JobStateResponse
 	lobbies: LobbiesResponse
 	lobbies_live: LobbiesLiveResponse
-	lobby_aggregation: LobbyAggregationResponse
-	lobby_aggregation_community: LobbyAggregationCommunityResponse
-	notification_reads: NotificationReadsResponse
-	notifications: NotificationsResponse
-	lobby_comments: LobbyCommentsResponse
 	lobby_comment_likes: LobbyCommentLikesResponse
+	lobby_comments: LobbyCommentsResponse
+	lobby_download_fingerprints: LobbyDownloadFingerprintsResponse
 	lobby_downloads: LobbyDownloadsResponse
 	lobby_likes: LobbyLikesResponse
+	lobby_player_index: LobbyPlayerIndexResponse
 	maps: MapsResponse
+	match_filter_snapshots: MatchFilterSnapshotsResponse
+	notification_reads: NotificationReadsResponse
+	notifications: NotificationsResponse
+	player_label_assignments: PlayerLabelAssignmentsResponse
+	player_likes: PlayerLikesResponse
 	player_ratings: PlayerRatingsResponse
+	player_vote_scores: PlayerVoteScoresResponse
 	players: PlayersResponse
 	replay_aggregation: ReplayAggregationResponse
 	replays: ReplaysResponse
+	reputation_types: ReputationTypesResponse
 	smurf_watch: SmurfWatchResponse
-	player_label_assignments: PlayerLabelAssignmentsResponse
 	user_labels: UserLabelsResponse
 	user_overlays: UserOverlaysResponse
-	hidden_matches: HiddenMatchesResponse
-	hidden_match_keywords: HiddenMatchKeywordsResponse
-	reputation_types: ReputationTypesResponse
 	user_reputation: UserReputationResponse
 	user_reputation_totals: UserReputationTotalsResponse
 	users: UsersResponse

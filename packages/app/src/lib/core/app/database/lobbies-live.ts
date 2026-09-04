@@ -109,7 +109,7 @@ export class LobbiesLive {
 		);
 	}
 
-	async setLobby(match: Match) {
+	async setLobby(match: Match, lobbyId?: string | null) {
 		const user = pocketbase.authStore.record?.id;
 
 		if (!pocketbase.authStore.isValid || !user) {
@@ -128,7 +128,7 @@ export class LobbiesLive {
 
 		const occupied = match.players.filter(isOccupiedLobbySlot);
 		const players = match.isReplay ? occupied : await withOverlayEloSources(occupied);
-		const data = {
+		const data: Record<string, unknown> = {
 			user,
 			isRanked: match.isRanked,
 			isReplay: match.isReplay ?? false,
@@ -136,6 +136,9 @@ export class LobbiesLive {
 			map: match.map,
 			players
 		};
+		if (lobbyId) {
+			data.lobby = lobbyId;
+		}
 
 		try {
 			const existing = await pocketbase

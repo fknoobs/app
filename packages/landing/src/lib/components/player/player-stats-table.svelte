@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { PlayerStatsTable } from '@company-of-heroes/ui/player';
 	import type { PlayerPageData } from '$lib/player';
+	import {
+		getFactionFlagByLeaderboardId,
+		getRankImageByLeaderboardId
+	} from '$lib/utils/media/ranks';
 	import { useI18n } from '$lib/i18n';
 
 	type Props = {
@@ -13,6 +17,8 @@
 
 <PlayerStatsTable
 	{player}
+	{getRankImageByLeaderboardId}
+	{getFactionFlagByLeaderboardId}
 	emptyMessage={t('No leaderboard stats yet.')}
 	eloLabel={t('ELO')}
 	levelLabelText={t('Level')}

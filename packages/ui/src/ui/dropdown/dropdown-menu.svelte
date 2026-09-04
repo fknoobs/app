@@ -72,6 +72,7 @@
 			{alignOffset}
 			class={cn(
 				dropdownPanel,
+				'z-50',
 				'w-[229px]',
 				'data-[state=open]:animate-in data-[state=open]:fade-in-0',
 				'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',

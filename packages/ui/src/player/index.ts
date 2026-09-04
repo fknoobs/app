@@ -1,4 +1,5 @@
 import PlayerLabels from './player-labels.svelte';
+import PlayerLikeCount from './player-like-count.svelte';
 import SmurfAlert from './smurf-alert.svelte';
 import PlayerProfileHeader from './player-profile-header.svelte';
 import PlayerStatsTable from './player-stats-table.svelte';
@@ -8,6 +9,7 @@ import PlayerSearchCard from './player-search-card.svelte';
 
 export {
 	PlayerLabels,
+	PlayerLikeCount,
 	SmurfAlert,
 	PlayerProfileHeader,
 	PlayerStatsTable,

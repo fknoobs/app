@@ -41,6 +41,7 @@
 			<Replay.Details
 				{canRename}
 				replayId={query.current.record?.id ?? null}
+				replayRecord={query.current.record}
 				{onRenamed}
 			/>
 			<Replay.Tabs flush />

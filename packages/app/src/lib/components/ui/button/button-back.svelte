@@ -8,11 +8,13 @@
 
 	type Props = {
 		href?: string;
+		useHistory?: boolean;
 		iconOnly?: boolean;
 	} & HTMLButtonAttributes;
 
 	let {
 		href,
+		useHistory = false,
 		iconOnly = false,
 		children,
 		onclick,
@@ -26,11 +28,13 @@
 			onclick(event);
 			return;
 		}
-		if (href) {
-			goto(href);
+
+		if (useHistory) {
+			history.back();
 			return;
 		}
-		history.back();
+
+		void goto(href ?? '/');
 	}
 </script>
 

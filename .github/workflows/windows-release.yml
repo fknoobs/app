@@ -62,16 +62,74 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Authenticode via Azure Artifact Signing. Inert until AZURE_CLIENT_ID is set.
+      # Secrets: AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID
+      # Variables: AZURE_SIGNING_ENDPOINT, AZURE_SIGNING_ACCOUNT
+      # Optional variable: AZURE_SIGNING_PROFILE (defaults to coh1stats)
+      - name: Enable Windows Authenticode signing
+        id: codesign
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZURE_SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+        run: |
+          if (-not $env:AZURE_CLIENT_ID) {
+            Write-Host "Skipping Authenticode signing; AZURE_CLIENT_ID is not set."
+            echo 'enabled=false' >> $env:GITHUB_OUTPUT
+            echo 'args=' >> $env:GITHUB_OUTPUT
+            return
+          }
+          foreach ($name in @('AZURE_CLIENT_SECRET', 'AZURE_TENANT_ID', 'AZURE_SIGNING_ENDPOINT', 'AZURE_SIGNING_ACCOUNT')) {
+            if ([string]::IsNullOrWhiteSpace((Get-Item "env:$name" -ErrorAction SilentlyContinue).Value)) {
+              throw "$name is required when AZURE_CLIENT_ID is set."
+            }
+          }
+          $profile = if ($env:AZURE_SIGNING_PROFILE) { $env:AZURE_SIGNING_PROFILE } else { 'coh1stats' }
+          $sdkBin = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\bin' -Directory |
+            Sort-Object Name -Descending |
+            ForEach-Object { Join-Path $_.FullName 'x64' } |
+            Where-Object { Test-Path (Join-Path $_ 'signtool.exe') } |
+            Select-Object -First 1
+          if (-not $sdkBin) {
+            throw 'signtool.exe not found. Install a Windows 10/11 SDK on the runner.'
+          }
+          $tools = Join-Path $env:RUNNER_TEMP 'artifact-signing'
+          New-Item -ItemType Directory -Force -Path $tools | Out-Null
+          Invoke-WebRequest -Uri 'https://github.com/Levminer/artifact-signing-cli/releases/download/0.11.0/artifact-signing-cli.exe' -OutFile (Join-Path $tools 'artifact-signing-cli.exe')
+          $endpoint = $env:AZURE_SIGNING_ENDPOINT.TrimEnd('/')
+          $signCommand = "artifact-signing-cli -e $endpoint -a $($env:AZURE_SIGNING_ACCOUNT) -c $profile -d `"Company of Heroes - Companion`" %1"
+          $overlay = @{ bundle = @{ windows = @{ signCommand = $signCommand } } } | ConvertTo-Json -Depth 5
+          Set-Content -Path 'packages/app/src-tauri/tauri.codesign.conf.json' -Value $overlay -Encoding utf8
+          echo $sdkBin >> $env:GITHUB_PATH
+          echo $tools >> $env:GITHUB_PATH
+          echo 'enabled=true' >> $env:GITHUB_OUTPUT
+          echo 'args= --config src-tauri/tauri.codesign.conf.json' >> $env:GITHUB_OUTPUT
+          Write-Host "Authenticode signing enabled ($endpoint / $($env:AZURE_SIGNING_ACCOUNT) / $profile)"
+
+      - name: Setup .NET
+        if: steps.codesign.outputs.enabled == 'true'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Build and publish
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         with:
           projectPath: packages/app
           tauriScript: pnpm tauri
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }}${{ steps.codesign.outputs.args }}
           tagName: v__VERSION__
           releaseName: v__VERSION__
           releaseBody: See the changelog in the app or on GitHub.

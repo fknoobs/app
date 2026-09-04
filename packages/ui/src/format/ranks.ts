@@ -105,6 +105,22 @@ export function getRankImageByLeaderboardId(leaderboardId: number, ranklevel?: n
 	return `/ranks/${prefix}_${ranklevel.toString().padStart(2, '0')}.png`;
 }
 
+/** Rank badge for a faction race id (0–3) and Relic rank level. */
+export function getRankImageByRace(raceId: number, ranklevel?: number): string {
+	const race =
+		raceId === Race.US ||
+		raceId === Race.Wehrmacht ||
+		raceId === Race.Commonwealth ||
+		raceId === Race.PanzerElite
+			? raceId
+			: Race.US;
+	const prefix = getRacePrefix(race);
+	if (ranklevel === undefined || ranklevel <= 0 || !Number.isInteger(ranklevel)) {
+		return '/ranks/no_rank_yet.png';
+	}
+	return `/ranks/${prefix}_${ranklevel.toString().padStart(2, '0')}.png`;
+}
+
 export function getFactionFlagByLeaderboardId(leaderboardId: number): string {
 	return RACE_FLAG[getRace(leaderboardId)];
 }

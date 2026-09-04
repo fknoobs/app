@@ -91,22 +91,33 @@ export class Game extends Emittery {
 		this.isIngameChatOpen = false;
 	}
 
+	/**
+	 * Reads the foreground window now and updates `isWindowFocused`.
+	 * Prefer this over the polled flag when deciding to play the match-start sound
+	 * (poll can be up to ~1s stale right after alt-tabbing out).
+	 */
+	async refreshWindowFocus(): Promise<boolean> {
+		try {
+			const title = await invoke<string>('get_active_window_title');
+			const focused = title.includes('Company Of Heroes');
+			this.isWindowFocused = focused;
+
+			if (!focused) {
+				this.isIngameChatOpen = false;
+			}
+
+			return focused;
+		} catch (error) {
+			console.error('[GAME]: Error getting active window title:', error);
+			return this.isWindowFocused;
+		}
+	}
+
 	#trackWindowFocus(): void {
 		this.#stopTrackingWindowFocus();
 
 		this.#focusInterval = setInterval(() => {
-			invoke<string>('get_active_window_title')
-				.then((title) => {
-					const focused = title.includes('Company Of Heroes');
-					this.isWindowFocused = focused;
-
-					if (!focused) {
-						this.isIngameChatOpen = false;
-					}
-				})
-				.catch((error) => {
-					console.error('[GAME]: Error getting active window title:', error);
-				});
+			void this.refreshWindowFocus();
 		}, 1000);
 	}
 

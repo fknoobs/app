@@ -4,6 +4,7 @@ import { HiddenMatchesService } from './hidden-matches.service';
 import { LeaderboardsService } from './leaderboards.service';
 import { LiveLobbiesService } from './live-lobbies.service';
 import { MatchSocialService } from './match-social.service';
+import { PlayerSocialService } from './player-social.service';
 import { PlayersService } from './players.service';
 import { ReplaysService } from './replays.service';
 import { TwitchService } from './twitch.service';
@@ -19,6 +20,7 @@ export type Services = {
 	leaderboards: () => LeaderboardsService;
 	liveLobbies: () => LiveLobbiesService;
 	matchSocial: () => MatchSocialService;
+	playerSocial: () => PlayerSocialService;
 	players: () => PlayersService;
 	replays: () => ReplaysService;
 	twitch: () => TwitchService;
@@ -30,6 +32,7 @@ export function createServices(deps: ServiceDeps): Services {
 	let leaderboards: LeaderboardsService | undefined;
 	let liveLobbies: LiveLobbiesService | undefined;
 	let matchSocial: MatchSocialService | undefined;
+	let playerSocial: PlayerSocialService | undefined;
 	let players: PlayersService | undefined;
 	let replays: ReplaysService | undefined;
 	let twitch: TwitchService | undefined;
@@ -40,6 +43,7 @@ export function createServices(deps: ServiceDeps): Services {
 		leaderboards: () => (leaderboards ??= new LeaderboardsService(deps.fetch)),
 		liveLobbies: () => (liveLobbies ??= new LiveLobbiesService(deps.fetch)),
 		matchSocial: () => (matchSocial ??= new MatchSocialService(deps.pocketbase)),
+		playerSocial: () => (playerSocial ??= new PlayerSocialService(deps.pocketbase)),
 		players: () => (players ??= new PlayersService(deps.fetch)),
 		replays: () => (replays ??= new ReplaysService(deps.fetch, deps.pocketbase)),
 		twitch: () => (twitch ??= new TwitchService(deps.fetch))

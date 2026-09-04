@@ -819,6 +819,102 @@ function transformMatchHistory(data, profileId) {
 	return transformed;
 }
 
+/**
+ * Prefer completed result, then newest createdAt among hasReplay lobbies.
+ */
+function isPreferredReplayLobby(candidate, current) {
+	const candidateDone = !candidate.needsResult;
+	const currentDone = !current.needsResult;
+	if (candidateDone !== currentDone) {
+		return candidateDone;
+	}
+
+	const candidateAt = String(candidate.createdAt || '');
+	const currentAt = String(current.createdAt || '');
+	return candidateAt > currentAt;
+}
+
+/**
+ * Batch-resolve Relic session ids → community lobby ids that have a replay file.
+ * Mutates matches in place with `lobbyId` when found.
+ */
+function attachReplayLobbyIds(matches) {
+	if (!matches || matches.length === 0) {
+		return matches;
+	}
+
+	const sessionIds = [];
+	const seen = {};
+	for (let i = 0; i < matches.length; i++) {
+		const sessionId = Number(matches[i].id);
+		if (!Number.isInteger(sessionId) || sessionId <= 0 || seen[sessionId]) {
+			continue;
+		}
+		seen[sessionId] = true;
+		sessionIds.push(sessionId);
+	}
+
+	if (sessionIds.length === 0) {
+		return matches;
+	}
+
+	const bindings = {};
+	const placeholders = [];
+	for (let i = 0; i < sessionIds.length; i++) {
+		const key = `sid${i}`;
+		bindings[key] = sessionIds[i];
+		placeholders.push(`{:${key}}`);
+	}
+
+	const rows = arrayOf(
+		new DynamicModel({
+			id: '',
+			sessionId: 0,
+			needsResult: 0,
+			createdAt: ''
+		})
+	);
+
+	try {
+		$app
+			.db()
+			.newQuery(
+				`SELECT id,
+          sessionId,
+          COALESCE(needsResult, 1) AS needsResult,
+          CAST(createdAt AS TEXT) AS createdAt
+        FROM lobbies
+        WHERE hasReplay = 1
+          AND sessionId IN (${placeholders.join(', ')})`
+			)
+			.bind(bindings)
+			.all(rows);
+	} catch (error) {
+		return matches;
+	}
+
+	const bySession = {};
+	for (let i = 0; i < rows.length; i++) {
+		const row = rows[i];
+		const sessionId = Number(row.sessionId);
+		if (!Number.isInteger(sessionId) || sessionId <= 0 || !row.id) {
+			continue;
+		}
+		const current = bySession[sessionId];
+		if (!current || isPreferredReplayLobby(row, current)) {
+			bySession[sessionId] = row;
+		}
+	}
+
+	for (let i = 0; i < matches.length; i++) {
+		const sessionId = Number(matches[i].id);
+		const lobby = bySession[sessionId];
+		matches[i].lobbyId = lobby ? String(lobby.id) : null;
+	}
+
+	return matches;
+}
+
 module.exports = {
 	parseLobbyPlayersField,
 	parseResultField,
@@ -843,5 +939,6 @@ module.exports = {
 	loadUserSteamIds,
 	userPlayedLobbyClause,
 	asList,
-	transformMatchHistory
+	transformMatchHistory,
+	attachReplayLobbyIds
 };

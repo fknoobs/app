@@ -41,8 +41,8 @@
 	},
 	"bundle": {
 		"active": true,
-		"publisher": "Code IT",
-		"copyright": "Copyright © Code IT",
+		"publisher": "Code IT Ninja",
+		"copyright": "Copyright © Code IT Ninja",
 		"createUpdaterArtifacts": true,
 		"targets": ["nsis", "msi"],
 		"icon": [

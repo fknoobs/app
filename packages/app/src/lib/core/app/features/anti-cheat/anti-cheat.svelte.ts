@@ -1,6 +1,7 @@
 import type { Match } from '$core/game/lobby';
 import type { AntiCheatProcessDenylistResponse } from '$core/pocketbase/types';
 import { invoke } from '@tauri-apps/api/core';
+import { dirname, join } from '@tauri-apps/api/path';
 import { watch } from 'runed';
 import { dev } from '$app/environment';
 import { app } from '$core/app/context';
@@ -59,9 +60,15 @@ function randomInt(min: number, max: number): number {
 
 /** Elapsed time since `warnings.log` lobby start (`HH:MM:SS` wall clock). */
 function matchElapsedMs(startedAt: string | undefined | null): number {
-	if (!startedAt) return 0;
+	if (!startedAt) {
+		return 0;
+	}
+
 	const parsed = startedAt.trim().match(/^(\d{1,2}):(\d{2}):(\d{2})/);
-	if (!parsed) return 0;
+	if (!parsed) {
+		return 0;
+	}
+
 	const now = new Date();
 	const started = new Date(now);
 	started.setHours(Number(parsed[1]), Number(parsed[2]), Number(parsed[3]), 0);
@@ -69,6 +76,7 @@ function matchElapsedMs(startedAt: string | undefined | null): number {
 	if (elapsed < -5 * 60 * 1000) {
 		elapsed += 24 * 60 * 60 * 1000;
 	}
+
 	return Math.max(0, elapsed);
 }
 
@@ -111,11 +119,17 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 				this.#resetChatAnnounce();
 			}),
 			app.on('lobby.missionStarting', (match) => {
-				if (match?.isReplay) return;
+				if (match?.isReplay) {
+					return;
+				}
+
 				void this.#announceChatNow();
 			}),
 			app.on('lobby.started', (match) => {
-				if (match.isReplay) return;
+				if (match.isReplay) {
+					return;
+				}
+
 				void this.#startSession(match);
 			}),
 			app.on('lobby.gameover', () => {
@@ -144,6 +158,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 					if (!this.#awaitingChatAnnounce || !this.#shouldAnnounceChat()) {
 						return;
 					}
+
 					if (focused) {
 						this.#startInputLockPulse();
 					} else {
@@ -184,7 +199,10 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 		const settings = this.settings as AntiCheatSettings & {
 			chatAnnounceDefaultOff?: boolean;
 		};
-		if (settings.chatAnnounceDefaultOff) return;
+		if (settings.chatAnnounceDefaultOff) {
+			return;
+		}
+
 		this.settings.announceInChat = false;
 		settings.chatAnnounceDefaultOff = true;
 	}
@@ -259,6 +277,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			clearTimeout(this.#chatRetryTimer);
 			this.#chatRetryTimer = null;
 		}
+
 		this.#releaseInputLock();
 	}
 
@@ -332,6 +351,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 				this.#releaseInputLock();
 				return;
 			}
+
 			void invoke('lock_game_input', { durationMs: CHAT_INPUT_LOCK_MS });
 		};
 		pulse();
@@ -358,6 +378,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 			clearTimeout(this.#inputLockFailsafe);
 			this.#inputLockFailsafe = null;
 		}
+
 		void invoke('unlock_game_input');
 	}
 
@@ -396,6 +417,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 		if (app.game.isWindowFocused) {
 			this.#startInputLockPulse();
 		}
+
 		await this.#announceChatWithRetry(Date.now() + CHAT_ANNOUNCE_RETRY_WINDOW_MS);
 	}
 
@@ -424,6 +446,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 				this.#retryChatAnnounce('game is not focused', deadlineMs);
 				return;
 			}
+
 			console.warn('[ANTI-CHEAT]: chat announce failed:', error);
 			this.#awaitingChatAnnounce = false;
 			this.#releaseInputLock();
@@ -444,6 +467,7 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 		if (this.#chatRetryTimer) {
 			clearTimeout(this.#chatRetryTimer);
 		}
+
 		this.#chatRetryTimer = setTimeout(() => {
 			this.#chatRetryTimer = null;
 			void this.#announceChatWithRetry(deadlineMs);
@@ -464,7 +488,14 @@ export class AntiCheat extends Feature<AntiCheatSettings> {
 
 		await shortcuts.suspendBindings();
 		try {
-			const capture = await invoke<GameWindowCapture>('capture_game_window');
+			const warningsLog = app.settings.companyOfHeroesConfigPath;
+			const screenshotsDir = warningsLog
+				? await join(await dirname(warningsLog), 'screenshots')
+				: undefined;
+			const capture = await invoke<GameWindowCapture>('capture_game_window', {
+				screenshotsDir,
+				keepScreenshot: dev
+			});
 			if (!this.#isLiveMatch()) {
 				this.#stopSession();
 				return;

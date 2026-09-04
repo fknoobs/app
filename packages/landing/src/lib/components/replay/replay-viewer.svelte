@@ -15,11 +15,16 @@
 		doctrineBannerUrl,
 		flagImageUrl,
 		getCountryDisplayName,
+		getRankImageByRace,
 		playerCpm,
 		raceFromReplayFaction,
 		resolveFactionFlag,
 		resolvePlayerHref
 	} from '$lib/utils/resolvers';
+	import {
+		liveLobbyPlayerHref,
+		liveLobbyPlayerLabel
+	} from '$lib/utils/live-lobby';
 	import { onMount } from 'svelte';
 	import { useI18n } from '$lib/i18n';
 
@@ -35,6 +40,8 @@
 	let loading = $state(true);
 	let errorMessage = $state('');
 
+	const hasReplay = $derived(match.hasReplay ?? Boolean(match.replay));
+	const livePlayers = $derived(match.livePlayers ?? []);
 	const replayData = $derived(replay as unknown as ReplayData | null);
 
 	function doctrineBannerForPlayer(player: ReplayPlayer) {
@@ -50,6 +57,11 @@
 	}
 
 	onMount(() => {
+		if (!hasReplay) {
+			loading = false;
+			return;
+		}
+
 		let cancelled = false;
 		async function load() {
 			try {
@@ -84,7 +96,33 @@
 
 <ReplayDetailHeader {match} {replay} />
 
-{#if loading}
+{#if !hasReplay}
+	<Tabs bind:value={tab} overviewLabel={t('Overview')} showChat={false} showTimeline={false}>
+		{#snippet overview()}
+			<Overview
+				{match}
+				{livePlayers}
+				playerHref={resolvePlayerHref}
+				{flagImageUrl}
+				{getCountryDisplayName}
+				resolveFactionFlag={resolveFactionFlag}
+				{raceFromReplayFaction}
+				doctrineBannerUrl={doctrineBannerForPlayer}
+				playerCpm={playerCpmForReplay}
+				getRankImage={getRankImageByRace}
+				levelLabel={t('Lv')}
+				alliesLabel={t('Allies')}
+				axisLabel={t('Axis')}
+				unknownDoctrineLabel={t('Unknown doctrine')}
+				ratingLabel={t('Rating')}
+				cpmLabel={t('CPM')}
+				livePlayerHref={liveLobbyPlayerHref}
+				livePlayerLabel={(player) => liveLobbyPlayerLabel(player, t)}
+			/>
+			<ReplayComments lobbyId={match.id} />
+		{/snippet}
+	</Tabs>
+{:else if loading}
 	<TabsSkeleton
 		flush
 		showTitle={false}
@@ -111,6 +149,7 @@
 			<Overview
 				{match}
 				replay={replayData}
+				{livePlayers}
 				playerHref={resolvePlayerHref}
 				{flagImageUrl}
 				{getCountryDisplayName}
@@ -118,6 +157,14 @@
 				{raceFromReplayFaction}
 				doctrineBannerUrl={doctrineBannerForPlayer}
 				playerCpm={playerCpmForReplay}
+				getRankImage={getRankImageByRace}
+				levelLabel={t('Lv')}
+				alliesLabel={t('Allies')}
+				axisLabel={t('Axis')}
+				unknownDoctrineLabel={t('Unknown doctrine')}
+				ratingLabel={t('Rating')}
+				cpmLabel={t('CPM')}
+				livePlayerHref={liveLobbyPlayerHref}
 			/>
 			<ReplayComments lobbyId={match.id} />
 		{/snippet}

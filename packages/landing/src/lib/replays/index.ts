@@ -35,6 +35,7 @@ export type CommunityPlayer = {
 	playerId: number | null;
 	steamId: string | null;
 	race: number | null;
+	likeCount?: number;
 	profile: {
 		profile_id: number;
 		alias: string;
@@ -103,11 +104,19 @@ export type CommunityMatchDetail = {
 	likeCount: number;
 	downloadCount: number;
 	replay: string;
+	hasReplay?: boolean;
+	needsResult?: boolean;
 	sessionId?: number;
 	hidden?: boolean;
 	hiddenByKeyword?: boolean;
 	submittedBy?: CommunityMatchSubmittedBy | null;
+	/** Staff-only: lobby updatedAt from PocketBase. */
+	updatedAt?: string;
+	/** Staff-only: uploader display name / email / id. */
+	owner?: string | null;
 	players: CommunityPlayer[];
+	/** Slim players with leaderboard stats (rank/level/ELO) for Overview. */
+	livePlayers?: import('@company-of-heroes/ui/live-lobby').LiveLobbyPlayer[] | null;
 	result: MatchResult;
 };
 

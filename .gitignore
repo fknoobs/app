@@ -29,5 +29,6 @@ packages/pocketbase/pb_public
 
 # Tauri build artifacts
 packages/app/src-tauri/target/
+packages/app/src-tauri/tauri.codesign.conf.json
 
 script.js

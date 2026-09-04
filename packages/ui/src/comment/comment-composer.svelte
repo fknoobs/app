@@ -352,7 +352,7 @@
 </script>
 
 <form
-	class={cn('border-secondary-800 bg-secondary-800/30 flex flex-col border-t', className)}
+	class={cn('border-secondary-800 bg-secondary-800/30 flex flex-col border-y', className)}
 	onsubmit={(event) => {
 		event.preventDefault();
 		onpost();
@@ -442,12 +442,12 @@
 			class={cn('min-h-14 resize-none text-sm', name && 'mt-1 min-h-18')}
 		/>
 	</div>
-	<div class="border-secondary-800 flex items-stretch border-t">
+	<div class="border-secondary-800 flex items-center gap-2 border-t px-2 py-1.5">
 		<div
 			role="toolbar"
 			aria-label={formattingLabel}
 			tabindex="-1"
-			class="flex min-w-0 flex-1 flex-wrap items-center px-2 py-1"
+			class="flex min-w-0 flex-1 flex-wrap items-center"
 			onmousedown={(event) => event.preventDefault()}
 		>
 			<Button
@@ -546,7 +546,7 @@
 				type="button"
 				variant="ghost"
 				size="icon-sm"
-				class="text-secondary-400 hover:text-white hover:bg-primary/10 border-secondary-800 h-auto w-10 shrink-0 self-stretch rounded-none border-y-0 border-r-0 border-l"
+				class="text-secondary-400 hover:text-white shrink-0"
 				aria-label={cancelLabel}
 				onclick={oncancel}
 			>
@@ -555,9 +555,8 @@
 		{/if}
 		<Button
 			type="submit"
-			variant="ghost"
-			size="icon-sm"
-			class="text-primary hover:bg-primary/10 border-secondary-800 h-auto w-10 shrink-0 self-stretch rounded-none border-y-0 border-r-0 border-l"
+			size="sm"
+			class="shrink-0 px-2.5"
 			disabled={!canPost}
 			loading={posting}
 			aria-label={submitLabel}

@@ -1,20 +1,25 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { cn } from '@company-of-heroes/ui/cn';
 	import { interactive, statLosses, statWins, tableHeadRow } from '@company-of-heroes/ui/variants';
+	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
+	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
+	import ChecksIcon from 'phosphor-svelte/lib/ChecksIcon';
 	import ClockIcon from 'phosphor-svelte/lib/ClockIcon';
+	import MinusIcon from 'phosphor-svelte/lib/MinusIcon';
 	import MapImage from '../ui/map-image.svelte';
 	import {
 		formatDuration,
 		formatMatchStamp,
 		getEloColor,
 		getEloTextShadow,
-		getModeLabel,
 		isEliteElo,
 		normalizeMapName
 	} from '../format/player-format';
 	import { formatStreak, streakClass } from '../format/ranks';
-	import type { MatchHistoryPlayer, PlayerPageData } from './types';
+	import type { MatchHistoryPlayer, PlayerPageData, TransformedMatch } from './types';
 	import PlayerLabels from './player-labels.svelte';
+	import PlayerLikeCount from './player-like-count.svelte';
 
 	type Props = {
 		player: PlayerPageData;
@@ -22,7 +27,9 @@
 		playerHref: (steamId: string) => string;
 		resolveFactionFlag: (raceId: number) => string;
 		resolveMapSrc: (map: string | undefined) => string | undefined;
+		resolveAvatarUrl?: (url: string) => string;
 		formatMapName?: (map: string, includePlayerCount?: boolean) => string;
+		formatTimestamp?: (unixSeconds: number) => string;
 		locale?: string;
 		emptyMessage?: string;
 		changeLabel?: string;
@@ -32,6 +39,12 @@
 		winsLabel?: string;
 		lossesLabel?: string;
 		streakLabel?: string;
+		showAvatars?: boolean;
+		showSessionId?: boolean;
+		detailsHref?: (match: TransformedMatch) => string | null;
+		detailsLabel?: string;
+		formatSessionId?: (id: number) => string;
+		matchActions?: Snippet<[{ match: TransformedMatch }]>;
 	};
 
 	let {
@@ -40,7 +53,9 @@
 		playerHref,
 		resolveFactionFlag,
 		resolveMapSrc,
+		resolveAvatarUrl = (url) => url,
 		formatMapName = normalizeMapName,
+		formatTimestamp,
 		locale,
 		emptyMessage = 'No recent Relic matches found.',
 		changeLabel = 'Change',
@@ -49,29 +64,36 @@
 		playerLabel = 'Player',
 		winsLabel = 'Wins',
 		lossesLabel = 'Losses',
-		streakLabel = 'Streak'
+		streakLabel = 'Streak',
+		showAvatars = false,
+		showSessionId = false,
+		detailsHref,
+		detailsLabel = 'View details',
+		formatSessionId = (id) => `ID: ${id}`,
+		matchActions
 	}: Props = $props();
+
+	const stamp = $derived(
+		formatTimestamp ?? ((unix: number) => formatMatchStamp(unix, locale))
+	);
 
 	const matches = $derived(
 		[...player.matchHistory].sort((a, b) => b.completiontime - a.completiontime)
 	);
 
-	function ratingChange(matchPlayer: MatchHistoryPlayer): string {
-		const delta = (matchPlayer.newrating ?? 0) - (matchPlayer.oldrating ?? 0);
-		if (delta > 0) return `+${delta}`;
-		return String(delta);
-	}
-
-	function changeClass(matchPlayer: MatchHistoryPlayer): string {
-		const delta = (matchPlayer.newrating ?? 0) - (matchPlayer.oldrating ?? 0);
-		if (delta > 0) return 'text-green-400';
-		if (delta < 0) return 'text-red-400';
-		return 'text-secondary-500';
+	function ratingDelta(matchPlayer: MatchHistoryPlayer): number {
+		return (matchPlayer.newrating ?? 0) - (matchPlayer.oldrating ?? 0);
 	}
 
 	function displayElo(matchPlayer: MatchHistoryPlayer): number | null {
-		if (matchPlayer.newrating >= 1) return matchPlayer.newrating;
-		if (matchPlayer.oldrating >= 1) return matchPlayer.oldrating;
+		if (matchPlayer.newrating >= 1) {
+			return matchPlayer.newrating;
+		}
+
+		if (matchPlayer.oldrating >= 1) {
+			return matchPlayer.oldrating;
+		}
+
 		return null;
 	}
 </script>
@@ -82,52 +104,117 @@
 	<div>
 		{#each matches as match (match.id)}
 			{@const players = [...match.players].sort((a, b) => a.teamid - b.teamid)}
+			{@const href = detailsHref?.(match)}
 			<section class="border-secondary-800 border-b">
 				<div class="border-secondary-800 flex items-center gap-4 border-b px-4 py-2">
-					<MapImage map={match.mapname} alt={formatMapName(match.mapname)} {resolveMapSrc} />
+					<MapImage
+						small
+						map={match.mapname}
+						alt={formatMapName(match.mapname)}
+						{resolveMapSrc}
+					/>
 					<div class="min-w-0 grow">
-						<h3 class="font-heading truncate text-lg font-bold text-white">
+						<h3 class="font-heading truncate text-lg font-bold">
 							{formatMapName(match.mapname)}
 						</h3>
 						<p class="text-secondary-400 text-sm">
-							{formatMatchStamp(match.startgametime, locale)}
-							<span class="text-secondary-500"> · {getModeLabel(match.matchtype_id)}</span>
+							{stamp(match.startgametime)}
+							{#if showSessionId}
+								<span class="text-secondary-500 text-xs tabular-nums">
+									 · {formatSessionId(match.id)}
+								</span>
+							{/if}
 						</p>
 					</div>
-					<span class="text-secondary-300 flex shrink-0 items-center gap-2 text-sm font-medium">
-						<ClockIcon class="size-4" />
-						{formatDuration(match.startgametime, match.completiontime)}
-					</span>
+					<div class="flex shrink-0 items-center gap-4">
+						{@render matchActions?.({ match })}
+						{#if href}
+							<a
+								{href}
+								class={cn(
+									interactive,
+									'text-primary inline-flex items-center gap-1.5 text-sm whitespace-nowrap hover:underline'
+								)}
+							>
+								<ChecksIcon class="size-4 text-green-400" />
+								{detailsLabel}
+							</a>
+						{/if}
+						<span class="text-secondary-300 flex items-center gap-2 text-sm font-medium">
+							<ClockIcon class="size-4" />
+							{formatDuration(match.startgametime, match.completiontime)}
+						</span>
+					</div>
 				</div>
 				<div class="overflow-x-auto">
-					<table class="w-full table-fixed border-collapse text-sm">
+					<table class="w-full table-fixed text-sm">
+						<colgroup>
+							<col class="w-3/24" />
+							<col class="w-2/24" />
+							<col class="w-2/24" />
+							<col class="w-9/24" />
+							<col class="w-2/24" />
+							<col class="w-3/24" />
+							<col class="w-3/24" />
+						</colgroup>
 						<thead>
-							<tr class="{tableHeadRow} text-center">
-								<th class="w-[12%] px-4 py-2">{changeLabel}</th>
-								<th class="w-[8%] px-4 py-2">{teamLabel}</th>
-								<th class="w-[10%] px-4 py-2">{eloLabel}</th>
-								<th class="w-[38%] px-4 py-2 text-left">{playerLabel}</th>
-								<th class="w-[10%] px-4 py-2">{winsLabel}</th>
-								<th class="w-[12%] px-4 py-2">{lossesLabel}</th>
-								<th class="w-[10%] px-4 py-2">{streakLabel}</th>
+							<tr class={tableHeadRow}>
+								<th class="px-4 py-2">
+									<div class="flex w-full justify-center">{changeLabel}</div>
+								</th>
+								<th class="px-4 py-2">
+									<div class="flex w-full justify-center">{teamLabel}</div>
+								</th>
+								<th class="px-4 py-2">
+									<div class="flex w-full justify-center">{eloLabel}</div>
+								</th>
+								<th class="px-4 py-2 text-left">{playerLabel}</th>
+								<th class="px-4 py-2">
+									<div class="flex w-full justify-center">{winsLabel}</div>
+								</th>
+								<th class="px-4 py-2">
+									<div class="flex w-full justify-center">{lossesLabel}</div>
+								</th>
+								<th class="px-4 py-2">
+									<div class="flex w-full justify-center">{streakLabel}</div>
+								</th>
 							</tr>
 						</thead>
 						<tbody>
 							{#each players as matchPlayer (matchPlayer.profile_id)}
 								{@const isSelf = matchPlayer.profile_id === player.profileId}
 								{@const elo = displayElo(matchPlayer)}
+								{@const delta = ratingDelta(matchPlayer)}
+								{@const flagUrl = flagImageUrl(matchPlayer.country ?? null)}
 								<tr
-									class={cn('h-9', matchPlayer.outcome === 1 ? 'bg-success/5' : 'bg-destructive/5')}
+									class={cn(
+										'border-secondary-800 h-9 border-b',
+										matchPlayer.outcome === 1 ? 'bg-success/5' : 'bg-destructive/5'
+									)}
 								>
-									<td
-										class="px-4 py-1.5 text-center font-medium tabular-nums {changeClass(
-											matchPlayer
-										)}"
-									>
-										{ratingChange(matchPlayer)}
+									<td class="px-4 py-1.5">
+										<div class="flex w-full justify-center">
+											<span class="inline-flex items-center gap-0.5 text-sm tabular-nums">
+												{#if delta < 0}
+													<CaretDownIcon
+														class="text-destructive size-3.5 shrink-0"
+														weight="duotone"
+													/>
+													<span class="text-red-200">{Math.abs(delta)}</span>
+												{:else if delta > 0}
+													<CaretUpIcon
+														class="text-success size-3.5 shrink-0"
+														weight="duotone"
+													/>
+													<span class="text-green-200">{delta}</span>
+												{:else}
+													<MinusIcon class="text-secondary-500 size-3.5 shrink-0" />
+												{/if}
+											</span>
+										</div>
 									</td>
 									<td class="px-4 py-1.5">
-										<div class="flex justify-center">
+										<div class="flex w-full justify-center">
 											<img
 												src={resolveFactionFlag(matchPlayer.race_id)}
 												alt=""
@@ -135,33 +222,59 @@
 											/>
 										</div>
 									</td>
-									<td
-										class={cn(
-											'px-4 py-1.5 text-center tabular-nums',
-											elo == null && 'text-secondary-500 text-xs font-normal',
-											isEliteElo(elo) && 'font-bold tracking-wide'
-										)}
-										style:color={elo != null ? getEloColor(elo) : undefined}
-										style:text-shadow={getEloTextShadow(elo)}
-									>
-										{elo ?? 'N/A'}
+									<td class="px-4 py-1.5">
+										<div class="flex w-full justify-center">
+											{#if elo == null}
+												<span class="text-secondary-500 text-xs font-normal">N/A</span>
+											{:else}
+												<span
+													class={cn(
+														'tabular-nums',
+														isEliteElo(elo) ? 'font-bold tracking-wide' : 'font-medium'
+													)}
+													style:color={getEloColor(elo)}
+													style:text-shadow={getEloTextShadow(elo)}
+												>
+													{elo}
+												</span>
+											{/if}
+										</div>
 									</td>
 									<td class="px-4 py-1.5">
 										<div class="flex min-w-0 items-center gap-2">
-											{#if flagImageUrl(matchPlayer.country ?? null)}
-												<img
-													src={flagImageUrl(matchPlayer.country ?? null)!}
-													alt=""
-													class="h-3.5 w-auto shrink-0"
-												/>
+											{#if showAvatars}
+												<span
+													class="border-secondary-800 size-8 shrink-0 overflow-hidden rounded-lg border"
+												>
+													{#if matchPlayer.avatarUrl}
+														<img
+															src={resolveAvatarUrl(matchPlayer.avatarUrl)}
+															alt=""
+															class="size-full object-cover"
+														/>
+													{:else}
+														<span
+															class="flex size-full items-center justify-center bg-gray-600"
+														>
+															<span class="text-xl text-white">?</span>
+														</span>
+													{/if}
+												</span>
 											{/if}
+											{#if flagUrl}
+												<span
+													class="ring-secondary-800 h-5 w-5 shrink-0 rounded-full bg-size-[48px] bg-center bg-no-repeat ring-4"
+													style="background-image: url('{flagUrl}')"
+												></span>
+											{/if}
+											<PlayerLikeCount likeCount={matchPlayer.likeCount} class="shrink-0" />
 											{#if matchPlayer.steamId}
 												<a
 													href={playerHref(matchPlayer.steamId)}
 													class={cn(
 														interactive,
-														'min-w-0 truncate',
-														isSelf ? 'text-primary font-semibold' : 'hover:text-primary text-white'
+														'hover:text-primary min-w-0 flex-1 truncate transition-colors',
+														isSelf && 'text-primary font-semibold'
 													)}
 												>
 													{matchPlayer.alias}
@@ -169,8 +282,8 @@
 											{:else}
 												<span
 													class={cn(
-														'min-w-0 truncate',
-														isSelf ? 'text-primary font-semibold' : 'text-white'
+														'min-w-0 flex-1 truncate',
+														isSelf && 'text-primary font-semibold'
 													)}
 												>
 													{matchPlayer.alias}
@@ -179,18 +292,30 @@
 											<PlayerLabels labels={matchPlayer.labels} class="shrink-0" />
 										</div>
 									</td>
-									<td class="{statWins} px-4 py-1.5 text-center font-medium">
-										{matchPlayer.wins}
+									<td class="px-4 py-1.5">
+										<div class="flex w-full justify-center">
+											<span class="{statWins} text-center font-medium tabular-nums">
+												{matchPlayer.wins}
+											</span>
+										</div>
 									</td>
-									<td class="{statLosses} px-4 py-1.5 text-center font-medium">
-										{matchPlayer.losses}
+									<td class="px-4 py-1.5">
+										<div class="flex w-full justify-center">
+											<span class="{statLosses} text-center font-medium tabular-nums">
+												{matchPlayer.losses}
+											</span>
+										</div>
 									</td>
-									<td
-										class="px-4 py-1.5 text-center font-medium tabular-nums {streakClass(
-											matchPlayer.streak
-										)}"
-									>
-										{formatStreak(matchPlayer.streak)}
+									<td class="px-4 py-1.5">
+										<div class="flex w-full justify-center">
+											<span
+												class="text-center font-medium tabular-nums {streakClass(
+													matchPlayer.streak
+												)}"
+											>
+												{formatStreak(matchPlayer.streak)}
+											</span>
+										</div>
 									</td>
 								</tr>
 							{/each}

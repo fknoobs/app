@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Effective date:** September 2, 2026
+**Effective date:** September 4, 2026
 
 This Privacy Policy explains how **Code IT** (“we”, “us”) collects, uses, shares, and protects information when you use **Company of Heroes Companion** (also called the FKNOOBS App), the website at [https://coh1stats.com](https://coh1stats.com), and the API at [https://api.coh1stats.com](https://api.coh1stats.com) (together, the “Service”).
 
@@ -31,7 +31,7 @@ When you use the desktop app we create or restore an account so your match histo
 - a password hash;
 - last login time and the app version;
 - staff role, if we grant you one;
-- a reputation score derived from comments, votes, replay downloads, and matches you play. We store that score per action type so we can moderate accounts and grant rewards later. These scores are not shown on public player pages.
+- a reputation score derived from comments, votes, replay downloads, player profile votes, and matches you play. We store that score per action type so we can moderate accounts and grant rewards later. These scores are not shown on public player pages.
 
 Website login keeps you signed in with a PocketBase session cookie in your browser.
 
@@ -43,7 +43,8 @@ To provide match history, scouting, leaderboards, and player pages we store:
 - player identities seen in those matches (Steam ID, Relic profile ID, in-game alias, country when Relic provides it);
 - community ELO and performance stats we derive from matches;
 - replay files you upload, including metadata and in-game chat captured in the replay;
-- comments, likes, up/down votes on comments and replays, and similar social actions on matches, including @mentions of other app users by display name;
+- comments, likes, up/down votes on comments, replays, and player profiles, and similar social actions on matches, including @mentions of other app users by display name;
+- a public net vote score on player profiles (upvotes minus downvotes); voting on a player requires an account;
 - overlay and notification data needed to run those features.
 
 Game logs such as `warnings.log` are read **on your device** so the app can detect matches. We store the match data that results, not the full log file, unless you explicitly upload a file.
@@ -52,7 +53,7 @@ Game logs such as `warnings.log` are read **on your device** so the app can dete
 
 The website and API publish ranked stats, match history, performance breakdowns, community replays, live matches that companion users are in, a public catalog of Company of Heroes Twitch streams, and (where available) Steam profile details such as avatar, alias, online/last-seen status, and playtime. That information comes from Relic and Steam public multiplayer/profile APIs, from matches recorded by the community, from the desktop companion while a user is in a game, and from Twitch’s public stream API.
 
-The homepage lists those live companion lobbies (map, players, and host display name) and current CoH streams. On the website we also show community matches that include a replay file: map and player metadata, in-game chat parsed from the replay, action timelines, and a download of the `.rec` file. Public downloads of those files are counted and shown on replay pages. Those pages also show community comments and up/down votes; posting a comment, voting on a comment, or voting on a replay requires an account. If you delete a comment we keep it for moderation: other users no longer see the text (they may see “Comment has been deleted” when replies remain). Staff can still see the original comment, a staff-only deleted badge, and, when a moderator removed it, the reason they entered. To keep those counts honest we store a one-way hash of the download request (network address and an anonymous browser token in local storage) and ignore repeat clicks from the same visitor. We do not use that hash to identify you. We also limit how often a network address can fetch replay files so the Service stays available. We do not publish personal playback-folder libraries. Hidden matches stay off those public listings.
+The homepage lists those live companion lobbies (map, players, and host display name) and current CoH streams. On the website we also show community matches that include a replay file: map and player metadata, in-game chat parsed from the replay, action timelines, and a download of the `.rec` file. Public downloads of those files are counted and shown on replay pages. Those pages also show community comments and up/down votes; posting a comment, voting on a comment, or voting on a replay requires an account. Player profile pages also show a net community vote score; voting on a player requires an account. If you delete a comment we keep it for moderation: other users no longer see the text (they may see “Comment has been deleted” when replies remain). Staff can still see the original comment, a staff-only deleted badge, and, when a moderator removed it, the reason they entered. To keep those counts honest we store a one-way hash of the download request (network address and an anonymous browser token in local storage) and ignore repeat clicks from the same visitor. We do not use that hash to identify you. We also limit how often a network address can fetch replay files so the Service stays available. We do not publish personal playback-folder libraries. Hidden matches stay off those public listings.
 
 Staff can hide match results from those public listings (for example during a tournament), either one match at a time or by a word list that matches Relic lobby names. Hidden matches stay visible to staff in the desktop app and on the website so they can restore them or change the word list. Relic’s own APIs are unchanged and may still show the same match.
 
@@ -64,7 +65,7 @@ Staff can attach public badges (for example Premium or Streamer) to Relic/Steam 
 
 Fair play checks are **on by default** and can be turned off in Settings. While they are enabled, during a match the app may:
 
-- capture the Company of Heroes game window **only while the game is in the foreground**, then upload that image for review and analysis (these can include other players’ in-game names and units). We do not capture the Windows desktop, the clipboard, the taskbar, or other applications;
+- ask Company of Heroes to save its own screenshot (the same Print Screen file it writes under My Games) **only while the game is in the foreground**, then upload that image for review and analysis. If the game does not write a file, we capture the Company of Heroes window instead. These images can include other players’ in-game names and units. We do not capture the Windows desktop, the clipboard, the taskbar, or other applications;
 - check running process names against a denylist and report a match (process name and process id);
 - open all-chat in Company of Heroes and type a short local message (visible to other players in that match) saying the player is supervised by coh1stats.com and is not using cheats, **only if you turn on** the all-chat announce setting (off by default). We do not upload that message; it can still appear in replays other people save;
 - store reports and a staff-maintained list of flagged Steam IDs.

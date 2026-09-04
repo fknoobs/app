@@ -10,6 +10,7 @@
 	import { Skeleton } from '@company-of-heroes/ui/skeleton';
 	import CrownIcon from 'phosphor-svelte/lib/CrownIcon';
 	import PlayerLabels from '../player/player-labels.svelte';
+	import PlayerLikeCount from '../player/player-like-count.svelte';
 	import type { LeaderboardStatRow, PlayerEloMap } from '../format/types';
 	import {
 		getEloColor,
@@ -136,6 +137,7 @@
 							title={countryName ?? undefined}
 						/>
 					{/if}
+					<PlayerLikeCount likeCount={stat.profile.likeCount} class="shrink-0" />
 					<span class="truncate">{stat.profile.alias}</span>
 					<PlayerLabels labels={stat.profile.labels} class="shrink-0" />
 				</div>

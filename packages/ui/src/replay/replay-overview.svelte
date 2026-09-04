@@ -1,6 +1,13 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import { cn } from '@company-of-heroes/ui/cn';
-	import { formatStreak, interactive, statLosses, statWins } from '@company-of-heroes/ui/variants';
+	import {
+		formatStreak,
+		interactive,
+		mePlayerText,
+		statLosses,
+		statWins
+	} from '@company-of-heroes/ui/variants';
 	import { getEloColor, getEloTextShadow, isEliteElo } from '../format/player-format';
 	import type {
 		CommunityMatchDetail,
@@ -10,13 +17,27 @@
 		ReplayPlayer
 	} from './types';
 	import { findResultPlayer } from './utils';
+	import {
+		defaultLiveLobbyPlayerLabel,
+		teamPlayers,
+		type LiveLobbyPlayer,
+		type LiveLobbyPlayerStats
+	} from '../live-lobby/types';
 	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
 	import MinusIcon from 'phosphor-svelte/lib/MinusIcon';
+	import PlayerLikeCount from '../player/player-like-count.svelte';
+
+	type NameExtraArgs = {
+		name: string;
+		steamId: string | null;
+		profileId: number | null;
+	};
 
 	type Props = {
 		match: CommunityMatchDetail;
-		replay: ReplayData;
+		replay?: ReplayData | null;
+		livePlayers?: LiveLobbyPlayer[];
 		playerHref: (player: CommunityPlayer) => string | null;
 		flagImageUrl: (country: string | null | undefined) => string | null;
 		getCountryDisplayName: (country: string | null | undefined) => string | null;
@@ -25,11 +46,23 @@
 		doctrineBannerUrl: (player: ReplayPlayer) => string | null;
 		playerCpm: (replay: ReplayData, playerId: number | null) => string | number;
 		formatStreakLabel?: (streak: number) => string;
+		livePlayerHref?: (player: LiveLobbyPlayer) => string | null;
+		livePlayerLabel?: (player: LiveLobbyPlayer) => string;
+		getRankImage?: (race: number, rankLevel: number) => string;
+		levelLabel?: string;
+		alliesLabel?: string;
+		axisLabel?: string;
+		unknownDoctrineLabel?: string;
+		ratingLabel?: string;
+		cpmLabel?: string;
+		isHighlightedName?: (name: string) => boolean;
+		nameExtra?: Snippet<[NameExtraArgs]>;
 	};
 
 	let {
 		match,
-		replay,
+		replay = null,
+		livePlayers = [],
 		playerHref,
 		flagImageUrl,
 		getCountryDisplayName,
@@ -37,12 +70,28 @@
 		raceFromReplayFaction,
 		doctrineBannerUrl,
 		playerCpm,
-		formatStreakLabel = formatStreak
+		formatStreakLabel = formatStreak,
+		livePlayerHref,
+		livePlayerLabel = defaultLiveLobbyPlayerLabel,
+		getRankImage,
+		levelLabel = 'Lv',
+		alliesLabel = 'Allies',
+		axisLabel = 'Axis',
+		unknownDoctrineLabel = 'Unknown doctrine',
+		ratingLabel = 'Rating',
+		cpmLabel = 'CPM',
+		isHighlightedName,
+		nameExtra
 	}: Props = $props();
 
 	const teams = $derived.by(() => ({
-		allies: replay.players.filter((player) => player.faction.startsWith('allies')),
-		axis: replay.players.filter((player) => player.faction.startsWith('axis'))
+		allies: replay?.players.filter((player) => player.faction.startsWith('allies')) ?? [],
+		axis: replay?.players.filter((player) => player.faction.startsWith('axis')) ?? []
+	}));
+
+	const liveTeams = $derived.by(() => ({
+		allies: teamPlayers(livePlayers, 'allies'),
+		axis: teamPlayers(livePlayers, 'axis')
 	}));
 
 	function lobbyPlayer(replayPlayer: ReplayPlayer): CommunityPlayer | undefined {
@@ -60,6 +109,22 @@
 		return lobby ? findResultPlayer(match, lobby) : undefined;
 	}
 
+	function livePlayerForReplay(replayPlayer: ReplayPlayer): LiveLobbyPlayer | undefined {
+		const lobby = lobbyPlayer(replayPlayer);
+		const profileId = lobby?.profile.profile_id;
+		if (profileId != null && profileId > 0) {
+			const byId = livePlayers.find((player) => player.profileId === profileId);
+			if (byId) return byId;
+		}
+
+		const key = replayPlayer.name.trim().toLowerCase();
+		return livePlayers.find((player) => player.alias.trim().toLowerCase() === key);
+	}
+
+	function liveStatsForReplay(replayPlayer: ReplayPlayer): LiveLobbyPlayerStats | undefined {
+		return livePlayerForReplay(replayPlayer)?.stats ?? undefined;
+	}
+
 	function ratingDelta(result: MatchResultPlayer): number | undefined {
 		const next = result.newrating;
 		const prev = result.oldrating;
@@ -72,19 +137,76 @@
 		if ((result.oldrating ?? 0) >= 1) return result.oldrating ?? null;
 		return null;
 	}
+
+	function likeCountForSteamId(steamId: string | null | undefined): number | null {
+		if (!steamId) {
+			return null;
+		}
+
+		const fromMatch = match.players.find((player) => player.steamId === steamId)?.likeCount;
+		if (fromMatch != null) {
+			return fromMatch;
+		}
+
+		return livePlayers.find((player) => player.steamId === steamId)?.likeCount ?? null;
+	}
+
+	function nameTextClass(name: string): string {
+		return cn(
+			'min-w-0 truncate text-base font-semibold tracking-tight',
+			isHighlightedName?.(name) ? mePlayerText : 'text-white'
+		);
+	}
 </script>
+
+{#snippet position(rank?: number | null)}
+	{#if getRankImage}
+		<span class="text-secondary-200 inline-flex shrink-0 items-center gap-1 text-sm tabular-nums">
+			<span class="text-secondary-400">#</span>
+			<span class="text-secondary-100">{rank && rank > 0 ? rank : '—'}</span>
+		</span>
+	{/if}
+{/snippet}
+
+{#snippet rankBadge(race: number, rankLevel?: number | null)}
+	{#if getRankImage}
+		<span class="text-secondary-600" aria-hidden="true">·</span>
+		<span class="text-secondary-200 inline-flex items-center gap-1">
+			<img src={getRankImage(race, rankLevel ?? 0)} alt="" class="h-5 w-5" />
+			<span class="text-secondary-400">{levelLabel}</span>
+			<span class="text-secondary-100">{rankLevel && rankLevel > 0 ? rankLevel : '—'}</span>
+		</span>
+	{/if}
+{/snippet}
 
 {#snippet playerRow(player: ReplayPlayer)}
 	{@const lobby = lobbyPlayer(player)}
 	{@const result = resultPlayer(player)}
-	{@const href = lobby ? playerHref(lobby) : null}
+	{@const live = livePlayerForReplay(player)}
+	{@const href =
+		(lobby ? playerHref(lobby) : null) ??
+		(live && livePlayerHref ? livePlayerHref(live) : null) ??
+		(result?.profile_id
+			? playerHref({
+					playerId: result.profile_id,
+					steamId: null,
+					race: result.race_id ?? null,
+					profile: {
+						profile_id: result.profile_id,
+						alias: result.alias ?? player.name
+					}
+				})
+			: null)}
 	{@const elo = result ? displayElo(result) : null}
 	{@const change = result ? ratingDelta(result) : undefined}
 	{@const race = result?.race_id ?? lobby?.race ?? raceFromReplayFaction(player.faction)}
+	{@const liveStats = live?.stats ?? liveStatsForReplay(player)}
 	{@const banner = doctrineBannerUrl(player)}
-	{@const country = result?.country ?? null}
+	{@const country = result?.country ?? live?.country ?? null}
 	{@const flagUrl = flagImageUrl(country)}
 	{@const countryName = getCountryDisplayName(country)}
+	{@const steamId = lobby?.steamId ?? live?.steamId ?? null}
+	{@const profileId = lobby?.profile.profile_id ?? live?.profileId ?? null}
 	<div
 		class={cn(
 			'border-secondary-800 relative overflow-hidden border-b last:border-b-0',
@@ -114,29 +236,30 @@
 							class="h-4 w-auto shrink-0 rounded-xs"
 						/>
 					{/if}
+					<PlayerLikeCount likeCount={likeCountForSteamId(steamId)} class="shrink-0" />
 					{#if href}
 						<a
 							href={href}
-							class={cn(
-								interactive,
-								'min-w-0 truncate text-base font-semibold tracking-tight text-white hover:text-primary'
-							)}
+							class={cn(interactive, nameTextClass(player.name), 'hover:text-primary')}
 						>
 							{player.name}
 						</a>
 					{:else}
-						<span class="min-w-0 truncate text-base font-semibold tracking-tight text-white">
-							{player.name}
-						</span>
+						<span class={nameTextClass(player.name)}>{player.name}</span>
 					{/if}
+					{@render nameExtra?.({ name: player.name, steamId, profileId })}
+					{@render position(liveStats?.rank)}
 				</div>
 				<div class="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base tabular-nums">
 					<img
-						src={resolveFactionFlag(race)}
+						src={resolveFactionFlag(race ?? 0)}
 						alt=""
 						class="ring-secondary-800 size-4 shrink-0 rounded-full object-cover ring-1"
 					/>
-					<span class="text-secondary-200 truncate">{player.doctrineName || 'Unknown doctrine'}</span>
+					<span class="text-secondary-200 truncate">
+						{player.doctrineName || unknownDoctrineLabel}
+					</span>
+					{@render rankBadge(race ?? 0, liveStats?.rankLevel)}
 					{#if result}
 						<span class="text-secondary-600" aria-hidden="true">·</span>
 						<span class="inline-flex items-center gap-1">
@@ -184,10 +307,105 @@
 				</div>
 			{/if}
 			<div class="flex w-12 shrink-0 flex-col items-center justify-center gap-0.5">
-				<span class="text-secondary-400 text-xs font-semibold tracking-wider uppercase">CPM</span>
-				<span class="text-primary text-xl leading-none font-bold tabular-nums">
-					{playerCpm(replay, player.id)}
+				<span class="text-secondary-400 text-xs font-semibold tracking-wider uppercase">
+					{cpmLabel}
 				</span>
+				<span class="text-primary text-xl leading-none font-bold tabular-nums">
+					{replay ? playerCpm(replay, player.id) : '—'}
+				</span>
+			</div>
+		</div>
+	</div>
+{/snippet}
+
+{#snippet livePlayerRow(player: LiveLobbyPlayer)}
+	{@const href = livePlayerHref?.(player) ?? null}
+	{@const label = livePlayerLabel(player)}
+	{@const stats = player.stats}
+	{@const elo = stats?.elo ?? null}
+	{@const country = player.country ?? null}
+	{@const flagUrl = flagImageUrl(country)}
+	{@const countryName = getCountryDisplayName(country)}
+	<div class="border-secondary-800 relative overflow-hidden border-b last:border-b-0">
+		<div class="relative flex items-center gap-4 px-4 py-3.5">
+			<div class="min-w-0 flex-1">
+				<div class="flex min-w-0 items-center gap-2">
+					{#if flagUrl}
+						<img
+							src={flagUrl}
+							alt={countryName ?? country ?? ''}
+							title={countryName ?? undefined}
+							class="h-4 w-auto shrink-0 rounded-xs"
+						/>
+					{/if}
+					<PlayerLikeCount likeCount={player.likeCount} class="shrink-0" />
+					{#if href}
+						<a
+							{href}
+							class={cn(interactive, nameTextClass(label), 'hover:text-primary')}
+						>
+							{label}
+						</a>
+					{:else}
+						<span class={nameTextClass(label)}>{label}</span>
+					{/if}
+					{@render nameExtra?.({
+						name: label,
+						steamId: player.steamId,
+						profileId: player.profileId
+					})}
+					{@render position(stats?.rank)}
+				</div>
+				<div class="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base tabular-nums">
+					<img
+						src={resolveFactionFlag(player.race)}
+						alt=""
+						class="ring-secondary-800 size-4 shrink-0 rounded-full object-cover ring-1"
+					/>
+					<span class="text-secondary-400">—</span>
+					{@render rankBadge(player.race, stats?.rankLevel)}
+					{#if stats}
+						<span class="text-secondary-600" aria-hidden="true">·</span>
+						<span class="inline-flex items-center gap-1">
+							<span class={statWins}>{stats.wins}</span>
+							<span class="text-secondary-500">/</span>
+							<span class={statLosses}>{stats.losses}</span>
+						</span>
+						{#if stats.streak}
+							<span class="text-secondary-600" aria-hidden="true">·</span>
+							<span
+								class={stats.streak > 0
+									? 'text-green-300'
+									: stats.streak < 0
+										? 'text-red-300'
+										: 'text-secondary-400'}
+							>
+								{formatStreakLabel(stats.streak)}
+							</span>
+						{/if}
+					{:else}
+						<span class="text-secondary-600" aria-hidden="true">·</span>
+						<span class="text-secondary-400">—</span>
+					{/if}
+				</div>
+			</div>
+			<div class="flex shrink-0 items-center gap-2.5 tabular-nums">
+				<span class="inline-flex items-center gap-0.5 text-sm">
+					<MinusIcon class="text-secondary-500 size-3.5 shrink-0" />
+				</span>
+				<span
+					class={cn('text-base font-semibold', isEliteElo(elo) && 'font-bold tracking-wide')}
+					style:color={elo != null ? getEloColor(elo) : undefined}
+					style:text-shadow={getEloTextShadow(elo)}
+				>
+					{elo ?? '—'}
+				</span>
+			</div>
+			<div class="flex w-12 shrink-0 flex-col items-center justify-center gap-0.5">
+				<span class="text-secondary-400 text-xs font-semibold tracking-wider uppercase">
+					{cpmLabel}
+				</span>
+				<span class="text-primary text-xl leading-none font-bold tabular-nums">—</span>
 			</div>
 		</div>
 	</div>
@@ -199,8 +417,8 @@
 			class="bg-secondary-950/90 text-secondary-300 border-secondary-800 flex items-center gap-4 border-b px-4 py-2.5 text-sm font-semibold tracking-wide uppercase"
 		>
 			<span class="min-w-0 flex-1">{label}</span>
-			<span class="text-right">Rating</span>
-			<span class="text-primary w-12 text-center font-semibold">CPM</span>
+			<span class="text-right">{ratingLabel}</span>
+			<span class="text-primary w-12 text-center font-semibold">{cpmLabel}</span>
 		</div>
 		{#each players as player (`${player.id ?? player.name}-${player.name}`)}
 			{@render playerRow(player)}
@@ -208,7 +426,27 @@
 	</div>
 {/snippet}
 
+{#snippet liveTeamColumn(label: string, players: LiveLobbyPlayer[])}
+	<div class="min-w-0">
+		<div
+			class="bg-secondary-950/90 text-secondary-300 border-secondary-800 flex items-center gap-4 border-b px-4 py-2.5 text-sm font-semibold tracking-wide uppercase"
+		>
+			<span class="min-w-0 flex-1">{label}</span>
+			<span class="text-right">{ratingLabel}</span>
+			<span class="text-primary w-12 text-center font-semibold">{cpmLabel}</span>
+		</div>
+		{#each players as player (`${player.profileId ?? player.steamId ?? player.index}-${player.alias}`)}
+			{@render livePlayerRow(player)}
+		{/each}
+	</div>
+{/snippet}
+
 <div class="divide-secondary-800 grid grid-cols-1 md:grid-cols-2 md:divide-x">
-	{@render teamColumn('Allies', teams.allies)}
-	{@render teamColumn('Axis', teams.axis)}
+	{#if replay}
+		{@render teamColumn(alliesLabel, teams.allies)}
+		{@render teamColumn(axisLabel, teams.axis)}
+	{:else}
+		{@render liveTeamColumn(alliesLabel, liveTeams.allies)}
+		{@render liveTeamColumn(axisLabel, liveTeams.axis)}
+	{/if}
 </div>

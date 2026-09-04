@@ -164,15 +164,11 @@ export class LogSession extends Emittery<SessionEvents> {
 			return false;
 		}
 
-		if (this.lobby.startedAt === startedAt) {
-			return true;
-		}
-
-		return (
-			this.sessionId != null &&
-			this.lobby.sessionId != null &&
-			this.lobby.sessionId === this.sessionId
-		);
+		// Only the Starting-game timestamp identifies a match. Matching on
+		// sessionId alone treated the next match as a duplicate whenever
+		// "APP -- Game Stop" was late, which skipped lobby.joined (and the
+		// out-of-focus start notification sound).
+		return this.lobby.startedAt === startedAt;
 	}
 
 	#ensureLobby(): Lobby {

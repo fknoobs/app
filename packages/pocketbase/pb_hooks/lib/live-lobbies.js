@@ -3,6 +3,10 @@
 
 const { LOBBIES_LIVE_STALE_MS } = require(`${__hooks}/lib/lobbies-live.js`);
 const { parseJsonArray } = require(`${__hooks}/lib/match-filters.js`);
+const {
+	getStoredEloForLeaderboard,
+	isValidSteamId
+} = require(`${__hooks}/lib/player-ratings.js`);
 
 const ALLOWED_ORIGINS = [
 	'https://coh1stats.com',
@@ -72,6 +76,7 @@ function slimPlayer(player, fallbackIndex) {
 	const profileIdRaw = player?.profile?.profile_id ?? (playerId > 0 ? playerId : null);
 	const profileId = toFiniteNumber(profileIdRaw);
 	const alias = String(player?.profile?.alias || player?.name || '').trim();
+	const country = String(player?.profile?.country || '').trim() || null;
 	return {
 		index,
 		playerId,
@@ -79,14 +84,15 @@ function slimPlayer(player, fallbackIndex) {
 		race,
 		alias,
 		profileId: profileId != null && profileId > 0 ? profileId : null,
-		steamId: player?.steamId ? String(player.steamId) : null
+		steamId: player?.steamId ? String(player.steamId) : null,
+		country
 	};
 }
 
-function slimPlayers(value) {
+function slimPlayerPairs(value) {
 	const raw = parseJsonArray(value);
 	const seenSlot = {};
-	const items = [];
+	const pairs = [];
 	for (let i = 0; i < raw.length; i++) {
 		const player = raw[i];
 		if (!isOccupiedLobbySlot(player)) {
@@ -103,12 +109,165 @@ function slimPlayers(value) {
 			}
 			seenSlot[slot] = true;
 		}
-		items.push(slim);
-		if (items.length >= 8) {
+		pairs.push({ slim, raw: player });
+		if (pairs.length >= 8) {
 			break;
 		}
 	}
-	return items;
+	return pairs;
+}
+
+function slimPlayers(value) {
+	return slimPlayerPairs(value).map(function (pair) {
+		return pair.slim;
+	});
+}
+
+/**
+ * Maps a basic (0) or ranked 1v1-4v4 (1-4) match type + race to its Relic
+ * leaderboard id (0-19). Keep in sync with packages/ui/src/live-lobby/stats.ts.
+ */
+function leaderboardIdForMatchRace(matchTypeId, race) {
+	if (!Number.isInteger(matchTypeId) || matchTypeId < 0 || matchTypeId > 4) {
+		return null;
+	}
+	if (!Number.isInteger(race) || race < 0 || race > 3) {
+		return null;
+	}
+	return matchTypeId * 4 + race;
+}
+
+/** Keep in sync with getLiveLobbyMatchTypeId in packages/ui/src/live-lobby/slim.ts. */
+function liveLobbyMatchTypeId(players, isRanked) {
+	for (let i = 0; i < players.length; i++) {
+		if (players[i].playerId === -1) {
+			return 14;
+		}
+	}
+	if (!isRanked) {
+		return 0;
+	}
+	if (players.length === 2) {
+		return 1;
+	}
+	if (players.length === 4) {
+		return 2;
+	}
+	if (players.length === 6) {
+		return 3;
+	}
+	if (players.length === 8) {
+		return 4;
+	}
+	return 0;
+}
+
+function resolveStoredElo(player, matchTypeId, race) {
+	const storedElo = player && player.storedElo;
+	if (!storedElo || typeof storedElo !== 'object') {
+		return null;
+	}
+	const group = storedElo[String(matchTypeId)];
+	if (!group || typeof group !== 'object') {
+		return null;
+	}
+	const slot = group[String(race)];
+	const rating = slot ? Number(slot.rating) : NaN;
+	return Number.isFinite(rating) && rating >= 1 ? rating : null;
+}
+
+function loadPlayerRatingsElo(steamId) {
+	if (!isValidSteamId(steamId)) {
+		return null;
+	}
+	// Prefer SQL text — record.get('elo') can be a goja byte array that eloToMap misreads.
+	try {
+		const row = new DynamicModel({ elo: '' });
+		$app
+			.db()
+			.newQuery(
+				`SELECT COALESCE(elo, '') AS elo
+				FROM player_ratings
+				WHERE steamId = {:steamId}
+				LIMIT 1`
+			)
+			.bind({ steamId })
+			.one(row);
+		return row.elo || null;
+	} catch {
+		return null;
+	}
+}
+
+/** Prefer lobby-embedded storedElo; fall back to player_ratings (same as companion). */
+function resolvePlayerElo(player, matchTypeId, race, eloCache) {
+	const fromStored = resolveStoredElo(player, matchTypeId, race);
+	if (fromStored != null) {
+		return fromStored;
+	}
+
+	const steamId = player && player.steamId ? String(player.steamId) : '';
+	if (!steamId) {
+		return null;
+	}
+
+	if (!Object.prototype.hasOwnProperty.call(eloCache, steamId)) {
+		eloCache[steamId] = loadPlayerRatingsElo(steamId);
+	}
+
+	const leaderboardId = leaderboardIdForMatchRace(matchTypeId, race);
+	if (leaderboardId == null) {
+		return null;
+	}
+
+	return getStoredEloForLeaderboard(eloCache[steamId], leaderboardId);
+}
+
+function pickPlayerStats(player, matchTypeId, eloCache) {
+	const race = toFiniteNumber(player.race);
+	if (race == null) {
+		return null;
+	}
+	const leaderboardId = leaderboardIdForMatchRace(matchTypeId, race);
+	const stats = player && player.profile && player.profile.leaderboardStats;
+	let stat = null;
+	if (leaderboardId != null && Array.isArray(stats)) {
+		for (let i = 0; i < stats.length; i++) {
+			if (toFiniteNumber(stats[i].leaderboard_id) === leaderboardId) {
+				stat = stats[i];
+				break;
+			}
+		}
+	}
+	const elo = resolvePlayerElo(player, matchTypeId, race, eloCache);
+	if (!stat && elo == null) {
+		return null;
+	}
+	return {
+		elo,
+		wins: stat ? (toFiniteNumber(stat.wins) ?? 0) : 0,
+		losses: stat ? (toFiniteNumber(stat.losses) ?? 0) : 0,
+		streak: stat ? (toFiniteNumber(stat.streak) ?? 0) : 0,
+		rank: stat ? (toFiniteNumber(stat.rank) ?? 0) : 0,
+		rankLevel: stat ? (toFiniteNumber(stat.ranklevel) ?? 0) : 0
+	};
+}
+
+/** Detail players include per-player leaderboard stats + resolved ELO. */
+function detailPlayers(value, isRanked, eloCache) {
+	const pairs = slimPlayerPairs(value);
+	const slimList = pairs.map(function (pair) {
+		return pair.slim;
+	});
+	const matchTypeId = liveLobbyMatchTypeId(slimList, isRanked);
+	const cache = eloCache || {};
+	return pairs.map(function (pair) {
+		const stats = pickPlayerStats(pair.raw, matchTypeId, cache);
+		if (!stats) {
+			return pair.slim;
+		}
+		return Object.assign({}, pair.slim, { stats });
+	});
 }
 
 function hostName(userId) {
@@ -123,17 +282,66 @@ function hostName(userId) {
 	}
 }
 
-function toPublicItem(record, host) {
+function resolveLobbyId(record) {
+	const linked = record.get('lobby');
+	if (typeof linked === 'string' && linked) {
+		return linked;
+	}
+	if (linked && typeof linked === 'object' && linked.id) {
+		return String(linked.id);
+	}
+
+	const sessionId = Number(record.get('sessionId'));
+	if (!Number.isFinite(sessionId) || sessionId <= 0) {
+		return null;
+	}
+
+	try {
+		const lobby = $app.findFirstRecordByFilter('lobbies', 'sessionId = {:sessionId}', {
+			sessionId
+		});
+		return lobby ? lobby.id : null;
+	} catch {
+		return null;
+	}
+}
+
+function toPublicItem(record, host, includeStats, eloCache, likeCountsBySteamId) {
+	const isRanked = Boolean(record.get('isRanked'));
+	const players = includeStats
+		? detailPlayers(record.get('players'), isRanked, eloCache)
+		: slimPlayers(record.get('players'));
+	if (likeCountsBySteamId) {
+		require(`${__hooks}/lib/player-social.js`).attachLikeCountsToPlayers(
+			players,
+			likeCountsBySteamId
+		);
+	}
+
 	return {
 		id: record.id,
+		lobbyId: resolveLobbyId(record),
 		sessionId: String(record.get('sessionId') || ''),
 		map: String(record.get('map') || ''),
-		isRanked: Boolean(record.get('isRanked')),
+		isRanked,
 		createdAt: String(record.get('createdAt') || ''),
 		updatedAt: String(record.get('updatedAt') || ''),
 		hostName: host,
-		players: slimPlayers(record.get('players'))
+		players
 	};
+}
+
+function collectPlayerSteamIds(items) {
+	const ids = [];
+	for (const item of items) {
+		for (const player of item.players ?? []) {
+			if (player?.steamId) {
+				ids.push(player.steamId);
+			}
+		}
+	}
+
+	return ids;
 }
 
 function isPublicLiveLobby(record) {
@@ -157,64 +365,53 @@ function getPublicLobby(id) {
 		return null;
 	}
 
-	return toPublicItem(record, hostName(record.get('user')));
+	const item = toPublicItem(record, hostName(record.get('user')), true);
+	const counts = require(`${__hooks}/lib/player-social.js`).loadLikeCountsBySteamIds(
+		collectPlayerSteamIds([item])
+	);
+	require(`${__hooks}/lib/player-social.js`).attachLikeCountsToPlayers(item.players, counts);
+	return item;
 }
 
 function listPublicLobbies() {
 	const since = new Date(Date.now() - LOBBIES_LIVE_STALE_MS).toISOString().replace('T', ' ');
-	const rows = arrayOf(
-		new DynamicModel({
-			id: '',
-			sessionId: 0,
-			map: '',
-			isRanked: false,
-			createdAt: '',
-			updatedAt: '',
-			hostName: '',
-			players: null
-		})
-	);
-	$app
-		.db()
-		.newQuery(
-			`SELECT
-         l.id AS id,
-         l.sessionId AS sessionId,
-         l.map AS map,
-         l.isRanked AS isRanked,
-         l.createdAt AS createdAt,
-         l.updatedAt AS updatedAt,
-         COALESCE(u.name, '') AS hostName,
-         l.players AS players
-       FROM lobbies_live l
-       LEFT JOIN users u ON u.id = l.user
-       WHERE l.updatedAt > {:since} AND IFNULL(l.isReplay, 0) = 0
-       ORDER BY l.updatedAt DESC
-       LIMIT {:limit}`
-		)
-		.bind({ since, limit: LIST_LIMIT })
-		.all(rows);
+	let records = [];
+	try {
+		records = $app.findRecordsByFilter(
+			'lobbies_live',
+			`updatedAt > "${since}" && isReplay != true`,
+			'-updatedAt',
+			LIST_LIMIT,
+			0
+		);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.warn('[live_lobbies] findRecordsByFilter failed:', message);
+		return [];
+	}
 
 	const seen = {};
 	const items = [];
-	for (let i = 0; i < rows.length; i++) {
-		const row = rows[i];
-		const sessionId = String(row.sessionId || '');
+	const eloCache = {};
+	for (let i = 0; i < records.length; i++) {
+		const record = records[i];
+		const sessionId = String(record.get('sessionId') || '');
 		if (!sessionId || seen[sessionId]) {
 			continue;
 		}
+
 		seen[sessionId] = true;
-		items.push({
-			id: row.id,
-			sessionId,
-			map: String(row.map || ''),
-			isRanked: Boolean(row.isRanked),
-			createdAt: String(row.createdAt || ''),
-			updatedAt: String(row.updatedAt || ''),
-			hostName: String(row.hostName || '').trim(),
-			players: slimPlayers(row.players)
-		});
+		// Include per-player stats so table expand matches detail / companion.
+		items.push(toPublicItem(record, hostName(record.get('user')), true, eloCache));
 	}
+
+	const counts = require(`${__hooks}/lib/player-social.js`).loadLikeCountsBySteamIds(
+		collectPlayerSteamIds(items)
+	);
+	for (const item of items) {
+		require(`${__hooks}/lib/player-social.js`).attachLikeCountsToPlayers(item.players, counts);
+	}
+
 	return items;
 }
 
@@ -251,5 +448,6 @@ function handleGet(e) {
 module.exports = {
 	handleOptions,
 	handleList,
-	handleGet
+	handleGet,
+	detailPlayers
 };

@@ -3,6 +3,7 @@
 	import { cn } from '@company-of-heroes/ui/cn';
 	import { interactive } from '@company-of-heroes/ui/variants';
 	import type { PlayerSearchResult } from './types';
+	import PlayerLikeCount from './player-like-count.svelte';
 
 	type Props = {
 		player: PlayerSearchResult;
@@ -47,6 +48,7 @@
 				{#if flagSrc}
 					<img class="h-5 w-auto shrink-0 rounded-xs" src={flagSrc} alt={player.country ?? ''} />
 				{/if}
+				<PlayerLikeCount likeCount={player.likeCount} class="shrink-0" />
 				<span class="font-heading truncate text-xl font-bold text-white">{player.alias}</span>
 			</a>
 			<List.Root class="gap-x-4">

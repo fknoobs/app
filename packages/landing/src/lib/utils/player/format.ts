@@ -70,37 +70,6 @@ export function getRaceLabel(raceId: number): string {
 	return RACE_LABELS[raceId] ?? 'Unknown';
 }
 
-export function getLiveLobbyMatchTypeId(
-	players: Array<{ playerId: number }>,
-	isRanked?: boolean
-): number {
-	if (players.some((player) => player.playerId === -1)) {
-		return 14;
-	}
-
-	if (!isRanked) {
-		return 0;
-	}
-
-	if (players.length === 2) {
-		return 1;
-	}
-
-	if (players.length === 4) {
-		return 2;
-	}
-
-	if (players.length === 6) {
-		return 3;
-	}
-
-	if (players.length === 8) {
-		return 4;
-	}
-
-	return 0;
-}
-
 export function getModeLabel(matchtypeId: number): string {
 	return MATCH_TYPES[matchtypeId] ?? `Mode ${matchtypeId}`;
 }

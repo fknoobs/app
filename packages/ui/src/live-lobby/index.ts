@@ -3,7 +3,8 @@ import LiveLobbyPlayers from './live-lobby-players.svelte';
 import LiveLobbyDetail from './live-lobby-detail.svelte';
 
 export { LiveLobbiesTable as Table, LiveLobbyPlayers as Players, LiveLobbyDetail as Detail };
-export type { LiveLobby, LiveLobbyPlayer } from './types';
+export type { LiveLobby, LiveLobbyPlayer, LiveLobbyPlayerStats } from './types';
+export type { LiveLobbyRecord } from './slim';
 export {
 	defaultLiveLobbyPlayerLabel,
 	isAlliesRace,
@@ -12,3 +13,18 @@ export {
 	playerRowKey,
 	teamPlayers
 } from './types';
+export type { LeaderboardStatLike, LiveLobbyMatchup, MatchupGapLabels } from './stats';
+export {
+	formatMatchupGap,
+	getLiveLobbyMatchup,
+	hasLiveLobbyStats,
+	leaderboardIdForMatchRace,
+	pickPlayerStats
+} from './stats';
+export {
+	getLiveLobbyMatchTypeId,
+	isOccupiedLobbySlot,
+	slimLiveLobbyPlayer,
+	slimLiveLobbyPlayers,
+	toLiveLobbyRecord
+} from './slim';

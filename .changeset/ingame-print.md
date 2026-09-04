@@ -3,4 +3,4 @@
 '@company-of-heroes/landing': patch
 ---
 
-fix; make the fairplay capture more reliable
+fix; take fair play shots via company of heroes print screen, with window capture as fallback

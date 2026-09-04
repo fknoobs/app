@@ -79,6 +79,7 @@ export class History extends Feature {
 			}),
 			app.on('lobby.started', (match) => {
 				if (match.isReplay) return;
+				void this.ensureLobbyStarted(match);
 				void this.#harvestPlayerRatings(match);
 			}),
 			app.on('game.login', () => {
@@ -142,6 +143,30 @@ export class History extends Feature {
 		}
 	}
 
+	/** Creates (or returns) the durable lobbies row as soon as a match starts. */
+	async ensureLobbyStarted(lobby: Match): Promise<MatchExpanded | null> {
+		if (lobby.isReplay || !lobby.sessionId || !app.isReady) {
+			return null;
+		}
+
+		try {
+			const match = await app.database.matches.ensureStarted({
+				sessionId: lobby.sessionId,
+				isRanked: lobby.isRanked,
+				title: lobby.type,
+				map: lobby.map || 'Unknown',
+				// Stay publicly loadable until finish (incl. skirmish).
+				needsResult: true,
+				players: toPersistablePlayers(lobby.players)
+			});
+			app.emit('lobby.saved', match);
+			return match;
+		} catch (error) {
+			console.error('[HISTORY]: failed to ensure match at start:', error);
+			return null;
+		}
+	}
+
 	/** Persists a finished lobby as a match (with replay when available). */
 	async saveLobbyResult(lobby: Match, replayFile: File | null = null): Promise<void> {
 		if (lobby.isReplay || !lobby.sessionId || !app.isReady) {
@@ -149,19 +174,23 @@ export class History extends Feature {
 		}
 
 		try {
-			if (await app.database.matches.exists(lobby.sessionId)) {
-				return;
-			}
-
-			const match = await app.database.matches.create({
+			const existing = await app.database.matches.findBySessionId(lobby.sessionId);
+			const players = toPersistablePlayers(lobby.players);
+			const payload = {
 				isRanked: lobby.isRanked,
 				title: lobby.type,
 				map: lobby.map || 'Unknown',
-				sessionId: lobby.sessionId,
 				needsResult: !lobby.isSkirmish,
-				players: toPersistablePlayers(lobby.players),
-				replay: replayFile ?? undefined
-			});
+				players,
+				...(replayFile ? { replay: replayFile } : {})
+			};
+
+			const match = existing
+				? await app.database.matches.update(existing.id, payload)
+				: await app.database.matches.create({
+						...payload,
+						sessionId: lobby.sessionId
+					});
 
 			app.emit('lobby.saved', match);
 			this.#schedulePoll(POLL_INITIAL_MS);
