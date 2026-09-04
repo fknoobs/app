@@ -17,7 +17,8 @@
 	const navLinks = $derived([
 		{ href: '/leaderboards', label: t('Leaderboards') },
 		{ href: '/replays', label: t('Replays') },
-		{ href: '/players', label: t('Players') }
+		{ href: '/players', label: t('Players') },
+		{ href: '/#donate', label: t('Donations') }
 	]);
 
 	let replaysListHref = $state('/replays');

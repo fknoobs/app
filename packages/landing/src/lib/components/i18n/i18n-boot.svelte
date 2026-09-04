@@ -9,10 +9,9 @@
 	};
 
 	let { locale, children }: Props = $props();
+	const i18n = $derived(await createI18n(locale));
 </script>
 
-{#key locale}
-	<I18nTree i18n={await createI18n(locale)}>
-		{@render children()}
-	</I18nTree>
-{/key}
+<I18nTree {i18n}>
+	{@render children()}
+</I18nTree>

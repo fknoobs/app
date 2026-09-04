@@ -1,14 +1,12 @@
 import type { Component } from 'svelte';
 import GaugeIcon from 'phosphor-svelte/lib/GaugeIcon';
 import FilmStripIcon from 'phosphor-svelte/lib/FilmStripIcon';
-import ClockCounterClockwiseIcon from 'phosphor-svelte/lib/ClockCounterClockwiseIcon';
 import KeyboardIcon from 'phosphor-svelte/lib/KeyboardIcon';
 import TrophyIcon from 'phosphor-svelte/lib/TrophyIcon';
 import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 import TwitchLogoIcon from 'phosphor-svelte/lib/TwitchLogoIcon';
 import dashboardImg from '@assets/screens/dashboard.png';
 import replaysImg from '@assets/screens/replays.png';
-import historyImg from '@assets/screens/history.png';
 import keybindingsImg from '@assets/screens/keybindings.png';
 import leaderboardsImg from '@assets/screens/leaderboards.png';
 import playersImg from '@assets/screens/players.png';
@@ -28,7 +26,7 @@ export const features: Feature[] = [
 		id: 'dashboard',
 		title: 'Dashboard',
 		description:
-			'Your profile, today’s matches, and live lobbies from other companion users. Open replays, history, or the current game from here.',
+			'Your profile, today’s matches, and live lobbies from other companion users. Open replays or the current game from here.',
 		image: dashboardImg,
 		imageAlt: 'Companion dashboard with profile, today’s matches, and live lobbies from other users',
 		icon: GaugeIcon
@@ -37,19 +35,10 @@ export const features: Feature[] = [
 		id: 'replays',
 		title: 'Replays',
 		description:
-			'Point it at your playback folder and it scans automatically. Filter the list, then open a match for overview, chat, timeline, and screenshots.',
+			'Your local replays and the community catalog in one place. Filter the list, then open a match for overview, chat, timeline, and screenshots.',
 		image: replaysImg,
 		imageAlt: 'Replay browser with filters, match list, and parsed replay details',
 		icon: FilmStripIcon
-	},
-	{
-		id: 'history',
-		title: 'Match history',
-		description:
-			'Your games and the community’s. Search by map, faction, matchup, and ELO, then open the full breakdown with comments and downloads.',
-		image: historyImg,
-		imageAlt: 'Community match history with search and filters',
-		icon: ClockCounterClockwiseIcon
 	},
 	{
 		id: 'keybindings',

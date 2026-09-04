@@ -54,46 +54,40 @@ Your command center. Live lobbies, recent matches, and quick links into every pa
     <td width="50%" valign="top">
 
 **Replays**  
-Point it at your replay folder and go. Browse, filter, and open any match for details, chat logs, and analysis.
+Your replays and the community catalog in one place. Browse, filter, and open any match for details, chat logs, and analysis.
 
 </td>
   </tr>
   <tr>
-    <td width="50%" valign="top">
-
-**Match history**  
-Your games and the community’s — searchable, filterable, and one click away from full match breakdowns.
-
-</td>
     <td width="50%" valign="top">
 
 **Keybindings**  
 Custom shortcuts per faction — USA, Brits, Wehrmacht, Panzer Elite. Record, drag to reorder, export & import.
 
 </td>
-  </tr>
-  <tr>
     <td width="50%" valign="top">
 
 **Leaderboards**  
 Relic leaderboards by mode and faction. Search players, see the podium, climb the ranks.
 
 </td>
+  </tr>
+  <tr>
     <td width="50%" valign="top">
 
 **Players**  
 Look anyone up by name, Steam ID, or Relic profile. Profiles with match history and stats included.
 
 </td>
-  </tr>
-  <tr>
     <td width="50%" valign="top">
 
 **Live game**  
-Lobby started? The app notices. Jump into a live match view and save it to your history when the game ends.
+Lobby started? The app notices. Jump into a live match view and save it when the game ends.
 
 </td>
-    <td width="50%" valign="top">
+  </tr>
+  <tr>
+    <td colspan="2" valign="top">
 
 **Twitch**  
 Connect your channel and stream with purpose:
@@ -127,33 +121,25 @@ Auto-updates with changelog · Account sync · Discord, Twitch & GitHub in the s
   <tr>
     <td width="50%" align="center">
 
-**Match history**  
-![Match history](packages/shared-assets/screens/history.png)
-
-</td>
-    <td width="50%" align="center">
-
 **Keybindings**  
 ![Keybindings](packages/shared-assets/screens/keybindings.png)
 
 </td>
-  </tr>
-  <tr>
     <td width="50%" align="center">
 
 **Leaderboards**  
 ![Leaderboards](packages/shared-assets/screens/leaderboards.png)
 
 </td>
+  </tr>
+  <tr>
     <td width="50%" align="center">
 
 **Players**  
 ![Players](packages/shared-assets/screens/players.png)
 
 </td>
-  </tr>
-  <tr>
-    <td colspan="2" align="center">
+    <td width="50%" align="center">
 
 **Twitch**  
 ![Twitch](packages/shared-assets/screens/twitch.png)
