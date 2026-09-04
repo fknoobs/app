@@ -13,13 +13,20 @@ export {
 	playerRowKey,
 	teamPlayers
 } from './types';
-export type { LeaderboardStatLike, LiveLobbyMatchup, MatchupGapLabels } from './stats';
+export type {
+	LeaderboardStatLike,
+	LiveLobbyMatchup,
+	LiveLobbyRawPlayer,
+	MatchupGapLabels
+} from './stats';
 export {
+	attachLiveLobbyStats,
 	formatMatchupGap,
 	getLiveLobbyMatchup,
 	hasLiveLobbyStats,
 	leaderboardIdForMatchRace,
-	pickPlayerStats
+	pickPlayerStats,
+	resolveStoredElo
 } from './stats';
 export {
 	getLiveLobbyMatchTypeId,

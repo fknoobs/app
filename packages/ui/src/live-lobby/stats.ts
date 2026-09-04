@@ -1,3 +1,4 @@
+import { getLiveLobbyMatchTypeId } from './slim';
 import {
 	isAlliesRace,
 	isAxisRace,
@@ -14,6 +15,20 @@ export type LeaderboardStatLike = {
 	streak?: number;
 	rank?: number;
 	ranklevel?: number;
+};
+
+/**
+ * Minimal raw lobby player fields needed to resolve stored ELO + Relic stats.
+ * Matches lobbies_live player JSON (and app LobbyPlayer) without host imports.
+ */
+export type LiveLobbyRawPlayer = {
+	index?: number;
+	steamId?: string | null;
+	storedElo?: unknown;
+	profile?: {
+		profile_id?: unknown;
+		leaderboardStats?: LeaderboardStatLike[] | null;
+	};
 };
 
 function toFiniteNumber(value: unknown): number | null {
@@ -39,6 +54,29 @@ export function leaderboardIdForMatchRace(
 	}
 
 	return matchTypeId * 4 + race;
+}
+
+/**
+ * Looks up rating from lobby-embedded `storedElo[matchTypeId][race].rating`.
+ * Same rules as PocketBase `resolveStoredElo` (finite rating >= 1).
+ */
+export function resolveStoredElo(
+	storedElo: unknown,
+	matchTypeId: number,
+	race: number
+): number | null {
+	if (!storedElo || typeof storedElo !== 'object') {
+		return null;
+	}
+
+	const group = (storedElo as Record<string, unknown>)[String(matchTypeId)];
+	if (!group || typeof group !== 'object') {
+		return null;
+	}
+
+	const slot = (group as Record<string, { rating?: unknown }>)[String(race)];
+	const rating = slot ? Number(slot.rating) : NaN;
+	return Number.isFinite(rating) && rating >= 1 ? rating : null;
 }
 
 /**
@@ -70,6 +108,44 @@ export function pickPlayerStats(
 		rank: toFiniteNumber(stat?.rank) ?? 0,
 		rankLevel: toFiniteNumber(stat?.ranklevel) ?? 0
 	};
+}
+
+function findRawLiveLobbyPlayer(
+	rawPlayers: LiveLobbyRawPlayer[],
+	slim: LiveLobbyPlayer
+): LiveLobbyRawPlayer | undefined {
+	return (
+		rawPlayers.find((player) => player.steamId && player.steamId === slim.steamId) ??
+		rawPlayers.find((player) => player.profile?.profile_id === slim.profileId) ??
+		rawPlayers.find((player) => player.index === slim.index)
+	);
+}
+
+/**
+ * Attaches per-player stats (storedElo + Relic leaderboardStats) onto slim
+ * live-lobby players. Shared by the app widget and PocketBase/landing path.
+ */
+export function attachLiveLobbyStats(
+	slimPlayers: LiveLobbyPlayer[],
+	rawPlayers: LiveLobbyRawPlayer[],
+	isRanked: boolean
+): LiveLobbyPlayer[] {
+	const matchTypeId = getLiveLobbyMatchTypeId(slimPlayers, isRanked);
+	return slimPlayers.map((slim) => {
+		const raw = findRawLiveLobbyPlayer(rawPlayers, slim);
+		if (!raw) {
+			return slim;
+		}
+
+		const elo = resolveStoredElo(raw.storedElo, matchTypeId, slim.race);
+		const stats = pickPlayerStats(
+			raw.profile?.leaderboardStats,
+			matchTypeId,
+			slim.race,
+			elo
+		);
+		return stats ? { ...slim, stats } : slim;
+	});
 }
 
 /** True when at least one occupied player carries resolved stats. */

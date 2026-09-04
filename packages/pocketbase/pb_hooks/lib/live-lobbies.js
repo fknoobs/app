@@ -1,4 +1,8 @@
 // Public live companion lobbies for coh1stats.com.
+// Thin HTTP shim: same filter/dedupe/slim as the companion collection read.
+// Stats/Elo for the website come from embedded player fields via packages/ui
+// (landing LiveLobbiesService). Do not query the lobbies table or player_ratings
+// on the list path — that made /api/live-lobbies take 15s+.
 'use strict';
 
 const { LOBBIES_LIVE_STALE_MS } = require(`${__hooks}/lib/lobbies-live.js`);
@@ -44,6 +48,7 @@ function toFiniteNumber(value) {
  * Relic logs closed/empty slots as Id -1 with Type 3 or 6.
  * Real skirmish AI is Id -1 with Type 1. Replay placeholders use Id 0.
  * Nested matchHistory[].players members have profile_id/race_id, not playerId.
+ * Keep in sync with packages/ui/src/live-lobby/slim.ts.
  */
 function isOccupiedLobbySlot(player) {
 	if (!player || typeof player !== 'object' || Array.isArray(player)) {
@@ -199,7 +204,7 @@ function loadPlayerRatingsElo(steamId) {
 	}
 }
 
-/** Prefer lobby-embedded storedElo; fall back to player_ratings (same as companion). */
+/** Prefer lobby-embedded storedElo; fall back to player_ratings (match detail only). */
 function resolvePlayerElo(player, matchTypeId, race, eloCache) {
 	const fromStored = resolveStoredElo(player, matchTypeId, race);
 	if (fromStored != null) {
@@ -253,7 +258,7 @@ function pickPlayerStats(player, matchTypeId, eloCache) {
 	};
 }
 
-/** Detail players include per-player leaderboard stats + resolved ELO. */
+/** Used by match.js for in-progress replay pages — may hit player_ratings. */
 function detailPlayers(value, isRanked, eloCache) {
 	const pairs = slimPlayerPairs(value);
 	const slimList = pairs.map(function (pair) {
@@ -282,6 +287,7 @@ function hostName(userId) {
 	}
 }
 
+/** Relation only — never scan the lobbies table. */
 function resolveLobbyId(record) {
 	const linked = record.get('lobby');
 	if (typeof linked === 'string' && linked) {
@@ -291,57 +297,21 @@ function resolveLobbyId(record) {
 		return String(linked.id);
 	}
 
-	const sessionId = Number(record.get('sessionId'));
-	if (!Number.isFinite(sessionId) || sessionId <= 0) {
-		return null;
-	}
-
-	try {
-		const lobby = $app.findFirstRecordByFilter('lobbies', 'sessionId = {:sessionId}', {
-			sessionId
-		});
-		return lobby ? lobby.id : null;
-	} catch {
-		return null;
-	}
+	return null;
 }
 
-function toPublicItem(record, host, includeStats, eloCache, likeCountsBySteamId) {
-	const isRanked = Boolean(record.get('isRanked'));
-	const players = includeStats
-		? detailPlayers(record.get('players'), isRanked, eloCache)
-		: slimPlayers(record.get('players'));
-	if (likeCountsBySteamId) {
-		require(`${__hooks}/lib/player-social.js`).attachLikeCountsToPlayers(
-			players,
-			likeCountsBySteamId
-		);
-	}
-
+function toPublicItem(record, host) {
 	return {
 		id: record.id,
 		lobbyId: resolveLobbyId(record),
 		sessionId: String(record.get('sessionId') || ''),
 		map: String(record.get('map') || ''),
-		isRanked,
+		isRanked: Boolean(record.get('isRanked')),
 		createdAt: String(record.get('createdAt') || ''),
 		updatedAt: String(record.get('updatedAt') || ''),
 		hostName: host,
-		players
+		players: slimPlayers(record.get('players'))
 	};
-}
-
-function collectPlayerSteamIds(items) {
-	const ids = [];
-	for (const item of items) {
-		for (const player of item.players ?? []) {
-			if (player?.steamId) {
-				ids.push(player.steamId);
-			}
-		}
-	}
-
-	return ids;
 }
 
 function isPublicLiveLobby(record) {
@@ -365,12 +335,7 @@ function getPublicLobby(id) {
 		return null;
 	}
 
-	const item = toPublicItem(record, hostName(record.get('user')), true);
-	const counts = require(`${__hooks}/lib/player-social.js`).loadLikeCountsBySteamIds(
-		collectPlayerSteamIds([item])
-	);
-	require(`${__hooks}/lib/player-social.js`).attachLikeCountsToPlayers(item.players, counts);
-	return item;
+	return toPublicItem(record, hostName(record.get('user')));
 }
 
 function listPublicLobbies() {
@@ -392,7 +357,6 @@ function listPublicLobbies() {
 
 	const seen = {};
 	const items = [];
-	const eloCache = {};
 	for (let i = 0; i < records.length; i++) {
 		const record = records[i];
 		const sessionId = String(record.get('sessionId') || '');
@@ -401,15 +365,7 @@ function listPublicLobbies() {
 		}
 
 		seen[sessionId] = true;
-		// Include per-player stats so table expand matches detail / companion.
-		items.push(toPublicItem(record, hostName(record.get('user')), true, eloCache));
-	}
-
-	const counts = require(`${__hooks}/lib/player-social.js`).loadLikeCountsBySteamIds(
-		collectPlayerSteamIds(items)
-	);
-	for (const item of items) {
-		require(`${__hooks}/lib/player-social.js`).attachLikeCountsToPlayers(item.players, counts);
+		items.push(toPublicItem(record, hostName(record.get('user'))));
 	}
 
 	return items;

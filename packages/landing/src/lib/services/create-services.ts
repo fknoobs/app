@@ -41,7 +41,7 @@ export function createServices(deps: ServiceDeps): Services {
 		auth: () => (auth ??= new AuthService(deps.pocketbase)),
 		hiddenMatches: () => (hiddenMatches ??= new HiddenMatchesService(deps.pocketbase)),
 		leaderboards: () => (leaderboards ??= new LeaderboardsService(deps.fetch)),
-		liveLobbies: () => (liveLobbies ??= new LiveLobbiesService(deps.fetch)),
+		liveLobbies: () => (liveLobbies ??= new LiveLobbiesService(deps.pocketbase)),
 		matchSocial: () => (matchSocial ??= new MatchSocialService(deps.pocketbase)),
 		playerSocial: () => (playerSocial ??= new PlayerSocialService(deps.pocketbase)),
 		players: () => (players ??= new PlayersService(deps.fetch)),

@@ -65,7 +65,7 @@
 		</span>
 		<div class="flex min-w-0 flex-col justify-center px-4">
 			<p class="truncate font-medium text-white">{t('Company of Heroes')}</p>
-			<p class="text-primary truncate text-xs font-medium">{t('Companion app')}</p>
+			<p class="text-primary truncate text-xs font-medium">{t('Stats')}</p>
 		</div>
 	</a>
 

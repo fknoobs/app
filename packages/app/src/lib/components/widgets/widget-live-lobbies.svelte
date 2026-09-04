@@ -1,14 +1,12 @@
 <script lang="ts">
 	import {
 		Table as LiveLobbiesTable,
+		attachLiveLobbyStats,
 		getLiveLobbyMatchTypeId,
-		pickPlayerStats,
 		toLiveLobbyRecord,
 		type LiveLobby,
-		type LiveLobbyPlayer,
-		type LeaderboardStatLike
+		type LiveLobbyPlayer
 	} from '@company-of-heroes/ui/live-lobby';
-	import type { LobbyPlayer } from '@fknoobs/app';
 	import type { LiveLobby as AppLiveLobby } from '$core/app/database/lobbies-live';
 	import WidgetPanel from './widget-panel.svelte';
 	import { LiveLobbiesFeed } from './live-lobbies.svelte';
@@ -21,7 +19,6 @@
 	import dayjs from '$lib/dayjs';
 	import { getFactionFlagFromRace, normalizeMapName } from '$lib/utils';
 	import { getDefaultMapImage, getMapImageFromName } from '$lib/utils/game';
-	import { getStoredEloRating } from '$lib/utils/player-elo';
 
 	const { t } = useI18n();
 	const feed = new LiveLobbiesFeed();
@@ -40,32 +37,6 @@
 			void feed.stop();
 		};
 	});
-
-	function attachLiveLobbyStats(
-		slimPlayers: LiveLobbyPlayer[],
-		rawPlayers: LobbyPlayer[],
-		isRanked: boolean
-	): LiveLobbyPlayer[] {
-		const matchTypeId = getLiveLobbyMatchTypeId(slimPlayers, isRanked);
-		return slimPlayers.map((slim) => {
-			const raw =
-				rawPlayers.find((player) => player.steamId && player.steamId === slim.steamId) ??
-				rawPlayers.find((player) => player.profile?.profile_id === slim.profileId) ??
-				rawPlayers.find((player) => player.index === slim.index);
-			if (!raw) {
-				return slim;
-			}
-
-			const elo = getStoredEloRating(raw.storedElo, matchTypeId, slim.race);
-			const stats = pickPlayerStats(
-				raw.profile?.leaderboardStats as LeaderboardStatLike[] | undefined,
-				matchTypeId,
-				slim.race,
-				elo
-			);
-			return stats ? { ...slim, stats } : slim;
-		});
-	}
 
 	function toUiLiveLobby(lobby: AppLiveLobby): LiveLobby | null {
 		const record = toLiveLobbyRecord({
@@ -192,7 +163,7 @@
 		{playerLabel}
 		{detailsHref}
 		formatMapName={normalizeMapName}
-		formatStarted={(createdAt) => dayjs(createdAt).fromNow()}
+		formatStarted={(createdAt: string) => dayjs(createdAt).fromNow()}
 		emptyMessage={t('No community members are in a match right now.')}
 		mapLabel={t('Map')}
 		nameLabel={t('Name')}
