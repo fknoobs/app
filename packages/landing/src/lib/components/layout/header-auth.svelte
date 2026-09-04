@@ -30,7 +30,16 @@
 	method="POST"
 	action={href('/logout')}
 	class="hidden"
-	use:enhance
+	use:enhance={() => {
+		return async ({ result, update }) => {
+			if (result.type === 'redirect') {
+				window.location.assign(result.location);
+				return;
+			}
+
+			await update();
+		};
+	}}
 ></form>
 
 {#if isLoggedIn && user}

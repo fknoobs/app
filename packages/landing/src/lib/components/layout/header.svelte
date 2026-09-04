@@ -15,7 +15,6 @@
 	const { t } = useI18n();
 
 	const navLinks = $derived([
-		{ href: '/#download', label: t('Download') },
 		{ href: '/leaderboards', label: t('Leaderboards') },
 		{ href: '/replays', label: t('Replays') },
 		{ href: '/players', label: t('Players') }
@@ -49,10 +48,6 @@
 			return current.startsWith('/replays');
 		}
 
-		if (path.startsWith('/#')) {
-			return current === '/' && page.url.hash === path.slice(1);
-		}
-
 		return false;
 	}
 </script>
@@ -64,13 +59,13 @@
 		>
 			<img
 				src={logo}
-				alt={t('Company of Heroes 1 Stats')}
+				alt={t('Company of Heroes - Companion app')}
 				class="absolute inset-0 size-full object-cover"
 			/>
 		</span>
 		<div class="flex min-w-0 flex-col justify-center px-4">
 			<p class="truncate font-medium text-white">{t('Company of Heroes')}</p>
-			<p class="text-primary truncate text-xs font-medium">{t('Stats')}</p>
+			<p class="text-primary truncate text-xs font-medium">{t('Companion app')}</p>
 		</div>
 	</a>
 

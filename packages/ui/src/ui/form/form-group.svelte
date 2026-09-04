@@ -42,10 +42,10 @@
 </script>
 
 <div {...restProps} class={cn('border-secondary-800 border-b', className)}>
-	{#if hasHeader}
-		<div class={hasBody ? 'px-4 pt-3' : 'px-4 py-4'}>
+	{#if hasHeader && layout === 'band'}
+		<div class="px-4 py-3">
 			{#if label || hint}
-				<div class="flex items-center gap-2">
+				<div class="flex w-full items-start gap-2">
 					{#if label}
 						{#if inputId}
 							<label for={inputId} class={titleClass}>{label}</label>
@@ -76,21 +76,49 @@
 				</div>
 			{/if}
 		</div>
-	{:else if hasBody}
-		<div class={hasHeader ? 'px-4 pt-2 pb-3' : 'px-4 py-3'}>
-			{#if children}
-				<div
-					class={layout === 'stacked'
-						? 'flex max-w-xl flex-col gap-3'
-						: 'flex max-w-xl flex-wrap items-center gap-3'}
-				>
-					{@render children()}
-				</div>
+	{:else if hasHeader || hasBody}
+		<div class={cn('px-4', hasBody ? 'py-3' : 'py-4')}>
+			{#if hasHeader}
+				{#if label || hint}
+					<div class="flex w-full items-start gap-2">
+						{#if label}
+							{#if inputId}
+								<label for={inputId} class={titleClass}>{label}</label>
+							{:else}
+								<p class={titleClass}>{label}</p>
+							{/if}
+						{/if}
+						{@render hint?.()}
+					</div>
+				{/if}
+				{#if descriptionText || descriptionSnippet}
+					<div class={flushHeaderDescription}>
+						{#if descriptionText}
+							{descriptionText}
+						{:else}
+							{@render descriptionSnippet?.()}
+						{/if}
+					</div>
+				{/if}
 			{/if}
-			{#if footer}
-				<div class={cn('flex flex-wrap items-center gap-2', children && 'mt-3')}>
-					{@render footer()}
-				</div>
+			{#if hasBody}
+				{#if children}
+					<div
+						class={cn(
+							hasHeader && 'mt-3',
+							layout === 'stacked'
+								? 'flex max-w-xl flex-col gap-3'
+								: 'flex max-w-xl flex-wrap items-center gap-3'
+						)}
+					>
+						{@render children()}
+					</div>
+				{/if}
+				{#if footer}
+					<div class={cn('flex flex-wrap items-center gap-2', (children || hasHeader) && 'mt-3')}>
+						{@render footer()}
+					</div>
+				{/if}
 			{/if}
 		</div>
 	{/if}

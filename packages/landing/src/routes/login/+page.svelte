@@ -27,7 +27,14 @@
 
 	const onSubmit: SubmitFunction = () => {
 		submitting = true;
-		return async ({ update }) => {
+		return async ({ result, update }) => {
+			// Full document navigation so layout `user` is not served from a
+			// previously cached anonymous `__data.json` / CDN entry.
+			if (result.type === 'redirect') {
+				window.location.assign(result.location);
+				return;
+			}
+
 			await update();
 			submitting = false;
 		};

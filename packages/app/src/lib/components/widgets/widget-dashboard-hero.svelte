@@ -56,13 +56,22 @@
 	const resolvedProfile = resource(
 		() => [app.game.profile ?? null, steamId] as const,
 		async ([live, id]) => {
-			if (live) return live;
-			if (!id) return null;
+			if (live) {
+				return live;
+			}
+
+			if (!id) {
+				return null;
+			}
+
 			const [relicProfile, steamProfile] = await Promise.all([
 				relic.getProfileBySteamId(id),
 				steam.getUserProfile(id)
 			]);
-			if (!relicProfile || !steamProfile) return null;
+			if (!relicProfile || !steamProfile) {
+				return null;
+			}
+
 			return { relic: relicProfile, steam: steamProfile };
 		}
 	);
@@ -73,7 +82,10 @@
 
 	function bumpStats() {
 		invalidatePlayerPerformanceCache(profileId ?? undefined);
-		if (bumpTimer) clearTimeout(bumpTimer);
+		if (bumpTimer) {
+			clearTimeout(bumpTimer);
+		}
+
 		bumpTimer = setTimeout(() => {
 			bumpTimer = null;
 			statsGeneration += 1;
@@ -88,7 +100,10 @@
 		() => [todaySteamIds.join(','), statsGeneration] as const,
 		async ([steamIdsKey]) => {
 			const ids = steamIdsKey ? steamIdsKey.split(',').filter(Boolean) : [];
-			if (ids.length === 0) return [];
+			if (ids.length === 0) {
+				return [];
+			}
+
 			const items = await app.database.matches.getList({
 				filter: todayPlayedMatchesFilter(ids),
 				sort: '-createdAt'
@@ -123,7 +138,10 @@
 	const trackedPerformance = resource(
 		() => [profileId, app.features.auth.userId, statsGeneration] as const,
 		async ([id, userId, generation]) => {
-			if (!id || !userId) return emptyPlayerPerformance();
+			if (!id || !userId) {
+				return emptyPlayerPerformance();
+			}
+
 			return getPlayerPerformance({
 				profileId: id,
 				scope: 'user',
@@ -139,7 +157,9 @@
 	watch(
 		() => relicLeaderboardFingerprint(profile?.relic.leaderboardStats),
 		(next, previous) => {
-			if (previous && next !== previous) bumpStats();
+			if (previous && next !== previous) {
+				bumpStats();
+			}
 		}
 	);
 
@@ -150,9 +170,14 @@
 			const generation = ++subscribeGeneration;
 			void (async () => {
 				await unsubscribeToday?.();
-				if (generation !== subscribeGeneration) return;
+				if (generation !== subscribeGeneration) {
+					return;
+				}
+
 				unsubscribeToday = undefined;
-				if (ids.length === 0) return;
+				if (ids.length === 0) {
+					return;
+				}
 
 				const next = await app.pocketbase.collection('lobbies').subscribe<LobbyMatch>(
 					'*',
@@ -161,6 +186,7 @@
 						if (!isMatchFromLocalToday(match) || !matchIncludesSteamIds(match, ids)) {
 							return;
 						}
+
 						if (e.action === 'create') {
 							const current = todayMatches.current || [];
 							if (!current.find((entry) => entry.id === e.record.id)) {
@@ -172,7 +198,9 @@
 									entry.id === e.record.id ? match : entry
 								)
 							);
-							if (!match.needsResult) bumpStats();
+							if (!match.needsResult) {
+								bumpStats();
+							}
 						} else if (e.action === 'delete') {
 							todayMatches.mutate(
 								(todayMatches.current || []).filter((entry) => entry.id !== e.record.id)
@@ -190,6 +218,7 @@
 					await next();
 					return;
 				}
+
 				unsubscribeToday = next;
 			})();
 		}
@@ -197,7 +226,10 @@
 
 	onDestroy(() => {
 		subscribeGeneration += 1;
-		if (bumpTimer) clearTimeout(bumpTimer);
+		if (bumpTimer) {
+			clearTimeout(bumpTimer);
+		}
+
 		unsubscribeToday?.();
 		offLobbySaved();
 		offMatchResult();
@@ -232,7 +264,10 @@
 
 	function recentMatchTooltip(match: PerformanceRecentMatch): string {
 		const mode = match.matchtypeId != null ? modeLabel(match.matchtypeId) : t('Unknown');
-		if (match.raceId == null) return mode;
+		if (match.raceId == null) {
+			return mode;
+		}
+
 		return `<span class="inline-flex items-center gap-1.5 leading-none"><span class="inline-flex p-[3px]"><img src="${getFactionFlagFromRace(match.raceId)}" alt="" class="ring-secondary-800 h-5 w-5 shrink-0 rounded-full object-cover ring-3" /></span>${mode}</span>`;
 	}
 </script>
@@ -280,7 +315,10 @@
 						</a>
 						<Player.Labels steamId={profile.steam.steamid} class="shrink-0" />
 						{#if app.lobby}
-							<a href={resolve('/(loaded)/current-game')} class={cn(interactive, 'ml-auto shrink-0')}>
+							<a
+								href={resolve('/(loaded)/current-game')}
+								class={cn(interactive, 'ml-auto shrink-0')}
+							>
 								<Badge variant="success">{t('In match')}</Badge>
 							</a>
 						{:else if !app.game.isRunning}
@@ -343,7 +381,9 @@
 									recentMatchBase,
 									match.outcome === 1 ? recentMatchWin : recentMatchLoss
 								)}
-								aria-label="{match.outcome === 1 ? t('Win') : t('Loss')} — {recentMatchLabel(match)}"
+								aria-label="{match.outcome === 1 ? t('Win') : t('Loss')} — {recentMatchLabel(
+									match
+								)}"
 								{@attach tooltip(recentMatchTooltip(match))}
 							>
 								{match.outcome === 1 ? t('W') : t('L')}

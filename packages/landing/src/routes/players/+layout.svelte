@@ -26,9 +26,7 @@
 {#if isLookup}
 	{@render children()}
 {:else}
-	<div class="border-secondary-800 border-b">
-		<CardForm initialQuery={formQuery} />
-	</div>
+	<CardForm initialQuery={formQuery} />
 	{#if loadingPlayer}
 		<PlayerProfileSkeleton />
 	{:else}

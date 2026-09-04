@@ -104,7 +104,10 @@
 		const fromResult = match.result?.players?.find(
 			(player) => (player.alias ?? '').trim().toLowerCase() === name
 		);
-		if (fromResult) return fromResult;
+		if (fromResult) {
+			return fromResult;
+		}
+
 		const lobby = lobbyPlayer(replayPlayer);
 		return lobby ? findResultPlayer(match, lobby) : undefined;
 	}
@@ -114,7 +117,9 @@
 		const profileId = lobby?.profile.profile_id;
 		if (profileId != null && profileId > 0) {
 			const byId = livePlayers.find((player) => player.profileId === profileId);
-			if (byId) return byId;
+			if (byId) {
+				return byId;
+			}
 		}
 
 		const key = replayPlayer.name.trim().toLowerCase();
@@ -128,13 +133,22 @@
 	function ratingDelta(result: MatchResultPlayer): number | undefined {
 		const next = result.newrating;
 		const prev = result.oldrating;
-		if (!Number.isFinite(next) || !Number.isFinite(prev)) return undefined;
+		if (!Number.isFinite(next) || !Number.isFinite(prev)) {
+			return undefined;
+		}
+
 		return (next as number) - (prev as number);
 	}
 
 	function displayElo(result: MatchResultPlayer): number | null {
-		if ((result.newrating ?? 0) >= 1) return result.newrating ?? null;
-		if ((result.oldrating ?? 0) >= 1) return result.oldrating ?? null;
+		if ((result.newrating ?? 0) >= 1) {
+			return result.newrating ?? null;
+		}
+
+		if ((result.oldrating ?? 0) >= 1) {
+			return result.oldrating ?? null;
+		}
+
 		return null;
 	}
 
@@ -222,7 +236,7 @@
 				class="pointer-events-none absolute inset-0 h-full w-full object-cover object-left opacity-[0.16]"
 			/>
 			<div
-				class="pointer-events-none absolute inset-0 bg-linear-to-r from-secondary-950/25 via-secondary-950/60 to-secondary-950/92"
+				class="from-secondary-950/25 via-secondary-950/60 to-secondary-950/92 pointer-events-none absolute inset-0 bg-linear-to-r"
 			></div>
 		{/if}
 		<div class="relative flex items-center gap-4 px-4 py-3.5">
@@ -238,10 +252,7 @@
 					{/if}
 					<PlayerLikeCount likeCount={likeCountForSteamId(steamId)} class="shrink-0" />
 					{#if href}
-						<a
-							href={href}
-							class={cn(interactive, nameTextClass(player.name), 'hover:text-primary')}
-						>
+						<a {href} class={cn(interactive, nameTextClass(player.name), 'hover:text-primary')}>
 							{player.name}
 						</a>
 					{:else}
@@ -254,7 +265,7 @@
 					<img
 						src={resolveFactionFlag(race ?? 0)}
 						alt=""
-						class="ring-secondary-800 size-4 shrink-0 rounded-full object-cover ring-1"
+						class="ring-secondary-800 size-4 shrink-0 rounded-full object-cover ring-4"
 					/>
 					<span class="text-secondary-200 truncate">
 						{player.doctrineName || unknownDoctrineLabel}
@@ -340,10 +351,7 @@
 					{/if}
 					<PlayerLikeCount likeCount={player.likeCount} class="shrink-0" />
 					{#if href}
-						<a
-							{href}
-							class={cn(interactive, nameTextClass(label), 'hover:text-primary')}
-						>
+						<a {href} class={cn(interactive, nameTextClass(label), 'hover:text-primary')}>
 							{label}
 						</a>
 					{:else}

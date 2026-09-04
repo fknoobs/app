@@ -15,7 +15,6 @@
 	import * as List from '../ui/list';
 	import type { PerformanceRecentMatch, PlayerPageData } from './types';
 	import PlayerLabels from './player-labels.svelte';
-	import PlayerLikeCount from './player-like-count.svelte';
 	import SmurfAlert from './smurf-alert.svelte';
 
 	type Props = {
@@ -131,7 +130,6 @@
 						alt={player.country ?? ''}
 					/>
 				{/if}
-				<PlayerLikeCount likeCount={player.likeCount} class="shrink-0" />
 				<h1 class="font-heading truncate text-3xl font-bold">{player.alias}</h1>
 				<PlayerLabels labels={player.labels} class="shrink-0" />
 				{#if levelLabel}

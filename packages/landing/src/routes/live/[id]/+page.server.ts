@@ -13,9 +13,11 @@ export const load: PageServerLoad = async ({ locals, params, setHeaders }) => {
 		redirect(302, localizeHref(`/replays/${lobby.lobbyId}`, locals.locale));
 	}
 
-	setHeaders({
-		'cache-control': 'public, s-maxage=15, stale-while-revalidate=60'
-	});
+	if (!locals.user) {
+		setHeaders({
+			'cache-control': 'public, s-maxage=15, stale-while-revalidate=60'
+		});
+	}
 
 	return { lobby };
 };

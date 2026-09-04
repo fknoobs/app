@@ -21,7 +21,12 @@
 
 	const onSubmit: SubmitFunction = () => {
 		submitting = true;
-		return async ({ update }) => {
+		return async ({ result, update }) => {
+			if (result.type === 'redirect') {
+				window.location.assign(result.location);
+				return;
+			}
+
 			await update();
 			submitting = false;
 		};

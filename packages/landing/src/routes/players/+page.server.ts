@@ -6,9 +6,11 @@ import type { PageServerLoad } from './$types';
 export const prerender = false;
 
 export const load: PageServerLoad = async ({ locals, url, setHeaders }) => {
-	setHeaders({
-		'cache-control': 'public, s-maxage=15, stale-while-revalidate=30'
-	});
+	if (!locals.user) {
+		setHeaders({
+			'cache-control': 'public, s-maxage=15, stale-while-revalidate=30'
+		});
+	}
 	const query = url.searchParams.get('q')?.trim() ?? '';
 	if (isPlayerId(query)) {
 		redirect(302, localizeHref(`/players/${query}`, locals.locale));

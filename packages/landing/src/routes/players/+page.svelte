@@ -22,17 +22,7 @@
 	<meta property="og:title" content={t('CoH Player Stats')} />
 </svelte:head>
 
-<div class="border-secondary-800 border-b">
-	<div class="px-4 py-3">
-		<h1 class="font-heading mb-1 text-xl font-bold text-white">{t('Find a player')}</h1>
-		<p class="text-secondary-400 text-sm">
-			{t('Search for a player by Steam ID, profile ID, or in-game name.')}
-		</p>
-	</div>
-	<div class="border-secondary-800 border-t">
-		<CardForm initialQuery={data.query} />
-	</div>
-</div>
+<CardForm initialQuery={data.query} class="py-2" />
 
 {#if data.error}
 	<div class="border-secondary-800 border-b px-4 py-3">

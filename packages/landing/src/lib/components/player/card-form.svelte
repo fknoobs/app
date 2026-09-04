@@ -2,23 +2,35 @@
 	import { goto } from '$app/navigation';
 	import { navigating } from '$app/state';
 	import { Button } from '@company-of-heroes/ui/button';
-	import { cn } from '$lib/utils/cn';
+	import * as Form from '@company-of-heroes/ui/form';
+	import { Input } from '@company-of-heroes/ui/input';
 	import { href, useI18n } from '$lib/i18n';
 	import { isPlayerId } from '$lib/utils/player/steam-id';
-	import { headerCellAction } from '$lib/utils/variants';
 	import MagnifyingGlassIcon from 'phosphor-svelte/lib/MagnifyingGlassIcon';
+	import { watch } from 'runed';
+	import type { Snippet } from 'svelte';
 
 	type Props = {
 		initialQuery?: string;
+		hint?: Snippet;
+		class?: string;
 	};
 
-	let { initialQuery = '' }: Props = $props();
+	let { initialQuery = '', hint, class: className }: Props = $props();
 	const { t } = useI18n();
 
-	let query = $derived(initialQuery);
+	let query = $state('');
 	let validationError = $state<string | null>(null);
 	const pending = $derived(
 		Boolean(navigating.to?.params?.id) || Boolean(navigating.to?.url.searchParams.get('q'))
+	);
+	const canSearch = $derived(query.trim().length > 0 && !pending);
+
+	watch(
+		() => initialQuery,
+		(value) => {
+			query = value;
+		}
 	);
 
 	function handleSubmit(event: SubmitEvent) {
@@ -39,31 +51,37 @@
 	}
 </script>
 
-<form onsubmit={handleSubmit}>
-	<div class="flex h-11 items-stretch">
-		<input
+<Form.Root onsubmit={handleSubmit}>
+	<Form.Group
+		inputId="player-search"
+		label={t('Find a player')}
+		description={t('Search for a player by Steam ID, profile ID, or in-game name.')}
+		{hint}
+		class={className}
+	>
+		<Input
 			id="player-search"
 			type="text"
 			autocomplete="off"
-			aria-label={t('Steam ID, profile ID, or player name')}
 			placeholder={t('Steam ID, profile ID, or player name')}
 			bind:value={query}
-			class={cn(
-				'placeholder:text-secondary-500 h-full min-w-0 flex-1 px-4 text-white',
-				'border-secondary-800 border-y-0 border-r border-l-0 bg-transparent',
-				'focus:bg-secondary-800/30 focus:outline-none'
-			)}
+			disabled={pending}
+			aria-label={t('Find a player')}
 		/>
-		<div class="border-secondary-800 flex shrink-0 items-stretch border-r">
-			<Button type="submit" variant="ghost" class={headerCellAction} disabled={pending}>
-				<MagnifyingGlassIcon size={16} />
-				{t('Search')}
-			</Button>
-		</div>
-	</div>
+		<Button
+			type="submit"
+			variant="secondary"
+			class="w-fit shrink-0"
+			loading={pending}
+			disabled={!canSearch}
+		>
+			<MagnifyingGlassIcon size={16} />
+			{t('Search')}
+		</Button>
+	</Form.Group>
 	{#if validationError}
-		<p class="text-destructive border-secondary-800 border-t px-4 py-2 text-sm">
+		<p class="text-destructive border-secondary-800 border-b px-4 py-2 text-sm">
 			{validationError}
 		</p>
 	{/if}
-</form>
+</Form.Root>

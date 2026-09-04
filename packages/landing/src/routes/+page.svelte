@@ -4,7 +4,6 @@
 	import HomeLiveLobbies from '$lib/components/home/home-live-lobbies.svelte';
 	import HomeRecentMatches from '$lib/components/home/home-recent-matches.svelte';
 	import HomeLiveStreams from '$lib/components/home/home-live-streams.svelte';
-	import DownloadSection from '$lib/components/home/download-section.svelte';
 	import { SITE_URL } from '$lib/site/urls';
 	import { href, useI18n } from '$lib/i18n';
 	import type { PageData } from './$types';
@@ -65,5 +64,4 @@
 	{/await}
 	<HomeRecentMatches matches={data.recentMatches} />
 	<HomeLiveStreams streams={data.streams} />
-	<DownloadSection />
 </main>

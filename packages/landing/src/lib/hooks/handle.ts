@@ -8,13 +8,13 @@ import {
 	type AppLocale
 } from '@company-of-heroes/i18n';
 
-function appendAuthCookie(response: Response, cookie: string): Response {
+function withMutableHeaders(response: Response, mutate: (headers: Headers) => void): Response {
 	try {
-		response.headers.append('set-cookie', cookie);
+		mutate(response.headers);
 		return response;
 	} catch {
 		const copy = new Response(response.body, response);
-		copy.headers.append('set-cookie', cookie);
+		mutate(copy.headers);
 		return copy;
 	}
 }
@@ -55,17 +55,34 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event, {
 		transformPageChunk: ({ html }) => html.replaceAll('%lang%', locale)
 	});
-	if (!hadAuthCookie && !pocketbase.authStore.isValid) {
-		return response;
+
+	// Layout always embeds `user`. Public page caches must vary on Cookie so a
+	// logged-in visitor never receives an anonymous CDN/browser entry.
+	const authed = hadAuthCookie || pocketbase.authStore.isValid;
+	const next = withMutableHeaders(response, (headers) => {
+		const vary = headers.get('vary');
+		if (!vary?.toLowerCase().includes('cookie')) {
+			headers.append('Vary', 'Cookie');
+		}
+
+		if (authed) {
+			headers.set('cache-control', 'private, no-store');
+		}
+	});
+
+	if (!authed) {
+		return next;
 	}
 
-	return appendAuthCookie(
-		response,
-		pocketbase.authStore.exportToCookie({
-			httpOnly: false,
-			secure: event.url.protocol === 'https:',
-			sameSite: 'lax',
-			path: '/'
-		})
-	);
+	return withMutableHeaders(next, (headers) => {
+		headers.append(
+			'set-cookie',
+			pocketbase.authStore.exportToCookie({
+				httpOnly: false,
+				secure: event.url.protocol === 'https:',
+				sameSite: 'lax',
+				path: '/'
+			})
+		);
+	});
 };
