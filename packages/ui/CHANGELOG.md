@@ -1,5 +1,17 @@
 # @company-of-heroes/ui
 
+## 0.3.0
+
+- enhance; share the same player profile UI components across the app and website
+- fix; load website live lobbies from lobbies_live like the companion instead of a slow custom API
+- feat; upvote and downvote players on profiles, and show net rating next to player names
+- enhance; align home player search with shared Form.Group controls
+- enhance; remove home download section, Download nav link, and SmartScreen notice
+- enhance; rename site brand to Company of Heroes - Companion app
+- enhance; rename hero download button to Download app
+- enhance; even out Form.Group vertical padding
+- enhance; show staff-only account debug on player profiles, replays, and matches
+
 ## 0.2.0
 
 - feat; mark comments as deleted instead of removing them
