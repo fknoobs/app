@@ -1,5 +1,21 @@
 # @company-of-heroes/ui
 
+## 0.4.0
+
+- enhance; show send text on comment submit instead of an icon
+- enhance; use the shared players overview on the current-game / live lobby screen
+- fix; do not show ranks, ratings, or profile links for cpu players
+- fix; keep map and profile header images square instead of stretching with the details column
+- fix; open landing header dropdowns without async i18n suspense (avoids Svelte batch invariant)
+- enhance; highlight your own player with a primary ring when signed in on the site
+- feat; add member replay uploads with compose preview, ladder-stats snapshots, and per-player Steam ID linking when missing from the .rec
+- feat; owners can edit member replay title, description, and Steam links, and soft-delete uploads (hidden from public; retained for staff)
+- enhance; drag-and-drop .rec file picker on member replay upload
+- fix; parse .rec files in a worker and return slim results (no action dump) so the UI stays responsive
+- feat; share PocketBase and API client logic in @company-of-heroes/api
+- fix; detect skirmish (match type 14) for overlay and live lobbies, including cpu race updates
+- enhance; use solid button fills instead of transparent backgrounds
+
 ## 0.3.0
 
 - enhance; share the same player profile UI components across the app and website
