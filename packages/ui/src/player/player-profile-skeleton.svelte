@@ -5,7 +5,7 @@
 
 <div class="border-secondary-800 overflow-clip border-b" aria-busy="true">
 	<div class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[12.5rem_minmax(0,1fr)]">
-		<Skeleton class="aspect-square rounded-none sm:aspect-auto sm:min-h-55" />
+		<Skeleton class="aspect-square self-start rounded-none" />
 		<div class="min-w-0 px-6 py-4">
 			<div class="mb-3 flex items-center gap-2.5">
 				<Skeleton class="h-5 w-7 shrink-0 rounded-xs" />

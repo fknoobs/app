@@ -614,7 +614,7 @@
 			excludeUserId={user.id}
 			searchMentions={searchMentionUsers}
 			placeholder={t('Write a comment')}
-			submitLabel={t('Post comment')}
+			submitLabel={t('Send')}
 			{...composer}
 			onpost={() => void submit()}
 		/>
@@ -650,7 +650,7 @@
 		{people}
 		rows={2}
 		placeholder={t('Write a reply')}
-		submitLabel={t('Post comment')}
+		submitLabel={t('Send')}
 		{...composer}
 		name={myName}
 		avatarUrl={user?.avatarUrl}

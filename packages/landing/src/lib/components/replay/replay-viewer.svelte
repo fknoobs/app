@@ -27,6 +27,7 @@
 	} from '$lib/utils/live-lobby';
 	import { onMount } from 'svelte';
 	import { useI18n } from '$lib/i18n';
+	import { loadReplayActionsAsync, parseReplayAsync } from '$lib/replays/parse-replay-async';
 
 	type Props = {
 		match: CommunityMatchDetail;
@@ -37,12 +38,16 @@
 
 	let tab = $state('overview');
 	let replay = $state.raw<ParsedReplay | null>(null);
+	let parseId = $state<number | null>(null);
+	let actionsLoaded = $state(false);
+	let actionsPending = $state(false);
 	let loading = $state(true);
 	let errorMessage = $state('');
 
 	const hasReplay = $derived(match.hasReplay ?? Boolean(match.replay));
 	const livePlayers = $derived(match.livePlayers ?? []);
 	const replayData = $derived(replay as unknown as ReplayData | null);
+	const showComments = $derived(match.kind !== 'member');
 
 	function doctrineBannerForPlayer(player: ReplayPlayer) {
 		return doctrineBannerUrl(player as ParsedReplayPlayer);
@@ -65,10 +70,7 @@
 		let cancelled = false;
 		async function load() {
 			try {
-				const [{ parseReplay }, response] = await Promise.all([
-					import('@fknoobs/replay-parser'),
-					fetch(`/api/replay-file/${match.id}`)
-				]);
+				const response = await fetch(`/api/replay-file/${match.id}`);
 				if (!response.ok) {
 					throw new Error(
 						response.status === 429
@@ -77,17 +79,68 @@
 					);
 				}
 				const bytes = new Uint8Array(await response.arrayBuffer());
-				const parsed = parseReplay(bytes) as ParsedReplay;
-				if (!cancelled) replay = parsed;
+				if (bytes.byteLength < 64) {
+					throw new Error(t('Could not parse this replay.'));
+				}
+
+				const { parseId: nextParseId, replay: parsed } = await parseReplayAsync(bytes);
+				const parsedReplay = parsed as ParsedReplay;
+				if (!parsedReplay.players?.length) {
+					throw new Error(t('Could not parse this replay.'));
+				}
+
+				if (!cancelled) {
+					parseId = nextParseId;
+					actionsLoaded = false;
+					replay = parsedReplay;
+				}
 			} catch (error) {
 				if (!cancelled) {
 					errorMessage = error instanceof Error ? error.message : t('Could not parse this replay.');
 				}
 			} finally {
-				if (!cancelled) loading = false;
+				if (!cancelled) {
+					loading = false;
+				}
 			}
 		}
 		void load();
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	$effect(() => {
+		if (tab !== 'timeline' || !replay || parseId == null || actionsLoaded) {
+			return;
+		}
+
+		const id = parseId;
+		let cancelled = false;
+		actionsPending = true;
+		void loadReplayActionsAsync(id)
+			.then((actions) => {
+				if (cancelled || !replay) {
+					return;
+				}
+
+				replay = {
+					...replay,
+					actions: actions as ParsedReplay['actions']
+				};
+				actionsLoaded = true;
+			})
+			.catch(() => {
+				if (!cancelled) {
+					actionsLoaded = true;
+				}
+			})
+			.finally(() => {
+				if (!cancelled) {
+					actionsPending = false;
+				}
+			});
+
 		return () => {
 			cancelled = true;
 		};
@@ -119,7 +172,9 @@
 				livePlayerHref={liveLobbyPlayerHref}
 				livePlayerLabel={(player) => liveLobbyPlayerLabel(player, t)}
 			/>
-			<ReplayComments lobbyId={match.id} />
+			{#if showComments}
+				<ReplayComments lobbyId={match.id} />
+			{/if}
 		{/snippet}
 	</Tabs>
 {:else if loading}
@@ -136,7 +191,37 @@
 			{errorMessage} {t('You can still download the .rec file above.')}
 		</p>
 	</div>
-	<ReplayComments lobbyId={match.id} />
+	{#if match.players.length > 0}
+		<Tabs bind:value={tab} overviewLabel={t('Overview')} showChat={false} showTimeline={false}>
+			{#snippet overview()}
+				<Overview
+					{match}
+					{livePlayers}
+					playerHref={resolvePlayerHref}
+					{flagImageUrl}
+					{getCountryDisplayName}
+					resolveFactionFlag={resolveFactionFlag}
+					{raceFromReplayFaction}
+					doctrineBannerUrl={doctrineBannerForPlayer}
+					playerCpm={playerCpmForReplay}
+					getRankImage={getRankImageByRace}
+					levelLabel={t('Lv')}
+					alliesLabel={t('Allies')}
+					axisLabel={t('Axis')}
+					unknownDoctrineLabel={t('Unknown doctrine')}
+					ratingLabel={t('Rating')}
+					cpmLabel={t('CPM')}
+					livePlayerHref={liveLobbyPlayerHref}
+					livePlayerLabel={(player) => liveLobbyPlayerLabel(player, t)}
+				/>
+				{#if showComments}
+					<ReplayComments lobbyId={match.id} />
+				{/if}
+			{/snippet}
+		</Tabs>
+	{:else if showComments}
+		<ReplayComments lobbyId={match.id} />
+	{/if}
 {:else if replay && replayData}
 	{@const parsedReplay = replay}
 	<Tabs
@@ -166,7 +251,9 @@
 				cpmLabel={t('CPM')}
 				livePlayerHref={liveLobbyPlayerHref}
 			/>
-			<ReplayComments lobbyId={match.id} />
+			{#if showComments}
+				<ReplayComments lobbyId={match.id} />
+			{/if}
 		{/snippet}
 		{#snippet chat()}
 			<Chat
@@ -176,12 +263,16 @@
 			/>
 		{/snippet}
 		{#snippet timeline()}
-			<Actions
-				replay={replayData}
-				countedActions={countedActionsForReplay}
-				resolveFactionFlag={resolveFactionFlag}
-				{raceFromReplayFaction}
-			/>
+			{#if actionsPending}
+				<p class="text-secondary-400 px-4 py-6 text-sm">{t('Loading…')}</p>
+			{:else}
+				<Actions
+					replay={replayData}
+					countedActions={countedActionsForReplay}
+					resolveFactionFlag={resolveFactionFlag}
+					{raceFromReplayFaction}
+				/>
+			{/if}
 		{/snippet}
 	</Tabs>
 {/if}

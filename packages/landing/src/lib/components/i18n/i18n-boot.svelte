@@ -1,6 +1,11 @@
 <script lang="ts">
-	import I18nTree from './i18n-tree.svelte';
-	import { createI18n, type AppLocale } from '$lib/i18n';
+	import {
+		createTranslate,
+		locales,
+		provideI18n,
+		type AppI18n,
+		type AppLocale
+	} from '$lib/i18n';
 	import type { Snippet } from 'svelte';
 
 	type Props = {
@@ -9,9 +14,33 @@
 	};
 
 	let { locale, children }: Props = $props();
-	const i18n = $derived(await createI18n(locale));
+
+	// Sync provider — no top-level `await`. Wrapping the header (bits-ui) in an
+	// experimental.async suspense boundary triggers Svelte's
+	// "Batch has scheduled roots" invariant when dropdown state updates.
+	const i18n = {
+		get locale() {
+			return locale;
+		},
+		get locales() {
+			return [...locales];
+		},
+		getLocale: () => locale,
+		setLocale: () => {
+			/* locale is URL-driven on landing */
+		},
+		get t() {
+			return createTranslate(() => locale);
+		},
+		get _() {
+			return createTranslate(() => locale);
+		},
+		get loading() {
+			return { current: false };
+		}
+	} as AppI18n;
+
+	provideI18n(() => i18n);
 </script>
 
-<I18nTree {i18n}>
-	{@render children()}
-</I18nTree>
+{@render children()}

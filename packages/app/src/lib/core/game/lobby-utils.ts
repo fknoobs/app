@@ -17,6 +17,9 @@ export function liveLobbyToMatch(record: LiveLobbyRecord): Match {
 	instance.map = record.map;
 	instance.players = record.players ?? [];
 	instance.started = true;
+	if (record.matchType != null) {
+		instance.logMatchType = record.matchType;
+	}
 	return instance.toJSON();
 }
 

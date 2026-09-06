@@ -13,6 +13,7 @@
 	import TrashIcon from 'phosphor-svelte/lib/TrashIcon';
 	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
+	import UploadSimpleIcon from 'phosphor-svelte/lib/UploadSimpleIcon';
 	import dayjs from '$lib/dayjs';
 	import type { ReplaysExpanded } from '$core/app/database/replays';
 	import type { ReplayList } from './replay-list.svelte';
@@ -80,7 +81,7 @@
 			onSort: toggleDateSort,
 			headerClass: 'flex items-center select-none'
 		},
-		{ id: 'actions', header: '', width: 'w-3/24', class: 'justify-end gap-0.5' }
+		{ id: 'actions', header: '', width: 'w-4/24', class: 'justify-end gap-0.5' }
 	];
 
 	function markLocalPresent(id: string) {
@@ -228,6 +229,24 @@
 			downloadingIds = { ...downloadingIds, [row.id]: false };
 		}
 	}
+
+	async function publishReplay(row: ReplaysExpanded) {
+		if (row.visibility === 'member') {
+			return;
+		}
+
+		try {
+			await app.database.replays.publish(row.id);
+			list.patch(row.id, { visibility: 'member' } as Partial<ReplaysExpanded>);
+			app.toast.success(t('Replay published to Member replays.'));
+		} catch (error) {
+			app.toast.error(
+				t('Failed to publish replay: {message}', {
+					message: error instanceof Error ? error.message : String(error)
+				})
+			);
+		}
+	}
 </script>
 
 {#snippet header_duration()}
@@ -324,6 +343,26 @@
 			<CheckIcon size={16} />
 		{:else if !isDownloading}
 			<DownloadIcon size={16} />
+		{/if}
+	</Button>
+	<Button
+		type="button"
+		variant="ghost"
+		size="icon-sm"
+		class={cn(
+			interactive,
+			'text-secondary-500 hover:text-secondary-200',
+			row.visibility === 'member' && 'pointer-events-none cursor-not-allowed opacity-50'
+		)}
+		disabled={row.visibility === 'member'}
+		aria-label={row.visibility === 'member' ? t('Published') : t('Publish to Member replays')}
+		{@attach tooltip(row.visibility === 'member' ? t('Already published') : t('Publish to Member replays'))}
+		onclick={() => void publishReplay(row)}
+	>
+		{#if row.visibility === 'member'}
+			<CheckIcon size={16} />
+		{:else}
+			<UploadSimpleIcon size={16} />
 		{/if}
 	</Button>
 	<Button

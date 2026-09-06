@@ -8,6 +8,8 @@ export type LiveLobbyRecord = {
 	sessionId: string;
 	map: string;
 	isRanked: boolean;
+	/** Relic match type (0 custom, 1–4 ranked, 14 skirmish). */
+	matchType?: number;
 	createdAt: string;
 	updatedAt: string;
 	hostName: string;
@@ -56,10 +58,19 @@ export function slimLiveLobbyPlayer(
 	fallbackIndex: number
 ): LiveLobbyPlayer | null {
 	const playerId = toFiniteNumber(player.playerId);
-	const race = toFiniteNumber(player.race);
+	let race = toFiniteNumber(player.race);
 	const type = toFiniteNumber(player.type);
 	const index = toFiniteNumber(player.index) ?? fallbackIndex;
-	if (playerId == null || race == null || race < 0 || race > 3) {
+	if (playerId == null) {
+		return null;
+	}
+
+	// Skirmish AI often starts as Race 6 (random) before Relic resolves the faction.
+	if (playerId === -1 && (race == null || race < 0 || race > 3)) {
+		race = 0;
+	}
+
+	if (race == null || race < 0 || race > 3) {
 		return null;
 	}
 
@@ -119,29 +130,35 @@ export function slimLiveLobbyPlayers(value: unknown): LiveLobbyPlayer[] {
 
 export function getLiveLobbyMatchTypeId(
 	players: Array<{ playerId: number }>,
-	isRanked?: boolean
+	isRanked?: boolean,
+	matchType?: number | null
 ): number {
-	if (players.some((player) => player.playerId === -1)) {
+	if (matchType === 14 || players.some((player) => player.playerId === -1)) {
 		return 14;
+	}
+
+	if (typeof matchType === 'number' && matchType >= 0 && matchType <= 4) {
+		return matchType;
 	}
 
 	if (!isRanked) {
 		return 0;
 	}
 
-	if (players.length === 2) {
+	const humans = players.filter((player) => player.playerId !== -1);
+	if (humans.length === 2) {
 		return 1;
 	}
 
-	if (players.length === 4) {
+	if (humans.length === 4) {
 		return 2;
 	}
 
-	if (players.length === 6) {
+	if (humans.length === 6) {
 		return 3;
 	}
 
-	if (players.length === 8) {
+	if (humans.length === 8) {
 		return 4;
 	}
 
@@ -155,6 +172,7 @@ export function toLiveLobbyRecord(input: {
 	map?: string;
 	isRanked?: boolean;
 	isReplay?: boolean;
+	matchType?: number | null;
 	createdAt?: string;
 	updatedAt?: string;
 	hostName?: string;
@@ -169,15 +187,19 @@ export function toLiveLobbyRecord(input: {
 		return null;
 	}
 
+	const players = slimLiveLobbyPlayers(input.players);
+	const matchType = getLiveLobbyMatchTypeId(players, input.isRanked, input.matchType);
+
 	return {
 		id: input.id,
 		lobbyId: input.lobbyId ?? null,
 		sessionId,
 		map: String(input.map || ''),
 		isRanked: Boolean(input.isRanked),
+		matchType,
 		createdAt: String(input.createdAt || ''),
 		updatedAt: String(input.updatedAt || ''),
 		hostName: String(input.hostName || '').trim(),
-		players: slimLiveLobbyPlayers(input.players)
+		players
 	};
 }

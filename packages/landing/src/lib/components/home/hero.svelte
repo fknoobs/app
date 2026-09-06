@@ -20,7 +20,7 @@
 	);
 	const iconLink = cn(
 		interactive,
-		'bg-gray-800/40 text-secondary-500 hover:text-primary inline-flex size-8 items-center justify-center rounded-md transition-colors'
+		'text-secondary-500 hover:text-primary inline-flex size-8 items-center justify-center rounded-md bg-gray-800/40 transition-colors'
 	);
 </script>
 
@@ -42,8 +42,8 @@
 			</Button>
 			<DiscordMenu
 				class={cn(
-					'inline-flex h-11 items-center justify-center gap-2 rounded-md border px-6 text-base transition-colors duration-150',
-					'border-secondary-800 bg-secondary-800/30 hover:border-secondary-500 hover:bg-secondary-800/80 text-white'
+					'inline-flex h-9 items-center justify-center gap-2 rounded-md border px-6 text-base transition-colors duration-150',
+					'border-secondary-600 bg-secondary-800 hover:border-secondary-500 hover:bg-secondary-700 text-white'
 				)}
 			>
 				<DiscordLogoIcon size={18} weight="duotone" />

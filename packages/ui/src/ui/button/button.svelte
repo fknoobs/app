@@ -25,27 +25,23 @@
 	{rel}
 	class={cn(
 		'inline-flex items-center gap-2 transition-colors duration-150',
-		'cursor-pointer rounded-md px-6',
+		'cursor-pointer rounded-md px-6 font-medium',
 		'disabled:cursor-not-allowed disabled:opacity-60',
 		variant !== 'ghost' && variant !== 'link' && 'border border-transparent',
 		size === 'sm' && 'h-8 px-3 text-sm',
-		size === 'md' && 'h-11 px-6 text-base',
+		size === 'md' && 'h-9 px-6 text-base',
 		size === 'lg' && 'h-14 px-8 text-lg',
 		size === 'icon' && 'size-11 justify-center p-0',
 		size === 'icon-sm' && 'size-8 justify-center p-0 text-sm',
 		variant === 'primary' &&
-			'bg-primary/5 border-primary/20 hover:border-primary/80 hover:bg-primary/20 text-white',
+			'bg-primary border-primary-500 text-secondary-950 hover:bg-primary/90 hover:border-primary-600',
 		variant === 'secondary' &&
-			'border-secondary-800 bg-secondary-800/30 hover:border-secondary-500 hover:bg-secondary-800/80 text-white hover:opacity-100',
-		variant === 'destructive' &&
-			'bg-destructive/5 border-destructive/20 hover:border-destructive/80 hover:bg-destructive/20 text-white',
-		variant === 'success' &&
-			'bg-success/5 border-success/20 hover:border-success/80 hover:bg-success/20 text-white',
-		variant === 'warning' &&
-			'bg-warning/5 border-warning/20 hover:border-warning/80 hover:bg-warning/20 text-white',
-		variant === 'ghost' && 'border-0 active:bg-secondary-950/40 hover:opacity-100',
-		variant === 'link' &&
-			'text-primary hover:text-primary-600 border-0 bg-transparent font-medium hover:opacity-100',
+			'border-secondary-700 bg-secondary-950 hover:border-secondary-600 hover:bg-secondary-800 text-white',
+		variant === 'destructive' && 'bg-destructive border-destructive text-destructive-foreground',
+		variant === 'success' && 'bg-success border-success text-success-foreground',
+		variant === 'warning' && 'bg-warning border-warning text-warning-foreground',
+		variant === 'ghost' && 'active:bg-secondary-900 border-0',
+		variant === 'link' && 'text-primary hover:text-primary-300 border-0 bg-transparent font-medium',
 		restProps.class
 	)}
 	disabled={loading || restProps.disabled}

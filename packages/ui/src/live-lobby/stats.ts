@@ -37,19 +37,23 @@ function toFiniteNumber(value: unknown): number | null {
 }
 
 /**
- * Maps a basic (0) or ranked 1v1–4v4 (1–4) match type + race to its Relic
- * leaderboard id (0–19). Races: US=0, Wehrmacht=1, Commonwealth=2, PanzerElite=3.
- * Returns null for skirmish/operations or out-of-range races.
+ * Maps a basic (0), ranked 1v1–4v4 (1–4), or skirmish (14) match type + race to
+ * its Relic leaderboard id. Races: US=0, Wehrmacht=1, Commonwealth=2, PanzerElite=3.
+ * Returns null for operations or out-of-range races.
  */
 export function leaderboardIdForMatchRace(
 	matchTypeId: number,
 	race: number
 ): number | null {
-	if (!Number.isInteger(matchTypeId) || matchTypeId < 0 || matchTypeId > 4) {
+	if (!Number.isInteger(race) || race < 0 || race > 3) {
 		return null;
 	}
 
-	if (!Number.isInteger(race) || race < 0 || race > 3) {
+	if (matchTypeId === 14) {
+		return 42 + race;
+	}
+
+	if (!Number.isInteger(matchTypeId) || matchTypeId < 0 || matchTypeId > 4) {
 		return null;
 	}
 
@@ -128,16 +132,24 @@ function findRawLiveLobbyPlayer(
 export function attachLiveLobbyStats(
 	slimPlayers: LiveLobbyPlayer[],
 	rawPlayers: LiveLobbyRawPlayer[],
-	isRanked: boolean
+	isRanked: boolean,
+	matchType?: number | null
 ): LiveLobbyPlayer[] {
-	const matchTypeId = getLiveLobbyMatchTypeId(slimPlayers, isRanked);
+	const matchTypeId = getLiveLobbyMatchTypeId(slimPlayers, isRanked, matchType);
 	return slimPlayers.map((slim) => {
+		if (slim.playerId === -1) {
+			return { ...slim, stats: null };
+		}
+
 		const raw = findRawLiveLobbyPlayer(rawPlayers, slim);
 		if (!raw) {
 			return slim;
 		}
 
-		const elo = resolveStoredElo(raw.storedElo, matchTypeId, slim.race);
+		const elo =
+			matchTypeId === 14
+				? resolveStoredElo(raw.storedElo, matchTypeId, slim.race) ?? 1000
+				: resolveStoredElo(raw.storedElo, matchTypeId, slim.race);
 		const stats = pickPlayerStats(
 			raw.profile?.leaderboardStats,
 			matchTypeId,

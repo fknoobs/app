@@ -31,6 +31,7 @@
 		size = 'md',
 		decreaseLabel = 'Decrease value',
 		increaseLabel = 'Increase value',
+		inputClasses = '',
 		...restProps
 	}: InputProps = $props();
 	let showPasswordToggle = $state(untrack(() => type === 'password'));
@@ -42,9 +43,7 @@
 		size === 'sm' ? 'h-8 text-sm' : size === 'lg' ? 'h-14 text-lg' : 'h-11 text-base'
 	);
 	const controlPad = $derived(size === 'sm' ? 'px-3' : size === 'lg' ? 'px-5' : 'px-4');
-	const adornedText = $derived(
-		size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-lg' : 'text-base'
-	);
+	const adornedText = $derived(size === 'sm' ? 'text-sm' : size === 'lg' ? 'text-lg' : 'text-base');
 	const adornedSidePad = $derived(size === 'sm' ? 'px-2' : 'px-3');
 	const numberEndPad = $derived(size === 'sm' ? 'pe-14' : 'pe-17');
 	const passwordTogglePos = $derived(size === 'sm' ? 'top-0.5 right-0.5' : 'top-1.5 right-1.5');
@@ -56,9 +55,11 @@
 		if (restProps.max !== undefined && next > parseFloat(restProps.max?.toString() ?? '0')) {
 			next = parseFloat(restProps.max?.toString() ?? '0');
 		}
+
 		if (restProps.min !== undefined && next < parseFloat(restProps.min?.toString() ?? '0')) {
 			next = parseFloat(restProps.min?.toString() ?? '0');
 		}
+
 		value = next.toString();
 	}
 </script>
@@ -76,14 +77,12 @@
 				{...restProps}
 				type={type === 'number' ? 'text' : type}
 				inputmode={type === 'number' ? 'numeric' : restProps.inputmode}
-				class={cn(flushInput, flushText, controlDisabled, controlReadonly)}
-				oninput={
-					type === 'number'
-						? () => {
-								value = String(value).replace(/[^0-9.-]/g, '');
-							}
-						: restProps.oninput
-				}
+				class={cn(flushInput, flushText, controlDisabled, controlReadonly, inputClasses)}
+				oninput={type === 'number'
+					? () => {
+							value = String(value).replace(/[^0-9.-]/g, '');
+						}
+					: restProps.oninput}
 			/>
 			{#if trailing}
 				<span class="text-secondary-500 shrink-0">
@@ -160,7 +159,8 @@
 					? cn(adornedInput, adornedText)
 					: cn(controlBase, controlSize, 'w-full', controlPad, numberEndPad),
 				controlDisabled,
-				controlReadonly
+				controlReadonly,
+				inputClasses
 			)}
 			oninput={() => {
 				value = String(value).replace(/[^0-9.-]/g, '');
@@ -206,7 +206,7 @@
 			bind:value
 			{...restProps}
 			{type}
-			class={cn(adornedInput, adornedText, controlDisabled, controlReadonly)}
+			class={cn(adornedInput, adornedText, controlDisabled, controlReadonly, inputClasses)}
 		/>
 		{#if trailing}
 			<span class={cn(adornedTrailing, adornedSidePad)}>
@@ -241,7 +241,8 @@
 				'w-full',
 				controlPad,
 				controlDisabled,
-				controlReadonly
+				controlReadonly,
+				inputClasses
 			)}
 		/>
 		{#if showPasswordToggle}

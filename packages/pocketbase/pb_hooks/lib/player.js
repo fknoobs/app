@@ -860,6 +860,8 @@ module.exports = {
 	handleCardGet,
 	loadPlayerPage,
 	selectCardStats,
+	fetchRelicProfileBySteamId,
+	fetchRelicProfileById,
 	applyCors,
 	jsonWithCors
 };

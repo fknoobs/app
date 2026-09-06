@@ -47,6 +47,11 @@
 	const { t } = useI18n();
 	const user = $derived(page.data.user);
 	const isStaff = $derived(isStaffUser(user));
+	const isOwner = $derived(
+		match.kind === 'member' && !!user?.id && match.uploadedBy?.id === user.id
+	);
+	const isDeleted = $derived(match.visibility === 'deleted');
+	const editHref = $derived(isOwner && !isDeleted ? href(`/replays/${match.id}/edit`) : null);
 	let extraDownloads = $state(0);
 	let counting = $state(false);
 	let countedHere = $state(false);
@@ -62,25 +67,48 @@
 	const isManuallyHidden = $derived(!!hiddenRecord.current);
 	const isHidden = $derived(isManuallyHidden || !!match.hiddenByKeyword);
 
-	const mapName = $derived(
-		replay?.mapFileName
+	const mapName = $derived.by(() => {
+		if (match.kind === 'member') {
+			const title = match.title?.trim();
+			if (title) {
+				return title;
+			}
+		}
+
+		return replay?.mapFileName && (replay.players?.length ?? 0) > 0
 			? normalizeMapName(replay.mapFileName.split(/[/\\]/).pop() ?? match.map)
-			: normalizeMapName(match.map)
-	);
+			: normalizeMapName(match.map);
+	});
 	const duration = $derived(
-		formatDurationLabel(replay?.duration ?? matchDurationSeconds(match), t)
+		formatDurationLabel(
+			replay?.duration && replay.duration > 0 ? replay.duration : matchDurationSeconds(match),
+			t
+		)
 	);
-	const isRanked = $derived(replay ? replay.matchType === 'automatch' : match.isRanked);
+	const isRanked = $derived(
+		replay && (replay.players?.length ?? 0) > 0
+			? replay.matchType === 'automatch'
+			: match.isRanked
+	);
 	const isPro = $derived(isProGameplayMatch(match));
 	const hasReplay = $derived(match.hasReplay ?? Boolean(match.replay));
 	const downloadHref = $derived(hasReplay ? `/api/replay-file/${match.id}` : null);
 	const downloadFileName = $derived(match.replay || `${match.id}.rec`);
 	const submittedAt = $derived(
-		formatSubmittedAt(replay?.gameDate || match.createdAt, currentLocale())
+		formatSubmittedAt(
+			(replay?.gameDate && (replay.players?.length ?? 0) > 0 ? replay.gameDate : '') ||
+				match.createdAt,
+			currentLocale()
+		)
 	);
-	const playerCount = $derived(
-		replay?.players.length ?? match.livePlayers?.length ?? match.players.length
-	);
+	const playerCount = $derived.by(() => {
+		const fromReplay = replay?.players.length ?? 0;
+		if (fromReplay > 0) {
+			return fromReplay;
+		}
+
+		return match.livePlayers?.length ?? match.players.length;
+	});
 	const submittedBy = $derived(match.submittedBy);
 	const submittedByHref = $derived.by(() => {
 		if (!submittedBy) {
@@ -145,7 +173,8 @@
 		try {
 			const result = await recordReplayDownload({
 				matchId: match.id,
-				visitorId: replayDownloadVisitorId()
+				visitorId: replayDownloadVisitorId(),
+				kind: match.kind === 'member' ? 'member' : 'match'
 			});
 			countedHere = true;
 			markReplayDownload(match.id);
@@ -226,7 +255,9 @@
 	onDownloadClick={() => void recordDownload()}
 >
 	{#snippet vote()}
-		<ReplayLikeButton lobbyId={match.id} likeCount={match.likeCount} />
+		{#if match.kind !== 'member'}
+			<ReplayLikeButton lobbyId={match.id} likeCount={match.likeCount} />
+		{/if}
 	{/snippet}
 	{#snippet titleMeta()}
 		{#if isPro}
@@ -234,6 +265,9 @@
 		{/if}
 		{#if isStaff && isHidden}
 			<Badge variant="warning">{t('Hidden')}</Badge>
+		{/if}
+		{#if isStaff && isDeleted}
+			<Badge variant="warning">{t('Deleted')}</Badge>
 		{/if}
 	{/snippet}
 	{#snippet details()}
@@ -282,6 +316,14 @@
 
 				<List.Title>{t('Game mode')}</List.Title>
 				<List.Value>{isRanked ? t('Ranked') : t('Custom match')}</List.Value>
+			{:else if match.uploadedBy}
+				<List.Title>{t('Uploaded by')}</List.Title>
+				<List.Value>{match.uploadedBy.alias}</List.Value>
+				<List.Title>{t('Duration')}</List.Title>
+				<List.Value>{duration}</List.Value>
+
+				<List.Title>{t('Game mode')}</List.Title>
+				<List.Value>{isRanked ? t('Ranked') : t('Custom match')}</List.Value>
 			{:else}
 				<List.Title>{t('Game mode')}</List.Title>
 				<List.Value>{isRanked ? t('Ranked') : t('Custom match')}</List.Value>
@@ -291,6 +333,11 @@
 		</div>
 	{/snippet}
 	{#snippet actions()}
+		{#if editHref}
+			<Button type="button" variant="secondary" href={editHref}>
+				{t('Edit')}
+			</Button>
+		{/if}
 		{#if isStaff && sessionId > 0}
 			<Button
 				type="button"

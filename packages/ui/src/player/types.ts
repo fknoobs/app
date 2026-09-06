@@ -104,4 +104,6 @@ export type PlayerSearchResult = {
 	steamId: string;
 	avatarUrl: string;
 	likeCount?: number;
+	/** Relic wins+losses across leaderboards; present on search results. */
+	matchCount?: number;
 };

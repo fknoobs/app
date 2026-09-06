@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { invalidateAll } from '$app/navigation';
 	import { Table as LiveLobbiesTable, type LiveLobbyPlayer } from '@company-of-heroes/ui/live-lobby';
 	import type { LiveLobbyRecord } from '@company-of-heroes/api';
 	import { Button } from '@company-of-heroes/ui/button';
+	import { meSteamIds } from '$lib/auth/user';
 	import { currentLocale, useI18n } from '$lib/i18n';
 	import { API_URL } from '$lib/site/urls';
 	import {
@@ -21,6 +23,7 @@
 
 	let { lobbies, loading = false }: Props = $props();
 	const { t } = useI18n();
+	const mySteamIds = $derived(meSteamIds(page.data.user));
 	const isDev = import.meta.env.DEV;
 	let seeding = $state(false);
 	let seedError = $state<string | null>(null);
@@ -98,6 +101,7 @@
 	<LiveLobbiesTable
 		lobbies={rows}
 		{loading}
+		meSteamIds={mySteamIds}
 		{resolveMapSrc}
 		{resolveFallbackSrc}
 		{resolveFactionFlag}

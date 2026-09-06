@@ -3,13 +3,22 @@
 	import { type Snippet } from 'svelte';
 	import { Command, Dialog } from 'bits-ui';
 	import { cn } from '@company-of-heroes/ui/cn';
-	import { interactive, overlayBackdrop, surfaceModal, controlBase, flushInput, menuItem } from '../../variants';
+	import {
+		interactive,
+		overlayBackdrop,
+		surfaceModal,
+		controlBase,
+		flushInput,
+		menuItem
+	} from '../../variants';
 	import XIcon from 'phosphor-svelte/lib/XIcon';
 	import CheckIcon from 'phosphor-svelte/lib/CheckIcon';
 	import CaretDownIcon from 'phosphor-svelte/lib/CaretDownIcon';
+	import SpinnerIcon from 'phosphor-svelte/lib/SpinnerIcon';
 	import PencilSimpleIcon from 'phosphor-svelte/lib/PencilSimpleIcon';
 	import { selectionPicker } from './selection-picker';
-	import { Debounced, resource } from 'runed';
+	import { Debounced } from 'runed';
+	import { untrack } from 'svelte';
 
 	const PAGE_SIZE = 50;
 
@@ -17,6 +26,8 @@
 		value: string;
 		label: string;
 		child?: Snippet<[{ value: string; label: string }]>;
+		/** Optional host-specific fields for `renderOption` (avatar, country, …). */
+		meta?: Record<string, string>;
 	};
 
 	type Props = {
@@ -24,10 +35,15 @@
 		open?: boolean;
 		placeholder?: string;
 		multiple?: boolean;
+		size?: 'sm' | 'md' | 'lg';
+		/** `control` matches form inputs; `secondary` matches secondary Button. */
+		variant?: 'control' | 'secondary';
 		icon?: Snippet;
 		getDisplayLabel?: (option: Option) => string;
 		onEditSelected?: (value: string, event: Event) => void;
 		onSearch?: (query: string) => Promise<Option[]>;
+		/** Custom row content in the picker (avatar, flag, etc.). */
+		renderOption?: Snippet<[{ option: Option }]>;
 		hideTrigger?: boolean;
 		onValueChange?: (value: string | string[]) => void;
 		clearAllLabel?: string;
@@ -36,7 +52,8 @@
 		selectOptionLabel?: string;
 		searchPlaceholder?: string;
 		noResultsLabel?: string;
-	} & HTMLInputAttributes;
+		searchingLabel?: string;
+	} & Omit<HTMLInputAttributes, 'size'>;
 
 	let {
 		value = $bindable(),
@@ -44,10 +61,13 @@
 		options,
 		placeholder = 'Select an option...',
 		multiple = false,
+		size = 'md',
+		variant = 'control',
 		icon,
 		getDisplayLabel,
 		onEditSelected,
 		onSearch,
+		renderOption,
 		hideTrigger = false,
 		onValueChange,
 		clearAllLabel = 'Clear All',
@@ -56,8 +76,18 @@
 		selectOptionLabel = 'Select option',
 		searchPlaceholder = 'Search...',
 		noResultsLabel = 'No results found.',
+		searchingLabel = 'Searching...',
 		class: className
 	}: Props = $props();
+
+	const controlSize = $derived(
+		size === 'sm' ? 'h-8 text-sm' : size === 'lg' ? 'h-14 text-lg' : 'h-11 text-base'
+	);
+	const controlPad = $derived(size === 'sm' ? 'px-3' : size === 'lg' ? 'px-5' : 'px-4');
+	const buttonSize = $derived(
+		size === 'sm' ? 'h-8 px-3 text-sm' : size === 'lg' ? 'h-14 px-8 text-lg' : 'h-9 px-6 text-base'
+	);
+	const caretSize = $derived(size === 'sm' ? 14 : size === 'lg' ? 20 : 16);
 
 	function selectedCountLabel(count: number) {
 		return `${count} selected`;
@@ -65,21 +95,59 @@
 
 	let search = $state('');
 	let displayedCount = $state(PAGE_SIZE);
+	let remoteResults = $state.raw<Option[]>([]);
+	let remoteLoading = $state(false);
 	const debouncedSearch = new Debounced(() => search, 200);
-	const remoteResults = resource(
-		() => [open, debouncedSearch.current] as const,
-		([isOpen, query]) => {
-			if (!onSearch || !isOpen) {
-				return Promise.resolve([] as Option[]);
-			}
-			return onSearch(query);
+
+	$effect(() => {
+		const isOpen = open;
+		const query = debouncedSearch.current;
+
+		// Do not track onSearch identity — hosts recreate it each render / remote call.
+		const runSearch = untrack(() => onSearch);
+
+		if (!runSearch || !isOpen) {
+			untrack(() => {
+				remoteResults = [];
+				remoteLoading = false;
+			});
+			return;
 		}
-	);
+
+		let cancelled = false;
+		untrack(() => {
+			remoteResults = [];
+			remoteLoading = true;
+		});
+
+		void runSearch(query)
+			.then((results) => {
+				if (cancelled) {
+					return;
+				}
+
+				remoteResults = results;
+				remoteLoading = false;
+			})
+			.catch(() => {
+				if (cancelled) {
+					return;
+				}
+
+				remoteResults = [];
+				remoteLoading = false;
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	});
 
 	let selectedValues = $derived.by(() => {
 		if (multiple) {
 			return Array.isArray(value) ? value : value ? [value] : [];
 		}
+
 		return [];
 	});
 
@@ -88,7 +156,7 @@
 		for (const option of options) {
 			byValue[option.value] = option;
 		}
-		for (const option of remoteResults.current ?? []) {
+		for (const option of remoteResults) {
 			byValue[option.value] = option;
 		}
 		return Object.values(byValue);
@@ -96,17 +164,14 @@
 
 	let filteredOptions = $derived.by(() => {
 		if (onSearch) {
-			const fetched = remoteResults.current ?? [];
-			if (fetched.length > 0) return fetched;
-			const query = search.trim().toLowerCase();
-			if (!query) return options;
-			return options.filter(
-				(option) =>
-					option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query)
-			);
+			return remoteResults;
 		}
+
 		const query = search.trim().toLowerCase();
-		if (!query) return options;
+		if (!query) {
+			return options;
+		}
+
 		return options.filter(
 			(option) =>
 				option.label.toLowerCase().includes(query) || option.value.toLowerCase().includes(query)
@@ -114,6 +179,9 @@
 	});
 
 	let displayedOptions = $derived(filteredOptions.slice(0, displayedCount));
+	const searching = $derived(
+		!!onSearch && open && (remoteLoading || search.trim() !== debouncedSearch.current.trim())
+	);
 
 	let displayText = $derived.by(() => {
 		const labelFor = (option: { value: string; label: string }) =>
@@ -121,11 +189,15 @@
 
 		if (multiple) {
 			const selected = selectedValues;
-			if (selected.length === 0) return placeholder;
+			if (selected.length === 0) {
+				return placeholder;
+			}
+
 			if (selected.length === 1) {
 				const option = knownOptions.find((opt) => opt.value === selected[0]);
 				return option ? labelFor(option) : placeholder;
 			}
+
 			return selectedCountLabel(selected.length);
 		}
 
@@ -134,7 +206,10 @@
 	});
 
 	$effect(() => {
-		if (!open) return;
+		if (!open) {
+			return;
+		}
+
 		search = '';
 		displayedCount = PAGE_SIZE;
 		return selectionPicker.mountEscapeHandler(closePicker);
@@ -158,6 +233,7 @@
 		if (multiple) {
 			return selectedValues.includes(optionValue);
 		}
+
 		return value === optionValue;
 	}
 
@@ -173,6 +249,7 @@
 			} else {
 				value = [...currentValues, option.value];
 			}
+
 			onValueChange?.(value as string[]);
 			return;
 		}
@@ -272,9 +349,20 @@
 		type="button"
 		onclick={() => (open = true)}
 		class={cn(
-			controlBase,
 			interactive,
-			'group flex w-fit max-w-64 min-w-40 items-center justify-between truncate px-4 text-left',
+			'group flex items-center justify-between truncate text-left font-medium transition-colors duration-150',
+			variant === 'control' &&
+				cn(
+					controlBase,
+					controlSize,
+					controlPad,
+					'w-fit max-w-64 min-w-40'
+				),
+			variant === 'secondary' &&
+				cn(
+					buttonSize,
+					'border-secondary-700 bg-secondary-950 hover:border-secondary-600 hover:bg-secondary-800 w-full min-w-0 rounded-md border text-white'
+				),
 			className
 		)}
 	>
@@ -282,7 +370,7 @@
 			<span class="size-fit shrink-0">{@render icon()}</span>
 		{/if}
 		<span class="min-w-0 flex-1 truncate text-left">{displayText}</span>
-		<CaretDownIcon class="ms-2 shrink-0" />
+		<CaretDownIcon class="ms-2 shrink-0" size={caretSize} />
 	</button>
 {/if}
 
@@ -311,7 +399,16 @@
 					/>
 					<Command.List class="max-h-60 overflow-x-hidden overflow-y-auto">
 						<Command.Viewport>
-							{#if displayedOptions.length === 0}
+							{#if searching}
+								<div
+									class="text-secondary-400 flex items-center justify-center gap-2 py-6 text-sm"
+									role="status"
+									aria-live="polite"
+								>
+									<SpinnerIcon size={16} class="shrink-0 animate-[spin_1500ms_linear_infinite]" />
+									{searchingLabel}
+								</div>
+							{:else if displayedOptions.length === 0}
 								<Command.Empty
 									class="text-secondary-400 flex items-center justify-center py-6 text-sm"
 								>
@@ -343,7 +440,9 @@
 														{/if}
 													</span>
 												{/if}
-												{#if option.child}
+												{#if renderOption}
+													{@render renderOption({ option })}
+												{:else if option.child}
 													{@render option.child({ value: option.value, label: option.label })}
 												{:else}
 													{option.label}

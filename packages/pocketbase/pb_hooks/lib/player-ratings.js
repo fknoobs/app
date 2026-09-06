@@ -947,6 +947,8 @@ module.exports = {
 	countEloSlots,
 	eloHasGaps,
 	getStoredEloForLeaderboard,
+	findBySteamId,
+	readEloFromRecord,
 	findByProfileId,
 	fillFromLobbies,
 	runLobbyFillBatch,

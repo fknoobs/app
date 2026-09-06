@@ -254,6 +254,7 @@ export type LobbiesLiveRecord<Tplayers = unknown> = {
 	isReplay?: boolean
 	lobby?: RecordIdString
 	map: string
+	matchType?: number
 	players: null | Tplayers
 	sessionId: number
 	updatedAt: IsoAutoDateString
@@ -414,9 +415,17 @@ export type ReplayAggregationRecord<Tmaps = unknown, Tplayers = unknown, Tuser =
 	user?: null | Tuser
 }
 
+export enum ReplaysVisibilityOptions {
+	"private" = "private",
+	"member" = "member",
+	"deleted" = "deleted",
+}
 export type ReplaysRecord<Tmessages = unknown, Tplayers = unknown> = {
+	commentCount?: number
 	createdAt: IsoAutoDateString
 	createdBy?: RecordIdString
+	description?: string
+	downloadCount?: number
 	durationInSeconds: number
 	file: FileNameString
 	filename: string
@@ -426,12 +435,14 @@ export type ReplaysRecord<Tmessages = unknown, Tplayers = unknown> = {
 	isRandomStart?: boolean
 	isRanked?: boolean
 	isVpGame?: boolean
+	likeCount?: number
 	mapFilename: string
 	mapName: string
 	messages?: null | Tmessages
 	players: null | Tplayers
 	title: string
 	updatedAt: IsoAutoDateString
+	visibility?: ReplaysVisibilityOptions
 	vpCount?: number
 }
 

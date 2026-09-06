@@ -18,6 +18,7 @@
 	type Props = {
 		lobbies: LiveLobby[];
 		loading?: boolean;
+		meSteamIds?: string[];
 		resolveMapSrc: (map: string | undefined) => string | undefined;
 		resolveFallbackSrc?: () => string | undefined;
 		resolveFactionFlag: (race: number) => string;
@@ -47,6 +48,7 @@
 	let {
 		lobbies,
 		loading = false,
+		meSteamIds = [],
 		resolveMapSrc,
 		resolveFallbackSrc,
 		resolveFactionFlag,
@@ -95,11 +97,16 @@
 		{#each players as player, rowIndex (playerRowKey(player, rowIndex))}
 			{@const href = playerHref(player)}
 			{@const label = playerLabel(player)}
+			{@const isMe = Boolean(player.steamId && meSteamIds.includes(player.steamId))}
 			{#if href}
 				<a
 					{href}
 					title={label}
-					class={cn(interactive, 'ring-secondary-800 shrink-0 rounded-full ring-3')}
+					class={cn(
+						interactive,
+						'ring-secondary-800 shrink-0 rounded-full ring-3',
+						isMe && 'ring-primary'
+					)}
 				>
 					<img
 						src={resolveFactionFlag(player.race)}
@@ -222,6 +229,7 @@
 							<td colspan={columnCount} class="p-0">
 								<LiveLobbyPlayers
 									players={lobby.players}
+									{meSteamIds}
 									{resolveFactionFlag}
 									{playerHref}
 									{playerLabel}

@@ -15,13 +15,18 @@ const playerSearchResultSchema: z.ZodType<PlayerSearchResult> = z
 		level: z.number(),
 		steamId: z.string(),
 		avatarUrl: z.string(),
-		likeCount: z.number().optional()
+		likeCount: z.number().optional(),
+		matchCount: z.number().optional()
 	})
 	.passthrough() as z.ZodType<PlayerSearchResult>;
 
 const playerSearchSchema = z.object({
 	items: z.array(playerSearchResultSchema).optional()
 });
+
+export type PlayerSearchOptions = {
+	requireMatches?: boolean;
+};
 
 const playerPageSchema: z.ZodType<PlayerPageData> = z
 	.object({
@@ -50,8 +55,15 @@ const playerPageSchema: z.ZodType<PlayerPageData> = z
 export class PlayersApi {
 	constructor(private deps: ApiDeps) {}
 
-	search(query: string): ResultAsync<PlayerSearchResult[], ApiError> {
+	search(
+		query: string,
+		options: PlayerSearchOptions = {}
+	): ResultAsync<PlayerSearchResult[], ApiError> {
 		const params = new URLSearchParams({ q: query.trim() });
+		if (options.requireMatches) {
+			params.set('requireMatches', '1');
+		}
+
 		return fetchJson(this.deps.fetch, `${normalizeBaseUrl(this.deps.baseUrl)}/api/player/search?${params}`, {
 			fallback: 'Failed to search for player',
 			schema: playerSearchSchema,

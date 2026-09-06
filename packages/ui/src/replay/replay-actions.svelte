@@ -18,11 +18,36 @@
 
 	const selected = $derived(selectedPlayerId ?? replay.players[0]?.id ?? null);
 
+	const excludedUnitCommands = new Set([0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xa8]);
+
+	function isChartAction(action: ReplayAction): boolean {
+		if (!action.command?.description) return false;
+		if (action.command.type === 'AI_TAKEOVER') return false;
+		if (
+			action.commandID === 0x37 &&
+			action.objectID != null &&
+			excludedUnitCommands.has(action.objectID)
+		) {
+			return false;
+		}
+		return true;
+	}
+
+	function dedupeActions(actions: ReplayAction[]): ReplayAction[] {
+		const seen = new Set<string>();
+		const out: ReplayAction[] = [];
+		for (const action of actions) {
+			const key = `${action.tick}|${action.commandID ?? 0}|${action.objectID ?? 0}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			out.push(action);
+		}
+		return out;
+	}
+
 	const playerActions = $derived.by(() => {
 		if (selected == null) return [];
-		return countedActions(replay, selected).filter(
-			(action) => action.command && action.command.description
-		);
+		return dedupeActions(countedActions(replay, selected).filter(isChartAction));
 	});
 
 	const grouped = $derived.by(() => {
@@ -67,9 +92,7 @@
 			) {
 				continue;
 			}
-			const actions = countedActions(replay, player.id).filter(
-				(action) => action.command && action.command.description
-			);
+			const actions = dedupeActions(countedActions(replay, player.id).filter(isChartAction));
 			const perSecond = new Map<number, number>();
 			for (const action of actions) {
 				const second = Math.floor(action.tick / 8);
@@ -259,7 +282,7 @@
 			class="border-secondary-800 divide-secondary-800 divide-y md:border-r"
 			aria-label="Select player"
 		>
-			{#each replay.players as player (`${player.id ?? player.name}`)}
+			{#each replay.players as player, i (`${i}-${player.id ?? player.name ?? 'player'}`)}
 				<button
 					type="button"
 					class={cn(
@@ -290,7 +313,7 @@
 						<p class="text-secondary-400 mb-2 text-xs font-semibold tracking-wide uppercase">
 							{group.title}
 						</p>
-						{#each typeItems(group.type) as item (item.name)}
+						{#each typeItems(group.type) as item, itemIndex (`${group.type}-${item.name}-${itemIndex}`)}
 							<div
 								class={cn(
 									'grid text-sm',

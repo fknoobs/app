@@ -16,6 +16,7 @@
 		preventAutoFocus?: boolean;
 		trapFocus?: boolean;
 		preventScroll?: boolean;
+		forceMount?: boolean;
 		onInteractOutside?: DropdownMenu.ContentProps['onInteractOutside'];
 	} & WithoutChildren<DropdownMenu.RootProps>;
 
@@ -31,7 +32,9 @@
 		preventAutoFocus = false,
 		trapFocus = true,
 		preventScroll = true,
+		forceMount = false,
 		onInteractOutside,
+		open = $bindable(false),
 		...restProps
 	}: Props = $props();
 
@@ -48,7 +51,7 @@
 	}
 </script>
 
-<DropdownMenu.Root {...restProps}>
+<DropdownMenu.Root bind:open {...restProps}>
 	<DropdownMenu.Trigger>
 		{#snippet child({ props })}
 			{#if trigger}
@@ -67,6 +70,7 @@
 			{onInteractOutside}
 			{trapFocus}
 			{preventScroll}
+			{forceMount}
 			onOpenAutoFocus={onOpenAutoFocus}
 			onCloseAutoFocus={onCloseAutoFocus}
 			{alignOffset}
@@ -74,9 +78,7 @@
 				dropdownPanel,
 				'z-50',
 				'w-[229px]',
-				'data-[state=open]:animate-in data-[state=open]:fade-in-0',
-				'data-[state=closed]:animate-out data-[state=closed]:fade-out-0',
-				'duration-150',
+				'data-[state=closed]:pointer-events-none data-[state=closed]:hidden',
 				className
 			)}
 		>

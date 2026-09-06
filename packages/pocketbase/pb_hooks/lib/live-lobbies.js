@@ -72,10 +72,17 @@ function isOccupiedLobbySlot(player) {
 
 function slimPlayer(player, fallbackIndex) {
 	const playerId = toFiniteNumber(player.playerId);
-	const race = toFiniteNumber(player.race);
+	let race = toFiniteNumber(player.race);
 	const type = toFiniteNumber(player.type);
 	const index = toFiniteNumber(player.index) ?? fallbackIndex;
-	if (playerId == null || race == null || race < 0 || race > 3) {
+	if (playerId == null) {
+		return null;
+	}
+	// Skirmish AI often starts as Race 6 (random) before Relic resolves the faction.
+	if (playerId === -1 && (race == null || race < 0 || race > 3)) {
+		race = 0;
+	}
+	if (race == null || race < 0 || race > 3) {
 		return null;
 	}
 	const profileIdRaw = player?.profile?.profile_id ?? (playerId > 0 ? playerId : null);
@@ -129,39 +136,51 @@ function slimPlayers(value) {
 }
 
 /**
- * Maps a basic (0) or ranked 1v1-4v4 (1-4) match type + race to its Relic
- * leaderboard id (0-19). Keep in sync with packages/ui/src/live-lobby/stats.ts.
+ * Maps a basic (0), ranked 1v1-4v4 (1-4), or skirmish (14) match type + race to
+ * its Relic leaderboard id. Keep in sync with packages/ui/src/live-lobby/stats.ts.
  */
 function leaderboardIdForMatchRace(matchTypeId, race) {
-	if (!Number.isInteger(matchTypeId) || matchTypeId < 0 || matchTypeId > 4) {
+	if (!Number.isInteger(race) || race < 0 || race > 3) {
 		return null;
 	}
-	if (!Number.isInteger(race) || race < 0 || race > 3) {
+	if (matchTypeId === 14) {
+		return 42 + race;
+	}
+	if (!Number.isInteger(matchTypeId) || matchTypeId < 0 || matchTypeId > 4) {
 		return null;
 	}
 	return matchTypeId * 4 + race;
 }
 
 /** Keep in sync with getLiveLobbyMatchTypeId in packages/ui/src/live-lobby/slim.ts. */
-function liveLobbyMatchTypeId(players, isRanked) {
+function liveLobbyMatchTypeId(players, isRanked, matchType) {
+	if (matchType === 14) {
+		return 14;
+	}
 	for (let i = 0; i < players.length; i++) {
 		if (players[i].playerId === -1) {
 			return 14;
 		}
 	}
+	if (typeof matchType === 'number' && matchType >= 0 && matchType <= 4) {
+		return matchType;
+	}
 	if (!isRanked) {
 		return 0;
 	}
-	if (players.length === 2) {
+	const humans = players.filter(function (player) {
+		return player.playerId !== -1;
+	});
+	if (humans.length === 2) {
 		return 1;
 	}
-	if (players.length === 4) {
+	if (humans.length === 4) {
 		return 2;
 	}
-	if (players.length === 6) {
+	if (humans.length === 6) {
 		return 3;
 	}
-	if (players.length === 8) {
+	if (humans.length === 8) {
 		return 4;
 	}
 	return 0;
@@ -245,11 +264,12 @@ function pickPlayerStats(player, matchTypeId, eloCache) {
 		}
 	}
 	const elo = resolvePlayerElo(player, matchTypeId, race, eloCache);
-	if (!stat && elo == null) {
+	const resolvedElo = elo != null ? elo : matchTypeId === 14 ? 1000 : null;
+	if (!stat && resolvedElo == null) {
 		return null;
 	}
 	return {
-		elo,
+		elo: resolvedElo,
 		wins: stat ? (toFiniteNumber(stat.wins) ?? 0) : 0,
 		losses: stat ? (toFiniteNumber(stat.losses) ?? 0) : 0,
 		streak: stat ? (toFiniteNumber(stat.streak) ?? 0) : 0,
@@ -259,12 +279,12 @@ function pickPlayerStats(player, matchTypeId, eloCache) {
 }
 
 /** Used by match.js for in-progress replay pages — may hit player_ratings. */
-function detailPlayers(value, isRanked, eloCache) {
+function detailPlayers(value, isRanked, eloCache, matchType) {
 	const pairs = slimPlayerPairs(value);
 	const slimList = pairs.map(function (pair) {
 		return pair.slim;
 	});
-	const matchTypeId = liveLobbyMatchTypeId(slimList, isRanked);
+	const matchTypeId = liveLobbyMatchTypeId(slimList, isRanked, matchType);
 	const cache = eloCache || {};
 	return pairs.map(function (pair) {
 		const stats = pickPlayerStats(pair.raw, matchTypeId, cache);
@@ -301,16 +321,24 @@ function resolveLobbyId(record) {
 }
 
 function toPublicItem(record, host) {
+	const players = slimPlayers(record.get('players'));
+	const isRanked = Boolean(record.get('isRanked'));
+	const matchType = liveLobbyMatchTypeId(
+		players,
+		isRanked,
+		toFiniteNumber(record.get('matchType'))
+	);
 	return {
 		id: record.id,
 		lobbyId: resolveLobbyId(record),
 		sessionId: String(record.get('sessionId') || ''),
 		map: String(record.get('map') || ''),
-		isRanked: Boolean(record.get('isRanked')),
+		isRanked,
+		matchType,
 		createdAt: String(record.get('createdAt') || ''),
 		updatedAt: String(record.get('updatedAt') || ''),
 		hostName: host,
-		players: slimPlayers(record.get('players'))
+		players
 	};
 }
 

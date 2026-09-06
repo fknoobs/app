@@ -13,17 +13,18 @@
 	import { watch } from 'runed';
 	import HistoryFilters from './history-filters.svelte';
 	import MyReplays from './my-replays.svelte';
+	import MemberReplays from './member-replays.svelte';
 	import { ReplayList, type ReplayListState } from '../replays/replay-list.svelte';
 	import { scoreClassName } from '@company-of-heroes/ui/comment';
 	import CaretUpIcon from 'phosphor-svelte/lib/CaretUpIcon';
 	import DownloadIcon from 'phosphor-svelte/lib/DownloadIcon';
 	import ChatCircleIcon from 'phosphor-svelte/lib/ChatCircleIcon';
 
-	type HistoryTab = 'user' | 'community' | 'replays';
+	type HistoryTab = 'user' | 'community' | 'replays' | 'member';
 
 	function tabFromSearch(search: URLSearchParams): HistoryTab {
 		const value = search.get('tab');
-		if (value === 'community' || value === 'replays') return value;
+		if (value === 'community' || value === 'replays' || value === 'member') return value;
 		return 'user';
 	}
 
@@ -164,8 +165,16 @@
 				>
 					{t('My replays')}
 				</button>
+				<button
+					type="button"
+					class={tabTrigger}
+					data-state={tab === 'member' ? 'active' : undefined}
+					onclick={() => setTab('member')}
+				>
+					{t('Member replays')}
+				</button>
 			</div>
-			{#if tab !== 'replays' && matches.displayedResult}
+			{#if tab !== 'replays' && tab !== 'member' && matches.displayedResult}
 				<Pagination
 					class="ms-auto shrink-0"
 					bind:page={matches.page}
@@ -174,7 +183,7 @@
 				/>
 			{/if}
 		</div>
-		{#if tab !== 'replays'}
+		{#if tab !== 'replays' && tab !== 'member'}
 			<div class="border-secondary-800 flex flex-wrap items-center gap-2 border-t px-4 py-2.5">
 				<HistoryFilters {matches} />
 			</div>
@@ -248,6 +257,8 @@
 
 	{#if tab === 'replays'}
 		<MyReplays bind:list={replayList} />
+	{:else if tab === 'member'}
+		<MemberReplays />
 	{:else if matches.tableLoading}
 		<DataTable
 			data={[]}

@@ -11,6 +11,7 @@ export type ReplayPlayer = {
 	name: string;
 	faction: string;
 	doctrineName?: string;
+	steamId?: string | null;
 };
 
 export type ReplayCommand = {
@@ -23,6 +24,8 @@ export type ReplayAction = {
 	tick: number;
 	timestamp: string;
 	playerID?: number;
+	commandID?: number;
+	objectID?: number;
 	command?: ReplayCommand;
 };
 
@@ -71,6 +74,10 @@ export type CommunityPlayer = {
 	steamId: string | null;
 	race: number | null;
 	likeCount?: number;
+	/** Replay faction id (member uploads), e.g. allies_commonwealth. */
+	faction?: string;
+	/** Doctrine label from the .rec (member uploads). */
+	doctrineName?: string;
 	profile: {
 		profile_id: number;
 		alias: string;
@@ -80,6 +87,7 @@ export type CommunityPlayer = {
 export type MatchResultPlayer = {
 	profile_id: number;
 	alias?: string;
+	steamId?: string;
 	wins?: number;
 	losses?: number;
 	streak?: number;
@@ -106,6 +114,11 @@ export type CommunityMatch = {
 	downloadCount: number;
 	commentCount: number;
 	players: CommunityPlayer[];
+	title?: string;
+	kind?: 'match' | 'member';
+	durationSeconds?: number | null;
+	description?: string;
+	visibility?: 'private' | 'member' | 'deleted';
 };
 
 export type CommunityMatchDetail = {
@@ -118,4 +131,7 @@ export type CommunityMatchDetail = {
 	downloadCount: number;
 	players: CommunityPlayer[];
 	result: MatchResult;
+	title?: string;
+	kind?: 'match' | 'member';
+	description?: string;
 };

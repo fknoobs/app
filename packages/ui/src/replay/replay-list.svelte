@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Component } from 'svelte';
 	import MapImage from '../ui/map-image.svelte';
+	import { Badge } from '../ui/badge';
 	import { cn } from '@company-of-heroes/ui/cn';
 	import { interactive, tableHeadRow, tableSortHeader } from '@company-of-heroes/ui/variants';
 	import type { CommunityMatch, CommunityPlayer, HistorySortDir, HistorySortField } from './types';
@@ -23,6 +24,7 @@
 	type Props = {
 		matches: CommunityMatch[];
 		highlightedPlayers?: string[];
+		meSteamIds?: string[];
 		sort: HistorySortField;
 		sortDir: HistorySortDir;
 		onSort: (field: HistorySortField) => void;
@@ -43,11 +45,13 @@
 		downloadsLabel?: string;
 		dateLabel?: string;
 		sortByLabel?: string;
+		deletedLabel?: string;
 	};
 
 	let {
 		matches,
 		highlightedPlayers = [],
+		meSteamIds = [],
 		sort,
 		sortDir,
 		onSort,
@@ -67,8 +71,13 @@
 		commentsLabel = 'Comments',
 		downloadsLabel = 'Downloads',
 		dateLabel = 'Date',
-		sortByLabel = 'Sort by {label}'
+		sortByLabel = 'Sort by {label}',
+		deletedLabel = 'Deleted'
 	}: Props = $props();
+
+	function isMePlayer(player: CommunityPlayer) {
+		return Boolean(player.steamId && meSteamIds.includes(player.steamId));
+	}
 
 	function outcomeClass(outcome: 'win' | 'loss' | null) {
 		if (outcome === 'win') {
@@ -96,6 +105,17 @@
 		}
 
 		return sortDir === 'asc' ? 'ascending' : 'descending';
+	}
+
+	function rowLabel(match: CommunityMatch) {
+		if (match.kind === 'member') {
+			const title = match.title?.trim();
+			if (title) {
+				return title;
+			}
+		}
+
+		return formatMapName(match.map);
 	}
 </script>
 
@@ -133,6 +153,7 @@
 		<div class="flex items-center gap-1.5">
 			{#each teamPlayers(match, team) as player (player.profile.profile_id)}
 				{@const href = playerHref(player)}
+				{@const isMe = isMePlayer(player)}
 				{@const highlighted = highlightedPlayers.includes(String(player.profile.profile_id))}
 				{#if href}
 					<a
@@ -141,7 +162,8 @@
 						class={cn(
 							interactive,
 							'ring-secondary-800 shrink-0 rounded-full ring-3',
-							highlighted && 'ring-primary-100'
+							isMe && 'ring-primary',
+							!isMe && highlighted && 'ring-primary-100'
 						)}
 					>
 						{@render playerFlag(player, 'size-5 rounded-full object-cover')}
@@ -196,7 +218,12 @@
 			</thead>
 			<tbody>
 				{#each matches as match (match.id)}
-					<tr class="border-secondary-800/70 hover:bg-secondary-950/50 h-11 border-t text-white">
+					<tr
+						class={cn(
+							'border-secondary-800/70 hover:bg-secondary-950/50 h-11 border-t text-white',
+							match.visibility === 'deleted' && 'opacity-50'
+						)}
+					>
 						<td class="overflow-clip py-0 pr-0 pl-4">
 							<a
 								href={replayHref(match.id)}
@@ -211,9 +238,12 @@
 									flush
 								/>
 								<div class="flex min-w-0 items-center gap-2 px-4">
-									<span class="min-w-0 truncate font-medium">{formatMapName(match.map)}</span>
+									<span class="min-w-0 truncate font-medium">{rowLabel(match)}</span>
 									{#if match.isRanked}
 										<RankingIcon class="text-primary-100 shrink-0" weight="duotone" />
+									{/if}
+									{#if match.visibility === 'deleted'}
+										<Badge variant="warning" class="shrink-0">{deletedLabel}</Badge>
 									{/if}
 								</div>
 							</a>

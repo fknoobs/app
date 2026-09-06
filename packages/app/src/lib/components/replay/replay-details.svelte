@@ -16,9 +16,14 @@
 	import { pocketbase } from '$core/pocketbase';
 	import { fetch } from '$core/http/fetch';
 	import type { LobbiesResponse, ReplaysRecord, UsersResponse } from '$core/pocketbase/types';
+	import { ReplaysVisibilityOptions } from '$core/pocketbase/types';
+	import { account } from '$core/account';
 	import { resource } from 'runed';
 	import { useI18n } from '$lib/i18n';
 	import { StaffDebug } from '$lib/components/staff';
+	import { Badge } from '$lib/components/ui/badge';
+	import { goto } from '$app/navigation';
+	import MemberReplayEditModal from './member-replay-edit-modal.svelte';
 
 	type LobbyWithUser = LobbiesResponse<
 		unknown,
@@ -34,6 +39,7 @@
 		replayId?: string | null;
 		replayRecord?: ReplaysRecord | null;
 		onRenamed?: (payload: { bytes: Uint8Array; title: string }) => void;
+		onMemberUpdated?: () => void;
 	} & HTMLAttributes<HTMLDivElement>;
 
 	let {
@@ -41,6 +47,7 @@
 		replayId = null,
 		replayRecord = null,
 		onRenamed,
+		onMemberUpdated,
 		...restProps
 	}: Props = $props();
 	const { t } = useI18n();
@@ -62,6 +69,42 @@
 	let saving = $state(false);
 
 	const isStaff = $derived(app.account.isStaff);
+	const canEditMember = $derived(
+		!!replayRecord &&
+			replayRecord.visibility === ReplaysVisibilityOptions.member &&
+			replayRecord.createdBy === account.userId
+	);
+	const isDeletedMember = $derived(
+		!!replayRecord && replayRecord.visibility === ReplaysVisibilityOptions.deleted
+	);
+
+	function openMemberEdit() {
+		if (!replayRecord || !replayId) {
+			return;
+		}
+
+		app.modal.create({
+			title: t('Edit replay'),
+			size: 'lg',
+			component: MemberReplayEditModal,
+			props: {
+				replayId,
+				record: replayRecord,
+				onCancel: () => app.modal.close(),
+				onDone: () => {
+					app.modal.close();
+					app.toast.success(t('Replay updated'));
+					onMemberUpdated?.();
+				},
+				onDeleted: () => {
+					app.modal.close();
+					app.toast.success(t('Replay deleted.'));
+					void goto('/history?tab=member');
+				}
+			}
+		});
+		app.modal.open();
+	}
 
 	const formatDate = (value?: string | null) =>
 		value ? dayjs(value).format('DD MMM YYYY, HH:mm') : '—';
@@ -199,12 +242,22 @@
 		restProps.class
 	)}
 >
-	<div class="border-secondary-800 aspect-square sm:aspect-auto sm:h-full sm:border-r">
+	<div class="border-secondary-800 aspect-square self-start sm:border-r">
 		<MapImage map={mapKey} alt={mapLabel} flush />
 	</div>
 
 	<div class="min-w-0 px-6 py-4">
-		<span class="font-heading mb-3 block truncate text-3xl font-bold">{mapLabel}</span>
+		<div class="mb-3 flex flex-wrap items-center gap-2">
+			<span class="font-heading block min-w-0 truncate text-3xl font-bold">{mapLabel}</span>
+			{#if isStaff && isDeletedMember}
+				<Badge variant="warning">{t('Deleted')}</Badge>
+			{/if}
+			{#if canEditMember}
+				<Button type="button" size="sm" variant="secondary" onclick={openMemberEdit}>
+					{t('Edit')}
+				</Button>
+			{/if}
+		</div>
 
 		<div class={detailMetaGrid}>
 			<List.Title>{t('Replay name')}</List.Title>

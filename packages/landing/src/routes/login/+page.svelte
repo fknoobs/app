@@ -7,7 +7,9 @@
 	import { cn } from '$lib/utils/cn';
 	import { interactive } from '$lib/utils/variants';
 	import { href, useI18n } from '$lib/i18n';
+	import { API_URL } from '$lib/site/urls';
 	import DesktopIcon from 'phosphor-svelte/lib/DesktopIcon';
+	import SteamLogoIcon from 'phosphor-svelte/lib/SteamLogo';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import type { ActionData } from './$types';
 
@@ -17,6 +19,7 @@
 	let password = $state('');
 	let submitting = $state(false);
 	let appLoginPending = $state(false);
+	let steamLoginPending = $state(false);
 
 	const redirectTarget = $derived(page.url.searchParams.get('redirect') ?? '/');
 	const error = $derived(
@@ -24,6 +27,7 @@
 	);
 
 	const linkClass = cn(interactive, 'text-primary hover:underline');
+	const altLoginBusy = $derived(appLoginPending || steamLoginPending);
 
 	const onSubmit: SubmitFunction = () => {
 		submitting = true;
@@ -47,6 +51,17 @@
 		appUrl.searchParams.set('redirect_uri', handoffUrl.toString());
 		appUrl.searchParams.set('redirect', redirectTarget);
 		window.location.href = appUrl.toString();
+	}
+
+	function loginWithSteam() {
+		steamLoginPending = true;
+		const params = new URLSearchParams();
+		params.set('origin', page.url.origin);
+		if (redirectTarget && redirectTarget !== '/') {
+			params.set('redirect', redirectTarget);
+		}
+
+		window.location.href = `${API_URL}/api/auth/steam/start?${params.toString()}`;
 	}
 </script>
 
@@ -96,7 +111,7 @@
 	{/if}
 	<Form.Group>
 		{#snippet footer()}
-			<Button type="submit" loading={submitting} disabled={submitting || appLoginPending}>
+			<Button type="submit" loading={submitting} disabled={submitting || altLoginBusy}>
 				{t('Log in')}
 			</Button>
 			<p class="text-secondary-400 text-sm">
@@ -109,19 +124,27 @@
 
 <div class="border-secondary-800 border-b px-4 py-3">
 	<div class="flex flex-wrap items-center gap-3">
+		<span class="text-secondary-500 text-xs uppercase tracking-wide">{t('OR')}</span>
+		<Button
+			type="button"
+			variant="secondary"
+			loading={steamLoginPending}
+			disabled={submitting || altLoginBusy}
+			onclick={loginWithSteam}
+		>
+			<SteamLogoIcon size={18} weight="fill" class="text-primary shrink-0" />
+			{t('Log in with Steam')}
+		</Button>
 		<Button
 			type="button"
 			variant="secondary"
 			loading={appLoginPending}
-			disabled={submitting || appLoginPending}
+			disabled={submitting || altLoginBusy}
 			onclick={loginWithApp}
 		>
 			<DesktopIcon size={18} weight="duotone" class="text-primary shrink-0" />
 			{t('Log in with app')}
 		</Button>
-		<p class="text-secondary-500 text-sm">
-			{t('Opens the desktop Companion when it is running on this computer.')}
-		</p>
 	</div>
 </div>
 

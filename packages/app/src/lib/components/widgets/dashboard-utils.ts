@@ -26,22 +26,30 @@ export function formatMapDisplayName(map?: string): string {
 	return `${formattedName} (${playerCount})`;
 }
 
-export function getLiveLobbyMatchType(players: LobbyPlayer[], isRanked?: boolean): MatchTypeId {
-	const isSkirmish = players.some((player) => player.playerId === -1);
+export function getLiveLobbyMatchType(players: LobbyPlayer[], isRanked?: boolean, matchType?: number | null): MatchTypeId {
+	const isSkirmish = matchType === 14 || players.some((player) => player.playerId === -1);
 
 	if (isSkirmish) return 14;
+	if (typeof matchType === 'number' && matchType >= 0 && matchType <= 4) {
+		return matchType as MatchTypeId;
+	}
 	if (!isRanked) return 0;
 
-	if (players.length === 2) return 1;
-	if (players.length === 4) return 2;
-	if (players.length === 6) return 3;
-	if (players.length === 8) return 4;
+	const humans = players.filter((player) => player.playerId !== -1);
+	if (humans.length === 2) return 1;
+	if (humans.length === 4) return 2;
+	if (humans.length === 6) return 3;
+	if (humans.length === 8) return 4;
 
 	return 0;
 }
 
-export function getLiveLobbyModeLabel(players: LobbyPlayer[], isRanked?: boolean): string {
-	return t(MATCH_TYPES[getLiveLobbyMatchType(players, isRanked)] ?? 'Custom Game');
+export function getLiveLobbyModeLabel(
+	players: LobbyPlayer[],
+	isRanked?: boolean,
+	matchType?: number | null
+): string {
+	return t(MATCH_TYPES[getLiveLobbyMatchType(players, isRanked, matchType)] ?? 'Custom Game');
 }
 
 export function getMatchModeLabel(match: MatchExpanded): string {

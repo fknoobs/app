@@ -167,10 +167,19 @@ export class Replays {
 		return unwrapApi(api.replays.getExistingFilenamesByUser());
 	}
 
+	async publish(id: string, description?: string) {
+		return unwrapApi(api.replays.publish(id, description));
+	}
+
+	async unpublish(id: string) {
+		return unwrapApi(api.replays.unpublish(id));
+	}
+
 	async create(data: Omit<Create<'replays'>, 'createdBy'>) {
 		return await pocketbase.collection('replays').create(
 			{
 				createdBy: pocketbase.authStore.record?.id ?? account.userId,
+				visibility: 'private',
 				...data
 			},
 			{ fetch, requestKey: null }

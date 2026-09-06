@@ -2,17 +2,23 @@ import { API_URL } from '$lib/site/urls';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ url, fetch }) => {
+	const scope = url.searchParams.get('scope') === 'user' ? 'user' : 'community';
 	const params = new URLSearchParams({
-		scope: 'community',
+		scope,
 		q: url.searchParams.get('q') || '',
 		limit: url.searchParams.get('limit') || '20'
 	});
+	const userId = url.searchParams.get('userId');
+	if (scope === 'user' && userId) {
+		params.set('userId', userId);
+	}
+
 	const response = await fetch(`${API_URL}/api/history-players?${params.toString()}`);
 	return new Response(response.body, {
 		status: response.status,
 		headers: {
 			'Content-Type': response.headers.get('Content-Type') ?? 'application/json',
-			'Cache-Control': 'public, max-age=30'
+			'Cache-Control': scope === 'community' ? 'public, max-age=30' : 'private, max-age=30'
 		}
 	});
 };

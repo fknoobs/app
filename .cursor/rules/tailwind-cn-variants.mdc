@@ -1,0 +1,36 @@
+---
+description: Use cn() for multi-line Tailwind class constants in variants.ts
+globs: "**/variants.ts"
+alwaysApply: false
+---
+
+# Tailwind class constants via `cn`
+
+In `variants.ts`, define reusable Tailwind class strings with `cn(...)` so long lists stay readable across lines. Do not pack everything into one single-line string.
+
+Import `cn` from the package-local helper (`./cn`, `$lib/utils/cn`, or `@company-of-heroes/ui/cn`).
+
+```typescript
+// ❌ BAD — one dense string (hard to scan / edit)
+export const pageShell =
+	'border-secondary-800 relative mx-auto flex min-h-screen max-w-6xl flex-col border-x bg-gray-950/80';
+
+// ✅ GOOD — split logical groups with cn
+import { cn } from './cn'; // or $lib/utils/cn / @company-of-heroes/ui/cn
+
+export const pageShell = cn(
+	'relative mx-auto flex min-h-screen max-w-6xl flex-col border-x',
+	'border-secondary-800 bg-gray-950/80'
+);
+```
+
+## Rules
+
+- Prefer `cn('…', '…')` over template literals or `+` for joining static class chunks
+- Group related utilities per argument (layout, then color/border, then state variants)
+- Short single-purpose strings may stay as a plain string (`export const interactive = 'cursor-pointer disabled:cursor-not-allowed'`)
+- Still use `cn(base, conditional, class)` at call sites when merging; this rule is about **defining** the shared constants
+
+## IntelliSense
+
+Workspace settings enable Tailwind autocomplete inside `cn` / `clsx` via `tailwindCSS.classFunctions`. Prettier sorts classes in those calls via `tailwindFunctions`. Use `cn(...)` for long constants so autocomplete works — plain string exports do not.

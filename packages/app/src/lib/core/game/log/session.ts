@@ -83,6 +83,8 @@ export class LogSession extends Emittery<SessionEvents> {
 				return this.#onPlayback();
 			case 'LOG:LOBBY:POPULATING:PLAYER:STEAM':
 				return this.#onPlayerSteam(event.data);
+			case 'LOG:LOBBY:POPULATING:MATCH:TYPE':
+				return this.#onMatchType(event.data);
 			case 'LOG:LOBBY:POPULATING:MAP':
 				return this.#onMap(event.data);
 			case 'LOG:LOBBY:SESSIONID':
@@ -244,9 +246,37 @@ export class LogSession extends Emittery<SessionEvents> {
 		const race = raceFromLogFaction(label);
 		if (race == null) return;
 		this.#pendingReplayPlayers.set(index, { index, race, team: teamFromRace(race) });
+
+		// Live skirmish often logs Race 6 (random) first, then resolves via this line.
+		if (this.lobby && !this.lobby.isReplay) {
+			const player = this.lobby.players.find((entry) => entry.index === index);
+			if (!player || player.race === race) {
+				return;
+			}
+
+			player.race = race;
+			if (this.lobby.started) {
+				void this.emitSerial('lobby.started', this.lobby);
+			}
+
+			return;
+		}
+
 		if (!this.lobby?.isReplay) return;
 		this.#applyPendingReplayPlayers(this.lobby);
 		void this.#refreshStartedReplay(this.lobby);
+	}
+
+	#onMatchType({ type }: TriggerEvents['LOG:LOBBY:POPULATING:MATCH:TYPE']): void {
+		const lobby = this.#ensureLobby();
+		if (lobby.logMatchType === type) {
+			return;
+		}
+
+		lobby.logMatchType = type;
+		if (lobby.started) {
+			void this.emitSerial('lobby.started', lobby);
+		}
 	}
 
 	async #onScenario({ scenario }: TriggerEvents['LOG:LOBBY:POPULATING:SCENARIO']): Promise<void> {

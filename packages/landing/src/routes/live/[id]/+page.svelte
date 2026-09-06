@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import {
 		Detail as LiveLobbyDetail,
 		formatMatchupGap,
 		teamPlayers
 	} from '@company-of-heroes/ui/live-lobby';
+	import { meSteamIds } from '$lib/auth/user';
 	import { SITE_URL } from '$lib/site/urls';
 	import {
 		liveLobbyPlayerHref,
@@ -19,6 +21,7 @@
 	const { t } = useI18n();
 
 	const lobby = $derived(toLiveLobby(data.lobby, t));
+	const mySteamIds = $derived(meSteamIds(page.data.user));
 	const mapName = $derived(normalizeMapName(lobby.map));
 	const teamsValue = $derived(
 		t('{allies} vs {axis}', {
@@ -43,6 +46,7 @@
 
 <LiveLobbyDetail
 	{lobby}
+	meSteamIds={mySteamIds}
 	{resolveMapSrc}
 	{resolveFallbackSrc}
 	{resolveFactionFlag}

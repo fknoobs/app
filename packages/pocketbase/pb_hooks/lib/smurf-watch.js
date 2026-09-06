@@ -2,6 +2,8 @@
 
 const SMURF_COLLECTION = 'smurf_watch';
 const TERMINAL_STATUSES = ['resolved', 'not_smurf'];
+const REOPENABLE_STATUSES = ['not_smurf', 'expired', 'unknown_private'];
+const LIVE_REENQUEUE_SOURCES = ['lobby_live', 'lobby_match'];
 const SOURCE_PRIORITY = {
 	lobby_live: 100,
 	profile: 75,
@@ -101,15 +103,27 @@ function upsertSmurfWatchEntry({ steamId, profileId, source, priority }) {
 	const existing = findSmurfWatchBySteamId(steamId);
 	const now = new Date().toISOString();
 	const resolvedPriority = priority ?? SOURCE_PRIORITY[source] ?? 0;
+	const isLiveSight = LIVE_REENQUEUE_SOURCES.includes(source);
 
 	if (existing) {
 		const status = existing.get('status');
-		if (TERMINAL_STATUSES.includes(status)) {
+
+		// Confirmed lenders stay terminal so we do not burn Steam budget.
+		if (status === 'resolved') {
+			return existing;
+		}
+
+		const canReopen = isLiveSight && REOPENABLE_STATUSES.includes(status);
+
+		if (TERMINAL_STATUSES.includes(status) && !canReopen) {
 			return existing;
 		}
 
 		const currentPriority = existing.get('priority') || 0;
 		if (resolvedPriority > currentPriority) {
+			existing.set('priority', resolvedPriority);
+			existing.set('source', source);
+		} else if (isLiveSight && resolvedPriority >= currentPriority) {
 			existing.set('priority', resolvedPriority);
 			existing.set('source', source);
 		}
@@ -118,8 +132,13 @@ function upsertSmurfWatchEntry({ steamId, profileId, source, priority }) {
 			existing.set('profile_id', profileId);
 		}
 
-		if (status !== 'pending_screening' && status !== 'watching') {
+		if (canReopen || (status !== 'pending_screening' && status !== 'watching')) {
 			existing.set('status', 'pending_screening');
+		}
+
+		// Live lobby re-sights extend the watching window and pull the record forward.
+		if (isLiveSight && status === 'watching') {
+			existing.set('watching_since', now);
 		}
 
 		existing.set('next_check_at', now);
@@ -318,6 +337,7 @@ function handleWorkerBatch(e) {
 			source: '',
 			priority: 0,
 			check_interval_sec: 0,
+			owns_coh: nullBool(),
 			watching_since: ''
 		})
 	);
@@ -325,7 +345,7 @@ function handleWorkerBatch(e) {
 	$app
 		.db()
 		.newQuery(
-			`SELECT id, steam_id, profile_id, status, source, priority, check_interval_sec,
+			`SELECT id, steam_id, profile_id, status, source, priority, check_interval_sec, owns_coh,
               COALESCE(watching_since, '') AS watching_since
        FROM smurf_watch
        WHERE status = 'watching'

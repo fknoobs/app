@@ -19,6 +19,7 @@
 
 	type Props = {
 		players: LiveLobbyPlayer[];
+		meSteamIds?: string[];
 		resolveFactionFlag: (race: number) => string;
 		playerHref: (player: LiveLobbyPlayer) => string | null;
 		playerLabel?: (player: LiveLobbyPlayer) => string;
@@ -35,6 +36,7 @@
 
 	let {
 		players,
+		meSteamIds = [],
 		resolveFactionFlag,
 		playerHref,
 		playerLabel = defaultLiveLobbyPlayerLabel,
@@ -64,16 +66,22 @@
 {/snippet}
 
 {#snippet playerRow(player: LiveLobbyPlayer, rowIndex: number)}
-	{@const href = playerHref(player)}
+	{@const cpu = player.playerId === -1}
+	{@const href = cpu ? null : playerHref(player)}
 	{@const label = playerLabel(player)}
-	{@const stats = player.stats}
+	{@const stats = cpu ? null : player.stats}
+	{@const isMe = Boolean(!cpu && player.steamId && meSteamIds.includes(player.steamId))}
 	<div class={cn(playerGrid, 'border-secondary-800 h-11 border-b px-4 last:border-b-0')}>
 		<div class="flex min-w-0 items-center gap-2.5">
 			{#if href}
 				<a
 					{href}
 					title={label}
-					class={cn(interactive, 'ring-secondary-800 shrink-0 rounded-full ring-3')}
+					class={cn(
+						interactive,
+						'ring-secondary-800 shrink-0 rounded-full ring-3',
+						isMe && 'ring-primary'
+					)}
 				>
 					<img
 						src={resolveFactionFlag(player.race)}
@@ -89,7 +97,9 @@
 					class="size-6 shrink-0 rounded-full object-cover opacity-70"
 				/>
 			{/if}
-			<PlayerLikeCount likeCount={player.likeCount} class="shrink-0" />
+			{#if !cpu}
+				<PlayerLikeCount likeCount={player.likeCount} class="shrink-0" />
+			{/if}
 			{#if href}
 				<a {href} class={cn(interactive, 'min-w-0 truncate text-sm font-medium text-white')}>
 					{label}

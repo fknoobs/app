@@ -5,7 +5,6 @@ import {
 	type PlayerBans,
 	assertSteamAvailable,
 	fetchWorkerBatch,
-	getCohStatsLender,
 	getFriendList,
 	getLenderSteamId,
 	getOwnedCoH,
@@ -33,13 +32,12 @@ import {
 import { getSteamBlockedSeconds, releaseWorkerLock, tryAcquireWorkerLock } from './steam-rate';
 
 type ScreeningOutcome =
-	| 'resolved_cohstats'
 	| 'resolved_live'
 	| 'not_smurf'
 	| 'rescore_scheduled'
 	| 'watching'
+	| 'watching_unverified'
 	| 'unknown_private'
-	| 'deferred_cohstats'
 	| 'rate_limited'
 	| 'error';
 
@@ -54,6 +52,7 @@ type PollingOutcome =
 const RESCORE_INTERVAL_SEC = 7 * 24 * 60 * 60;
 const PRIVATE_RECHECK_SEC = 7 * 24 * 60 * 60;
 const WATCHING_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
+const WATCHING_EXPIRY_LIVE_MS = 90 * 24 * 60 * 60 * 1000;
 const MAIN_ANALYSES_PER_RUN = 3;
 const MAIN_CANDIDATE_LIMIT = 100;
 
@@ -261,6 +260,7 @@ async function screenRecord(
 	const summary = ctx.summaries.get(record.steam_id);
 	const bans = ctx.bans.get(record.steam_id);
 	const relic = ctx.relic.get(record.steam_id);
+	const playingCoH = isPlayingCoH(summary);
 
 	log('debug', 'screening record', {
 		id: record.id,
@@ -269,47 +269,12 @@ async function screenRecord(
 		status: record.status,
 		priority: record.priority,
 		ownsCoH: record.owns_coh,
-		playingCoH: isPlayingCoH(summary),
+		playingCoH,
 		profilePrivate: isProfilePrivate(summary),
 		hasRelic: relic !== undefined
 	});
 
-	apiCalls.push('cohstats');
-	const cohStats = await getCohStatsLender(record.steam_id);
-
-	if (cohStats.ok && cohStats.lender) {
-		const score = computeSmurfScore({
-			lenderSteamId: cohStats.lender,
-			ownsCoH: false,
-			profilePrivate: isProfilePrivate(summary),
-			accountCreatedAt: summary?.timecreated ?? null,
-			cohPlaytimeMinutes: null,
-			vacBanned: bans?.vacBanned ?? false,
-			gameBans: bans?.gameBans ?? 0,
-			relic: relic ?? null
-		});
-
-		await patchSmurfWatch(
-			env,
-			record.id,
-			{
-				status: 'resolved',
-				owns_coh: false,
-				lender_steam_id: cohStats.lender,
-				lender_source: 'cohstats',
-				last_checked_at: now,
-				next_check_at: null,
-				...buildScoreFields(summary, bans, relic, null, score)
-			},
-			{ phase: 'screening', outcome: 'resolved_cohstats' }
-		);
-		logScreeningResult(record, 'resolved_cohstats', apiCalls, startedAt, {
-			lenderSteamId: cohStats.lender
-		});
-		return 'resolved_cohstats';
-	}
-
-	if (isPlayingCoH(summary)) {
+	if (playingCoH) {
 		apiCalls.push('IsPlayingSharedGame');
 		const lender = await getLenderSteamId(env, record.steam_id, ctx.budget);
 
@@ -385,27 +350,29 @@ async function screenRecord(
 			mainFields = await analyzeMainAccount(env, record, summary, relic, ctx);
 		}
 
-		if (!cohStats.ok && score.verdict === 'clean') {
-			// Don't make a terminal call while the cohstats check is failing; retry later.
-			const interval = nextBackoffSeconds(record.check_interval_sec || 300);
+		// Library presence alone is not proof of permanent ownership (family share can
+		// appear in GetOwnedGames). Only terminalize after an in-game shared-game check.
+		if (!playingCoH) {
 			await patchSmurfWatch(
 				env,
 				record.id,
 				{
-					status: 'pending_screening',
+					status: 'watching',
 					owns_coh: true,
 					last_checked_at: now,
-					next_check_at: isoAfterSeconds(interval),
-					check_interval_sec: interval,
+					next_check_at: now,
+					check_interval_sec: 300,
+					watching_since: record.watching_since || now,
 					...scoreFields,
 					...(mainFields ?? {})
 				},
-				{ phase: 'screening', outcome: 'deferred_cohstats' }
+				{ phase: 'screening', outcome: 'watching_unverified' }
 			);
-			logScreeningResult(record, 'deferred_cohstats', apiCalls, startedAt, {
-				verdict: score.verdict
+			logScreeningResult(record, 'watching_unverified', apiCalls, startedAt, {
+				verdict: score.verdict,
+				smurfScore: score.score
 			});
-			return 'deferred_cohstats';
+			return 'watching_unverified';
 		}
 
 		if (score.verdict === 'likely_smurf' || score.verdict === 'suspicious') {
@@ -595,13 +562,17 @@ async function screenRecords(
 	});
 }
 
+function watchingExpiryMs(record: SmurfWatchRecord): number {
+	return record.source === 'lobby_live' ? WATCHING_EXPIRY_LIVE_MS : WATCHING_EXPIRY_MS;
+}
+
 function isWatchingExpired(record: SmurfWatchRecord, now: number): boolean {
 	if (!record.watching_since) {
 		return false;
 	}
 
 	const since = Date.parse(record.watching_since);
-	return !Number.isNaN(since) && now - since > WATCHING_EXPIRY_MS;
+	return !Number.isNaN(since) && now - since > watchingExpiryMs(record);
 }
 
 async function pollRecord(
@@ -615,11 +586,14 @@ async function pollRecord(
 
 	if (!isPlayingCoH(summary)) {
 		if (isWatchingExpired(record, Date.now())) {
+			// Library-only "owns" watches expire as not_smurf; never-owned stays expired
+			// so a later live lobby sight can reopen screening.
+			const expiredStatus = record.owns_coh === true ? 'not_smurf' : 'expired';
 			await patchSmurfWatch(
 				env,
 				record.id,
 				{
-					status: 'expired',
+					status: expiredStatus,
 					last_checked_at: now,
 					next_check_at: null
 				},
@@ -629,13 +603,15 @@ async function pollRecord(
 				id: record.id,
 				steamId: record.steam_id,
 				outcome: 'expired',
+				expiredStatus,
 				watchingSince: record.watching_since,
 				durationMs: Date.now() - startedAt
 			});
 			return 'expired';
 		}
 
-		const interval = nextBackoffSeconds(record.check_interval_sec || 300);
+		const interval =
+			record.source === 'lobby_live' ? 300 : nextBackoffSeconds(record.check_interval_sec || 300);
 		await patchSmurfWatch(
 			env,
 			record.id,
@@ -662,15 +638,28 @@ async function pollRecord(
 	const lender = await getLenderSteamId(env, record.steam_id, budget);
 
 	if (lender) {
+		const score = computeSmurfScore({
+			lenderSteamId: lender,
+			ownsCoH: false,
+			profilePrivate: isProfilePrivate(summary),
+			accountCreatedAt: summary?.timecreated ?? null,
+			cohPlaytimeMinutes: null,
+			vacBanned: false,
+			gameBans: 0,
+			relic: null
+		});
+
 		await patchSmurfWatch(
 			env,
 			record.id,
 			{
 				status: 'resolved',
+				owns_coh: false,
 				lender_steam_id: lender,
 				lender_source: 'live',
 				last_checked_at: now,
-				next_check_at: null
+				next_check_at: null,
+				...buildScoreFields(summary, undefined, undefined, null, score)
 			},
 			{ phase: 'polling', outcome: 'resolved_live' }
 		);
@@ -686,7 +675,8 @@ async function pollRecord(
 
 	// Playing without a lender means the ownership picture may have changed
 	// (e.g. bought their own copy); send back to screening for a fresh check.
-	const interval = nextBackoffSeconds(record.check_interval_sec || 300);
+	const interval =
+		record.source === 'lobby_live' ? 300 : nextBackoffSeconds(record.check_interval_sec || 300);
 	await patchSmurfWatch(
 		env,
 		record.id,

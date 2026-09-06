@@ -3,7 +3,7 @@
 	import { Textarea } from '@company-of-heroes/ui/input';
 	import * as Dropdown from '@company-of-heroes/ui/dropdown';
 	import { cn } from '@company-of-heroes/ui/cn';
-	import { dropdownItem, mePlayerText } from '@company-of-heroes/ui/variants';
+	import { controlBase, dropdownItem, mePlayerText } from '@company-of-heroes/ui/variants';
 	import {
 		COMMENT_MAX_LENGTH,
 		insertCommentMention,
@@ -20,7 +20,6 @@
 	import CodeIcon from 'phosphor-svelte/lib/CodeIcon';
 	import HighlighterIcon from 'phosphor-svelte/lib/HighlighterIcon';
 	import LinkIcon from 'phosphor-svelte/lib/LinkIcon';
-	import PaperPlaneTiltIcon from 'phosphor-svelte/lib/PaperPlaneTiltIcon';
 	import QuotesIcon from 'phosphor-svelte/lib/QuotesIcon';
 	import TextBIcon from 'phosphor-svelte/lib/TextBIcon';
 	import TextItalicIcon from 'phosphor-svelte/lib/TextItalicIcon';
@@ -49,12 +48,15 @@
 		autofocus?: boolean;
 		rows?: number;
 		class?: string;
+		id?: string;
+		boxed?: boolean;
 		people?: MentionUser[];
 		excludeUserId?: string;
 		searchMentions?: (query: string) => Promise<MentionUser[]>;
 		identity?: Snippet;
 		avatarUrl?: string;
-		onpost: () => void;
+		showSubmit?: boolean;
+		onpost?: () => void;
 		oncancel?: () => void;
 	};
 
@@ -63,7 +65,7 @@
 		posting = false,
 		name,
 		placeholder = 'Write a comment',
-		submitLabel = 'Post comment',
+		submitLabel = 'Send',
 		searchingLabel = 'Searching...',
 		noUsersLabel = 'No users found.',
 		mentionHintLabel = 'Type a name to mention someone.',
@@ -80,11 +82,14 @@
 		autofocus = false,
 		rows = 3,
 		class: className,
+		id,
+		boxed = false,
 		people = [],
 		excludeUserId = '',
 		searchMentions,
 		identity,
 		avatarUrl,
+		showSubmit = true,
 		onpost,
 		oncancel
 	}: Props = $props();
@@ -219,7 +224,14 @@
 		}
 
 		void applyFormat(
-			wrapMarkdownSelection(value, el.selectionStart, el.selectionEnd, before, after, placeholderText)
+			wrapMarkdownSelection(
+				value,
+				el.selectionStart,
+				el.selectionEnd,
+				before,
+				after,
+				placeholderText
+			)
 		);
 	}
 
@@ -282,7 +294,11 @@
 			return;
 		}
 
-		void applyFormat({ text, selectStart: start + prefix.length, selectEnd: start + prefix.length });
+		void applyFormat({
+			text,
+			selectStart: start + prefix.length,
+			selectEnd: start + prefix.length
+		});
 	}
 
 	function onComposerKeydown(event: KeyboardEvent) {
@@ -328,7 +344,10 @@
 
 		if (event.key === 'Enter') {
 			event.preventDefault();
-			onpost();
+			if (showSubmit) {
+				onpost?.();
+			}
+
 			return;
 		}
 
@@ -351,12 +370,23 @@
 	}
 </script>
 
-<form
-	class={cn('border-secondary-800 bg-secondary-800/30 flex flex-col border-y', className)}
-	onsubmit={(event) => {
-		event.preventDefault();
-		onpost();
-	}}
+<svelte:element
+	this={showSubmit ? 'form' : 'div'}
+	class={cn(
+		boxed
+			? cn(
+					controlBase,
+					'focus-within:border-secondary-600 flex h-auto w-full flex-col overflow-hidden p-0 focus:outline-none'
+				)
+			: 'border-secondary-800 bg-secondary-800/30 flex flex-col border-y',
+		className
+	)}
+	onsubmit={showSubmit
+		? (event: SubmitEvent) => {
+				event.preventDefault();
+				onpost?.();
+			}
+		: undefined}
 >
 	<div class="relative px-4 pt-3">
 		<Dropdown.Root
@@ -424,6 +454,7 @@
 		{/if}
 		<Textarea
 			flush
+			{id}
 			{@attach bindComposer}
 			bind:value
 			{rows}
@@ -546,22 +577,17 @@
 				type="button"
 				variant="ghost"
 				size="icon-sm"
-				class="text-secondary-400 hover:text-white shrink-0"
+				class="text-secondary-400 shrink-0 hover:text-white"
 				aria-label={cancelLabel}
 				onclick={oncancel}
 			>
 				<XIcon size={16} />
 			</Button>
 		{/if}
-		<Button
-			type="submit"
-			size="sm"
-			class="shrink-0 px-2.5"
-			disabled={!canPost}
-			loading={posting}
-			aria-label={submitLabel}
-		>
-			<PaperPlaneTiltIcon size={16} weight="fill" />
-		</Button>
+		{#if showSubmit}
+			<Button type="submit" size="sm" class="shrink-0" disabled={!canPost} loading={posting}>
+				{submitLabel}
+			</Button>
+		{/if}
 	</div>
-</form>
+</svelte:element>

@@ -15,7 +15,10 @@
 	);
 
 	const canRename = $derived(
-		!!query.current?.record && query.current.record.createdBy === account.userId
+		!!query.current?.record &&
+			query.current.record.createdBy === account.userId &&
+			query.current.record.visibility !== 'member' &&
+			query.current.record.visibility !== 'deleted'
 	);
 
 	function onRenamed(payload: { bytes: Uint8Array; title: string }) {
@@ -30,6 +33,20 @@
 		};
 		query.mutate(next);
 	}
+
+	async function onMemberUpdated() {
+		const id = page.params.replayId;
+		if (!id) {
+			return;
+		}
+
+		try {
+			const next = await app.database.replays.getDetail(id);
+			query.mutate(next);
+		} catch {
+			// leave current view
+		}
+	}
 </script>
 
 {#if query.loading}
@@ -43,6 +60,7 @@
 				replayId={query.current.record?.id ?? null}
 				replayRecord={query.current.record}
 				{onRenamed}
+				{onMemberUpdated}
 			/>
 			<Replay.Tabs flush />
 		</Replay.Root>

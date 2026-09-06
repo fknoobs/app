@@ -1,0 +1,71 @@
+---
+description: Prefer landing remote functions with Zod v4 over classic form actions
+globs: packages/landing/src/**/*.{ts,svelte}
+alwaysApply: false
+---
+
+# Landing remotes over form actions
+
+On `packages/landing`, prefer **SvelteKit remote functions** (`$lib/remote/*.remote.ts`) with **Zod v4** over classic `export const actions` in `+page.server.ts`.
+
+## Prefer
+
+- `query` / `command` / `form` from `$app/server`
+- Zod v4 schemas (`import { z } from 'zod'`) as the Standard Schema
+- `form` for multipart / file uploads; `command` for JSON-only mutations; `query` for reads
+- Call `locals.services.*()` inside remotes; unwrap with `unwrapAsync` / `invalid` / `error` / `redirect`
+
+```typescript
+// ✅ GOOD — packages/landing/src/lib/remote/example.remote.ts
+import { form, getRequestEvent } from '$app/server';
+import { invalid, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+
+export const saveThing = form(
+	z.object({
+		title: z.string().trim().min(1).max(200),
+		file: z.instanceof(File).optional()
+	}),
+	async (data) => {
+		const { locals } = getRequestEvent();
+		const result = await locals.services.things().create(data);
+		if (result.isErr()) {
+			invalid(locals.t(result.error.message));
+		}
+
+		redirect(303, `/things/${result.value.id}`);
+	}
+);
+```
+
+```svelte
+<!-- ✅ GOOD — spread remote form; use Form.Group like login -->
+<form {...saveThing} enctype="multipart/form-data">
+	<Form.Group label={t('Title')} inputId="title">
+		<Input id="title" {...saveThing.fields.title.as('text')} />
+	</Form.Group>
+</form>
+```
+
+## Avoid
+
+```typescript
+// ❌ BAD — new classic form actions for landing mutations
+export const actions: Actions = {
+	default: async ({ request, locals }) => {
+		const form = await request.formData();
+		// ...
+	}
+};
+```
+
+```typescript
+// ❌ BAD — new remotes with Valibot (existing valibot remotes can stay until touched)
+import * as v from 'valibot';
+```
+
+## Notes
+
+- Keep auth gates / cache headers in `+page.server.ts` `load` when needed; put writes in remotes
+- Match login/register flush `Form.Group` + `Input` layout for account-style pages
+- Do not invent a second validation stack; Zod is the default for new landing remotes

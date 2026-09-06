@@ -18,10 +18,10 @@ export type PlayerLabelAssignment = RecordModel & {
 	expand?: { label?: UserLabel };
 };
 
-export const DEFAULT_LABEL_HEX = '#F8C630';
+export const DEFAULT_LABEL_HEX = '#FEC766';
 
 const TOKEN_HEX: Record<string, string> = {
-	primary: '#F8C630',
+	primary: '#FEC766',
 	default: '#A3A3A8',
 	warning: '#E5B84C',
 	success: '#3DBA63',

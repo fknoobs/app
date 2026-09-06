@@ -9,6 +9,7 @@
 
 	type Props = {
 		lobby: LiveLobby;
+		meSteamIds?: string[];
 		resolveMapSrc: (map: string | undefined) => string | undefined;
 		resolveFallbackSrc?: () => string | undefined;
 		resolveFactionFlag: (race: number) => string;
@@ -44,6 +45,7 @@
 
 	let {
 		lobby,
+		meSteamIds = [],
 		resolveMapSrc,
 		resolveFallbackSrc,
 		resolveFactionFlag,
@@ -102,7 +104,7 @@
 	<div
 		class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]"
 	>
-		<div class="border-secondary-800 aspect-square sm:aspect-auto sm:h-full sm:border-r">
+		<div class="border-secondary-800 aspect-square self-start sm:border-r">
 			<MapImage map={lobby.map} alt={mapName} flush {resolveMapSrc} {resolveFallbackSrc} />
 		</div>
 		<div class="min-w-0 px-6 py-4">
@@ -140,6 +142,7 @@
 	<div class="border-secondary-800 border-b">
 		<LiveLobbyPlayers
 			players={lobby.players}
+			{meSteamIds}
 			{resolveFactionFlag}
 			{playerHref}
 			{playerLabel}

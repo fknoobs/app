@@ -5,6 +5,7 @@
 	"type": "module",
 	"exports": {
 		"./logo": "./logo-transparent-bg.png",
+		"./page-bg": "./assets/art_ui_textures_textures_fe_bkg_cxp1.png",
 		"./screens/*": "./screens/*"
 	}
 }

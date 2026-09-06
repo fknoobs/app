@@ -20,7 +20,11 @@ export const LEADERBOARD_IDS: Record<string, number> = {
 	'4v4_us': 16,
 	'4v4_heer': 17,
 	'4v4_brit': 18,
-	'4v4_panzer': 19
+	'4v4_panzer': 19,
+	'Comp Stomp_us': 42,
+	'Comp Stomp_heer': 43,
+	'Comp Stomp_brit': 44,
+	'Comp Stomp_panzer': 45
 };
 
 export const MATCH_TYPES: Record<number, string> = {

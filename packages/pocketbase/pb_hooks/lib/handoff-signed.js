@@ -108,6 +108,8 @@ function handleExchange(e) {
 }
 
 module.exports = {
+	createHandoff,
+	exchangeHandoff,
 	handleCreate,
 	handleExchange
 };

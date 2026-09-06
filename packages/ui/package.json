@@ -43,6 +43,7 @@
 		"./player-performance": "./src/player-performance/index.ts",
 		"./replay": "./src/replay/index.ts",
 		"./replay/types": "./src/replay/types.ts",
+		"./replay/utils": "./src/replay/utils.ts",
 		"./comment": "./src/comment/index.ts",
 		"./comment/vote": "./src/comment/vote.ts",
 		"./live-lobby": "./src/live-lobby/index.ts",

@@ -98,21 +98,24 @@
 	const livePlayers = $derived.by((): LiveLobbyPlayer[] => {
 		return (match?.players ?? []).map((player, index) => {
 			const profileId = getPlayerProfileId(player) ?? null;
-			const statsRow = getLeaderboardStatsForPlayerByMatchType(matchType, player);
-			const country = player.profile?.country || null;
-			const elo = getPlayerEloFromMatchHistory(matchType, player);
+			const isCpu = player.playerId === -1;
+			const statsRow = isCpu
+				? null
+				: getLeaderboardStatsForPlayerByMatchType(matchType, player);
+			const country = isCpu ? null : player.profile?.country || null;
+			const elo = isCpu ? null : getPlayerEloFromMatchHistory(matchType, player);
 			return {
 				index: player.index ?? index,
 				playerId: player.playerId,
 				type: player.type,
 				race: player.race,
 				alias: getPlayerAlias(player),
-				profileId: profileId != null && profileId > 0 ? profileId : null,
-				steamId: player.steamId ?? null,
+				profileId: !isCpu && profileId != null && profileId > 0 ? profileId : null,
+				steamId: isCpu ? null : (player.steamId ?? null),
 				country,
-				likeCount: likeCountForSteamId(player.steamId) ?? undefined,
+				likeCount: isCpu ? undefined : (likeCountForSteamId(player.steamId) ?? undefined),
 				stats:
-					statsRow || elo != null
+					!isCpu && (statsRow || elo != null)
 						? {
 								elo,
 								wins: statsRow?.wins ?? 0,
@@ -188,18 +191,43 @@
 	}
 
 	function playerHref(player: CommunityPlayer): string | null {
+		if (player.playerId === -1) {
+			return null;
+		}
+
 		const id = player.profile.profile_id;
 		return id > 0 ? `/players/${id}` : null;
 	}
 
 	function playerCpm(data: ReplayData, playerId: number | null): string {
-		if (playerId == null) return '0';
-		const durationMinutes = data.duration / 60;
-		if (durationMinutes <= 0) return '0';
-		const actions = data.actions.filter((action) => action.playerID === playerId);
-		const takeoverIndex = actions.findIndex((action) => action.command?.type === 'AI_TAKEOVER') + 1;
-		const counted = takeoverIndex > 0 ? actions.slice(0, takeoverIndex) : actions;
-		return (counted.length / durationMinutes).toFixed(0);
+		if (playerId == null || !(data.duration > 0)) return '0';
+
+		const excludedUnitCommands = new Set([0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xa8]);
+		const playerActions = data.actions.filter((action) => action.playerID === playerId);
+		const takeoverIndex = playerActions.findIndex(
+			(action) => action.command?.type === 'AI_TAKEOVER'
+		);
+		const window =
+			takeoverIndex >= 0 ? playerActions.slice(0, takeoverIndex) : playerActions;
+
+		const keys = new Set<string>();
+		for (const action of window) {
+			if (action.command?.type === 'AI_TAKEOVER') continue;
+			if (
+				action.commandID === 0x37 &&
+				excludedUnitCommands.has(action.objectID)
+			) {
+				continue;
+			}
+			keys.add(`${action.tick}|${action.commandID}|${action.objectID}`);
+		}
+		if (keys.size === 0) return '0';
+
+		const minutes =
+			takeoverIndex >= 0
+				? Math.max(playerActions[takeoverIndex].tick / 8 / 60, 1 / 60)
+				: Math.max(data.duration / 60, 1 / 60);
+		return String(Math.round(keys.size / minutes));
 	}
 </script>
 

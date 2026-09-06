@@ -104,7 +104,7 @@
 >
 	<div
 		class={cn(
-			'aspect-square overflow-clip sm:aspect-auto sm:h-full',
+			'aspect-square self-start overflow-clip',
 			!vote && 'sm:border-r',
 			avatarBorder
 		)}

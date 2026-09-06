@@ -3,18 +3,19 @@
 	--font-heading: 'Nunito Sans';
 	--font-sans: 'TT Mussels', sans-serif;
 
-	--color-primary: oklch(0.88 0.11 80);
-	--color-primary-50: oklch(0.99 0.03 80);
-	--color-primary-100: oklch(0.96 0.06 80);
-	--color-primary-200: oklch(0.92 0.09 80);
-	--color-primary-300: oklch(0.88 0.11 80);
-	--color-primary-400: oklch(0.84 0.13 80);
-	--color-primary-500: oklch(0.87 0.15 80);
-	--color-primary-600: oklch(0.78 0.14 80);
-	--color-primary-700: oklch(0.7 0.13 80);
-	--color-primary-800: oklch(0.62 0.11 80);
-	--color-primary-900: oklch(0.54 0.1 80);
-	--color-primary-950: oklch(0.46 0.09 80);
+	/* Light gold: high L for clarity, chroma high enough for solid fills */
+	--color-primary: oklch(0.86 0.13 80);
+	--color-primary-50: oklch(0.97 0.025 80);
+	--color-primary-100: oklch(0.94 0.05 80);
+	--color-primary-200: oklch(0.91 0.08 80);
+	--color-primary-300: oklch(0.88 0.105 80);
+	--color-primary-400: oklch(0.86 0.13 80);
+	--color-primary-500: oklch(0.79 0.135 80);
+	--color-primary-600: oklch(0.71 0.125 80);
+	--color-primary-700: oklch(0.61 0.11 80);
+	--color-primary-800: oklch(0.50 0.09 80);
+	--color-primary-900: oklch(0.39 0.07 80);
+	--color-primary-950: oklch(0.28 0.05 80);
 
 	--color-secondary: oklch(57% 0.006 285);
 	--color-secondary-50: oklch(97% 0.001 285);

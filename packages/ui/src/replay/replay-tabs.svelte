@@ -35,7 +35,7 @@
 </script>
 
 <Tabs.Root bind:value>
-	<Tabs.List class="border-secondary-800 flex items-center gap-2 border-b px-4 py-2.5">
+	<Tabs.List class="border-secondary-800 flex items-center gap-2 border-t border-b px-4 py-2.5">
 		<Tabs.Trigger value="overview" class={tabTrigger}>{overviewLabel}</Tabs.Trigger>
 		{#if showChat}
 			<Tabs.Trigger value="chat" class={tabTrigger}>{chatLabel}</Tabs.Trigger>

@@ -16,6 +16,7 @@ const config = {
 			fallback: 'index.html'
 		}),
 		alias: {
+			'@assets': '../shared-assets',
 			'$core/*': 'src/lib/core/*',
 			'$workers/*': 'src/lib/workers',
 			'$features/*': 'src/lib/core/app/features/*'

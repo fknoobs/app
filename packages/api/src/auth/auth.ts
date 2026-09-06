@@ -1,7 +1,10 @@
 import { ClientResponseError, type RecordModel } from 'pocketbase';
-import { ok, okAsync, Result, ResultAsync } from 'neverthrow';
+import { errAsync, ok, okAsync, Result, ResultAsync } from 'neverthrow';
+import { z } from 'zod';
 import type { ApiDeps } from '../deps';
+import { normalizeBaseUrl } from '../deps';
 import { apiError, fromUnknown, type ApiError } from '../errors';
+import { fetchJson } from '../fetch-json';
 import { generateUniqueId } from '../id';
 import { escapePocketBaseString, pbOptions } from '../pb';
 import { isStaff } from '../staff';
@@ -26,6 +29,16 @@ export type CompanionUserDebug = {
 	updated?: string;
 	appVersion: string | null;
 };
+
+export type AuthExchange = {
+	token: string;
+	record: AuthUser;
+};
+
+const authExchangeSchema = z.object({
+	token: z.string().min(1),
+	record: z.record(z.string(), z.unknown())
+});
 
 export class AuthApi {
 	constructor(private deps: ApiDeps) {}
@@ -63,6 +76,43 @@ export class AuthApi {
 	logout(): Result<void, ApiError> {
 		this.deps.pocketbase.authStore.clear();
 		return ok(undefined);
+	}
+
+	steamLoginStartUrl(origin: string, redirect = '/'): string {
+		const params = new URLSearchParams();
+		params.set('origin', origin.replace(/\/$/, ''));
+		if (redirect && redirect !== '/') {
+			params.set('redirect', redirect);
+		}
+
+		return `${normalizeBaseUrl(this.deps.baseUrl)}/api/auth/steam/start?${params.toString()}`;
+	}
+
+	exchangeHandoffCode(code: string): ResultAsync<AuthExchange, ApiError> {
+		const trimmed = code.trim();
+		if (!trimmed) {
+			return errAsync(apiError(400, 'Invalid or expired login code.'));
+		}
+
+		return fetchJson(this.deps.fetch, `${normalizeBaseUrl(this.deps.baseUrl)}/api/auth/handoff/exchange`, {
+			fallback: 'Invalid or expired login link.',
+			schema: authExchangeSchema,
+			onStatus: (status) => {
+				if (status === 400 || status === 401 || status === 404) {
+					return apiError(400, 'Invalid or expired login link.');
+				}
+
+				return undefined;
+			},
+			init: {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ code: trimmed })
+			}
+		}).map((body) => ({
+			token: body.token,
+			record: body.record as AuthUser
+		}));
 	}
 
 	findCompanionBySteamId(steamId: string): ResultAsync<CompanionUserDebug | null, ApiError> {

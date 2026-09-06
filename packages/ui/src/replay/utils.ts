@@ -2,8 +2,18 @@ import type {
 	CommunityMatch,
 	CommunityMatchDetail,
 	CommunityPlayer,
-	MatchResultPlayer
+	MatchResultPlayer,
+	ReplayPlayer
 } from './types';
+
+/** CoH skirmish AI labels, e.g. "CPU - Expert". */
+export function isCpuPlayerName(name: string | null | undefined): boolean {
+	return /^cpu(\b|\s*[-–—])/i.test((name ?? '').trim());
+}
+
+export function isCpuReplayPlayer(player: Pick<ReplayPlayer, 'name'>): boolean {
+	return isCpuPlayerName(player.name);
+}
 
 export function isAlliesRace(race: number | null | undefined): boolean {
 	return race === 0 || race === 2;

@@ -1,19 +1,38 @@
 <script lang="ts">
 	import type { LobbyPlayer } from '@fknoobs/app';
 	import type { Match } from '$core/game/lobby';
+	import {
+		Overview,
+		type CommunityMatchDetail,
+		type CommunityPlayer,
+		type ReplayData
+	} from '@company-of-heroes/ui/replay';
+	import type { LiveLobbyPlayer } from '@company-of-heroes/ui/live-lobby';
 	import * as List from '$lib/components/ui/list';
+	import * as PlayerUi from '$lib/components/player';
 	import MapImage from '$lib/components/ui/map-image.svelte';
 	import { SetCrumbs } from '$lib/components/ui/breadcrumb';
-	import { normalizeMapName } from '$lib/utils';
+	import { getFactionFlagFromRace, getRankImage, normalizeMapName } from '$lib/utils';
 	import { detailMetaGrid } from '$lib/components/ui/variants';
+	import { formatStreak } from '@company-of-heroes/ui/variants';
 	import { getPlayerRatings } from '$core/pocketbase/player-ratings';
-	import { isValidSteamId } from '$lib/utils/player-elo';
+	import { getStoredEloRating, isValidSteamId } from '$lib/utils/player-elo';
+	import { getLeaderboardStatsForPlayerByMatchType, getPlayerEloFromMatchHistory } from '$lib/utils/game';
 	import { loadSmurfAlert, type SmurfAlertState } from '$lib/player/smurf';
 	import { loadCheaterSteamIds } from '$core/pocketbase/anti-cheat';
-	import { getEloColor, getEloTextShadow } from '$lib/components/leaderboard/leaderboard-utils';
+	import {
+		getCountryDisplayName,
+		getEloColor,
+		getEloTextShadow
+	} from '$lib/components/leaderboard/leaderboard-utils';
 	import { resource } from 'runed';
-	import LobbyPlayersGrid from './lobby-players-grid.svelte';
-	import { getAlliesPlayers, getAxisPlayers, getPlayerProfileId } from './dashboard-utils';
+	import {
+		getAlliesPlayers,
+		getAxisPlayers,
+		getPlayerAlias,
+		getPlayerProfileId,
+		isHighlightedPlayer
+	} from './dashboard-utils';
 	import { formatMatchupGap, getMatchupStats } from './lobby-scout';
 	import { useI18n } from '$lib/i18n';
 
@@ -31,6 +50,10 @@
 	const startedAt = $derived(lobby.startedAt?.split(':').slice(0, 2).join(':') ?? '—');
 	const humanPlayers = $derived(lobby.players.filter((player) => player.playerId !== -1).length);
 	const mapLabel = $derived(normalizeMapName(lobby.map));
+	const matchType = $derived(lobby.matchType);
+	const highlightPlayerId = $derived(
+		lobby.me ? (getPlayerProfileId(lobby.me) ?? lobby.me.playerId) : undefined
+	);
 	const ratingsKey = $derived(
 		lobby.isReplay
 			? ''
@@ -107,6 +130,137 @@
 		if (axisMax > alliesMax) return { value: axisMax, alias: matchup.axis.maxAlias };
 		return { value: alliesMax, alias: matchup.allies.maxAlias };
 	});
+
+	const overviewMatch = $derived.by((): CommunityMatchDetail => {
+		const communityPlayers: CommunityPlayer[] = players.map((player) => {
+			const profileId = getPlayerProfileId(player) ?? 0;
+			return {
+				playerId: player.playerId ?? null,
+				steamId: player.steamId ?? null,
+				race: player.race ?? null,
+				profile: {
+					profile_id: profileId,
+					alias: getPlayerAlias(player)
+				}
+			};
+		});
+
+		return {
+			id: String(lobby.sessionId ?? ''),
+			map: lobby.map ?? '',
+			isRanked: !!lobby.isRanked,
+			createdAt: lobby.startedAt ?? '',
+			durationSeconds: null,
+			likeCount: 0,
+			downloadCount: 0,
+			players: communityPlayers,
+			result: null
+		};
+	});
+
+	const livePlayers = $derived.by((): LiveLobbyPlayer[] => {
+		if (lobby.isReplay) {
+			return players.map((player, index) => {
+				const profileId = getPlayerProfileId(player) ?? null;
+				const isCpu = player.playerId === -1;
+				return {
+					index: player.index ?? index,
+					playerId: player.playerId,
+					type: player.type,
+					race: player.race,
+					alias: getPlayerAlias(player),
+					profileId: !isCpu && profileId != null && profileId > 0 ? profileId : null,
+					steamId: isCpu ? null : (player.steamId ?? null),
+					country: isCpu ? null : player.profile?.country || null,
+					stats: null
+				};
+			});
+		}
+
+		return players.map((player, index) => {
+			const profileId = getPlayerProfileId(player) ?? null;
+			const isCpu = player.playerId === -1;
+			const statsRow = isCpu
+				? null
+				: getLeaderboardStatsForPlayerByMatchType(matchType, player);
+			const elo = isCpu
+				? null
+				: (getPlayerEloFromMatchHistory(matchType, player) ??
+					getStoredEloRating(player.storedElo, matchType, player.race) ??
+					null);
+			const country = isCpu ? null : player.profile?.country || null;
+
+			return {
+				index: player.index ?? index,
+				playerId: player.playerId,
+				type: player.type,
+				race: player.race,
+				alias: getPlayerAlias(player),
+				profileId: !isCpu && profileId != null && profileId > 0 ? profileId : null,
+				steamId: isCpu ? null : (player.steamId ?? null),
+				country,
+				stats:
+					!isCpu && (statsRow || elo != null)
+						? {
+								elo,
+								wins: statsRow?.wins ?? 0,
+								losses: statsRow?.losses ?? 0,
+								streak: statsRow?.streak ?? 0,
+								rank: statsRow?.rank ?? 0,
+								rankLevel: statsRow?.ranklevel ?? 0
+							}
+						: null
+			};
+		});
+	});
+
+	function resolveFactionFlag(raceId: number): string {
+		return getFactionFlagFromRace(raceId);
+	}
+
+	function flagImageUrl(country: string | null | undefined): string | null {
+		if (!country) return null;
+		const region = String(country).trim().toUpperCase();
+		if (!/^[A-Z]{2}$/.test(region)) return null;
+		return `https://flagsapi.com/${region}/shiny/64.png`;
+	}
+
+	function playerHref(player: CommunityPlayer): string | null {
+		if (player.playerId === -1) {
+			return null;
+		}
+
+		const id = player.profile.profile_id;
+		return id > 0 ? `/players/${id}` : null;
+	}
+
+	function livePlayerHref(player: LiveLobbyPlayer): string | null {
+		if (player.playerId === -1) {
+			return null;
+		}
+
+		return player.profileId != null && player.profileId > 0
+			? `/players/${player.profileId}`
+			: null;
+	}
+
+	function isHighlightedName(name: string): boolean {
+		const key = name.trim().toLowerCase();
+		const player = players.find((entry) => getPlayerAlias(entry).trim().toLowerCase() === key);
+		return player ? isHighlightedPlayer(player, highlightPlayerId) : false;
+	}
+
+	function raceFromReplayFaction(_faction: string): number {
+		return 0;
+	}
+
+	function doctrineBannerUrl(_player: { faction: string }): string | null {
+		return null;
+	}
+
+	function playerCpm(_replay: ReplayData, _playerId: number | null): string {
+		return '—';
+	}
 </script>
 
 {#snippet eloValue(value: number | null, alias?: string | null)}
@@ -126,13 +280,33 @@
 	{/if}
 {/snippet}
 
+{#snippet nameExtra(args: { name: string; steamId: string | null; profileId: number | null })}
+	{@const lobbyPlayer = players.find((player) => {
+		if (args.profileId != null && getPlayerProfileId(player) === args.profileId) return true;
+		if (args.steamId && player.steamId === args.steamId) return true;
+		return getPlayerAlias(player).trim().toLowerCase() === args.name.trim().toLowerCase();
+	})}
+	{#if lobbyPlayer}
+		{@const smurf = args.profileId != null && smurfs ? smurfs[args.profileId] : undefined}
+		<PlayerUi.Root player={lobbyPlayer} race={lobbyPlayer.race}>
+			<PlayerUi.Labels steamId={lobbyPlayer.steamId} class="shrink-0" />
+			{#if smurf?.status === 'shared'}
+				<PlayerUi.SmurfAlert {smurf} compact />
+			{/if}
+			{#if lobbyPlayer.steamId && cheaters.current?.has(lobbyPlayer.steamId)}
+				<PlayerUi.CheaterAlert compact />
+			{/if}
+		</PlayerUi.Root>
+	{/if}
+{/snippet}
+
 <SetCrumbs items={[{ label: mapLabel }]} />
 
 <div class="border-secondary-900 overflow-clip border-b">
 	<div
 		class="border-secondary-800 grid grid-cols-1 border-b sm:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]"
 	>
-		<div class="border-secondary-800 aspect-square sm:aspect-auto sm:h-full sm:border-r">
+		<div class="border-secondary-800 aspect-square self-start sm:border-r">
 			<MapImage map={lobby.map} alt={mapLabel} flush />
 		</div>
 
@@ -144,7 +318,7 @@
 				<List.Value class="tabular-nums">{lobby.sessionId}</List.Value>
 				<List.Title>{t('Match type')}</List.Title>
 				<List.Value>
-					{lobby.isReplay ? t('Replay') : lobby.isRanked ? t('Ranked') : t('Custom')}
+					{lobby.isReplay ? t('Replay') : lobby.isSkirmish ? t('Skirmish') : lobby.isRanked ? t('Ranked') : t('Custom')}
 				</List.Value>
 
 				<List.Title>{t('Game mode')}</List.Title>
@@ -180,13 +354,27 @@
 	</div>
 
 	<div class="border-secondary-800 border-b">
-		<LobbyPlayersGrid
-			{players}
-			matchType={lobby.matchType}
-			highlightPlayerId={lobby.me?.playerId}
-			smurfs={humanPlayers > 0 && !lobby.isReplay ? smurfs : undefined}
-			cheaters={lobby.isReplay ? undefined : (cheaters.current ?? undefined)}
-			hideStats={!!lobby.isReplay}
+		<Overview
+			match={overviewMatch}
+			{livePlayers}
+			{playerHref}
+			{flagImageUrl}
+			{getCountryDisplayName}
+			{resolveFactionFlag}
+			{raceFromReplayFaction}
+			{doctrineBannerUrl}
+			{playerCpm}
+			formatStreakLabel={formatStreak}
+			getRankImage={lobby.isReplay ? undefined : getRankImage}
+			levelLabel={t('Lv')}
+			alliesLabel={t('Allies')}
+			axisLabel={t('Axis')}
+			unknownDoctrineLabel={t('Unknown doctrine')}
+			ratingLabel={t('Rating')}
+			cpmLabel={t('CPM')}
+			{livePlayerHref}
+			{isHighlightedName}
+			{nameExtra}
 		/>
 	</div>
 </div>

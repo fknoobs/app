@@ -19,7 +19,7 @@
 		<Skeleton class="h-4 w-48" />
 	</div>
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(220px,280px)_auto_minmax(0,1fr)]">
-		<Skeleton class="min-h-[220px] w-full rounded-none" />
+		<Skeleton class="aspect-square w-full self-start rounded-none" />
 		<div class="flex items-start justify-center px-6 sm:px-0 sm:py-4">
 			<div class="flex flex-col items-center gap-1">
 				<Skeleton class="size-9 rounded-sm" />
@@ -29,7 +29,9 @@
 		</div>
 		<div class="min-w-0 px-6 py-4 sm:pl-0">
 			<Skeleton class="mb-3 h-9 w-2/3" />
-			<div class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 sm:grid-cols-[auto_1fr_auto_1fr] sm:gap-x-6">
+			<div
+				class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 sm:grid-cols-[auto_1fr_auto_1fr] sm:gap-x-6"
+			>
 				{#each Array(8) as _, index (index)}
 					<Skeleton class="h-4 w-20" />
 					<Skeleton class="h-4 w-28" />

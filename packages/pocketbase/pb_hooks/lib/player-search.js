@@ -74,6 +74,23 @@ function extractMembers(statGroups) {
 	return members;
 }
 
+function matchCountForMember(member, leaderboardStats) {
+	const groupId = Number(member?.personal_statgroup_id);
+	if (!groupId) {
+		return 0;
+	}
+
+	let total = 0;
+	for (const stat of leaderboardStats || []) {
+		if (Number(stat?.statgroup_id) !== groupId) {
+			continue;
+		}
+
+		total += (Number(stat?.wins) || 0) + (Number(stat?.losses) || 0);
+	}
+	return total;
+}
+
 function steamApiKey() {
 	return $os.getenv('STEAM_API_KEY') || $os.getenv('PUBLIC_STEAM_API_KEY') || '';
 }
@@ -108,7 +125,7 @@ function fetchSteamAvatars(steamIds) {
 	return avatars;
 }
 
-function mapMember(member, avatars) {
+function mapMember(member, avatars, leaderboardStats) {
 	const steamId = steamIdFromName(member?.name);
 	return {
 		profileId: Number(member?.profile_id) || 0,
@@ -116,7 +133,8 @@ function mapMember(member, avatars) {
 		country: member?.country ? String(member.country) : null,
 		level: Number(member?.level) || 0,
 		steamId,
-		avatarUrl: avatars[steamId] || ''
+		avatarUrl: avatars[steamId] || '',
+		matchCount: matchCountForMember(member, leaderboardStats)
 	};
 }
 
@@ -128,9 +146,15 @@ function searchProfiles(query) {
 			(member) => String(member?.alias || '').toLowerCase() === query.toLowerCase()
 		);
 		const fallback = members.length > 0 ? members : extractMembers(exact?.statGroups).slice(0, 1);
-		return fallback.slice(0, MAX_RESULTS);
+		return {
+			members: fallback.slice(0, MAX_RESULTS),
+			leaderboardStats: exact?.leaderboardStats ?? []
+		};
 	}
-	return extractMembers(data?.statGroups).slice(0, MAX_RESULTS);
+	return {
+		members: extractMembers(data?.statGroups).slice(0, MAX_RESULTS),
+		leaderboardStats: data?.leaderboardStats ?? []
+	};
 }
 
 function handleOptions(e) {
@@ -147,13 +171,16 @@ function handleSearch(e) {
 		return jsonWithCors(e, 400, { message: 'q is too long' });
 	}
 
+	const requireMatches = String(e.request.url.query().get('requireMatches') || '') === '1';
+
 	try {
-		const members = searchProfiles(query);
+		const { members, leaderboardStats } = searchProfiles(query);
 		const steamIds = members.map((member) => steamIdFromName(member?.name)).filter(Boolean);
 		const avatars = fetchSteamAvatars(steamIds);
 		const items = members
-			.map((member) => mapMember(member, avatars))
-			.filter((item) => item.profileId > 0);
+			.map((member) => mapMember(member, avatars, leaderboardStats))
+			.filter((item) => item.profileId > 0)
+			.filter((item) => !requireMatches || (item.matchCount > 0 && Boolean(item.steamId)));
 		const likeCounts = require(`${__hooks}/lib/player-social.js`).loadLikeCountsBySteamIds(
 			items.map((item) => item.steamId).filter(Boolean)
 		);

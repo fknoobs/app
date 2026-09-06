@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ReplayViewer from '$lib/components/replay/replay-viewer.svelte';
+	import { PageSkeleton as ReplayPageSkeleton } from '@company-of-heroes/ui/replay';
 	import { SITE_URL } from '$lib/site/urls';
 	import { normalizeMapName } from '$lib/utils/player/format';
 	import { href, useI18n } from '$lib/i18n';
@@ -7,19 +8,37 @@
 
 	let { data }: { data: PageData } = $props();
 	const { t } = useI18n();
-	const match = $derived(data.match);
+
+	function pageTitle(match: Awaited<PageData['match']>) {
+		if (match.kind === 'member') {
+			const title = match.title?.trim();
+			if (title) {
+				return title;
+			}
+		}
+
+		return normalizeMapName(match.map);
+	}
 </script>
 
 <svelte:head>
-	<title>{normalizeMapName(match.map)} | {t('Community replay')}</title>
-	<meta
-		name="description"
-		content={t(
-			'Watch a community Company of Heroes replay: overview, chat, timeline, and .rec download.'
-		)}
-	/>
-	<meta property="og:url" content="{SITE_URL}{href(`/replays/${match.id}`)}" />
-	<meta property="og:title" content="{normalizeMapName(match.map)} — {t('CoH replay')}" />
+	{#await data.match}
+		<title>{t('Loading replay')} | {t('Company of Heroes 1 Stats')}</title>
+	{:then match}
+		<title>{pageTitle(match)} | {t('Community replay')}</title>
+		<meta
+			name="description"
+			content={t(
+				'Watch a community Company of Heroes replay: overview, chat, timeline, and .rec download.'
+			)}
+		/>
+		<meta property="og:url" content="{SITE_URL}{href(`/replays/${match.id}`)}" />
+		<meta property="og:title" content="{pageTitle(match)} — {t('CoH replay')}" />
+	{/await}
 </svelte:head>
 
-<ReplayViewer {match} />
+{#await data.match}
+	<ReplayPageSkeleton />
+{:then match}
+	<ReplayViewer {match} />
+{/await}

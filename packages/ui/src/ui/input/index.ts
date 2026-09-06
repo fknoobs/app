@@ -6,12 +6,14 @@ import RadioGroup from './radio-group.svelte';
 import Selection from './selection.svelte';
 import Slider from './slider.svelte';
 import Textarea from './textarea.svelte';
+import FileDropzone from './file-dropzone.svelte';
 
 export type InputProps = Omit<HTMLInputAttributes, 'size'> & {
 	flush?: boolean;
 	size?: 'sm' | 'md' | 'lg';
 	decreaseLabel?: string;
 	increaseLabel?: string;
+	inputClasses?: string;
 	leading?: Snippet;
 	trailing?: Snippet;
 };
@@ -20,4 +22,6 @@ export type TextareaProps = HTMLTextareaAttributes & {
 	flush?: boolean;
 };
 
-export { Input, Checkbox, RadioGroup, Selection, Slider, Textarea };
+export type { FileDropzoneProps } from './file-dropzone.svelte';
+
+export { Input, Checkbox, RadioGroup, Selection, Slider, Textarea, FileDropzone };

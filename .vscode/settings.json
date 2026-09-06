@@ -11,6 +11,10 @@
         "javascriptreact",
         "svelte"
     ],
+    "tailwindCSS.classFunctions": [
+        "cn",
+        "clsx"
+    ],
     "tailwindCSS.experimental.classRegex": [
         [
             "classes:\\s*{\\s*\\w+:\\s*['\"]([^'\"]*)['\"]",

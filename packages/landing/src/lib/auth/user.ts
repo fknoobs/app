@@ -41,6 +41,11 @@ export function authDisplayName(user: AuthUserPublic): string {
 	return user.email;
 }
 
+/** Steam IDs linked to the signed-in account — used to highlight "me" in match/lobby lists. */
+export function meSteamIds(user: AuthUserPublic | null | undefined): string[] {
+	return user?.steamIds?.filter((id): id is string => Boolean(id)) ?? [];
+}
+
 export function isStaffUser(user: AuthUserPublic | null | undefined): boolean {
 	return user?.role === 'admin' || user?.role === 'moderator';
 }

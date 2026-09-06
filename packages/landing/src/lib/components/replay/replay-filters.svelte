@@ -6,10 +6,12 @@
 	type Props = {
 		query: ReplaysQuery;
 		maps: HistoryMapOption[];
+		scope?: 'community' | 'user';
+		userId?: string;
 		onChange: (patch: Partial<ReplaysQuery>) => void;
 	};
 
-	let { query, maps, onChange }: Props = $props();
+	let { query, maps, scope = 'community', userId, onChange }: Props = $props();
 	const { t } = useI18n();
 
 	const labels = $derived({
@@ -33,10 +35,23 @@
 		minutes: t('min')
 	});
 
+	function historySearchParams(q: string, limit: string) {
+		const params = new URLSearchParams({
+			q,
+			limit,
+			scope
+		});
+		if (scope === 'user' && userId) {
+			params.set('userId', userId);
+		}
+		return params;
+	}
+
 	async function searchPlayers(q: string) {
-		const params = new URLSearchParams({ q, limit: '20' });
-		const response = await fetch(`/api/history-players?${params}`);
-		if (!response.ok) return [];
+		const response = await fetch(`/api/history-players?${historySearchParams(q, '20')}`);
+		if (!response.ok) {
+			return [];
+		}
 		const data = (await response.json()) as { items?: HistoryPlayerOption[] };
 		return (data.items ?? []).map((item) => ({
 			value: String(item.profile_id),
@@ -45,8 +60,7 @@
 	}
 
 	async function searchMaps(q: string) {
-		const params = new URLSearchParams({ q, limit: '40' });
-		const response = await fetch(`/api/history-maps?${params}`);
+		const response = await fetch(`/api/history-maps?${historySearchParams(q, '40')}`);
 		if (!response.ok) {
 			return maps
 				.map((item) => ({ value: item.map, label: item.name || item.map }))

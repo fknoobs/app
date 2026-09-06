@@ -21,7 +21,9 @@
 		downloadLabel?: string;
 		backAriaLabel?: string;
 		downloadsLabel?: string;
+		showDownload?: boolean;
 		vote?: Snippet;
+		title?: Snippet;
 		titleMeta?: Snippet;
 		details: Snippet;
 		actions?: Snippet;
@@ -42,7 +44,9 @@
 		downloadLabel = 'Download replay',
 		backAriaLabel = 'Back to replays',
 		downloadsLabel = 'Downloads',
+		showDownload = true,
 		vote,
+		title,
 		titleMeta,
 		details,
 		actions,
@@ -57,7 +61,7 @@
 			aria-label={backAriaLabel}
 			class={cn(
 				interactive,
-				'border-secondary-800 bg-secondary-800/30 hover:border-secondary-500 hover:bg-secondary-800/80 inline-flex size-9 shrink-0 items-center justify-center rounded-md border text-white'
+				'border-secondary-600 bg-secondary-800 hover:border-secondary-500 hover:bg-secondary-700 inline-flex size-9 shrink-0 items-center justify-center rounded-md border text-white'
 			)}
 		>
 			<ArrowLeftIcon class="size-4" weight="duotone" />
@@ -84,35 +88,45 @@
 		<div class="min-w-0">
 			<div class={cn('px-6 py-4', vote && 'sm:pl-0')}>
 				<div class="mb-3 flex min-w-0 items-center gap-3">
-					<h1 class="font-heading min-w-0 truncate text-3xl font-bold text-white">{mapName}</h1>
+					{#if title}
+						{@render title()}
+					{:else}
+						<h1 class="font-heading min-w-0 truncate text-3xl font-bold text-white">{mapName}</h1>
+					{/if}
 					{@render titleMeta?.()}
 				</div>
 				{@render details()}
-				<div class="mt-4 flex flex-wrap items-center gap-3">
-					{#if downloadDisabled || !downloadHref}
-						<Button disabled>
-							<DownloadIcon class="size-4" />
-							{downloadLabel}
-						</Button>
-					{:else}
-						<Button
-							href={downloadHref}
-							download={downloadFileName}
-							onclick={() => onDownloadClick?.()}
-						>
-							<DownloadIcon class="size-4" />
-							{downloadLabel}
-						</Button>
-					{/if}
-					{@render actions?.()}
-					<span
-						class="text-secondary-400 inline-flex h-11 items-center gap-1.5 px-3 text-sm tabular-nums"
-						title={downloadsLabel}
-					>
-						<DownloadIcon class="size-4" weight="duotone" />
-						{downloadCount}
-					</span>
-				</div>
+				{#if showDownload || actions}
+					<div class="mt-4 flex flex-wrap items-center gap-3">
+						{#if showDownload}
+							{#if downloadDisabled || !downloadHref}
+								<Button disabled>
+									<DownloadIcon class="size-4" />
+									{downloadLabel}
+								</Button>
+							{:else}
+								<Button
+									href={downloadHref}
+									download={downloadFileName}
+									onclick={() => onDownloadClick?.()}
+								>
+									<DownloadIcon class="size-4" />
+									{downloadLabel}
+								</Button>
+							{/if}
+						{/if}
+						{@render actions?.()}
+						{#if showDownload}
+							<span
+								class="text-secondary-400 inline-flex h-11 items-center gap-1.5 px-3 text-sm tabular-nums"
+								title={downloadsLabel}
+							>
+								<DownloadIcon class="size-4" weight="duotone" />
+								{downloadCount}
+							</span>
+						{/if}
+					</div>
+				{/if}
 			</div>
 			{@render afterDetails?.()}
 		</div>

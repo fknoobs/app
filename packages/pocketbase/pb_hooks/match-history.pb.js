@@ -289,6 +289,7 @@ routerAdd('GET', '/api/match-history', (e) => {
            COALESCE(l.likeCount, 0) AS likeCount,
            COALESCE(l.downloadCount, 0) AS downloadCount,
            COALESCE(l.commentCount, 0) AS commentCount,
+           COALESCE(l.durationSeconds, 0) AS durationSeconds,
            COALESCE(l.lobbyPlayers, '[]') AS lobbyPlayers,
            COALESCE(l.playerProfileIdsCsv, '') AS playerProfileIdsCsv`;
 
@@ -337,6 +338,7 @@ routerAdd('GET', '/api/match-history', (e) => {
 				likeCount: 0,
 				downloadCount: 0,
 				commentCount: 0,
+				durationSeconds: 0,
 				lobbyPlayers: '',
 				playerProfileIdsCsv: ''
 			})
@@ -384,12 +386,34 @@ routerAdd('GET', '/api/match-history', (e) => {
 		for (const row of pageRows) {
 			const players = resolvePlayersForRow(row, aliasMap, playersByLobby);
 			const result = parseResultField(row.result);
+			// List UI only needs outcomes for team win/loss tint — drop the fat result blob.
+			const slimResult =
+				result && Array.isArray(result.players)
+					? {
+							players: result.players.map((player) => ({
+								profile_id: player.profile_id,
+								outcome: player.outcome
+							}))
+						}
+					: null;
+			const storedDuration = Number(row.durationSeconds);
+			const durationSeconds =
+				Number.isFinite(storedDuration) && storedDuration > 0
+					? storedDuration
+					: (() => {
+							const start = Number(result?.startgametime);
+							const end = Number(result?.completiontime);
+							if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+								return end - start;
+							}
+							return null;
+						})();
 
 			items.push({
 				id: row.id,
 				map: row.map,
 				title: row.title,
-				result,
+				result: slimResult,
 				createdAt: row.createdAt,
 				isRanked: !!row.isRanked,
 				sessionId: row.sessionId,
@@ -398,6 +422,7 @@ routerAdd('GET', '/api/match-history', (e) => {
 				likeCount: Number(row.likeCount) || 0,
 				downloadCount: Number(row.downloadCount) || 0,
 				commentCount: Number(row.commentCount) || 0,
+				durationSeconds,
 				players
 			});
 		}

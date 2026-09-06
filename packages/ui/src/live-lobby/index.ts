@@ -9,6 +9,7 @@ export {
 	defaultLiveLobbyPlayerLabel,
 	isAlliesRace,
 	isAxisRace,
+	isCpuLiveLobbyPlayer,
 	isOccupiedLiveLobbyPlayer,
 	playerRowKey,
 	teamPlayers

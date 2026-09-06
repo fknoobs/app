@@ -15,9 +15,9 @@
 	const { t } = useI18n();
 
 	const navLinks = $derived([
+		{ href: '/players', label: t('Players') },
 		{ href: '/leaderboards', label: t('Leaderboards') },
 		{ href: '/replays', label: t('Replays') },
-		{ href: '/players', label: t('Players') },
 		{ href: '/#donate', label: t('Donations') }
 	]);
 

@@ -771,6 +771,15 @@ export interface LobbiesLive {
      * | -------- | -------- |
      * | type     | `number` |
      * | hidden   | `false`  |
+     * | required | `false`  |
+     * | onlyInt  | `true`   |
+     */
+    matchType?: number
+    /**
+     * |          |          |
+     * | -------- | -------- |
+     * | type     | `number` |
+     * | hidden   | `false`  |
      * | required | `true`   |
      * | onlyInt  | `false`  |
      */

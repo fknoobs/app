@@ -9,6 +9,7 @@ import {
 	type MatchSocialApi,
 	type PlayerSocialApi,
 	type PlayersApi,
+	type RatingsApi,
 	type TwitchApi
 } from '@company-of-heroes/api';
 import { API_URL } from '$lib/site/urls';
@@ -27,6 +28,7 @@ export type Services = {
 	matchSocial: () => MatchSocialApi;
 	playerSocial: () => PlayerSocialApi;
 	players: () => PlayersApi;
+	ratings: () => RatingsApi;
 	replays: () => LandingReplaysService;
 	twitch: () => TwitchApi;
 };
@@ -50,6 +52,7 @@ export function createServices(deps: ServiceDeps): Services {
 		matchSocial: () => getApi().matchSocial,
 		playerSocial: () => getApi().playerSocial,
 		players: () => getApi().players,
+		ratings: () => getApi().ratings,
 		replays: () =>
 			(replays ??= new LandingReplaysService(getApi().replays, deps.fetch, API_URL)),
 		twitch: () => getApi().twitch

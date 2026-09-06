@@ -46,6 +46,7 @@
 			map: lobby.map,
 			isRanked: lobby.isRanked,
 			isReplay: lobby.isReplay,
+			matchType: lobby.matchType,
 			createdAt: lobby.createdAt,
 			updatedAt: lobby.updatedAt,
 			hostName: lobby.user?.name ?? lobby.user?.email ?? '',
@@ -55,18 +56,29 @@
 			return null;
 		}
 
+		const matchTypeId = getLiveLobbyMatchTypeId(
+			record.players,
+			record.isRanked,
+			record.matchType
+		);
+
 		return {
 			...record,
-			players: attachLiveLobbyStats(record.players, lobby.players, record.isRanked),
-			modeLabel: t(
-				MATCH_TYPES[
-					getLiveLobbyMatchTypeId(record.players, record.isRanked) as keyof typeof MATCH_TYPES
-				] ?? 'Custom Game'
-			)
+			players: attachLiveLobbyStats(
+				record.players,
+				lobby.players,
+				record.isRanked,
+				record.matchType
+			),
+			modeLabel: t(MATCH_TYPES[matchTypeId as keyof typeof MATCH_TYPES] ?? 'Custom Game')
 		};
 	}
 
 	function playerHref(player: LiveLobbyPlayer) {
+		if (player.playerId === -1) {
+			return null;
+		}
+
 		if (player.profileId) {
 			return `/players/${player.profileId}`;
 		}

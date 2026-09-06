@@ -1,1 +1,7 @@
-export { AuthApi, type AuthUser, type CompanionUserDebug, type UserRole } from './auth';
+export {
+	AuthApi,
+	type AuthExchange,
+	type AuthUser,
+	type CompanionUserDebug,
+	type UserRole
+} from './auth';

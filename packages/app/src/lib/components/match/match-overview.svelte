@@ -104,12 +104,16 @@
 	const livePlayers = $derived.by((): LiveLobbyPlayer[] => {
 		return playersWithElo.map((player, index) => {
 			const profileId = getPlayerProfileId(player) ?? null;
-			const statsRow = getLeaderboardStatsForPlayerByMatchType(matchType, player);
-			const elo =
-				getPlayerEloFromMatchHistory(matchType, player) ??
-				getStoredEloRating(player.storedElo, matchType, player.race) ??
-				null;
-			const country = player.profile?.country || null;
+			const isCpu = player.playerId === -1;
+			const statsRow = isCpu
+				? null
+				: getLeaderboardStatsForPlayerByMatchType(matchType, player);
+			const elo = isCpu
+				? null
+				: (getPlayerEloFromMatchHistory(matchType, player) ??
+					getStoredEloRating(player.storedElo, matchType, player.race) ??
+					null);
+			const country = isCpu ? null : player.profile?.country || null;
 
 			return {
 				index: player.index ?? index,
@@ -117,12 +121,12 @@
 				type: player.type,
 				race: player.race,
 				alias: getPlayerAlias(player),
-				profileId: profileId != null && profileId > 0 ? profileId : null,
-				steamId: player.steamId ?? null,
+				profileId: !isCpu && profileId != null && profileId > 0 ? profileId : null,
+				steamId: isCpu ? null : (player.steamId ?? null),
 				country,
-				likeCount: likeCountForSteamId(player.steamId) ?? undefined,
+				likeCount: isCpu ? undefined : (likeCountForSteamId(player.steamId) ?? undefined),
 				stats:
-					statsRow || elo != null
+					!isCpu && (statsRow || elo != null)
 						? {
 								elo,
 								wins: statsRow?.wins ?? 0,
@@ -148,11 +152,19 @@
 	}
 
 	function playerHref(player: CommunityPlayer): string | null {
+		if (player.playerId === -1) {
+			return null;
+		}
+
 		const id = player.profile.profile_id;
 		return id > 0 ? `/players/${id}` : null;
 	}
 
 	function livePlayerHref(player: LiveLobbyPlayer): string | null {
+		if (player.playerId === -1) {
+			return null;
+		}
+
 		return player.profileId != null && player.profileId > 0
 			? `/players/${player.profileId}`
 			: null;

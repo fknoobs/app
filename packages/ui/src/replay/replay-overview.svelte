@@ -16,9 +16,10 @@
 		ReplayData,
 		ReplayPlayer
 	} from './types';
-	import { findResultPlayer } from './utils';
+	import { findResultPlayer, isCpuPlayerName, isCpuReplayPlayer } from './utils';
 	import {
 		defaultLiveLobbyPlayerLabel,
+		isCpuLiveLobbyPlayer,
 		teamPlayers,
 		type LiveLobbyPlayer,
 		type LiveLobbyPlayerStats
@@ -85,8 +86,18 @@
 	}: Props = $props();
 
 	const teams = $derived.by(() => ({
-		allies: replay?.players.filter((player) => player.faction.startsWith('allies')) ?? [],
-		axis: replay?.players.filter((player) => player.faction.startsWith('axis')) ?? []
+		allies:
+			replay?.players.filter((player) =>
+				String(player.faction || '')
+					.toLowerCase()
+					.startsWith('allies')
+			) ?? [],
+		axis:
+			replay?.players.filter((player) =>
+				String(player.faction || '')
+					.toLowerCase()
+					.startsWith('axis')
+			) ?? []
 	}));
 
 	const liveTeams = $derived.by(() => ({
@@ -94,36 +105,142 @@
 		axis: teamPlayers(livePlayers, 'axis')
 	}));
 
+	function replayPlayerIndex(replayPlayer: ReplayPlayer): number {
+		if (!replay?.players?.length) {
+			return -1;
+		}
+
+		return replay.players.indexOf(replayPlayer);
+	}
+
 	function lobbyPlayer(replayPlayer: ReplayPlayer): CommunityPlayer | undefined {
+		if (isCpuReplayPlayer(replayPlayer)) {
+			return undefined;
+		}
+
+		const steamId = replayPlayer.steamId ? String(replayPlayer.steamId) : null;
+		if (steamId) {
+			const bySteam = match.players.find((player) => player.steamId === steamId);
+			if (bySteam) {
+				return bySteam;
+			}
+		}
+
 		const name = replayPlayer.name.trim().toLowerCase();
-		return match.players.find((player) => player.profile.alias.trim().toLowerCase() === name);
+		if (name) {
+			const byName = match.players.find(
+				(player) =>
+					player.playerId !== -1 &&
+					!isCpuPlayerName(player.profile.alias) &&
+					player.profile.alias.trim().toLowerCase() === name
+			);
+			if (byName) {
+				return byName;
+			}
+		}
+
+		const index = replayPlayerIndex(replayPlayer);
+		if (
+			index >= 0 &&
+			replay?.players?.length === match.players.length &&
+			match.players[index] &&
+			match.players[index].playerId !== -1 &&
+			!isCpuPlayerName(match.players[index].profile.alias)
+		) {
+			return match.players[index];
+		}
+
+		return undefined;
 	}
 
 	function resultPlayer(replayPlayer: ReplayPlayer): MatchResultPlayer | undefined {
+		if (isCpuReplayPlayer(replayPlayer)) {
+			return undefined;
+		}
+
 		const name = replayPlayer.name.trim().toLowerCase();
-		const fromResult = match.result?.players?.find(
-			(player) => (player.alias ?? '').trim().toLowerCase() === name
-		);
-		if (fromResult) {
-			return fromResult;
+		if (name) {
+			const fromResult = match.result?.players?.find(
+				(player) =>
+					!isCpuPlayerName(player.alias) &&
+					(player.alias ?? '').trim().toLowerCase() === name
+			);
+			if (fromResult) {
+				return fromResult;
+			}
 		}
 
 		const lobby = lobbyPlayer(replayPlayer);
-		return lobby ? findResultPlayer(match, lobby) : undefined;
+		if (lobby) {
+			const fromLobby = findResultPlayer(match, lobby);
+			if (fromLobby) {
+				return fromLobby;
+			}
+		}
+
+		const index = replayPlayerIndex(replayPlayer);
+		const resultPlayers = match.result?.players;
+		if (
+			index >= 0 &&
+			resultPlayers &&
+			replay?.players?.length === resultPlayers.length &&
+			resultPlayers[index] &&
+			!isCpuPlayerName(resultPlayers[index].alias)
+		) {
+			return resultPlayers[index];
+		}
+
+		return undefined;
 	}
 
 	function livePlayerForReplay(replayPlayer: ReplayPlayer): LiveLobbyPlayer | undefined {
+		if (isCpuReplayPlayer(replayPlayer)) {
+			return undefined;
+		}
+
 		const lobby = lobbyPlayer(replayPlayer);
 		const profileId = lobby?.profile.profile_id;
 		if (profileId != null && profileId > 0) {
-			const byId = livePlayers.find((player) => player.profileId === profileId);
+			const byId = livePlayers.find(
+				(player) => !isCpuLiveLobbyPlayer(player) && player.profileId === profileId
+			);
 			if (byId) {
 				return byId;
 			}
 		}
 
+		const steamId = lobby?.steamId ?? (replayPlayer.steamId ? String(replayPlayer.steamId) : null);
+		if (steamId) {
+			const bySteam = livePlayers.find(
+				(player) => !isCpuLiveLobbyPlayer(player) && player.steamId === steamId
+			);
+			if (bySteam) {
+				return bySteam;
+			}
+		}
+
 		const key = replayPlayer.name.trim().toLowerCase();
-		return livePlayers.find((player) => player.alias.trim().toLowerCase() === key);
+		if (key) {
+			const byName = livePlayers.find(
+				(player) =>
+					!isCpuLiveLobbyPlayer(player) && player.alias.trim().toLowerCase() === key
+			);
+			if (byName) {
+				return byName;
+			}
+		}
+
+		const index = replayPlayerIndex(replayPlayer);
+		if (index >= 0 && livePlayers.length === (replay?.players?.length ?? 0)) {
+			const byIndex =
+				livePlayers.find((player) => player.index === index) ??
+				(livePlayers[index]?.index == null ? livePlayers[index] : undefined);
+			if (byIndex && !isCpuLiveLobbyPlayer(byIndex)) {
+				return byIndex;
+			}
+		}
+
+		return undefined;
 	}
 
 	function liveStatsForReplay(replayPlayer: ReplayPlayer): LiveLobbyPlayerStats | undefined {
@@ -194,23 +311,33 @@
 {/snippet}
 
 {#snippet playerRow(player: ReplayPlayer)}
-	{@const lobby = lobbyPlayer(player)}
-	{@const result = resultPlayer(player)}
-	{@const live = livePlayerForReplay(player)}
-	{@const href =
-		(lobby ? playerHref(lobby) : null) ??
-		(live && livePlayerHref ? livePlayerHref(live) : null) ??
-		(result?.profile_id
-			? playerHref({
-					playerId: result.profile_id,
-					steamId: null,
-					race: result.race_id ?? null,
-					profile: {
-						profile_id: result.profile_id,
-						alias: result.alias ?? player.name
-					}
-				})
-			: null)}
+	{@const cpu = isCpuReplayPlayer(player)}
+	{@const lobby = cpu ? undefined : lobbyPlayer(player)}
+	{@const result = cpu ? undefined : resultPlayer(player)}
+	{@const live = cpu ? undefined : livePlayerForReplay(player)}
+	{@const href = cpu
+		? null
+		: ((lobby ? playerHref(lobby) : null) ??
+			(live && livePlayerHref ? livePlayerHref(live) : null) ??
+			(result?.profile_id
+				? playerHref({
+						playerId: result.profile_id,
+						steamId: result.steamId ?? null,
+						race: result.race_id ?? null,
+						profile: {
+							profile_id: result.profile_id,
+							alias: result.alias ?? player.name
+						}
+					})
+				: null) ??
+			(player.steamId
+				? playerHref({
+						playerId: null,
+						steamId: String(player.steamId),
+						race: null,
+						profile: { profile_id: 0, alias: player.name }
+					})
+				: null))}
 	{@const elo = result ? displayElo(result) : null}
 	{@const change = result ? ratingDelta(result) : undefined}
 	{@const race = result?.race_id ?? lobby?.race ?? raceFromReplayFaction(player.faction)}
@@ -250,7 +377,9 @@
 							class="h-4 w-auto shrink-0 rounded-xs"
 						/>
 					{/if}
-					<PlayerLikeCount likeCount={likeCountForSteamId(steamId)} class="shrink-0" />
+					{#if !cpu}
+						<PlayerLikeCount likeCount={likeCountForSteamId(steamId)} class="shrink-0" />
+					{/if}
 					{#if href}
 						<a {href} class={cn(interactive, nameTextClass(player.name), 'hover:text-primary')}>
 							{player.name}
@@ -258,8 +387,10 @@
 					{:else}
 						<span class={nameTextClass(player.name)}>{player.name}</span>
 					{/if}
-					{@render nameExtra?.({ name: player.name, steamId, profileId })}
-					{@render position(liveStats?.rank)}
+					{#if !cpu}
+						{@render nameExtra?.({ name: player.name, steamId, profileId })}
+						{@render position(liveStats?.rank)}
+					{/if}
 				</div>
 				<div class="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base tabular-nums">
 					<img
@@ -270,7 +401,9 @@
 					<span class="text-secondary-200 truncate">
 						{player.doctrineName || unknownDoctrineLabel}
 					</span>
-					{@render rankBadge(race ?? 0, liveStats?.rankLevel)}
+					{#if !cpu}
+						{@render rankBadge(race ?? 0, liveStats?.rankLevel)}
+					{/if}
 					{#if result}
 						<span class="text-secondary-600" aria-hidden="true">·</span>
 						<span class="inline-flex items-center gap-1">
@@ -330,11 +463,12 @@
 {/snippet}
 
 {#snippet livePlayerRow(player: LiveLobbyPlayer)}
-	{@const href = livePlayerHref?.(player) ?? null}
+	{@const cpu = isCpuLiveLobbyPlayer(player)}
+	{@const href = cpu ? null : (livePlayerHref?.(player) ?? null)}
 	{@const label = livePlayerLabel(player)}
-	{@const stats = player.stats}
+	{@const stats = cpu ? null : player.stats}
 	{@const elo = stats?.elo ?? null}
-	{@const country = player.country ?? null}
+	{@const country = cpu ? null : (player.country ?? null)}
 	{@const flagUrl = flagImageUrl(country)}
 	{@const countryName = getCountryDisplayName(country)}
 	<div class="border-secondary-800 relative overflow-hidden border-b last:border-b-0">
@@ -349,7 +483,9 @@
 							class="h-4 w-auto shrink-0 rounded-xs"
 						/>
 					{/if}
-					<PlayerLikeCount likeCount={player.likeCount} class="shrink-0" />
+					{#if !cpu}
+						<PlayerLikeCount likeCount={player.likeCount} class="shrink-0" />
+					{/if}
 					{#if href}
 						<a {href} class={cn(interactive, nameTextClass(label), 'hover:text-primary')}>
 							{label}
@@ -357,12 +493,14 @@
 					{:else}
 						<span class={nameTextClass(label)}>{label}</span>
 					{/if}
-					{@render nameExtra?.({
-						name: label,
-						steamId: player.steamId,
-						profileId: player.profileId
-					})}
-					{@render position(stats?.rank)}
+					{#if !cpu}
+						{@render nameExtra?.({
+							name: label,
+							steamId: player.steamId,
+							profileId: player.profileId
+						})}
+						{@render position(stats?.rank)}
+					{/if}
 				</div>
 				<div class="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-base tabular-nums">
 					<img
@@ -371,7 +509,9 @@
 						class="ring-secondary-800 size-4 shrink-0 rounded-full object-cover ring-1"
 					/>
 					<span class="text-secondary-400">—</span>
-					{@render rankBadge(player.race, stats?.rankLevel)}
+					{#if !cpu}
+						{@render rankBadge(player.race, stats?.rankLevel)}
+					{/if}
 					{#if stats}
 						<span class="text-secondary-600" aria-hidden="true">·</span>
 						<span class="inline-flex items-center gap-1">
@@ -428,7 +568,7 @@
 			<span class="text-right">{ratingLabel}</span>
 			<span class="text-primary w-12 text-center font-semibold">{cpmLabel}</span>
 		</div>
-		{#each players as player (`${player.id ?? player.name}-${player.name}`)}
+		{#each players as player, index (`${index}-${player.id ?? player.name}`)}
 			{@render playerRow(player)}
 		{/each}
 	</div>

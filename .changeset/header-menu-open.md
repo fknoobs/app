@@ -1,5 +1,6 @@
 ---
 '@company-of-heroes/landing': patch
+'@company-of-heroes/ui': patch
 ---
 
-fix; open language and account header menus reliably without bits-ui portal races
+fix; open landing header dropdowns without async i18n suspense (avoids Svelte batch invariant)

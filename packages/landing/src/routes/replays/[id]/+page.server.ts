@@ -3,9 +3,9 @@ import type { PageServerLoad } from './$types';
 
 export const prerender = false;
 
-export const load: PageServerLoad = async ({ locals, params, setHeaders }) => {
-	const match = await unwrapAsync(locals.services.replays().get(params.id));
-	if (locals.user || match.hidden) {
+/** Stream the match promise so client navigation is not blocked on the API round-trip. */
+export const load: PageServerLoad = ({ locals, params, setHeaders }) => {
+	if (locals.user) {
 		setHeaders({
 			'cache-control': 'private, no-store'
 		});
@@ -15,5 +15,7 @@ export const load: PageServerLoad = async ({ locals, params, setHeaders }) => {
 		});
 	}
 
-	return { match };
+	return {
+		match: unwrapAsync(locals.services.replays().getAny(params.id))
+	};
 };

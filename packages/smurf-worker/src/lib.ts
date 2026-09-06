@@ -4,8 +4,7 @@ import {
 	type OwnedCoHResult,
 	type PlayerPresence,
 	interpretOwnedGamesResponse,
-	isPlayingCoH,
-	parseCohStatsLenderFromHtml
+	isPlayingCoH
 } from './detect';
 import {
 	assertSteamAvailable,
@@ -21,7 +20,6 @@ export {
 	interpretOwnedGamesResponse,
 	isPlayingCoH,
 	isProfilePrivate,
-	parseCohStatsLenderFromHtml,
 	type OwnedCoHResult,
 	type PlayerPresence
 } from './detect';
@@ -53,7 +51,7 @@ export type Env = {
 	STEAM_RATE_LIMIT?: KVNamespace;
 };
 
-export const COHSTATS_SCREENING_LIMIT = 30;
+export const WORKER_SCREENING_LIMIT = 30;
 export const WORKER_POLLING_LIMIT = 30;
 export const MAX_STEAM_CALLS_PER_RUN = 25;
 const STEAM_SUMMARY_CHUNK = 100;
@@ -124,7 +122,7 @@ export async function pbRequest<T>(
 export async function fetchWorkerBatch(env: Env): Promise<SmurfWatchBatch> {
 	const batch = await pbRequest<SmurfWatchBatch>(
 		env,
-		`/api/smurf-watch/worker/batch?screeningLimit=${COHSTATS_SCREENING_LIMIT}&pollingLimit=${WORKER_POLLING_LIMIT}`
+		`/api/smurf-watch/worker/batch?screeningLimit=${WORKER_SCREENING_LIMIT}&pollingLimit=${WORKER_POLLING_LIMIT}`
 	);
 
 	log('info', 'worker batch fetched', {
@@ -356,49 +354,6 @@ export async function getLenderSteamId(
 
 	log('debug', 'shared game check', { steamId, lenderFound: true, lenderSteamId: lender });
 	return lender;
-}
-
-export type CohStatsResult = { ok: true; lender: string | null } | { ok: false };
-
-export async function getCohStatsLender(steamId: string): Promise<CohStatsResult> {
-	const startedAt = Date.now();
-
-	try {
-		log('debug', 'cohstats lookup', { steamId });
-
-		const response = await fetch(`https://playercard.cohstats.com/?steamid=${steamId}`);
-		const durationMs = Date.now() - startedAt;
-
-		if (!response.ok) {
-			log('warn', 'cohstats lookup failed', {
-				steamId,
-				status: response.status,
-				durationMs
-			});
-			return { ok: false };
-		}
-
-		const html = await response.text();
-		const smurfCellPresent = /<td[^>]*id="infoSmurfText"/i.test(html);
-		const lender = parseCohStatsLenderFromHtml(html);
-
-		log('debug', 'cohstats lookup ok', {
-			steamId,
-			smurfCellPresent,
-			linkFound: lender !== null,
-			lenderSteamId: lender,
-			durationMs,
-			htmlSnippet: html.slice(0, 300)
-		});
-
-		return { ok: true, lender };
-	} catch (error) {
-		logError('cohstats lookup error', error, {
-			steamId,
-			durationMs: Date.now() - startedAt
-		});
-		return { ok: false };
-	}
 }
 
 export type PlayerBans = {

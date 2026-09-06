@@ -29,6 +29,7 @@ onmessage = async ({ data }: MessageEvent) => {
 			formData.append('messages', JSON.stringify(replay.messages));
 			formData.append('title', !replay.replayName ? '-' : replay.replayName);
 			formData.append('createdBy', userId);
+			formData.append('visibility', 'private');
 
 			const response = await fetch(`${pbUrl}/api/collections/replays/records`, {
 				method: 'POST',

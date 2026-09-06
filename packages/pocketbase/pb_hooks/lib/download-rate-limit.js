@@ -1,6 +1,6 @@
 'use strict';
 
-const FILE_PATH_PREFIX = '/api/files/lobbies/';
+const FILE_PATH_PREFIXES = ['/api/files/lobbies/', '/api/files/replays/'];
 const TOO_MANY = 'Too many download requests';
 
 const FILE_ANON = [
@@ -166,7 +166,8 @@ function limitFileRequest(e) {
 	try {
 		const method = requestMethod(e);
 		if (method !== 'GET' && method !== 'HEAD') return null;
-		if (!requestPath(e).startsWith(FILE_PATH_PREFIX)) return null;
+		const path = requestPath(e);
+		if (!FILE_PATH_PREFIXES.some((prefix) => path.startsWith(prefix))) return null;
 		const ip = clientIp(e);
 		const windows = e.auth?.id ? FILE_AUTH : FILE_ANON;
 		const name = e.auth?.id ? 'file-auth' : 'file';

@@ -8,6 +8,10 @@ import ReplayPageSkeleton from './replay-page-skeleton.svelte';
 import ReplayTabsSkeleton from './replay-tabs-skeleton.svelte';
 import ReplayDetailHeader from './replay-detail-header.svelte';
 import ReplayFilters from './replay-filters.svelte';
+import ReplaySectionTabs from './replay-section-tabs.svelte';
+import ReplayUploadForm from './replay-upload-form.svelte';
+import ReplayPlayerSteamLinks from './replay-player-steam-links.svelte';
+import ReplayFileDropzone from './replay-file-dropzone.svelte';
 
 export {
 	ReplayChat as Chat,
@@ -19,7 +23,24 @@ export {
 	ReplayPageSkeleton as PageSkeleton,
 	ReplayTabsSkeleton as TabsSkeleton,
 	ReplayDetailHeader as DetailHeader,
-	ReplayFilters as Filters
+	ReplayFilters as Filters,
+	ReplaySectionTabs as SectionTabs,
+	ReplayUploadForm as UploadForm,
+	ReplayPlayerSteamLinks as PlayerSteamLinks,
+	ReplayFileDropzone as FileDropzone
 };
 
 export type * from './types';
+export type { ReplaySectionTab } from './replay-section-tabs.svelte';
+export type { ReplayUploadPreview } from './replay-upload-form.svelte';
+export type {
+	ReplaySteamLinkPlayer,
+	ReplaySteamLinkOption
+} from './replay-player-steam-links.svelte';
+export {
+	formatDurationSeconds,
+	formatMatchDate,
+	isCpuPlayerName,
+	isCpuReplayPlayer,
+	matchDurationSeconds
+} from './utils';

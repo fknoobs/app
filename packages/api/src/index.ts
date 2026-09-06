@@ -36,9 +36,14 @@ export {
 	type HiddenMatchKeyword
 } from './hidden-matches';
 
-export { AuthApi, type AuthUser, type CompanionUserDebug, type UserRole } from './auth';
+export { AuthApi, type AuthExchange, type AuthUser, type CompanionUserDebug, type UserRole } from './auth';
 
-export { PlayersApi, type PlayerPageData, type PlayerSearchResult } from './players';
+export {
+	PlayersApi,
+	type PlayerPageData,
+	type PlayerSearchOptions,
+	type PlayerSearchResult
+} from './players';
 
 export {
 	LeaderboardsApi,
@@ -56,12 +61,22 @@ export {
 	matchtypesForMatchups,
 	slotsForPositions,
 	buildMatchHistoryUrl,
+	buildMemberReplaysUrl,
 	matchFileUrl,
 	type CommunityMatch,
 	type CommunityMatchDetail,
 	type CommunityMatchList,
 	type CommunityPlayer,
+	type MatchHistoryScopeOptions,
 	type MatchResult,
+	type MemberReplayDetail,
+	type MemberReplayStatsPreview,
+	type MemberReplayList,
+	type MemberReplayUploadInput,
+	type MemberReplayUpdateInput,
+	type MemberReplayUploader,
+	type MemberReplayRosterPlayer,
+	memberReplayRosterForEdit,
 	type ReplaysQuery,
 	type HistoryMapOption
 } from './replays';

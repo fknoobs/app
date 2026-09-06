@@ -25,6 +25,7 @@
 	import UsersIcon from 'phosphor-svelte/lib/UsersIcon';
 	import TwitchIcon from 'phosphor-svelte/lib/TwitchLogoIcon';
 	import Logo from '$lib/files/logo-transparent-bg.png?url';
+	import pageBackgroundImage from '@assets/assets/art_ui_textures_textures_fe_bkg_cxp1.png';
 	import SettingsIcon from 'phosphor-svelte/lib/GearSixIcon';
 	import DiscordLogoIcon from 'phosphor-svelte/lib/DiscordLogoIcon';
 	import TwitchLogoIcon from 'phosphor-svelte/lib/TwitchLogoIcon';
@@ -125,7 +126,7 @@
 	{#snippet pending()}{/snippet}
 	<div class="flex h-screen w-screen overflow-hidden">
 		<div
-			class="border-secondary-800 bg-secondary-950/90 flex min-w-[300px] flex-col gap-8 border-r text-white"
+			class="border-secondary-800 bg-secondary-950 flex min-w-[300px] flex-col gap-8 border-r text-white"
 		>
 			<div class="mt-6 flex items-center gap-4 px-4">
 				<img src={Logo} alt={t('Fknoobscoh - CoH app')} class="size-10" />
@@ -246,37 +247,48 @@
 				</div>
 			</Nav.Root>
 		</div>
-		<main class="flex grow flex-col overflow-auto bg-gray-950/90 text-white">
-			{#if app.account.isImpersonating}
-				<Alert
-					variant="warning"
-					class="flex items-center justify-between gap-4 rounded-none border-x-0 border-t-0"
-				>
-					<span>{t('Signed in as {name}.', { name: impersonatedName })}</span>
-					<Button
-						variant="secondary"
-						size="sm"
-						loading={returning}
-						onclick={() => returnToAccount()}
+		<div class="relative flex min-w-0 grow flex-col">
+			<div aria-hidden="true" class="pointer-events-none absolute inset-0">
+				<img
+					src={pageBackgroundImage}
+					alt=""
+					class="size-full object-cover"
+				/>
+				<div class="absolute inset-0 bg-gray-950/95 mix-blend-color"></div>
+				<div class="absolute inset-0 bg-gray-950/85"></div>
+			</div>
+			<main class="relative flex grow flex-col overflow-auto bg-gray-950/90 text-white">
+				{#if app.account.isImpersonating}
+					<Alert
+						variant="warning"
+						class="flex items-center justify-between gap-4 rounded-none border-x-0 border-t-0"
 					>
-						{t('Return to your account')}
-					</Button>
-				</Alert>
-			{/if}
-			<header class="border-secondary-800 flex items-center gap-3 border-b p-4">
-				{#if showBack}
-					<ButtonBack
-						iconOnly
-						href={backHref}
-						useHistory={hasClientHistory}
-						aria-label={t('Go back to previous page')}
-						title={t('Go back')}
-					/>
+						<span>{t('Signed in as {name}.', { name: impersonatedName })}</span>
+						<Button
+							variant="secondary"
+							size="sm"
+							loading={returning}
+							onclick={() => returnToAccount()}
+						>
+							{t('Return to your account')}
+						</Button>
+					</Alert>
 				{/if}
-				<Breadcrumb />
-			</header>
-			{@render children()}
-		</main>
+				<header class="border-secondary-800 flex items-center gap-3 border-b p-4">
+					{#if showBack}
+						<ButtonBack
+							iconOnly
+							href={backHref}
+							useHistory={hasClientHistory}
+							aria-label={t('Go back to previous page')}
+							title={t('Go back')}
+						/>
+					{/if}
+					<Breadcrumb />
+				</header>
+				{@render children()}
+			</main>
+		</div>
 	</div>
 </svelte:boundary>
 

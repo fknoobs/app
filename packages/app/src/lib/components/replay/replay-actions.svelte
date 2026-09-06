@@ -30,19 +30,46 @@
 		}
 	});
 
-	let actions = $derived.by(() => {
+	const excludedUnitCommands = new Set([0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xa8]);
+
+	function isCpmChartAction(a: (typeof replay.actions)[number]): boolean {
+		if (!a.command || isEmpty(a.command.description)) return false;
+		if (a.command.type === 'AI_TAKEOVER') return false;
+		if (a.commandID === 0x37 && excludedUnitCommands.has(a.objectID)) return false;
+		return true;
+	}
+
+	function dedupeCpmActions(actions: (typeof replay.actions)[number][]) {
+		const seen = new Set<string>();
+		const out = [];
+		for (const a of actions) {
+			const key = `${a.tick}|${a.commandID}|${a.objectID}`;
+			if (seen.has(key)) continue;
+			seen.add(key);
+			out.push(a);
+		}
+		return out;
+	}
+
+	const actions = $derived.by(() => {
 		if (!selectedPlayer) return [];
 
 		const playerActions = replay.actions.filter(
-			(a) => a.playerID === selectedPlayer && a.command && !isEmpty(a.command.description)
+			(a) => a.playerID === selectedPlayer && isCpmChartAction(a)
 		);
-		const aiTakeOverIndex = playerActions.findIndex((a) => a.command?.type === 'AI_TAKEOVER');
+		const aiTakeOverIndex = replay.actions
+			.filter((a) => a.playerID === selectedPlayer)
+			.findIndex((a) => a.command?.type === 'AI_TAKEOVER');
 
-		if (aiTakeOverIndex !== -1) {
-			return playerActions.slice(0, aiTakeOverIndex + 1);
-		}
+		const raw =
+			aiTakeOverIndex !== -1
+				? replay.actions
+						.filter((a) => a.playerID === selectedPlayer)
+						.slice(0, aiTakeOverIndex)
+						.filter(isCpmChartAction)
+				: playerActions;
 
-		return playerActions;
+		return dedupeCpmActions(raw);
 	});
 
 	const data = $derived.by(() => {
@@ -51,12 +78,11 @@
 		const result = [];
 
 		for (const player of replay.players) {
-			const playerActions = replay.actions.filter(
-				(a) => a.playerID === player.id && a.command && !isEmpty(a.command.description)
-			);
-			const aiTakeOverIndex = playerActions.findIndex((a) => a.command?.type === 'AI_TAKEOVER');
-			const effectiveActions =
-				aiTakeOverIndex !== -1 ? playerActions.slice(0, aiTakeOverIndex + 1) : playerActions;
+			const playerRaw = replay.actions.filter((a) => a.playerID === player.id);
+			const aiTakeOverIndex = playerRaw.findIndex((a) => a.command?.type === 'AI_TAKEOVER');
+			const window =
+				aiTakeOverIndex !== -1 ? playerRaw.slice(0, aiTakeOverIndex) : playerRaw;
+			const effectiveActions = dedupeCpmActions(window.filter(isCpmChartAction));
 
 			const grouped = groupBy(effectiveActions, (a) => Math.floor(a.tick / 8 / 60));
 

@@ -26,6 +26,7 @@ export type LiveLobby = {
 	sessionId: string;
 	map: string;
 	isRanked: boolean;
+	matchType?: number;
 	createdAt: string;
 	updatedAt: string;
 	hostName: string;
@@ -40,6 +41,10 @@ export function isOccupiedLiveLobbyPlayer(player: LiveLobbyPlayer): boolean {
 	}
 
 	return player.playerId > 0;
+}
+
+export function isCpuLiveLobbyPlayer(player: LiveLobbyPlayer): boolean {
+	return player.playerId === -1;
 }
 
 export function isAlliesRace(race: number): boolean {

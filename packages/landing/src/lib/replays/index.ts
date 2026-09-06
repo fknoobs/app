@@ -23,6 +23,18 @@ export type {
 
 export const REPLAYS_PER_PAGE = 30;
 export const HOME_RECENT_MATCHES = 10;
+export const HOME_RECENT_MEMBER_UPLOADS = 10;
+
+export type ReplaysListTab = 'community' | 'member' | 'mine';
+
+export function parseReplaysTab(search: URLSearchParams): ReplaysListTab {
+	const value = search.get('tab');
+	if (value === 'member' || value === 'mine') {
+		return value;
+	}
+
+	return 'community';
+}
 
 export const HISTORY_MATCHUP_TYPES: Record<HistoryMatchup, readonly number[]> = {
 	'1v1': [1],
@@ -36,6 +48,10 @@ export type CommunityPlayer = {
 	steamId: string | null;
 	race: number | null;
 	likeCount?: number;
+	/** Replay faction id (member uploads), e.g. allies_commonwealth. */
+	faction?: string;
+	/** Doctrine label from the .rec (member uploads). */
+	doctrineName?: string;
 	profile: {
 		profile_id: number;
 		alias: string;
@@ -78,6 +94,10 @@ export type CommunityMatch = {
 	downloadCount: number;
 	commentCount: number;
 	players: CommunityPlayer[];
+	kind?: 'match' | 'member';
+	durationSeconds?: number | null;
+	description?: string;
+	visibility?: 'private' | 'member' | 'deleted';
 };
 
 export type CommunityMatchList = {
@@ -118,6 +138,13 @@ export type CommunityMatchDetail = {
 	/** Slim players with leaderboard stats (rank/level/ELO) for Overview. */
 	livePlayers?: import('@company-of-heroes/ui/live-lobby').LiveLobbyPlayer[] | null;
 	result: MatchResult;
+	kind?: 'match' | 'member';
+	description?: string;
+	filename?: string;
+	mapFilename?: string;
+	uploadedBy?: { id: string; alias: string } | null;
+	visibility?: 'private' | 'member' | 'deleted';
+	roster?: unknown[];
 };
 
 const SORT_FIELDS = new Set<HistorySortField>([
@@ -212,10 +239,17 @@ export function replaysSearchParams(query: ReplaysQuery): URLSearchParams {
 	return params;
 }
 
-export function replaysHref(query: ReplaysQuery): string {
+export function replaysHref(query: ReplaysQuery, tab: ReplaysListTab = 'community'): string {
 	const params = replaysSearchParams(query);
+	if (tab !== 'community') {
+		params.set('tab', tab);
+	}
 	const search = params.toString();
 	return search ? `/replays?${search}` : '/replays';
+}
+
+export function recentMemberQuery(): ReplaysQuery {
+	return recentCommunityQuery();
 }
 
 const REPLAYS_LIST_HREF_KEY = 'coh1stats.replaysListHref';
@@ -437,6 +471,7 @@ export function findResultPlayer(
 }
 
 export function playerHref(player: CommunityPlayer): string | null {
+	if (player.playerId === -1) return null;
 	if (player.steamId) return `/players/${player.steamId}`;
 	if (player.profile.profile_id) return `/players/${player.profile.profile_id}`;
 	return null;
@@ -448,6 +483,7 @@ export type ParsedReplayPlayer = {
 	faction: string;
 	doctrine?: number;
 	doctrineName?: string;
+	steamId?: string | null;
 };
 
 export type ParsedReplayMessage = {
@@ -468,6 +504,8 @@ export type ParsedReplayAction = {
 	playerID: number;
 	tick: number;
 	timestamp: string;
+	commandID?: number;
+	objectID?: number;
 	command?: ParsedReplayCommand | null;
 };
 
@@ -476,6 +514,8 @@ export type ParsedReplay = {
 	duration: number;
 	messages: ParsedReplayMessage[];
 	actions: ParsedReplayAction[];
+	/** Precomputed in the parse worker so overview CPM works without transferring actions. */
+	cpmByPlayerId?: Record<string, string>;
 	matchType: string;
 	mapFileName: string;
 	mapName: string;
@@ -484,6 +524,8 @@ export type ParsedReplay = {
 	vpGame?: boolean;
 	vpCount?: number;
 	playerCount: number;
+	randomStart?: boolean;
+	highResources?: boolean;
 };
 
 export function raceFromReplayFaction(faction: string): number {
@@ -521,15 +563,63 @@ export function doctrineBannerUrl(player: ParsedReplayPlayer): string | null {
 	return file ? `/doctrines/${file}` : null;
 }
 
+/** UNIT_COMMAND object IDs filtered by Replay Manager / C2A as non-input spam. */
+const CPM_EXCLUDED_UNIT_COMMAND_IDS: ReadonlySet<number> = new Set([
+	0xc4, 0xc5, 0xc6, 0xc7, 0xc8, 0xa8
+]);
+
+const isAiTakeoverAction = (action: ParsedReplayAction): boolean =>
+	action.command?.type === 'AI_TAKEOVER';
+
+const isCpmExcludedAction = (action: ParsedReplayAction): boolean => {
+	if (isAiTakeoverAction(action)) return true;
+	return (
+		(action.commandID ?? -1) === 0x37 &&
+		CPM_EXCLUDED_UNIT_COMMAND_IDS.has(action.objectID ?? -1)
+	);
+};
+
 export function countedActions(replay: ParsedReplay, playerId: number | undefined): ParsedReplayAction[] {
 	if (playerId == null) return [];
 	const actions = replay.actions.filter((action) => action.playerID === playerId);
-	const takeover = actions.findIndex((action) => action.command?.type === 'AI_TAKEOVER');
-	return takeover >= 0 ? actions.slice(0, takeover + 1) : actions;
+	const takeover = actions.findIndex(isAiTakeoverAction);
+	const window = takeover >= 0 ? actions.slice(0, takeover + 1) : actions;
+	return window.filter((action) => !isCpmExcludedAction(action));
 }
 
+/**
+ * CPM aligned with Replay Manager / C2A: unique (tick, commandID, objectID)
+ * among eligible actions, divided by minutes until AI takeover (or match end).
+ */
 export function playerCpm(replay: ParsedReplay, playerId: number | undefined): string {
-	const minutes = replay.duration / 60;
-	if (playerId == null || minutes <= 0) return '0';
-	return (countedActions(replay, playerId).length / minutes).toFixed(0);
+	if (playerId == null) {
+		return '0';
+	}
+
+	const precomputed = replay.cpmByPlayerId?.[String(playerId)];
+	if (precomputed != null) {
+		return precomputed;
+	}
+
+	if (!(replay.duration > 0)) {
+		return '0';
+	}
+
+	const playerActions = replay.actions.filter((action) => action.playerID === playerId);
+	const takeover = playerActions.find(isAiTakeoverAction);
+	const window = takeover
+		? playerActions.slice(0, playerActions.indexOf(takeover))
+		: playerActions;
+
+	const keys = new Set<string>();
+	for (const action of window) {
+		if (isCpmExcludedAction(action)) continue;
+		keys.add(`${action.tick}|${action.commandID ?? 0}|${action.objectID ?? 0}`);
+	}
+	if (keys.size === 0) return '0';
+
+	const minutes = takeover
+		? Math.max(takeover.tick / 8 / 60, 1 / 60)
+		: Math.max(replay.duration / 60, 1 / 60);
+	return String(Math.round(keys.size / minutes));
 }

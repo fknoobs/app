@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { List as ReplayList } from '@company-of-heroes/ui/replay';
 	import { Button } from '@company-of-heroes/ui/button';
 	import { goto } from '$app/navigation';
+	import { meSteamIds } from '$lib/auth/user';
 	import { recentCommunityQuery, replaysHref, type CommunityMatch, type HistorySortField } from '$lib/replays';
 	import {
 		normalizeMapName,
@@ -19,6 +21,7 @@
 
 	let { matches }: Props = $props();
 	const { t } = useI18n();
+	const mySteamIds = $derived(meSteamIds(page.data.user));
 
 	function onSort(field: HistorySortField) {
 		void goto(
@@ -41,6 +44,7 @@
 	</div>
 	<ReplayList
 		{matches}
+		meSteamIds={mySteamIds}
 		sort="createdAt"
 		sortDir="desc"
 		{onSort}

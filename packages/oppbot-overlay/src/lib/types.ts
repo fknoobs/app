@@ -81,6 +81,7 @@ export interface LiveLobbyRecord {
 	user: string;
 	isRanked?: boolean;
 	isReplay?: boolean;
+	matchType?: number | null;
 	sessionId: number;
 	map: string;
 	players: Player[];

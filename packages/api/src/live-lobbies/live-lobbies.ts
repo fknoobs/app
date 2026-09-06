@@ -36,6 +36,7 @@ export type LiveLobbyWriteInput = {
 	map: string;
 	isRanked: boolean;
 	isReplay?: boolean;
+	matchType?: number | null;
 	players: LiveLobbyWritePlayer[];
 	lobby?: string | null;
 };
@@ -46,6 +47,7 @@ type CollectionLobby = {
 	map?: string;
 	isRanked?: boolean;
 	isReplay?: boolean;
+	matchType?: number | null;
 	createdAt?: string;
 	updatedAt?: string;
 	lobby?: string;
@@ -96,6 +98,7 @@ function toRecord(row: CollectionLobby): LiveLobbyRecord | null {
 		map: row.map,
 		isRanked: row.isRanked,
 		isReplay: row.isReplay,
+		matchType: row.matchType,
 		createdAt: row.createdAt,
 		updatedAt: row.updatedAt,
 		hostName: row.expand?.user?.name ?? row.expand?.user?.email ?? '',
@@ -108,7 +111,12 @@ function toRecord(row: CollectionLobby): LiveLobbyRecord | null {
 	const rawPlayers = (Array.isArray(row.players) ? row.players : []) as LiveLobbyRawPlayer[];
 	return {
 		...record,
-		players: attachLiveLobbyStats(record.players, rawPlayers, record.isRanked)
+		players: attachLiveLobbyStats(
+			record.players,
+			rawPlayers,
+			record.isRanked,
+			record.matchType
+		)
 	};
 }
 
@@ -261,6 +269,9 @@ export class LiveLobbiesApi {
 			map: data.map,
 			players
 		};
+		if (data.matchType != null) {
+			payload.matchType = data.matchType;
+		}
 		if (data.lobby) {
 			payload.lobby = data.lobby;
 		}

@@ -191,7 +191,7 @@
 		<div
 			class="border-secondary-800 grid grid-cols-1 gap-6 border-b sm:grid-cols-[minmax(220px,280px)_auto_minmax(0,1fr)]"
 		>
-			<div class="aspect-square sm:aspect-auto sm:h-full">
+			<div class="aspect-square self-start">
 				<Match.MapImage flush alt={normalizeMapName(match.current.map)} />
 			</div>
 			<div class="flex items-start justify-center px-6 sm:px-0 sm:py-4">

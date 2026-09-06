@@ -3,6 +3,7 @@ import { localizeHref, parseLocaleFromPath, type AppLocale } from '@company-of-h
 
 export {
 	createI18n,
+	createTranslate,
 	DEFAULT_LOCALE,
 	detectLocale,
 	englishHref,

@@ -218,6 +218,11 @@ export class Lobby {
 	ended = false;
 	isRanked = false;
 	isReplay = false;
+	/**
+	 * Relic match type from `Setting match type to N` / automatch search.
+	 * Skirmish / CLASSIC_COOP is 14 — required when AI slots are missing from the log.
+	 */
+	logMatchType: number | null = null;
 
 	/** Steam ID of the local player, injected by the log session. */
 	localSteamId: string | undefined;
@@ -248,23 +253,28 @@ export class Lobby {
 			return 14;
 		}
 
+		if (this.logMatchType != null && this.logMatchType in MATCH_TYPES) {
+			return this.logMatchType as MatchTypeId;
+		}
+
 		if (!this.isRanked) {
 			return 0;
 		}
 
-		if (this.players.length === 2) {
+		const humans = this.players.filter((player) => player.playerId !== -1);
+		if (humans.length === 2) {
 			return 1;
 		}
 
-		if (this.players.length === 4) {
+		if (humans.length === 4) {
 			return 2;
 		}
 
-		if (this.players.length === 6) {
+		if (humans.length === 6) {
 			return 3;
 		}
 
-		if (this.players.length === 8) {
+		if (humans.length === 8) {
 			return 4;
 		}
 
@@ -272,7 +282,11 @@ export class Lobby {
 	}
 
 	get isSkirmish(): boolean {
-		return this.teams.some((team) => team.players.every((player) => player.playerId === -1));
+		if (this.logMatchType === 14) {
+			return true;
+		}
+
+		return this.players.some((player) => player.playerId === -1);
 	}
 
 	get teams() {

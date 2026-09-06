@@ -12,7 +12,7 @@ export type SmurfWatchStatus =
 	| 'expired'
 	| 'unknown_private';
 export type SmurfWatchSource = 'profile' | 'search' | 'lobby_live' | 'lobby_match' | 'backfill';
-export type SmurfLenderSource = 'live' | 'cohstats';
+export type SmurfLenderSource = 'live' | 'cohstats'; // cohstats is legacy read-only
 export type SmurfVerdict = 'confirmed_shared' | 'likely_smurf' | 'suspicious' | 'clean' | 'unknown';
 
 export type SmurfWatchRecord = {

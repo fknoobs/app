@@ -3,6 +3,7 @@
 	import HomePlayerSearch from '$lib/components/home/home-player-search.svelte';
 	import HomeLiveLobbies from '$lib/components/home/home-live-lobbies.svelte';
 	import HomeRecentMatches from '$lib/components/home/home-recent-matches.svelte';
+	import HomeMemberUploads from '$lib/components/home/home-member-uploads.svelte';
 	import HomeLiveStreams from '$lib/components/home/home-live-streams.svelte';
 	import DonationSection from '$lib/components/home/donation-section.svelte';
 	import { SITE_URL } from '$lib/site/urls';
@@ -64,6 +65,7 @@
 		<HomeLiveLobbies {lobbies} />
 	{/await}
 	<HomeRecentMatches matches={data.recentMatches} />
+	<HomeMemberUploads matches={data.recentMemberUploads} />
 	<HomeLiveStreams streams={data.streams} />
 	<DonationSection />
 </main>

@@ -12,12 +12,18 @@ export function toLiveLobby(lobby: LiveLobbyRecord, t: TranslateFn): LiveLobby {
 	return {
 		...lobby,
 		modeLabel: t(
-			MATCH_TYPES[getLiveLobbyMatchTypeId(lobby.players, lobby.isRanked)] ?? 'Custom Game'
+			MATCH_TYPES[
+				getLiveLobbyMatchTypeId(lobby.players, lobby.isRanked, lobby.matchType)
+			] ?? 'Custom Game'
 		)
 	};
 }
 
 export function liveLobbyPlayerHref(player: LiveLobbyPlayer) {
+	if (player.playerId === -1) {
+		return null;
+	}
+
 	if (player.profileId) {
 		return profileHref(player.profileId);
 	}

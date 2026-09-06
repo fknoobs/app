@@ -64,7 +64,7 @@
 	excludeUserId={app.account.userId}
 	{searchMentions}
 	placeholder={placeholder ?? t('Write a comment')}
-	submitLabel={submitLabel ?? t('Post comment')}
+	submitLabel={submitLabel ?? t('Send')}
 	searchingLabel={t('Searching...')}
 	noUsersLabel={t('No users found.')}
 	mentionHintLabel={t('Type a name to mention someone.')}

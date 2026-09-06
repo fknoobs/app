@@ -8,8 +8,21 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
 export default defineConfig({
 	plugins: [sveltekit(), tailwindcss()],
+	optimizeDeps: {
+		include: ['@fknoobs/replay-parser']
+	},
+	worker: {
+		format: 'es'
+	},
 	ssr: {
-		noExternal: ['bits-ui', 'layerchart', '@svelte-i18n/core', '@company-of-heroes/i18n']
+		// replay-parser ships extensionless relative ESM imports; Vite must bundle it for SSR.
+		noExternal: [
+			'bits-ui',
+			'layerchart',
+			'@svelte-i18n/core',
+			'@company-of-heroes/i18n',
+			'@fknoobs/replay-parser'
+		]
 	},
 	server: {
 		port: 5174,

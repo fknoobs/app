@@ -95,6 +95,7 @@ export class LobbiesLive {
 			map: match.map,
 			isRanked: match.isRanked,
 			isReplay: match.isReplay ?? false,
+			matchType: match.matchType,
 			players: players as LiveLobbyWritePlayer[],
 			lobby: lobbyId
 		};

@@ -54,12 +54,7 @@
 			{@render mapLayers()}
 		</div>
 	{:else if flush}
-		<div
-			class={cn(
-				'relative flex h-full min-h-[220px] w-full items-center justify-center overflow-clip',
-				className
-			)}
-		>
+		<div class={cn('relative aspect-square w-full self-start overflow-clip', className)}>
 			{@render mapLayers()}
 		</div>
 	{:else}

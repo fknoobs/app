@@ -20,6 +20,8 @@
 		footer?: Snippet;
 		children?: Snippet;
 		layout?: Layout;
+		/** Drop max-w-xl so the field spans the page (e.g. markdown description). */
+		wide?: boolean;
 	} & HTMLAttributes<HTMLDivElement>;
 
 	let {
@@ -30,6 +32,7 @@
 		footer,
 		children,
 		layout = 'field',
+		wide = false,
 		class: className,
 		...restProps
 	}: Props = $props();
@@ -68,7 +71,7 @@
 		</div>
 	{/if}
 	{#if hasBody && layout === 'band'}
-		<div class={flushBand}>
+		<div class={cn(flushBand, 'border-t border-b-0')}>
 			{@render children?.()}
 			{#if footer}
 				<div class={flushFooter}>
@@ -106,9 +109,11 @@
 					<div
 						class={cn(
 							hasHeader && 'mt-3',
-							layout === 'stacked'
-								? 'flex max-w-xl flex-col gap-3'
-								: 'flex max-w-xl flex-wrap items-center gap-3'
+							wide
+								? 'flex w-full min-w-0 flex-col gap-3'
+								: layout === 'stacked'
+									? 'flex max-w-xl flex-col gap-3'
+									: 'flex max-w-xl flex-wrap items-center gap-3'
 						)}
 					>
 						{@render children()}

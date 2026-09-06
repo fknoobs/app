@@ -8,6 +8,7 @@
 		"prettier-plugin-svelte",
 		"prettier-plugin-tailwindcss"
 	],
+	"tailwindFunctions": ["cn", "clsx"],
 	"overrides": [
 		{
 			"files": "*.svelte",

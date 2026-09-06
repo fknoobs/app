@@ -25,14 +25,15 @@ function groupByTeam(players: Player[]) {
 	return Array.from(grouped.entries()).map(([, teamPlayers]) => ({ players: teamPlayers }));
 }
 
-function getMatchType(players: Player[], isRanked?: boolean): number {
-	const isSkirmish = players.some((player) => player.playerId === -1);
-	if (isSkirmish) return 14;
+function getMatchType(players: Player[], isRanked?: boolean, matchType?: number | null): number {
+	if (matchType === 14 || players.some((player) => player.playerId === -1)) return 14;
+	if (typeof matchType === 'number' && matchType >= 0 && matchType <= 4) return matchType;
 	if (!isRanked) return 0;
-	if (players.length === 2) return 1;
-	if (players.length === 4) return 2;
-	if (players.length === 6) return 3;
-	if (players.length === 8) return 4;
+	const humans = players.filter((player) => player.playerId !== -1);
+	if (humans.length === 2) return 1;
+	if (humans.length === 4) return 2;
+	if (humans.length === 6) return 3;
+	if (humans.length === 8) return 4;
 	return 0;
 }
 
@@ -61,7 +62,7 @@ export function liveLobbyToLobbyData(
 	steamIds?: string[] | null
 ): LobbyData {
 	const players = (record.players ?? []).filter(isOccupiedLobbySlot);
-	const matchType = getMatchType(players, record.isRanked);
+	const matchType = getMatchType(players, record.isRanked, record.matchType);
 
 	return {
 		isRanked: record.isRanked,
