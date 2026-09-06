@@ -1,5 +1,17 @@
 # @company-of-heroes/pocketbase
 
+## 0.10.0
+
+- feat; management overview to browse, hide, and delete fair-play screenshots
+- feat; add member replay uploads with compose preview, ladder-stats snapshots, and per-player Steam ID linking when missing from the .rec
+- feat; owners can edit member replay title, description, and Steam links, and soft-delete uploads (hidden from public; retained for staff)
+- enhance; drag-and-drop .rec file picker on member replay upload
+- fix; parse .rec files in a worker and return slim results (no action dump) so the UI stays responsive
+- fix; speed up replay list filtering and make replay detail navigation feel instant
+- fix; detect skirmish (match type 14) for overlay and live lobbies, including cpu race updates
+- fix; detect family-share smurfs via Steam only without cohstats
+- feat; add Steam OpenID login on the website with PocketBase account find-or-create
+
 ## 0.9.0
 
 - enhance; share the same player profile UI components across the app and website

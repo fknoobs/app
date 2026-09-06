@@ -1,5 +1,23 @@
 # @company-of-heroes/app
 
+## 0.63.0
+
+- feat; management overview to browse, hide, and delete fair-play screenshots
+- enhance; management sidebar with separate admin pages
+- enhance; show send text on comment submit instead of an icon
+- enhance; use the shared players overview on the current-game / live lobby screen
+- fix; do not show ranks, ratings, or profile links for cpu players
+- feat; ask once to enable fair-play all-chat announce
+- fix; keep map and profile header images square instead of stretching with the details column
+- enhance; show a shared CoH atmospheric page background on the website and desktop app
+- feat; add member replay uploads with compose preview, ladder-stats snapshots, and per-player Steam ID linking when missing from the .rec
+- feat; owners can edit member replay title, description, and Steam links, and soft-delete uploads (hidden from public; retained for staff)
+- enhance; drag-and-drop .rec file picker on member replay upload
+- fix; parse .rec files in a worker and return slim results (no action dump) so the UI stays responsive
+- feat; share PocketBase and API client logic in @company-of-heroes/api
+- fix; detect skirmish (match type 14) for overlay and live lobbies, including cpu race updates
+- enhance; use solid button fills instead of transparent backgrounds
+
 ## 0.62.0
 
 - fix; install and restart automatically once an update finishes downloading
